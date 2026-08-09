@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Static pages -->
+  <url><loc>https://sovereignapp.pro/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://sovereignapp.pro/pricing</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/features</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- /get-hired-at/[company] — 25 companies -->
+  <url><loc>https://sovereignapp.pro/get-hired-at/google</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/meta</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/amazon</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/apple</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/microsoft</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/netflix</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/stripe</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/airbnb</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/uber</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/spotify</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/notion</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/figma</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/vercel</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/shopify</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/salesforce</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/hubspot</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/linear</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/openai</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/anthropic</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/datadog</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/trendyol</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/insider</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/getir</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/wise</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/get-hired-at/revolut</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+
+  <!-- /how-to-get-job-at/[company] — 25 companies -->
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/google</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/meta</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/amazon</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/apple</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/microsoft</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/netflix</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/stripe</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/airbnb</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/uber</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/spotify</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/notion</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/figma</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/openai</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/anthropic</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/trendyol</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/revolut</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/wise</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/linear</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/shopify</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/salesforce</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/datadog</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/vercel</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/getir</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/insider</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/how-to-get-job-at/hubspot</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+
+  <!-- /ats-resume-checker/[role] — 10 roles -->
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/machine-learning-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/content-strategist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/developer-advocate</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/operations-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/ats-resume-checker/researcher</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- /best-resume-for/[role] — 10 roles -->
+  <url><loc>https://sovereignapp.pro/best-resume-for/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/machine-learning-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/content-strategist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/developer-advocate</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/operations-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/best-resume-for/researcher</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- /resume-for/[company]/[role] — high-value combinations -->
+  <url><loc>https://sovereignapp.pro/resume-for/google/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/google/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/google/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/google/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/meta/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/meta/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/meta/machine-learning-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/amazon/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/amazon/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/amazon/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/apple/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/apple/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/microsoft/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/microsoft/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/netflix/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/netflix/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/stripe/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/stripe/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/airbnb/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/airbnb/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/uber/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/uber/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/spotify/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/spotify/data-scientist</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/notion/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/notion/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/figma/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/figma/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/openai/machine-learning-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/openai/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/openai/researcher</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/anthropic/machine-learning-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/anthropic/researcher</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/vercel/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/shopify/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/shopify/ux-designer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/salesforce/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/salesforce/solutions-architect</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/trendyol/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/trendyol/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/revolut/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/wise/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/datadog/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/hubspot/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/linear/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/getir/software-engineer</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/resume-for/insider/product-manager</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+
+</urlset>

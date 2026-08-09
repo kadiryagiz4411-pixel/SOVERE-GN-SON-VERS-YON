@@ -1,0 +1,202 @@
+// Plan System for Sovereign
+// Recurring subscriptions via Lemon Squeezy
+
+export type PlanType = 'free' | 'pro' | 'elite';
+
+export interface PlanLimits {
+  dailyProposals: number | 'unlimited';
+  dailyDownloads: number | 'unlimited';
+  dailyCVGenerations: number | 'unlimited';
+  canSaveHistory: boolean;
+  canExport: boolean;
+  // Pro features
+  hasCompanyRewriting: boolean;
+  hasAcceptanceScore: boolean;
+  hasToneOptimization: boolean;
+  // Elite features
+  hasDecisionMakerIdentification: boolean;
+  hasOutreachMessages: boolean;
+  hasFullStrategy: boolean;
+}
+
+export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
+  free: {
+    dailyProposals: 15,
+    dailyDownloads: 5,
+    dailyCVGenerations: 1,
+    canSaveHistory: true,
+    canExport: true,
+    hasCompanyRewriting: false,
+    hasAcceptanceScore: false,
+    hasToneOptimization: false,
+    hasDecisionMakerIdentification: false,
+    hasOutreachMessages: false,
+    hasFullStrategy: false,
+  },
+  pro: {
+    dailyProposals: 'unlimited',
+    dailyDownloads: 'unlimited',
+    dailyCVGenerations: 3,
+    canSaveHistory: true,
+    canExport: true,
+    hasCompanyRewriting: true,
+    hasAcceptanceScore: true,
+    hasToneOptimization: true,
+    hasDecisionMakerIdentification: false,
+    hasOutreachMessages: false,
+    hasFullStrategy: false,
+  },
+  elite: {
+    dailyProposals: 'unlimited',
+    dailyDownloads: 'unlimited',
+    dailyCVGenerations: 'unlimited',
+    canSaveHistory: true,
+    canExport: true,
+    hasCompanyRewriting: true,
+    hasAcceptanceScore: true,
+    hasToneOptimization: true,
+    hasDecisionMakerIdentification: true,
+    hasOutreachMessages: true,
+    hasFullStrategy: true,
+  },
+};
+
+export const PLAN_PRICES = {
+  pro: { monthly: 14, annual: 99 },
+  elite: { monthly: 39, annual: 299 },
+};
+
+// Credits granted per plan on subscription
+export const PLAN_CREDITS: Record<string, number> = {
+  free: 100,
+  pro: 2500,
+  elite: 5000,
+};
+
+// Cost per action in credits
+export const CREDIT_COSTS = {
+  proposal: 20,
+  cv: 10,
+  smartMatch: 20,
+  optimize: 10,
+};
+
+export const getAnnualSavings = (plan: 'pro' | 'elite') => {
+  const monthly = PLAN_PRICES[plan].monthly;
+  const annual = PLAN_PRICES[plan].annual;
+  return (monthly * 12) - annual;
+};
+
+// Lemon Squeezy checkout URLs
+export const CHECKOUT_URLS = {
+  pro: {
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
+    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
+  },
+  elite: {
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
+    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+  },
+};
+
+export const getCheckoutUrl = (plan: 'pro' | 'elite', isAnnual: boolean = true): string => {
+  return isAnnual ? CHECKOUT_URLS[plan].annual : CHECKOUT_URLS[plan].monthly;
+};
+
+
+// App domain
+export const APP_DOMAIN = 'https://sovereignapp.pro';
+
+// Feature metadata for UI
+export interface FeatureMeta {
+  name: string;
+  description: string;
+  tier: 'pro' | 'elite';
+  icon?: string;
+}
+
+export const FEATURE_META: Record<keyof Omit<PlanLimits, 'dailyProposals' | 'dailyDownloads' | 'dailyCVGenerations'>, FeatureMeta> = {
+  canSaveHistory: {
+    name: 'Save Proposal History',
+    description: 'Keep all your proposals organized and accessible',
+    tier: 'pro',
+  },
+  canExport: {
+    name: 'Export Proposals',
+    description: 'Download your proposals in multiple formats',
+    tier: 'pro',
+  },
+  hasCompanyRewriting: {
+    name: 'Company-Specific Rewriting',
+    description: 'Tailored text optimized for specific companies and roles',
+    tier: 'pro',
+  },
+  hasAcceptanceScore: {
+    name: 'Acceptance Probability Score',
+    description: 'AI-powered prediction of your application success rate',
+    tier: 'pro',
+  },
+  hasToneOptimization: {
+    name: 'Tone & Structure Optimization',
+    description: 'Perfect your message clarity, tone, and structure',
+    tier: 'pro',
+  },
+  hasDecisionMakerIdentification: {
+    name: 'Decision-Maker Identification',
+    description: 'Find the right people to contact at target companies',
+    tier: 'elite',
+  },
+  hasOutreachMessages: {
+    name: 'Outreach Message Generation',
+    description: 'Personalized LinkedIn and email messages that get responses',
+    tier: 'elite',
+  },
+  hasFullStrategy: {
+    name: 'Full Application Strategy',
+    description: 'Complete strategy with insights on why applications fail and how to fix them',
+    tier: 'elite',
+  },
+};
+
+export const getPlanLimits = (plan: string): PlanLimits => {
+  const planKey = plan.toLowerCase() as PlanType;
+  return PLAN_LIMITS[planKey] || PLAN_LIMITS.free;
+};
+
+export const isPaidPlan = (plan: string): boolean => {
+  return plan === 'pro' || plan === 'elite';
+};
+
+export const isElitePlan = (plan: string): boolean => {
+  return plan === 'elite';
+};
+
+export const isProPlan = (plan: string): boolean => {
+  return plan === 'pro';
+};
+
+export const canAccessFeature = (
+  plan: string,
+  feature: keyof PlanLimits
+): boolean => {
+  const limits = getPlanLimits(plan);
+  const value = limits[feature];
+  
+  if (typeof value === 'boolean') return value;
+  if (value === 'unlimited') return true;
+  return value > 0;
+};
+
+export const getRequiredPlanForFeature = (feature: keyof Omit<PlanLimits, 'dailyProposals' | 'dailyDownloads' | 'dailyCVGenerations'>): 'pro' | 'elite' => {
+  return FEATURE_META[feature]?.tier || 'pro';
+};
+
+export const getDailyLimit = (plan: string): number => {
+  const limits = getPlanLimits(plan);
+  return limits.dailyProposals === 'unlimited' ? Infinity : limits.dailyProposals;
+};
+
+export const getDownloadLimit = (plan: string): number => {
+  const limits = getPlanLimits(plan);
+  return limits.dailyDownloads === 'unlimited' ? Infinity : limits.dailyDownloads;
+};

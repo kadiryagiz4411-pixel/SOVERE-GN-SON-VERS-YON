@@ -1,0 +1,47 @@
+project_id = "iqlevcdkqzpgttuiqons"
+
+[functions.generate-proposal]
+verify_jwt = false
+
+
+[functions.optimize-proposal]
+verify_jwt = false
+
+[functions.notify-new-user]
+verify_jwt = false
+
+[functions.auto-fill-job]
+verify_jwt = false
+
+[functions.generate-job-recommendations]
+verify_jwt = false
+
+[functions.email-webhook]
+verify_jwt = false
+
+[functions.user-sync]
+verify_jwt = false
+
+[functions.generate-cv]
+verify_jwt = false
+
+[functions.generate-followup]
+verify_jwt = false
+
+[functions.generate-roadmap]
+verify_jwt = false
+
+[functions.optimize-cv]
+verify_jwt = false
+
+[functions.process-referral]
+verify_jwt = false
+
+[functions.lemonsqueezy-webhook]
+verify_jwt = false
+
+[functions.smart-match]
+verify_jwt = false
+
+[functions.scan-jobs]
+verify_jwt = false

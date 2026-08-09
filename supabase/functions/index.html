@@ -1,0 +1,49 @@
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Test</title>
+</head>
+<body>
+  <h1>AI Test</h1>
+  
+  <textarea id="promptInput" placeholder="Buraya prompt yaz..."></textarea><br>
+  <button id="sendButton">Gönder</button>
+  
+  <h2>Sonuç:</h2>
+  <pre id="resultOutput"></pre>
+
+  <script>
+    const sendButton = document.getElementById("sendButton");
+    const resultOutput = document.getElementById("resultOutput");
+
+    sendButton.addEventListener("click", async () => {
+      const prompt = document.getElementById("promptInput").value;
+
+      if (!prompt) {
+        alert("Lütfen bir prompt yaz!");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:54321/functions/v1/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "generate-proposal", prompt })
+        });
+
+        const data = await response.json();
+        resultOutput.textContent = data.result || data.error;
+      } catch (err) {
+        resultOutput.textContent = "Hata: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
+<input id="promptInput" placeholder="Prompt gir" />
+<button onclick="sendToAI()">Gönder</button>
+<pre id="result"></pre>
