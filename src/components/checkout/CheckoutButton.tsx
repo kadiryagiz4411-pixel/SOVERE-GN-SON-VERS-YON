@@ -6,21 +6,31 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
   href: string;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
+  /** Set to false to open in a new tab instead of the LS overlay */
+  overlay?: boolean;
 }
 
 /**
- * Simple native <a> tag for external checkout links.
- * No onClick, no React Router, no JavaScript navigation — just a direct hyperlink.
+ * Lemon Squeezy checkout link.
+ * Adding class "lemonsqueezy-button" causes the LS overlay script (loaded in index.html)
+ * to intercept the click and open the hosted checkout as an in-page modal.
+ * Falls back gracefully to a regular link if the script is not loaded.
  */
 export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButtonProps>(
-  ({ href, variant = 'default', size = 'default', className, children, ...props }, ref) => {
+  ({ href, variant = 'default', size = 'default', className, children, overlay = true, ...props }, ref) => {
+    const isValidUrl = href && href !== '#';
     return (
       <a
         ref={ref}
-        href={href}
-        target="_self"
-        rel="noopener"
-        className={cn(buttonVariants({ variant, size, className }))}
+        href={isValidUrl ? href : '#'}
+        target={isValidUrl && !overlay ? '_blank' : '_self'}
+        rel="noopener noreferrer"
+        className={cn(
+          buttonVariants({ variant, size }),
+          overlay && isValidUrl ? 'lemonsqueezy-button' : '',
+          className,
+        )}
+        onClick={!isValidUrl ? (e) => e.preventDefault() : undefined}
         {...props}
       >
         {children}

@@ -1,7 +1,9 @@
 // Plan System for Sovereign
 // Recurring subscriptions via Lemon Squeezy
+// NOTE: Canonical pricing config is now src/config/pricing.ts
+// This file retains feature-gate logic used throughout the app.
 
-export type PlanType = 'free' | 'pro' | 'elite';
+export type PlanType = 'free' | 'standard' | 'pro' | 'elite' | 'B2B_ENTERPRISE';
 
 export interface PlanLimits {
   dailyProposals: number | 'unlimited';
@@ -20,6 +22,34 @@ export interface PlanLimits {
 }
 
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
+  // Standard tier — basic AI tools
+  standard: {
+    dailyProposals: 25,
+    dailyDownloads: 10,
+    dailyCVGenerations: 2,
+    canSaveHistory: true,
+    canExport: true,
+    hasCompanyRewriting: false,
+    hasAcceptanceScore: false,
+    hasToneOptimization: false,
+    hasDecisionMakerIdentification: false,
+    hasOutreachMessages: false,
+    hasFullStrategy: false,
+  },
+  // B2B Enterprise — HR teams
+  B2B_ENTERPRISE: {
+    dailyProposals: 'unlimited',
+    dailyDownloads: 'unlimited',
+    dailyCVGenerations: 'unlimited',
+    canSaveHistory: true,
+    canExport: true,
+    hasCompanyRewriting: true,
+    hasAcceptanceScore: true,
+    hasToneOptimization: true,
+    hasDecisionMakerIdentification: true,
+    hasOutreachMessages: true,
+    hasFullStrategy: true,
+  },
   free: {
     dailyProposals: 15,
     dailyDownloads: 5,
@@ -62,15 +92,19 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 };
 
 export const PLAN_PRICES = {
-  pro: { monthly: 14, annual: 99 },
-  elite: { monthly: 39, annual: 299 },
+  standard: { monthly: 12, annual: 108 },
+  pro: { monthly: 29, annual: 264 },
+  elite: { monthly: 59, annual: 540 },
+  enterprise: { monthly: 299, annual: 2868 },
 };
 
 // Credits granted per plan on subscription
 export const PLAN_CREDITS: Record<string, number> = {
   free: 100,
+  standard: 500,
   pro: 2500,
   elite: 5000,
+  B2B_ENTERPRISE: 10000,
 };
 
 // Cost per action in credits
@@ -87,19 +121,33 @@ export const getAnnualSavings = (plan: 'pro' | 'elite') => {
   return (monthly * 12) - annual;
 };
 
-// Lemon Squeezy checkout URLs
+// Lemon Squeezy checkout URLs — loaded from VITE_ env vars.
+// See src/config/pricing.ts for the canonical implementation.
+// These legacy exports kept for backward compatibility with existing components.
 export const CHECKOUT_URLS = {
+  standard: {
+    monthly: import.meta.env.VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL ?? '#',
+    annual: import.meta.env.VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL ?? '#',
+  },
   pro: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
-    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
+    monthly: import.meta.env.VITE_LEMONSQUEEZY_PRO_MONTHLY_URL
+      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
+    annual: import.meta.env.VITE_LEMONSQUEEZY_PRO_ANNUAL_URL
+      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
   },
   elite: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
-    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+    monthly: import.meta.env.VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL
+      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
+    annual: import.meta.env.VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL
+      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+  },
+  enterprise: {
+    monthly: import.meta.env.VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL ?? '#',
+    annual: import.meta.env.VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL ?? '#',
   },
 };
 
-export const getCheckoutUrl = (plan: 'pro' | 'elite', isAnnual: boolean = true): string => {
+export const getCheckoutUrl = (plan: 'standard' | 'pro' | 'elite' | 'enterprise', isAnnual: boolean = true): string => {
   return isAnnual ? CHECKOUT_URLS[plan].annual : CHECKOUT_URLS[plan].monthly;
 };
 
@@ -164,7 +212,7 @@ export const getPlanLimits = (plan: string): PlanLimits => {
 };
 
 export const isPaidPlan = (plan: string): boolean => {
-  return plan === 'pro' || plan === 'elite';
+  return plan === 'standard' || plan === 'pro' || plan === 'elite' || plan === 'B2B_ENTERPRISE';
 };
 
 export const isElitePlan = (plan: string): boolean => {

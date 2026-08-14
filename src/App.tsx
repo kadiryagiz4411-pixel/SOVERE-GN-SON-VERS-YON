@@ -37,6 +37,9 @@ import CVBuilder from "./pages/CVBuilder";
 import ApplicationPipeline from "./pages/ApplicationPipeline";
 import ApplyQueue from "./pages/ApplyQueue";
 import Organization from "./pages/Organization";
+import B2BDashboard from "./pages/B2BDashboard";
+import TalentPool from "./pages/TalentPool";
+import Billing from "./pages/Billing";
 
 // Capture ?ref=CODE affiliate links on first visit and persist to localStorage
 const AffiliateTracker = () => {
@@ -80,6 +83,9 @@ const AnimatedRoutes = () => {
         <Route path="/pipeline" element={<ProtectedRoute><PageTransition><ApplicationPipeline /></PageTransition></ProtectedRoute>} />
         <Route path="/apply-queue" element={<ProtectedRoute><PageTransition><ApplyQueue /></PageTransition></ProtectedRoute>} />
         <Route path="/organization" element={<ProtectedRoute><PageTransition><Organization /></PageTransition></ProtectedRoute>} />
+        <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
+        <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />
+        <Route path="/settings/billing" element={<ProtectedRoute><PageTransition><Billing /></PageTransition></ProtectedRoute>} />
         {/* Programmatic SEO Routes */}
         <Route path="/get-hired-at/:company" element={<PageTransition><GetHiredAtPage /></PageTransition>} />
         <Route path="/how-to-get-job-at/:company" element={<PageTransition><HowToGetJobPage /></PageTransition>} />

@@ -1,5 +1,14 @@
 project_id = "iqlevcdkqzpgttuiqons"
 
+[functions.b2b-evaluate-cv]
+verify_jwt = true
+
+[functions.b2b-embed-candidate]
+verify_jwt = true
+
+[functions.b2b-talent-search]
+verify_jwt = true
+
 [functions.generate-proposal]
 verify_jwt = false
 

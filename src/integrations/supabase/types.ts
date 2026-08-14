@@ -638,6 +638,147 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_members: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          role: string
+          invited_at: string
+          joined_at: string | null
+          invited_by: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          role?: string
+          invited_at?: string
+          joined_at?: string | null
+          invited_by?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string
+          role?: string
+          invited_at?: string
+          joined_at?: string | null
+          invited_by?: string | null
+        }
+        Relationships: []
+      }
+      job_postings: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          description: string
+          required_skills: Json
+          nice_to_have_skills: Json
+          seniority_level: string
+          employment_type: string
+          location: string | null
+          salary_range: Json | null
+          created_by: string
+          is_active: boolean
+          candidate_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          description: string
+          required_skills?: Json
+          nice_to_have_skills?: Json
+          seniority_level?: string
+          employment_type?: string
+          location?: string | null
+          salary_range?: Json | null
+          created_by: string
+          is_active?: boolean
+          candidate_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          description?: string
+          required_skills?: Json
+          nice_to_have_skills?: Json
+          seniority_level?: string
+          employment_type?: string
+          location?: string | null
+          salary_range?: Json | null
+          created_by?: string
+          is_active?: boolean
+          candidate_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      candidate_evaluations: {
+        Row: {
+          id: string
+          job_posting_id: string
+          organization_id: string
+          candidate_name: string
+          candidate_email: string | null
+          cv_storage_path: string | null
+          cv_text_extracted: string | null
+          match_score_percentage: number | null
+          confidence_score: number | null
+          statistical_metrics: Json | null
+          ai_analysis: Json | null
+          processing_status: string
+          error_message: string | null
+          evaluated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          job_posting_id: string
+          organization_id: string
+          candidate_name?: string
+          candidate_email?: string | null
+          cv_storage_path?: string | null
+          cv_text_extracted?: string | null
+          match_score_percentage?: number | null
+          confidence_score?: number | null
+          statistical_metrics?: Json | null
+          ai_analysis?: Json | null
+          processing_status?: string
+          error_message?: string | null
+          evaluated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          job_posting_id?: string
+          organization_id?: string
+          candidate_name?: string
+          candidate_email?: string | null
+          cv_storage_path?: string | null
+          cv_text_extracted?: string | null
+          match_score_percentage?: number | null
+          confidence_score?: number | null
+          statistical_metrics?: Json | null
+          ai_analysis?: Json | null
+          processing_status?: string
+          error_message?: string | null
+          evaluated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
