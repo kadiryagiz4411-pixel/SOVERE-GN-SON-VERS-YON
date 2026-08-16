@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Sparkles, Loader2, Database, TrendingUp, Users,
@@ -22,6 +22,7 @@ import {
   getScoreColor, getScoreBg, getRiskColor,
 } from "@/services/b2bEvaluationEngine";
 import CandidateScoreCard from "@/components/b2b/CandidateScoreCard";
+import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 
 const VERDICT_COLORS: Record<string, string> = {
@@ -148,7 +149,7 @@ export default function TalentPool() {
     );
   }
 
-  return (
+  const pageContent = (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Nav */}
       <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
@@ -388,6 +389,12 @@ export default function TalentPool() {
         </div>
       )}
     </div>
+  );
+
+  return (
+    <FeatureGate featureKey="TALENT_POOL_VECTOR_SEARCH">
+      {pageContent}
+    </FeatureGate>
   );
 }
 

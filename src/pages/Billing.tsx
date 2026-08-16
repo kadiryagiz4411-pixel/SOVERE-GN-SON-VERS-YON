@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { PricingTable, SinglePassBanner } from "@/components/pricing/PricingTable";
-import { PLANS, getPlanByType } from "@/config/pricing";
+import { getTierByPlanType } from "@/config/pricing";
 import { toast } from "sonner";
 
 interface UserBilling {
@@ -87,7 +87,7 @@ export default function Billing() {
     }
   };
 
-  const currentPlan = billing ? getPlanByType(billing.planType) : undefined;
+  const currentPlan = billing ? getTierByPlanType(billing.planType) : undefined;
   const planLabel = billing ? (PLAN_LABEL[billing.planType] ?? billing.planType) : "Free";
 
   return (
@@ -138,7 +138,7 @@ export default function Billing() {
                 <span className="text-xl font-black text-slate-100">{planLabel}</span>
               </div>
               {currentPlan && (
-                <p className="text-sm text-slate-400">{currentPlan.tagline}</p>
+                <p className="text-sm text-slate-400">{currentPlan.description}</p>
               )}
               {billing.orgName && (
                 <p className="text-xs text-slate-600 mt-2 flex items-center gap-1">

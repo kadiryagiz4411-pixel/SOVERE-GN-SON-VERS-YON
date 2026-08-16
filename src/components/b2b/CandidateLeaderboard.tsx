@@ -25,6 +25,8 @@ import {
 import { exportCandidatesToCSV, exportBatchSummaryPDF } from "@/utils/b2bExport";
 import CandidateScoreCard from "./CandidateScoreCard";
 import XAIAuditModal from "./XAIAuditModal";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import { UpgradeModal } from "@/components/entitlements/UpgradeModal";
 
 interface Props {
   candidates: CandidateEvaluation[];
@@ -65,6 +67,9 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
   const [selected, setSelected] = useState<CandidateEvaluation | null>(null);
   const [selectedRank, setSelectedRank] = useState<number | undefined>();
   const [auditCandidate, setAuditCandidate] = useState<CandidateEvaluation | null>(null);
+
+  const csvGate = useEntitlement('BATCH_EXPORT_CSV');
+  const xaiGate = useEntitlement('XAI_COMPLIANCE_REPORTS');
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -217,17 +222,19 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
                 <DropdownMenuContent className="bg-slate-800 border-slate-700" align="end">
                   <DropdownMenuItem
                     className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
-                    onClick={() => exportCandidatesToCSV(candidates, jobTitle, orgName)}
+                    onClick={() => { if (!csvGate.requireAccess()) return; exportCandidatesToCSV(candidates, jobTitle, orgName); }}
                   >
                     <FileText className="w-4 h-4 text-green-400" />
                     Export CSV (Excel)
+                    {!csvGate.hasAccess && <span className="ml-auto text-xs text-slate-600">🔒</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
-                    onClick={() => exportBatchSummaryPDF(candidates, jobTitle, orgName)}
+                    onClick={() => { if (!csvGate.requireAccess()) return; exportBatchSummaryPDF(candidates, jobTitle, orgName); }}
                   >
                     <FileText className="w-4 h-4 text-red-400" />
                     Export Batch PDF
+                    {!csvGate.hasAccess && <span className="ml-auto text-xs text-slate-600">🔒</span>}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -381,15 +388,30 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
         )}
       </div>
 
-      {/* XAI Audit Modal */}
+      {/* XAI Audit Modal — gated behind XAI_COMPLIANCE_REPORTS */}
       {auditCandidate && (
-        <XAIAuditModal
-          candidate={auditCandidate}
-          jobTitle={jobTitle}
-          orgName={orgName}
-          onClose={() => setAuditCandidate(null)}
-        />
+        xaiGate.hasAccess ? (
+          <XAIAuditModal
+            candidate={auditCandidate}
+            jobTitle={jobTitle}
+            orgName={orgName}
+            onClose={() => setAuditCandidate(null)}
+          />
+        ) : (
+          <UpgradeModal
+            open
+            featureKey="XAI_COMPLIANCE_REPORTS"
+            onClose={() => setAuditCandidate(null)}
+          />
+        )
       )}
+
+      {/* Upgrade modals for export gates */}
+      <UpgradeModal
+        open={csvGate.isUpgradeModalOpen}
+        featureKey="BATCH_EXPORT_CSV"
+        onClose={csvGate.closeModal}
+      />
     </>
   );
 }

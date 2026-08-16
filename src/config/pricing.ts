@@ -1,250 +1,287 @@
 /**
- * Sovereign Pricing Configuration — v3
- * ─────────────────────────────────────
- * Single source of truth for all plan metadata, pricing, and checkout URLs.
- * Monthly / Annual billing toggled at component level.
- * Checkout URLs consumed from VITE_ env vars → Lemon Squeezy hosted checkouts.
+ * Sovereign Pricing Configuration — v4
+ * ──────────────────────────────────────
+ * Single source of truth for all pricing tiers, feature lists, and
+ * Lemon Squeezy checkout URLs (env-driven, overlay-ready).
+ *
+ * Checkout URL env vars required in .env:
+ *   VITE_LEMONSQUEEZY_ONETIME_PASS_URL
+ *   VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL / _ANNUAL_URL
+ *   VITE_LEMONSQUEEZY_PRO_MONTHLY_URL      / _ANNUAL_URL
+ *   VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL    / _ANNUAL_URL
+ *   VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL / _ANNUAL_URL
  */
 
-// ─── Plan IDs ────────────────────────────────────────────────────────────────
+// ─── URL helper (safe env read) ───────────────────────────────────────────────
 
-export type PlanId = "standard" | "pro" | "elite" | "enterprise";
+const url = (key: string): string =>
+  (typeof import.meta !== "undefined"
+    ? (import.meta.env as Record<string, string>)[key]
+    : "") || "#";
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
+// ─── Core interface (v4 canonical schema) ─────────────────────────────────────
 
-export interface PlanFeature {
-  text: string;
-  highlight?: boolean; // bold + colored icon
-}
-
-export interface PlanPricing {
-  monthly: number;        // per-month display price when billed monthly
-  annual: number;         // per-month display price when billed annually
-  annualTotal: number;    // total billed annually (shown below price)
-  savePct: number;        // integer 0-100, e.g. 25
-}
-
-export interface Plan {
-  id: PlanId;
+export interface PricingTier {
+  /** Stable identifier used in routing, gates, and DB plan_type mapping */
+  id: string;
   name: string;
-  tagline: string;
+  description: string;
+  priceMonthly: number;
+  /** Per-month price when billed annually */
+  priceAnnual: number;
+  /** Total charge per year when on annual plan */
+  annualTotal: number;
+  discountPercentage: number;
   badge?: string;
-  badgeVariant?: "popular" | "enterprise" | "elite";
-  pricing: PlanPricing;
-  features: PlanFeature[];
-  ctaMonthly: string;
-  ctaAnnual: string;
-  style: "standard" | "popular" | "elite" | "enterprise";
+  isPopular?: boolean;
+  isEnterprise?: boolean;
+  /** True for non-recurring one-time products (Single Pass) */
+  isOneTime?: boolean;
+  /** Plain-string feature list; items starting with "Includes ALL" or all-caps
+   *  are automatically highlighted in the PricingCard UI. */
+  features: string[];
   checkoutUrls: {
-    monthly: string;
-    annual: string;
+    monthly?: string;
+    annual?: string;
+    oneTime?: string;
   };
-  /** plan_type value stored in Supabase profile row */
-  planType: string;
 }
 
-// ─── Checkout URLs (env-driven) ───────────────────────────────────────────────
-// Set these in .env:
-//   VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL=https://...
-//   VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL=https://...
-//   (repeat for PRO, ELITE, ENTERPRISE)
-//
-// Falls back to # so the page never throws if the var is missing.
+// ─── PRICING_TIERS — canonical array ─────────────────────────────────────────
 
-const url = (key: string) =>
-  (typeof import.meta !== "undefined" ? (import.meta.env as Record<string, string>)[key] : "") || "#";
+export const PRICING_TIERS: PricingTier[] = [
+  // ── 0. Single Pass (one-time) ─────────────────────────────────────────────
+  {
+    id: "single_pass",
+    name: "Single Pass",
+    description: "1-time instant AI CV optimization with zero recurring subscription fees.",
+    priceMonthly: 4.99,
+    priceAnnual: 4.99,
+    annualTotal: 4.99,
+    discountPercentage: 0,
+    isOneTime: true,
+    features: [
+      "1-Time Full AI CV Optimization",
+      "1-Time Job Match & ATS Score Report",
+      "Instant PDF Export",
+    ],
+    checkoutUrls: {
+      oneTime: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL"),
+    },
+  },
 
-// ─── Plan Definitions ─────────────────────────────────────────────────────────
-
-export const PLANS: Plan[] = [
-  // ── 1. Standard ──────────────────────────────────────────────────────────────
+  // ── 1. Standard ───────────────────────────────────────────────────────────
   {
     id: "standard",
     name: "Standard",
-    tagline: "Kickstart your job search with AI",
-    pricing: {
-      monthly: 12,
-      annual: 9,
-      annualTotal: 108,
-      savePct: 25,
-    },
+    description: "Essential AI optimization suite for active job seekers.",
+    priceMonthly: 12,
+    priceAnnual: 9,
+    annualTotal: 108,
+    discountPercentage: 25,
     features: [
-      { text: "Basic AI CV Generation" },
-      { text: "5 Job Match Scans / month" },
-      { text: "Standard Resume Templates" },
-      { text: "PDF & DOCX Export" },
-      { text: "ATS Compatibility Check" },
+      "Up to 5 AI CV Optimizations per month",
+      "Up to 3 Automated Cover Letters per month",
+      "Standard Resume Templates Catalog",
+      "ATS Score & Match Analysis",
     ],
-    ctaMonthly: "Get Started",
-    ctaAnnual: "Get Started",
-    style: "standard",
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL"),
       annual: url("VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL"),
     },
-    planType: "standard",
   },
 
-  // ── 2. Pro ────────────────────────────────────────────────────────────────────
+  // ── 2. Pro (Most Popular) ─────────────────────────────────────────────────
   {
     id: "pro",
     name: "Pro",
-    tagline: "Unlimited optimizations & real-time match scoring",
+    description: "Comprehensive career toolkit designed for maximum interview callbacks.",
+    priceMonthly: 29,
+    priceAnnual: 22,
+    annualTotal: 264,
+    discountPercentage: 24,
     badge: "Most Popular",
-    badgeVariant: "popular",
-    pricing: {
-      monthly: 29,
-      annual: 22,
-      annualTotal: 264,
-      savePct: 24,
-    },
+    isPopular: true,
     features: [
-      { text: "Unlimited AI CV Optimizations", highlight: true },
-      { text: "Automated Cover Letter Generator", highlight: true },
-      { text: "Real-time Match Score Analyzer", highlight: true },
-      { text: "ATS Keyword Injector" },
-      { text: "Acceptance Probability Score" },
-      { text: "Tone & Structure Optimizer" },
-      { text: "Priority Response Speed" },
+      "Includes ALL Standard Plan capabilities",
+      "UNLIMITED AI CV Optimizations",
+      "UNLIMITED Automated Cover Letters",
+      "Full Access to Premium Resume Templates",
+      "ATS Keyword Injector & Keyword Density Tool",
+      "Multi-Language Support (EN, DE, TR, ES, FR)",
     ],
-    ctaMonthly: "Go Pro",
-    ctaAnnual: "Go Pro — Best Value",
-    style: "popular",
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_PRO_MONTHLY_URL"),
       annual: url("VITE_LEMONSQUEEZY_PRO_ANNUAL_URL"),
     },
-    planType: "pro",
   },
 
-  // ── 3. Elite ──────────────────────────────────────────────────────────────────
+  // ── 3. Elite ──────────────────────────────────────────────────────────────
   {
     id: "elite",
     name: "Elite",
-    tagline: "Full-spectrum career strategy & interview prep",
+    description: "For ambitious professionals seeking high-paying remote & executive roles.",
+    priceMonthly: 59,
+    priceAnnual: 45,
+    annualTotal: 540,
+    discountPercentage: 24,
     badge: "Strategy Mode",
-    badgeVariant: "elite",
-    pricing: {
-      monthly: 59,
-      annual: 45,
-      annualTotal: 540,
-      savePct: 24,
-    },
     features: [
-      { text: "Everything in Pro", highlight: true },
-      { text: "Interactive AI Interview Simulator", highlight: true },
-      { text: "Freelance Pitch Generator" },
-      { text: "Decision-Maker Identification" },
-      { text: "Personalized Outreach Messages" },
-      { text: "Full Application Strategy Reports" },
-      { text: "Custom Branding Options" },
-      { text: "Priority LLM Speed & Response" },
+      "Includes ALL Pro Plan capabilities",
+      "Interactive AI Voice/Text Interview Practice Simulator",
+      "Freelance Pitch & Client Proposal Generator",
+      "Priority High-Speed LLM Execution Queue",
+      "Personal Portfolio Website Builder & HTML Export",
     ],
-    ctaMonthly: "Go Elite",
-    ctaAnnual: "Go Elite — Save 24%",
-    style: "elite",
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL"),
       annual: url("VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL"),
     },
-    planType: "elite",
   },
 
-  // ── 4. Enterprise B2B ─────────────────────────────────────────────────────────
+  // ── 4. Enterprise B2B ────────────────────────────────────────────────────
   {
     id: "enterprise",
     name: "Enterprise B2B",
-    tagline: "Bulk AI hiring intelligence for HR teams",
-    badge: "Enterprise · HR Teams",
-    badgeVariant: "enterprise",
-    pricing: {
-      monthly: 299,
-      annual: 239,
-      annualTotal: 2868,
-      savePct: 20,
-    },
+    description: "High-volume talent acquisition platform for agencies, HR teams & SMEs.",
+    priceMonthly: 299,
+    priceAnnual: 239,
+    annualTotal: 2868,
+    discountPercentage: 20,
+    badge: "Enterprise / HR Teams",
+    isEnterprise: true,
     features: [
-      { text: "Bulk CV Parsing Queue — up to 3,000/mo", highlight: true },
-      { text: "5 Recruiter / HR Seats", highlight: true },
-      { text: "AI Fluff & Fraud Consistency Detector", highlight: true },
-      { text: "XAI & GDPR / KVKK Audit Reports", highlight: true },
-      { text: "Vector Search Talent Pool (pgvector)" },
-      { text: "Pay-As-You-Go Credit Top-Ups" },
-      { text: "Multi-tenant RLS Data Isolation" },
-      { text: "Priority Dedicated Support" },
+      "Includes ALL Elite Plan capabilities",
+      "Batch Upload & Rank up to 3,000 CVs/month",
+      "Organization Team Workspace (1 Owner + 5 HR Seats)",
+      "AI Fraud, Fluff & Resume Contradiction Detector",
+      "Explainable AI Audit & GDPR/KVKK Compliance Exports",
+      "Sub-3-second Vector Search Candidate Talent Pool",
+      "Single-click Leaderboard CSV/Excel Export",
     ],
-    ctaMonthly: "Contact Sales",
-    ctaAnnual: "Contact Sales — Save 20%",
-    style: "enterprise",
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL"),
       annual: url("VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL"),
     },
-    planType: "B2B_ENTERPRISE",
   },
 ];
 
-// ─── Single Pass (one-time, non-recurring) ────────────────────────────────────
+// ─── Derived subsets ──────────────────────────────────────────────────────────
 
-export interface SinglePass {
-  title: string;
-  subtitle: string;
-  price: number;
-  features: string[];
-  badge: string;
-  checkoutUrl: string;
-}
+/** Recurring subscription plans only (excludes single_pass) */
+export const getSubscriptionTiers = (): PricingTier[] =>
+  PRICING_TIERS.filter(t => !t.isOneTime);
 
-export const SINGLE_PASS: SinglePass = {
-  title: "Single Pass",
-  subtitle: "Try Once — No Subscription Needed",
-  price: 4.99,
-  features: [
-    "1× Full AI CV Optimization",
-    "1× Job Match & ATS Score Report",
-    "Instant PDF Export",
-  ],
-  badge: "One-Time Purchase · No Subscription",
-  checkoutUrl: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL"),
+/** The one-time pass product */
+export const getOneTimeTier = (): PricingTier =>
+  PRICING_TIERS.find(t => t.isOneTime)!;
+
+// ─── Supabase plan_type ↔ PricingTier.id mapping ──────────────────────────────
+
+export const TIER_ID_TO_PLAN_TYPE: Record<string, string> = {
+  single_pass: "single_pass",
+  standard:    "standard",
+  pro:         "pro",
+  elite:       "elite",
+  enterprise:  "B2B_ENTERPRISE",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+export const PLAN_TYPE_TO_TIER_ID: Record<string, string> = {
+  free:          "free",
+  single_pass:   "single_pass",
+  standard:      "standard",
+  pro:           "pro",
+  elite:         "elite",
+  B2B_ENTERPRISE:"enterprise",
+};
 
-export function getPlanById(id: PlanId): Plan {
-  return PLANS.find(p => p.id === id)!;
+// ─── Lookup helpers ───────────────────────────────────────────────────────────
+
+export function getTierById(id: string): PricingTier | undefined {
+  return PRICING_TIERS.find(t => t.id === id);
 }
 
-export function getPlanByType(planType: string): Plan | undefined {
-  return PLANS.find(p => p.planType === planType);
+export function getTierByPlanType(planType: string): PricingTier | undefined {
+  const id = PLAN_TYPE_TO_TIER_ID[planType];
+  return id ? getTierById(id) : undefined;
 }
 
-export function getCheckoutUrl(planId: PlanId, isAnnual: boolean): string {
-  const plan = getPlanById(planId);
-  return isAnnual ? plan.checkoutUrls.annual : plan.checkoutUrls.monthly;
+/** Active checkout URL for the given tier and billing period */
+export function getCheckoutUrlFor(tier: PricingTier, isAnnual: boolean): string {
+  if (tier.isOneTime) return tier.checkoutUrls.oneTime ?? "#";
+  return (isAnnual ? tier.checkoutUrls.annual : tier.checkoutUrls.monthly) ?? "#";
 }
 
 /** Display price string, e.g. "$22" */
-export function displayPrice(plan: Plan, isAnnual: boolean): string {
-  return `$${isAnnual ? plan.pricing.annual : plan.pricing.monthly}`;
+export function displayPrice(tier: PricingTier, isAnnual: boolean): string {
+  return `$${isAnnual ? tier.priceAnnual : tier.priceMonthly}`;
 }
 
-/** Annual total string, e.g. "Billed $264 annually" */
-export function annualBillString(plan: Plan): string {
-  return `Billed $${plan.pricing.annualTotal.toLocaleString()} annually`;
+/** Annual billed string, e.g. "Billed $264 annually" */
+export function annualBillString(tier: PricingTier): string {
+  return `Billed $${tier.annualTotal.toLocaleString()} annually`;
 }
 
-/**
- * Rank order for plan upgrade gates.
- * Higher is more premium.
- */
+/** Returns true if feature text should be visually highlighted.
+ *  Detects "Includes ALL …", all-caps words (e.g. "UNLIMITED"), or "Sub-3-second" */
+export function isHighlightedFeature(text: string): boolean {
+  return (
+    text.startsWith("Includes ALL") ||
+    /\bUNLIMITED\b/.test(text) ||
+    text.startsWith("Batch Upload") ||
+    text.startsWith("Organization Team")
+  );
+}
+
+// ─── Upgrade rank (for gate checks) ──────────────────────────────────────────
+
 export const PLAN_RANK: Record<string, number> = {
-  free: 0,
-  standard: 1,
-  pro: 2,
-  elite: 3,
-  B2B_ENTERPRISE: 4,
+  free:          0,
+  single_pass:   1,
+  standard:      2,
+  pro:           3,
+  elite:         4,
+  B2B_ENTERPRISE:5,
 };
 
 export function isHigherThan(targetPlanType: string, currentPlanType: string): boolean {
   return (PLAN_RANK[targetPlanType] ?? 0) > (PLAN_RANK[currentPlanType] ?? 0);
+}
+
+// ─── Backward-compatibility exports ──────────────────────────────────────────
+// These keep existing imports in PricingSection, Billing, plans.ts, etc. working.
+
+/** @deprecated Use PRICING_TIERS. Kept for backward compat. */
+export type PlanId = "standard" | "pro" | "elite" | "enterprise";
+
+/** @deprecated Use PricingTier. Kept for backward compat. */
+export type Plan = PricingTier;
+
+/** @deprecated Use getSubscriptionTiers(). Kept for backward compat. */
+export const PLANS: PricingTier[] = getSubscriptionTiers();
+
+/** @deprecated Use getOneTimeTier(). Kept for backward compat. */
+export const SINGLE_PASS = {
+  title: "Single Pass",
+  subtitle: "Try Once — No Subscription Needed",
+  price: 4.99,
+  features: getOneTimeTier().features,
+  badge: "One-Time Purchase · No Subscription",
+  checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? "#",
+};
+
+/** @deprecated Use getTierById(). */
+export function getPlanById(id: PlanId): PricingTier {
+  return getTierById(id)!;
+}
+
+/** @deprecated Use getTierByPlanType(). */
+export function getPlanByType(planType: string): PricingTier | undefined {
+  return getTierByPlanType(planType);
+}
+
+/** @deprecated Use getCheckoutUrlFor(). */
+export function getCheckoutUrl(planId: PlanId, isAnnual = true): string {
+  const tier = getTierById(planId);
+  return tier ? getCheckoutUrlFor(tier, isAnnual) : "#";
 }

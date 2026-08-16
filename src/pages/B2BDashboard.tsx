@@ -19,6 +19,7 @@ import BulkCVUploader from "@/components/b2b/BulkCVUploader";
 import CandidateLeaderboard from "@/components/b2b/CandidateLeaderboard";
 import JobPostingManager from "@/components/b2b/JobPostingManager";
 import CreditMeter from "@/components/b2b/CreditMeter";
+import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 
 interface OrgInfo {
@@ -157,7 +158,6 @@ export default function B2BDashboard() {
   if (!org) return null;
 
   const evalUsagePct = Math.min(100, (org.cv_evaluations_used / org.cv_evaluations_limit) * 100);
-  void evalUsagePct; // available for future use
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -353,6 +353,7 @@ export default function B2BDashboard() {
               </TabsContent>
 
               <TabsContent value="upload" className="flex-1 p-5 m-0 overflow-y-auto">
+                <FeatureGate featureKey="BULK_CV_PARSER">
                 {selectedJob && (
                   <div className="max-w-2xl">
                     <div className="mb-5">
@@ -382,6 +383,7 @@ export default function B2BDashboard() {
                     />
                   </div>
                 )}
+                </FeatureGate>
               </TabsContent>
 
               <TabsContent value="analytics" className="flex-1 p-5 m-0 overflow-y-auto">

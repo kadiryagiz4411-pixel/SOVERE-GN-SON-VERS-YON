@@ -13,6 +13,7 @@ import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCV
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
+import { GatedButton } from '@/components/entitlements/FeatureGate';
 import {
   Crown, FileText, Upload, PenTool, Loader2, Download, Lock,
   ArrowLeft, Sparkles, CheckCircle, XCircle, Target, Globe,
@@ -470,26 +471,52 @@ const CVBuilder = () => {
             </div>
           )}
 
-          {/* Language Selector */}
+          {/* Language Selector — gated: Pro+ required for non-English */}
           <div className="mb-6">
             <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
               <Globe className="w-4 h-4" /> {cv.outputLanguage || 'Output Language'}
+              {!isPro && (
+                <span className="text-xs text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">🔒 Pro</span>
+              )}
             </label>
-            <Select value={outputLanguage} onValueChange={setOutputLanguage}>
+            <Select
+              value={outputLanguage}
+              onValueChange={(val) => {
+                if (val !== 'en' && !isPro) {
+                  // Block non-English for free/standard users — show via GatedButton trigger
+                  toast.error('Multi-language CV generation requires a Pro plan or higher.');
+                  return;
+                }
+                setOutputLanguage(val);
+              }}
+            >
               <SelectTrigger className="w-full md:w-64">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-60">
                 {OUTPUT_LANGUAGES.map((l) => (
-                  <SelectItem key={l.code} value={l.code}>
+                  <SelectItem
+                    key={l.code}
+                    value={l.code}
+                    disabled={l.code !== 'en' && !isPro}
+                    className={l.code !== 'en' && !isPro ? 'opacity-40 cursor-not-allowed' : ''}
+                  >
                     <span className="flex items-center gap-2">
                       <span>{l.flag}</span>
                       <span>{l.name}</span>
+                      {l.code !== 'en' && !isPro && <span className="text-xs text-slate-600 ml-auto">🔒</span>}
                     </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {!isPro && (
+              <p className="text-xs text-slate-500 mt-1.5">
+                Non-English CV generation requires{' '}
+                <span className="text-violet-400 font-medium">Pro ($29/mo)</span> or higher.{' '}
+                <a href="/settings/billing" className="underline hover:text-violet-300">Upgrade →</a>
+              </p>
+            )}
           </div>
 
           {/* Input Mode Tabs */}

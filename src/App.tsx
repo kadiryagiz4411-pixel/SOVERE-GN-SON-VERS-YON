@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useSearchParams } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { LanguageProvider } from "@/i18n/LanguageContext";
+import { PlanProvider } from "@/contexts/PlanContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import SplashScreen from "@/components/SplashScreen";
 import PageTransition from "@/components/PageTransition";
@@ -137,6 +138,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <PlanProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -146,6 +148,7 @@ const App = () => {
           <AnimatedRoutes />
           </BrowserRouter>
         </TooltipProvider>
+        </PlanProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
