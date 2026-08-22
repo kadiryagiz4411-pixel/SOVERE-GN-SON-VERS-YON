@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -20,7 +20,7 @@ interface AppShellProps {
   orgRole?: string;
 }
 
-export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, orgRole }: AppShellProps) => {
+export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 0, orgRole }: AppShellProps) => {
   const { language } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,8 +31,8 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
   const isPro = plan === 'pro' || plan === 'elite';
 
   const txt = {
-    dashboard: language === 'tr' ? 'Panel' : language === 'de' ? 'Dashboard' : language === 'fr' ? 'Tableau de bord' : 'Dashboard',
-    cvBuilder: language === 'tr' ? 'CV Oluştur' : language === 'de' ? 'CV-Editor' : language === 'fr' ? 'CV Builder' : 'CV Builder',
+    dashboard: language === 'tr' ? 'Başvuru Motoru' : language === 'de' ? 'Application Engine' : language === 'fr' ? 'Moteur de candidature' : 'Application Engine',
+    cvBuilder: language === 'tr' ? 'CV Aracı' : language === 'de' ? 'CV-Tool' : language === 'fr' ? 'Outil CV' : 'CV Builder',
     pipeline: language === 'tr' ? 'Başvurular' : language === 'de' ? 'Bewerbungen' : language === 'fr' ? 'Candidatures' : 'Pipeline',
     applyQueue: language === 'tr' ? 'Akıllı Kuyruk' : language === 'de' ? 'Bewerbungsqueue' : language === 'fr' ? 'File intelligente' : 'Apply Queue',
     history: language === 'tr' ? 'Geçmiş' : language === 'de' ? 'Verlauf' : language === 'fr' ? 'Historique' : 'History',
@@ -45,10 +45,10 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
 
   const navItems = [
     { to: '/dashboard', label: txt.dashboard, icon: LayoutDashboard },
-    { to: '/cv-builder', label: txt.cvBuilder, icon: FileText },
     { to: '/pipeline', label: txt.pipeline, icon: Briefcase },
     { to: '/apply-queue', label: txt.applyQueue, icon: Target },
     { to: '/proposals', label: txt.history, icon: FileText },
+    { to: '/cv-builder', label: txt.cvBuilder, icon: FileText },
     { to: '/pricing', label: txt.pricing, icon: Zap },
     { to: '/profile', label: txt.profile, icon: Settings },
   ];
@@ -226,4 +226,4 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
       </main>
     </div>
   );
-};
+});

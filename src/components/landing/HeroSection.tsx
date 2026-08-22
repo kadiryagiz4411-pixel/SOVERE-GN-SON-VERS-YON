@@ -7,13 +7,13 @@ import { motion } from 'framer-motion';
 
 const translations = {
   en: {
-    badge: 'AI-Powered Freelance & Job Application Engine',
-    headline1: 'Stop Wasting Connects',
-    headline2: '& Start Winning Jobs.',
+    badge: 'AI Application Engine — Match, Optimize, Apply',
+    headline1: 'Turn any job post into',
+    headline2: 'an interview-ready application.',
     headline3: '',
-    subtitle: 'Win more clients on Upwork, Fiverr & Freelancer with AI-optimized proposals. Also crush corporate applications with ATS-ready CVs. Less applications, more wins.',
-    ctaApplication: 'Generate Winning Proposal',
-    ctaCV: 'Build ATS CV',
+    subtitle: 'Sovereign is an application optimizer and maker: match the job description, bypass ATS filters, and generate targeted proposals or cover letters built for hiring-manager callbacks.',
+    ctaApplication: 'Optimize New Application',
+    ctaCV: 'Open CV Builder',
     downloadApp: 'Download App',
     microtext: 'No credit card required · 15 daily proposals + 1 free CV',
     platformLabel: 'Works with',

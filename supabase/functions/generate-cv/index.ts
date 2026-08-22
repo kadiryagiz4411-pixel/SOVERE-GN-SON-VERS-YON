@@ -120,14 +120,14 @@ Deno.serve(async (req) => {
     if (mode === 'optimize' && existingCvText) {
       // Optimize existing CV
       const qualityLevel = isElite ? 'ELITE TOP 1%' : isPro ? 'PRO TOP 10%' : 'STANDARD';
-      systemPrompt = `You are an ${qualityLevel} CV/Resume optimization expert. You analyze and rewrite CVs to maximize acceptance rates.
+      systemPrompt = `You are an ${qualityLevel} Application Optimizer. Rewrite CVs to maximize ATS pass-rate and hiring-manager callbacks.
 
 RULES:
 - Return ONLY the optimized CV content in structured sections
-- Use ATS-friendly formatting with clear section headers
-- Quantify achievements wherever possible
-- Remove fluff and weak language
-- Optimize keyword density for the target role
+- Single-column ATS-friendly layout, CAPS section headers, "- " bullets
+- Every experience bullet = action verb + what you did + measurable result
+- Mirror target-role keywords naturally (spelled-out + acronym)
+- Ban AI clichés: passionate, spearheaded, leverage, synergy, results-driven
 - ${langInstruction}
 ${isElite ? '- Apply advanced persuasion techniques and executive-level positioning\n- Include strategic keyword placement for ATS systems\n- Add power verbs and impact statements' : ''}
 ${isPro ? '- Tailor specifically to the target role and company\n- Optimize structure for maximum readability' : ''}

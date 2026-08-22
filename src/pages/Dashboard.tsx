@@ -14,7 +14,6 @@ import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
 import { FeatureUpgradeModal } from '@/components/FeatureUpgradeModal';
-import { RatePrompt } from '@/components/RatePrompt';
 import { EliteAnalytics } from '@/components/dashboard/EliteAnalytics';
 import { JobRecommendations } from '@/components/dashboard/JobRecommendations';
 import { DetailedAnalysisReport } from '@/components/dashboard/DetailedAnalysisReport';
@@ -30,7 +29,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
-import { SupportChatbot } from '@/components/SupportChatbot';
 import { ATSAnalyzer } from '@/components/ATSAnalyzer';
 import { SegmentSelector, type UserSegment } from '@/components/dashboard/SegmentSelector';
 import { FreelanceInputs } from '@/components/dashboard/FreelanceInputs';
@@ -106,7 +104,6 @@ const Dashboard = () => {
   const [proposalViewsUsed, setProposalViewsUsed] = useState(() => getProposalViewsUsed());
   const [upgradeFeature, setUpgradeFeature] = useState<string>('');
   const [selectedTone, setSelectedTone] = useState<string>('professional');
-  const [showRatePrompt, setShowRatePrompt] = useState(false);
   const { isAdmin } = useAdmin(user);
   const [showCVOptimizer, setShowCVOptimizer] = useState(false);
 
@@ -180,10 +177,10 @@ const Dashboard = () => {
         elitePlanHint: 'You are on the highest tier with the full premium toolkit.',
         upgradeNow: 'See upgrade options',
         topUpNow: 'Top up now',
-        startGenerating: 'Start generating',
-        startGeneratingDesc: 'Paste a job post or client brief and get a polished result fast.',
+        startGenerating: 'Optimize New Application',
+        startGeneratingDesc: 'Paste a job description and tailor your application for ATS + hiring managers.',
         viewHistory: 'View history',
-        viewHistoryDesc: 'Open saved proposals and continue from where you left off.',
+        viewHistoryDesc: 'Open saved applications and continue from where you left off.',
         editProfile: 'Edit profile',
         editProfileDesc: 'Update your positioning, skills, and pricing details.',
         managePlan: 'Manage plan',
@@ -230,8 +227,8 @@ const Dashboard = () => {
         elitePlanHint: 'Tüm premium araçlarla en üst plandasın.',
         upgradeNow: 'Yükseltme seçenekleri',
         topUpNow: 'Hemen kredi yükle',
-        startGenerating: 'Üretmeye başla',
-        startGeneratingDesc: 'İş ilanını veya müşteri briefini yapıştır, hızlıca güçlü bir çıktı al.',
+        startGenerating: 'Yeni Başvuruyu Optimize Et',
+        startGeneratingDesc: 'İş ilanını yapıştır; ATS eşleşmesi ve hedefli başvuru üret.',
         viewHistory: 'Geçmişi aç',
         viewHistoryDesc: 'Kayıtlı proposalları görüntüle ve kaldığın yerden devam et.',
         editProfile: 'Profili düzenle',
@@ -1035,18 +1032,18 @@ const Dashboard = () => {
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <Link to="/pricing">
+                  <a href="#workspace">
                     <Button variant="gold" size="lg">
+                      <Send className="w-4 h-4 mr-2" />
+                      {dashboardUiText.startGenerating}
+                    </Button>
+                  </a>
+                  <Link to="/pricing">
+                    <Button variant="outline" size="lg">
                       <Zap className="w-4 h-4 mr-2" />
                       {dashboardUiText.buyCredits}
                     </Button>
                   </Link>
-                  <a href="#workspace">
-                    <Button variant="outline" size="lg">
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                      {dashboardUiText.startGenerating}
-                    </Button>
-                  </a>
                 </div>
               </div>
             </div>
@@ -1796,13 +1793,6 @@ const Dashboard = () => {
         featureName={upgradeFeature}
       />
 
-      {/* Rate Prompt */}
-      <RatePrompt
-        open={showRatePrompt}
-        onClose={() => setShowRatePrompt(false)}
-        onRate={(rating) => { setShowRatePrompt(false); toast.success(`Thanks for rating ${rating}⭐`); }}
-      />
-
       {/* CV Optimizer Modal */}
       <CVOptimizerModal
         open={showCVOptimizer}
@@ -1849,7 +1839,6 @@ const Dashboard = () => {
       </div>
 
       {/* Support Chatbot */}
-      <SupportChatbot />
 
       {/* Mobile Nav */}
       {/* MobileBottomNav handled by AppShell */}

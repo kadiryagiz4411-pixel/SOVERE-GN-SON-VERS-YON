@@ -17,37 +17,19 @@ import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { FreelancePlatformSection } from '@/components/landing/FreelancePlatformSection';
 import { OnboardingSection } from '@/components/landing/OnboardingSection';
-import { SocialShare } from '@/components/SocialShare';
-import { SupportChatbot } from '@/components/SupportChatbot';
 import { AnimatedSection } from '@/components/landing/AnimatedSection';
-import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/contexts/SessionContext';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, sessionReady } = useSession();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
 
-  // Redirect ad traffic (UTM / gclid) directly to signup → dashboard
   useEffect(() => {
-    let mounted = true;
-
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      if (session) {
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
-      setCheckingSession(false);
-    };
-
-    const hasAdParams = searchParams.get('utm_source') || 
-                        searchParams.get('gclid') || 
+    const hasAdParams = searchParams.get('utm_source') ||
+                        searchParams.get('gclid') ||
                         searchParams.get('fbclid') ||
                         searchParams.get('utm_campaign');
     if (hasAdParams) {
@@ -58,27 +40,26 @@ const Index = () => {
       return;
     }
 
-    checkSession();
+    if (sessionReady && user) {
+      navigate('/dashboard', { replace: true });
+    }
 
-    // Show onboarding for first-time visitors
     const hasVisited = localStorage.getItem('sovereign-visited');
     if (!hasVisited) {
       setShowOnboarding(true);
       localStorage.setItem('sovereign-visited', 'true');
     }
+  }, [searchParams, navigate, sessionReady, user]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [searchParams, navigate]);
-
-  if (checkingSession) {
+  if (!sessionReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (user) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,8 +107,6 @@ const Index = () => {
         </AnimatedSection>
       </main>
       <Footer />
-      <SocialShare variant="floating" />
-      <SupportChatbot />
     </div>
   );
 };

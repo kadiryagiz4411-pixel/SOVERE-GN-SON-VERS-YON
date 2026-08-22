@@ -599,28 +599,24 @@ Write the application text now. No explanations — just the text I'll send.`;
     // For free users: single high-quality proposal
     if (!isProOrElite) {
       const qualityDirective = userSegment === 'freelancer'
-        ? `QUALITY STANDARD — PROFESSIONAL GRADE FREELANCE PROPOSAL:
-- Write a sharp, compelling, fully customized proposal following the cluster template
-- Show genuine understanding of the client's specific project needs
-- Reference at least ONE specific detail from their job posting to prove you read it
-- Include at least one concrete skill demonstration or past result with a number/metric
-- Use confident, assertive language — write like someone who has done this successfully before
-- Open with a hook that makes the client stop scrolling — no "I am interested in your project"
-- Demonstrate domain expertise through specific terminology and methodology
-- End with a clear, actionable next step (not just "looking forward to hearing from you")
-- Target the platform-appropriate length
-- The proposal should feel like it was written by a TOP 20% freelancer on this platform`
-        : `QUALITY STANDARD — PROFESSIONAL GRADE:
-- Write a sharp, compelling, fully customized application that stands out from 95% of applicants
-- Show genuine understanding of the specific role's challenges — reference a SPECIFIC detail from the posting
-- Include at least one concrete, quantified achievement (e.g., "increased conversion by 34%", "reduced latency by 60%")
-- Open with a powerful first sentence that immediately demonstrates relevant expertise — NOT a generic greeting
-- Use confident, assertive language — not passive or generic. Write like a top performer, not a job seeker
-- Show strategic thinking: don't just list skills, explain HOW you'd apply them to THIS role
-- Include a brief mention of methodology or approach that shows depth (frameworks, tools, processes)
-- Close with energy and a specific, actionable next step — make them want to respond
-- Target 260-340 words — tight, focused, impactful
-- The application should feel like it was written by someone who genuinely understands the company's challenges`;
+        ? `QUALITY STANDARD — MAXIMUM HIREABILITY FREELANCE APPLICATION:
+- Write a high-converting, ATS-aware, fully customized proposal following the cluster template
+- Mirror the client's language from the brief so keyword overlap is natural, never stuffed
+- Open with a specific observation from THEIR posting — never "I am interested in your project"
+- Include at least two quantified results (%, $, time saved, conversion, users) when profile allows
+- Prove you can do THIS job: map 2–3 of their requirements to your proof in the same sentence
+- Use hiring-manager English: short sentences, active verbs, no fluff, no AI clichés
+- End with one easy next step that reduces risk (audit, sample, 15-min call, first deliverable)
+- Target the platform-appropriate length. Sound like a top 5% freelancer they want to reply to immediately`
+        : `QUALITY STANDARD — MAXIMUM HIREABILITY JOB APPLICATION:
+- Write an interview-callback application: ATS-friendly keywords + human persuasion
+- Reference a SPECIFIC challenge, product, or metric from the posting in sentence one
+- Include at least two quantified achievements (%, $, time, volume) tied to THIS role
+- Mirror must-have skills from the JD using both spelled-out and abbreviated forms
+- Explain HOW you would deliver in the first 30 days — not a skill dump
+- Ban: "passionate", "excited to", "great fit", "leverage", "synergy", "Dear Hiring Manager"
+- Close with a confident, specific ask that makes a recruiter want the interview
+- Target 260-340 words. The reader should think: "this person already understands the job"`
 
 
       const aiResponse = await fetchWithRetry("https://api.openai.com/v1/chat/completions", {
