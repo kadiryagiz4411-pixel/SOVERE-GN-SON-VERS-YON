@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  COST_PER_ACTION,
+  assertActionCredits,
+  deductActionCredits,
+  insufficientCreditsBody,
+} from "../_shared/actionCredits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +65,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { cvText, outputLanguage, targetRole, jobDescription, consumeCredit } = await req.json();
+    const { cvText, outputLanguage, targetRole, jobDescription } = await req.json();
 
     if (!cvText || typeof cvText !== "string" || cvText.trim().length < 50) {
       return new Response(
@@ -89,34 +95,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Check org membership for unlimited access ────────────────────────────
-    let isOrgMember = false;
-    if (consumeCredit === true) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("plan_type, org_id, subscription_plan")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      isOrgMember = !!(profile?.org_id) || profile?.plan_type === "B2B_ENTERPRISE";
-      const isPaid = profile?.subscription_plan === "pro" || profile?.subscription_plan === "elite";
-
-      // Only deduct credit if free solo user (not org member, not paid)
-      if (!isOrgMember && !isPaid) {
-        const { data: creditOk, error: creditErr } = await supabase.rpc("consume_credit", {
-          _user_id: user.id,
-          _amount: 1,
-          _reason: "cv_optimization",
-        });
-        if (creditErr || !creditOk) {
-          return new Response(
-            JSON.stringify({ error: "Insufficient credits. Please purchase more credits or upgrade your plan." }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
+    const creditGate = await assertActionCredits(supabase, user.id);
+    if (!creditGate.ok) {
+      return new Response(
+        JSON.stringify(insufficientCreditsBody(creditGate.balance)),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
       return new Response(
@@ -265,6 +250,8 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
 
     console.log(`[optimize-cv] score=${score} keywords=${injectedKeywords.length} starBullets=${quantifiedBullets}`);
 
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_optimization");
+
     return new Response(
       JSON.stringify({
         optimizedCV,
@@ -274,6 +261,8 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
         injectedKeywords,
         quantifiedBullets,
         tone,
+        creditsCharged: COST_PER_ACTION,
+        creditsRemaining,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

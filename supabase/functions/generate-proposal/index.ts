@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  COST_PER_ACTION,
+  assertActionCredits,
+  deductActionCredits,
+  insufficientCreditsBody,
+} from "../_shared/actionCredits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -276,6 +282,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Failed to fetch profile" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const creditGate = await assertActionCredits(supabase, user.id);
+    if (!creditGate.ok) {
+      return new Response(
+        JSON.stringify(insufficientCreditsBody(creditGate.balance)),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -663,11 +677,15 @@ Write the application text now. No explanations — just the text I'll send.`;
         })
         .eq("user_id", user.id);
 
+      const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
+
       return new Response(
         JSON.stringify({
           proposal: generatedProposal,
           variants: null,
           freelanceScore: freelanceScoreResult,
+          creditsCharged: COST_PER_ACTION,
+          creditsRemaining,
           usage: {
             used: currentUsage + 1,
             limit: DAILY_LIMIT,
@@ -769,12 +787,16 @@ Write the application text now. No explanations — just the text I'll send.`;
                 last_usage_reset: new Date().toISOString(),
               })
               .eq("user_id", user.id);
+
+            const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
             
             return new Response(
               JSON.stringify({
                 proposal: fallbackText,
                 variants: [{ id: 'fallback', label: 'Generated Proposal', badge: '📝 Proposal', description: 'AI-generated proposal', text: fallbackText }],
                 freelanceScore: freelanceScoreResult,
+                creditsCharged: COST_PER_ACTION,
+                creditsRemaining,
                 usage: { used: currentUsage + 1, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentUsage - 1 },
               }),
               { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -802,6 +824,8 @@ Write the application text now. No explanations — just the text I'll send.`;
       })
       .eq("user_id", user.id);
 
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
+
     console.log(`Generated ${successfulVariants.length} variants for ${plan} plan, segment: ${userSegment}`);
 
     return new Response(
@@ -815,6 +839,8 @@ Write the application text now. No explanations — just the text I'll send.`;
           text: v.text,
         })),
         freelanceScore: freelanceScoreResult,
+        creditsCharged: COST_PER_ACTION,
+        creditsRemaining,
         usage: {
           used: currentUsage + 1,
           limit: DAILY_LIMIT,

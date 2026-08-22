@@ -16,6 +16,7 @@
  */
 
 import { trimForLLM } from "@/utils/tokenTrimmer";
+import { parseLLMJson } from "@/utils/llmJson";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -326,7 +327,7 @@ RETURN:
   );
 
   try {
-    return JSON.parse(raw) as ATSFixResult;
+    return parseLLMJson<ATSFixResult>(raw);
   } catch {
     return {
       originalBullets: [],

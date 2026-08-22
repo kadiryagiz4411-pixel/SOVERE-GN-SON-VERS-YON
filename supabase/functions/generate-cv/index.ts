@@ -1,5 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { parseLLMJson } from "../_shared/llmJson.ts";
+import {
+  COST_PER_ACTION,
+  assertActionCredits,
+  deductActionCredits,
+  insufficientCreditsBody,
+} from "../_shared/actionCredits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +85,14 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await supabase
       .from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+
+    const creditGate = await assertActionCredits(supabase, user.id);
+    if (!creditGate.ok) {
+      return new Response(
+        JSON.stringify(insufficientCreditsBody(creditGate.balance)),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     let plan = profile?.subscription_plan || 'basic';
     if ((plan === 'pro' || plan === 'elite') && profile?.subscription_expires_at) {
@@ -298,22 +313,25 @@ ${parts.join('\n\n')}`;
           const scoreResult = await scoreResponse.json();
           const scoreText = scoreResult.choices?.[0]?.message?.content || '';
           try {
-            const jsonMatch = scoreText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              acceptanceScore = JSON.parse(jsonMatch[0]);
-            }
-          } catch { /* ignore parse errors */ }
+            acceptanceScore = parseLLMJson(scoreText);
+          } catch (parseErr) {
+            console.error("[generate-cv] acceptanceScore JSON parse failed", parseErr, scoreText.slice(0, 240));
+          }
         }
       } catch (e) {
         console.error("Score generation failed:", e);
       }
     }
 
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_creation");
+
     return new Response(
       JSON.stringify({
         cv: cvContent,
         acceptanceScore,
         plan,
+        creditsCharged: COST_PER_ACTION,
+        creditsRemaining,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

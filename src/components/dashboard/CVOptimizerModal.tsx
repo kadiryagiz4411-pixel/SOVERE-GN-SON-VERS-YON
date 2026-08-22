@@ -22,6 +22,7 @@ import {
   GitCompare,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
 
 type Step = 'input' | 'teaser' | 'full' | 'diff';
 
@@ -38,7 +39,7 @@ interface CVOptimizerModalProps {
   onOpenChange: (open: boolean) => void;
   userPlan?: string;
   creditsBalance?: number;
-  onCreditsConsumed?: () => void;
+  onCreditsConsumed?: (remaining?: number) => void;
 }
 
 export const CVOptimizerModal = ({
@@ -66,12 +67,12 @@ export const CVOptimizerModal = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isPaid = userPlan !== 'free';
-  const hasCredits = creditsBalance > 0;
-  const canUnlock = isPaid || hasCredits;
+  const hasCredits = hasActionCredits(creditsBalance);
+  const canUnlock = hasCredits;
 
   const txt = {
     title: language === 'tr' ? 'ATS CV Analiz & Optimize' : language === 'de' ? 'ATS CV Analyse & Optimierung' : 'ATS CV Analysis & Optimization',
-    subtitle: language === 'tr' ? 'Ücretsiz ATS skorunuzu görün, tüm raporu açmak için 1 kredi' : language === 'de' ? 'Kostenloser ATS-Score, 1 Credit für vollständige Optimierung' : 'Free ATS score preview — 1 credit to unlock full rewrite',
+    subtitle: language === 'tr' ? `Ücretsiz ATS skorunuzu görün, tüm raporu açmak için ${COST_PER_ACTION} kredi` : language === 'de' ? `Kostenloser ATS-Score, ${COST_PER_ACTION} Credits für vollständige Optimierung` : `Free ATS score preview — ${COST_PER_ACTION} credits to unlock full rewrite`,
     paste: language === 'tr' ? 'Yapıştır' : 'Paste',
     upload: language === 'tr' ? 'Dosya Yükle' : 'Upload',
     cvPlaceholder: language === 'tr' ? 'CV / Özgeçmiş metninizi yapıştırın...' : 'Paste your CV / Resume text here...',
@@ -160,7 +161,7 @@ export const CVOptimizerModal = ({
   };
 
   const handleUnlockFull = async () => {
-    if (!canUnlock) { toast.error(txt.noCredits); return; }
+    if (!canUnlock) { toast.error(INSUFFICIENT_CREDITS_MESSAGE); return; }
     if (!cvText.trim()) return;
     setIsOptimizing(true);
     setOptimizedCV('');
@@ -185,16 +186,26 @@ export const CVOptimizerModal = ({
         }
       );
       const result = await response.json();
-      if (!response.ok) { toast.error(result.error || 'Optimization failed'); return; }
+      if (!response.ok) {
+        console.error('[optimize-cv] HTTP error', response.status, result);
+        toast.error(result.error || INSUFFICIENT_CREDITS_MESSAGE);
+        return;
+      }
+      if (!result.optimizedCV) {
+        console.error('[optimize-cv] empty payload', result);
+        toast.error('Optimization failed. Please retry.');
+        return;
+      }
       setOptimizedCV(result.optimizedCV);
       setScore(result.score);
       setImprovements(result.improvements || []);
       setInjectedKeywords(result.injectedKeywords || []);
       setQuantifiedBullets(result.quantifiedBullets || 0);
       setStep('diff');
-      if (!isPaid && onCreditsConsumed) onCreditsConsumed();
+      onCreditsConsumed?.(result.creditsRemaining);
       toast.success('CV optimized!');
-    } catch {
+    } catch (err) {
+      console.error('[optimize-cv] unexpected error', err);
       toast.error('An error occurred');
     } finally {
       setIsOptimizing(false);

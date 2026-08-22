@@ -107,12 +107,12 @@ export const PLAN_CREDITS: Record<string, number> = {
   B2B_ENTERPRISE: 10000,
 };
 
-// Cost per action in credits
+// Cost per action in credits (dollar prices / LS IDs are unchanged)
 export const CREDIT_COSTS = {
   proposal: 20,
-  cv: 10,
+  cv: 20,
   smartMatch: 20,
-  optimize: 10,
+  optimize: 20,
 };
 
 export const getAnnualSavings = (plan: 'pro' | 'elite') => {

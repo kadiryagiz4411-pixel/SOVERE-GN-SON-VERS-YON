@@ -26,6 +26,7 @@ export const generateProposal = async (
   });
 
   if (error) {
+    console.error('[generate-proposal] invoke error', error);
     throw new Error(error.message || 'Failed to generate proposal');
   }
 

@@ -15,6 +15,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { trimForLLM, contentHash } from '@/utils/tokenTrimmer';
+import { parseLLMJson } from '@/utils/llmJson';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ ${trimmedJD}`;
   );
 
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = parseLLMJson<Stage1Result>(raw);
     return { ...parsed, fromCache: false, cacheHit: false };
   } catch {
     return {
@@ -241,7 +242,7 @@ Return JSON with:
   );
 
   try {
-    return JSON.parse(raw) as Stage2Result;
+    return parseLLMJson<Stage2Result>(raw);
   } catch {
     return {
       tailored_cv_section: raw.slice(0, 500),

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
+import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
@@ -80,6 +81,7 @@ const CVBuilder = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [plan, setPlan] = useState('free');
+  const [creditsBalance, setCreditsBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generatedCV, setGeneratedCV] = useState('');
@@ -120,7 +122,7 @@ const CVBuilder = () => {
       setUser(session.user);
 
       const { data: profile } = await supabase
-        .from('profiles').select('subscription_plan, subscription_expires_at, full_name')
+        .from('profiles').select('subscription_plan, subscription_expires_at, full_name, credits_balance')
         .eq('user_id', session.user.id).maybeSingle();
 
       let userPlan = profile?.subscription_plan || 'free';
@@ -128,6 +130,7 @@ const CVBuilder = () => {
         if (new Date() > new Date(profile.subscription_expires_at)) userPlan = 'free';
       }
       setPlan(userPlan);
+      setCreditsBalance((profile as any)?.credits_balance ?? 0);
       if (profile?.full_name) setFullName(profile.full_name);
       setLoading(false);
     };
@@ -135,6 +138,11 @@ const CVBuilder = () => {
   }, [navigate]);
 
   const handleGenerate = async () => {
+    if (!hasActionCredits(creditsBalance)) {
+      toast.error(INSUFFICIENT_CREDITS_MESSAGE);
+      return;
+    }
+
     // Check CV generation limit
     if (!canGenerateCV(plan)) {
       if (isElitePlan(plan)) {
@@ -226,20 +234,31 @@ const CVBuilder = () => {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
+        console.error('[generate-cv] HTTP error', response.status, err);
         if (response.status === 429) toast.error('Rate limit — please wait and retry.');
-        else if (response.status === 402) toast.error('AI credits exhausted.');
+        else if (response.status === 402) toast.error(err.error || INSUFFICIENT_CREDITS_MESSAGE);
         else toast.error(err.error || 'Failed to generate CV');
         return;
       }
 
       const result = await response.json();
+      if (!result.cv) {
+        console.error('[generate-cv] empty payload', result);
+        toast.error('CV generation failed. Please retry.');
+        return;
+      }
       setGeneratedCV(result.cv);
       if (result.acceptanceScore) setAcceptanceScore(result.acceptanceScore);
+      if (typeof result.creditsRemaining === 'number') {
+        setCreditsBalance(result.creditsRemaining);
+      } else {
+        setCreditsBalance(prev => Math.max(0, prev - COST_PER_ACTION));
+      }
       incrementCVGenerations();
       toast.success(cv.successMsg || 'CV generated successfully!');
     } catch (err: any) {
-      console.error(err);
-      toast.error(cv.errorGenFailed || 'CV generation failed. Please retry.');
+      console.error('[generate-cv] unexpected error', err);
+      toast.error(err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.');
     } finally {
       setGenerating(false);
     }

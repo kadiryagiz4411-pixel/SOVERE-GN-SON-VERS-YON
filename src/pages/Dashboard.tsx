@@ -9,6 +9,7 @@ import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottom
 import { supabase } from '@/integrations/supabase/client';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
+import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
@@ -623,14 +624,14 @@ const Dashboard = () => {
       return;
     }
 
-    // Credit check — block ALL plans when credits are 0
+    // Credit check — block ALL plans when credits are below COST_PER_ACTION
     const currentCredits = profile?.credits_balance ?? 0;
-    if (currentCredits < 20) {
+    if (!hasActionCredits(currentCredits)) {
       toast.error(
-        language === 'tr' ? 'Krediniz yetersiz. Proposal için 20 kredi gerekli. Lütfen kredi satın alın.' :
-        language === 'de' ? 'Nicht genügend Credits. 20 Credits pro Proposal erforderlich.' :
-        language === 'fr' ? 'Crédits insuffisants. 20 crédits requis par proposal.' :
-        'Insufficient credits. 20 credits required per proposal. Please purchase credits.'
+        language === 'tr' ? `Krediniz yetersiz. Proposal için ${COST_PER_ACTION} kredi gerekli. Lütfen kredi satın alın.` :
+        language === 'de' ? `Nicht genügend Credits. ${COST_PER_ACTION} Credits pro Proposal erforderlich.` :
+        language === 'fr' ? `Crédits insuffisants. ${COST_PER_ACTION} crédits requis par proposal.` :
+        INSUFFICIENT_CREDITS_MESSAGE
       );
       setUpgradeFeature('Credits');
       setShowUpgradeModal(true);
@@ -720,24 +721,10 @@ const Dashboard = () => {
         setProposalViewsUsed(newCount);
       }
 
-      // Deduct 20 credits for proposal generation
-      if (user) {
-        try {
-          const { data: newBalance } = await supabase.rpc('apply_credit_change', {
-            _user_id: user.id,
-            _amount: -20,
-            _transaction_type: 'usage',
-            _reference_type: 'proposal',
-            _description: language === 'tr' ? 'Proposal oluşturma' : 'Proposal generation',
-          });
-          if (typeof newBalance === 'number' && profile) {
-            setProfile({ ...profile, credits_balance: newBalance });
-          }
-        } catch (creditErr) {
-          console.error('Credit deduction error:', creditErr);
-        }
-      }
-      
+      const nextCredits = typeof result.creditsRemaining === 'number'
+        ? result.creditsRemaining
+        : Math.max(0, (profile?.credits_balance ?? 0) - COST_PER_ACTION);
+
       if (result.variants && result.variants.length > 0) {
         setProposalVariants(result.variants);
         setActiveVariant(result.variants[0].id);
@@ -762,11 +749,14 @@ const Dashboard = () => {
         }
       }
       
-      if (profile && result.usage) {
-        const newUsed = result.usage.used;
-        const updatedProfile = { ...profile, daily_proposals_used: newUsed };
+      if (profile) {
+        const updatedProfile = {
+          ...profile,
+          credits_balance: nextCredits,
+          daily_proposals_used: result.usage?.used ?? profile.daily_proposals_used,
+        };
 
-        if (newUsed > 0 && newUsed % 10 === 0 && user) {
+        if (result.usage && result.usage.used > 0 && result.usage.used % 10 === 0 && user) {
           const newBonus = (profile.bonus_credits || 0) + 5;
           await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', user.id);
           updatedProfile.bonus_credits = newBonus;
@@ -1819,9 +1809,14 @@ const Dashboard = () => {
         onOpenChange={setShowCVOptimizer}
         userPlan={currentPlan}
         creditsBalance={profile?.credits_balance ?? 0}
-        onCreditsConsumed={() => {
+        onCreditsConsumed={(remaining) => {
           if (profile) {
-            setProfile({ ...profile, credits_balance: Math.max(0, (profile.credits_balance ?? 0) - 1) });
+            setProfile({
+              ...profile,
+              credits_balance: typeof remaining === 'number'
+                ? remaining
+                : Math.max(0, (profile.credits_balance ?? 0) - COST_PER_ACTION),
+            });
           }
         }}
       />

@@ -11,6 +11,9 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { COST_PER_ACTION } from '@/lib/credits';
+
+export { COST_PER_ACTION };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +85,7 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
  * Returns true when the user has at least `amount` credits available.
  * Triggers a lazy reset before checking.
  */
-export async function hasEnoughCredits(userId: string, amount = 1): Promise<boolean> {
+export async function hasEnoughCredits(userId: string, amount = COST_PER_ACTION): Promise<boolean> {
   const status = await fetchCreditStatus(userId);
   if (!status) return false;
   return status.remainingCredits >= amount;
@@ -100,7 +103,7 @@ export interface DeductResult {
  * Atomically deducts credits via the `deduct_monthly_credit` RPC.
  * Always call `hasEnoughCredits` first (or catch the failure here).
  */
-export async function deductCredit(userId: string, amount = 1): Promise<DeductResult> {
+export async function deductCredit(userId: string, amount = COST_PER_ACTION): Promise<DeductResult> {
   try {
     const { data, error } = await supabase.rpc('deduct_monthly_credit', {
       user_id_input: userId,
