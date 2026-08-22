@@ -5,116 +5,27 @@
  *   1. PKCE  → URL contains `?code=…`           (new default)
  *   2. Legacy → URL contains `?token_hash=…&type=recovery` or `#access_token=…`
  *
- * Fix summary vs previous version:
- * - onAuthStateChange subscriber is created FIRST so PASSWORD_RECOVERY is
- *   never missed regardless of how fast initCheck resolves.
- * - A `settled` ref prevents the two async paths from overwriting each other.
- * - Operator-precedence bug in the session fallback condition fixed.
- * - Password strength indicator added.
- * - Both fields now have independent show/hide toggles.
- * - Min password length raised to 8.
- * - All state setters are guarded by an `isMounted` ref.
+ * Key fixes in this version:
+ * - Shell component hoisted to MODULE level → no focus loss on keystroke.
+ * - Native <input> elements with explicit font-size/font-family so password
+ *   masking dots are crisp and correctly sized (no weird inflate).
+ * - All UI strings are hardcoded English for clean Google Translate detection.
+ * - onAuthStateChange subscribed FIRST to never miss PASSWORD_RECOVERY.
+ * - `settled` ref prevents the two async paths from racing.
+ * - `isMounted` ref guards every setState call.
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Crown, Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck,
   AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 
-// ─── i18n ─────────────────────────────────────────────────────────────────────
-
-const COPY = {
-  en: {
-    title: 'Set New Password',
-    subtitle: 'Enter and confirm your new password below.',
-    password: 'New Password',
-    confirm: 'Confirm New Password',
-    submit: 'Update Password',
-    updating: 'Updating…',
-    successTitle: 'Password Updated!',
-    successDesc: 'Your password has been changed. Sign in with your new password.',
-    goToLogin: 'Go to Sign In',
-    invalid: 'This reset link is invalid or has expired.',
-    expired: 'Request a fresh link from the sign-in page.',
-    requestNew: 'Request New Link',
-    mismatch: 'Passwords do not match.',
-    tooShort: 'Password must be at least 8 characters.',
-    strengthWeak: 'Weak',
-    strengthFair: 'Fair',
-    strengthGood: 'Good',
-    strengthStrong: 'Strong',
-  },
-  tr: {
-    title: 'Yeni Şifre Belirle',
-    subtitle: 'Aşağıya yeni şifrenizi girin ve onaylayın.',
-    password: 'Yeni Şifre',
-    confirm: 'Yeni Şifreyi Onayla',
-    submit: 'Şifreyi Güncelle',
-    updating: 'Güncelleniyor…',
-    successTitle: 'Şifre Güncellendi!',
-    successDesc: 'Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.',
-    goToLogin: 'Giriş Yap',
-    invalid: 'Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş.',
-    expired: 'Giriş sayfasından yeni bir bağlantı talep edin.',
-    requestNew: 'Yeni Bağlantı İste',
-    mismatch: 'Şifreler eşleşmiyor.',
-    tooShort: 'Şifre en az 8 karakter olmalıdır.',
-    strengthWeak: 'Zayıf',
-    strengthFair: 'Orta',
-    strengthGood: 'İyi',
-    strengthStrong: 'Güçlü',
-  },
-  de: {
-    title: 'Neues Passwort festlegen',
-    subtitle: 'Geben Sie Ihr neues Passwort ein und bestätigen Sie es.',
-    password: 'Neues Passwort',
-    confirm: 'Neues Passwort bestätigen',
-    submit: 'Passwort aktualisieren',
-    updating: 'Wird aktualisiert…',
-    successTitle: 'Passwort aktualisiert!',
-    successDesc: 'Ihr Passwort wurde erfolgreich geändert.',
-    goToLogin: 'Zur Anmeldung',
-    invalid: 'Dieser Reset-Link ist ungültig oder abgelaufen.',
-    expired: 'Fordern Sie einen neuen Link auf der Anmeldeseite an.',
-    requestNew: 'Neuen Link anfordern',
-    mismatch: 'Passwörter stimmen nicht überein.',
-    tooShort: 'Passwort muss mindestens 8 Zeichen haben.',
-    strengthWeak: 'Schwach',
-    strengthFair: 'Mittel',
-    strengthGood: 'Gut',
-    strengthStrong: 'Stark',
-  },
-  fr: {
-    title: 'Nouveau mot de passe',
-    subtitle: 'Entrez et confirmez votre nouveau mot de passe.',
-    password: 'Nouveau mot de passe',
-    confirm: 'Confirmer le nouveau mot de passe',
-    submit: 'Mettre à jour',
-    updating: 'Mise à jour…',
-    successTitle: 'Mot de passe mis à jour !',
-    successDesc: 'Votre mot de passe a été changé avec succès.',
-    goToLogin: 'Se connecter',
-    invalid: 'Ce lien est invalide ou expiré.',
-    expired: 'Demandez un nouveau lien sur la page de connexion.',
-    requestNew: 'Demander un nouveau lien',
-    mismatch: 'Les mots de passe ne correspondent pas.',
-    tooShort: 'Le mot de passe doit avoir au moins 8 caractères.',
-    strengthWeak: 'Faible',
-    strengthFair: 'Moyen',
-    strengthGood: 'Bon',
-    strengthStrong: 'Fort',
-  },
-} as const;
-
-// ─── Password strength ────────────────────────────────────────────────────────
+// ─── Password strength (module-level, pure) ───────────────────────────────────
 
 type Strength = 0 | 1 | 2 | 3 | 4;
 
@@ -129,7 +40,7 @@ function measureStrength(pw: string): Strength {
   return Math.min(4, score) as Strength;
 }
 
-const STRENGTH_COLOR: Record<Strength, string> = {
+const STRENGTH_BAR_COLOR: Record<Strength, string> = {
   0: '',
   1: 'bg-red-500',
   2: 'bg-amber-500',
@@ -137,175 +48,35 @@ const STRENGTH_COLOR: Record<Strength, string> = {
   4: 'bg-emerald-500',
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const STRENGTH_TEXT_COLOR: Record<Strength, string> = {
+  0: '',
+  1: 'text-red-500',
+  2: 'text-amber-500',
+  3: 'text-yellow-400',
+  4: 'text-emerald-500',
+};
 
-type PageState = 'checking' | 'ready' | 'invalid' | 'success';
+const STRENGTH_LABEL: Record<Strength, string> = {
+  0: '', 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong',
+};
 
-const ResetPassword = () => {
-  const navigate = useNavigate();
-  const { language } = useLanguage();
-  const l = COPY[(language as keyof typeof COPY)] ?? COPY.en;
+// ─── Shell — HOISTED outside component to prevent focus loss ─────────────────
+// IMPORTANT: defining this inside the component body would cause React to treat
+// it as a new component type on every render, unmounting the form and clearing
+// focus on every keystroke. It must live at module scope.
 
-  const [pageState, setPageState]         = useState<PageState>('checking');
-  const [password, setPassword]           = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword]   = useState(false);
-  const [showConfirm, setShowConfirm]     = useState(false);
-  const [isLoading, setIsLoading]         = useState(false);
+interface ShellProps {
+  onBack: () => void;
+  children: React.ReactNode;
+}
 
-  const isMounted = useRef(true);
-  /** Prevents two async paths from racing to set the page state */
-  const settled   = useRef(false);
-
-  const strength = useMemo(() => measureStrength(password), [password]);
-
-  const strengthLabel = useMemo((): string => {
-    const labels: Record<Strength, string> = {
-      0: '', 1: l.strengthWeak, 2: l.strengthFair,
-      3: l.strengthGood, 4: l.strengthStrong,
-    };
-    return labels[strength];
-  }, [strength, l]);
-
-  const settle = (state: PageState) => {
-    if (!isMounted.current || settled.current) return;
-    settled.current = true;
-    setPageState(state);
-  };
-
-  const clearUrlParams = () => {
-    window.history.replaceState({}, document.title, '/reset-password');
-  };
-
-  useEffect(() => {
-    isMounted.current = true;
-    settled.current   = false;
-
-    // ── Step 1: Subscribe FIRST so we never miss PASSWORD_RECOVERY ──────────
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        clearUrlParams();
-        settle('ready');
-      }
-    });
-
-    // ── Step 2: Parse URL params and verify the token ───────────────────────
-    const initCheck = async () => {
-      const search    = new URLSearchParams(window.location.search);
-      const hashStr   = window.location.hash.replace(/^#/, '');
-      const hash      = new URLSearchParams(hashStr);
-
-      const type        = search.get('type')        ?? hash.get('type');
-      const tokenHash   = search.get('token_hash')  ?? hash.get('token_hash');
-      const code        = search.get('code')        ?? hash.get('code');
-      const accessToken = search.get('access_token') ?? hash.get('access_token');
-
-      const hasRecoveryCtx =
-        type === 'recovery' ||
-        Boolean(tokenHash || code || accessToken);
-
-      try {
-        // ── PKCE flow: exchange code for session ──────────────────────────
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) { settle('invalid'); return; }
-          clearUrlParams();
-          settle('ready');
-          return;
-        }
-
-        // ── Legacy OTP flow: verify token_hash ────────────────────────────
-        if (type === 'recovery' && tokenHash) {
-          const { error } = await supabase.auth.verifyOtp({
-            type: 'recovery',
-            token_hash: tokenHash,
-          });
-          if (error) { settle('invalid'); return; }
-          clearUrlParams();
-          settle('ready');
-          return;
-        }
-
-        // ── Hash-fragment flow: wait briefly for the auth event ───────────
-        if (accessToken && hasRecoveryCtx) {
-          await new Promise(r => setTimeout(r, 400));
-          // If onAuthStateChange already settled us, do nothing
-          if (settled.current) return;
-        }
-
-        // ── Last resort: check whether a recovery session already exists ──
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && hasRecoveryCtx) {
-          clearUrlParams();
-          settle('ready');
-          return;
-        }
-
-        // No valid recovery context at all
-        settle('invalid');
-      } catch {
-        settle('invalid');
-      }
-    };
-
-    initCheck();
-
-    return () => {
-      isMounted.current = false;
-      subscription.unsubscribe();
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Form submit ───────────────────────────────────────────────────────────
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (password.length < 8) {
-      toast.error(l.tooShort);
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast.error(l.mismatch);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-
-      if (error) {
-        // Surface the exact Supabase error so the user (and support) can see it
-        const detail = (error as any).status ? ` [${(error as any).status}]` : '';
-        toast.error(`${error.message}${detail}`, { duration: 8000 });
-        return;
-      }
-
-      // Sign out so the user authenticates fresh with the new password
-      await supabase.auth.signOut();
-
-      toast.success('Password updated! Redirecting to sign in…', { duration: 3000 });
-      if (isMounted.current) setPageState('success');
-
-      // Auto-navigate after the toast is visible
-      setTimeout(() => {
-        if (isMounted.current) navigate('/auth');
-      }, 3200);
-    } catch (err) {
-      console.error('[ResetPassword] updateUser error:', err);
-      toast.error('An unexpected error occurred. Please try again.');
-    } finally {
-      if (isMounted.current) setIsLoading(false);
-    }
-  };
-
-  // ─── Shared page shell ─────────────────────────────────────────────────────
-
-  const Shell = ({ children }: { children: React.ReactNode }) => (
+function Shell({ onBack, children }: ShellProps) {
+  return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <button
-          onClick={() => navigate('/auth')}
+          type="button"
+          onClick={onBack}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -321,8 +92,215 @@ const ResetPassword = () => {
       </div>
     </div>
   );
+}
 
-  // ─── Checking (spinner) ────────────────────────────────────────────────────
+// ─── Password input — module-level styled component ───────────────────────────
+// Uses a native <input> with explicit text-base + system-ui font so browser
+// password-masking dots render at the correct small size without inflation from
+// custom typefaces or letter-spacing rules.
+
+interface PasswordInputProps {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  placeholder?: string;
+  className?: string;
+  autoComplete?: string;
+}
+
+function PasswordInput({
+  id, value, onChange, show, onToggleShow,
+  placeholder = '••••••••', className = '', autoComplete = 'current-password',
+}: PasswordInputProps) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        autoFocus={false}
+        required
+        style={{
+          /* Explicit font stack prevents custom typeface from inflating dots */
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontSize: '16px',
+          letterSpacing: 'normal',
+        }}
+        className={cn(
+          'w-full h-12 rounded-md border border-input bg-background px-3 pr-12',
+          'text-foreground placeholder:text-muted-foreground',
+          'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
+          'transition-colors',
+          className,
+        )}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={onToggleShow}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+      </button>
+    </div>
+  );
+}
+
+// ─── Page state type ───────────────────────────────────────────────────────────
+
+type PageState = 'checking' | 'ready' | 'invalid' | 'success';
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const ResetPassword = () => {
+  const navigate = useNavigate();
+
+  const [pageState, setPageState]             = useState<PageState>('checking');
+  const [password, setPassword]               = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword]       = useState(false);
+  const [showConfirm, setShowConfirm]         = useState(false);
+  const [isLoading, setIsLoading]             = useState(false);
+
+  const isMounted = useRef(true);
+  const settled   = useRef(false);
+
+  const strength      = useMemo(() => measureStrength(password), [password]);
+  const strengthLabel = STRENGTH_LABEL[strength];
+
+  const settle = (state: PageState) => {
+    if (!isMounted.current || settled.current) return;
+    settled.current = true;
+    setPageState(state);
+  };
+
+  const clearUrlParams = () =>
+    window.history.replaceState({}, document.title, '/reset-password');
+
+  // ── Token verification ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    isMounted.current = true;
+    settled.current   = false;
+
+    // Subscribe FIRST — never miss PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        clearUrlParams();
+        settle('ready');
+      }
+    });
+
+    const initCheck = async () => {
+      const search    = new URLSearchParams(window.location.search);
+      const hashStr   = window.location.hash.replace(/^#/, '');
+      const hash      = new URLSearchParams(hashStr);
+
+      const type        = search.get('type')         ?? hash.get('type');
+      const tokenHash   = search.get('token_hash')   ?? hash.get('token_hash');
+      const code        = search.get('code')         ?? hash.get('code');
+      const accessToken = search.get('access_token') ?? hash.get('access_token');
+
+      const hasRecoveryCtx =
+        type === 'recovery' || Boolean(tokenHash || code || accessToken);
+
+      try {
+        // PKCE flow — exchange code for session
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) { settle('invalid'); return; }
+          clearUrlParams();
+          settle('ready');
+          return;
+        }
+
+        // Legacy OTP flow — verify token_hash
+        if (type === 'recovery' && tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            type: 'recovery',
+            token_hash: tokenHash,
+          });
+          if (error) { settle('invalid'); return; }
+          clearUrlParams();
+          settle('ready');
+          return;
+        }
+
+        // Hash-fragment flow — wait briefly for the auth event
+        if (accessToken && hasRecoveryCtx) {
+          await new Promise(r => setTimeout(r, 400));
+          if (settled.current) return;
+        }
+
+        // Last resort — check for an existing recovery session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && hasRecoveryCtx) {
+          clearUrlParams();
+          settle('ready');
+          return;
+        }
+
+        settle('invalid');
+      } catch {
+        settle('invalid');
+      }
+    };
+
+    initCheck();
+
+    return () => {
+      isMounted.current = false;
+      subscription.unsubscribe();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Form submit ──────────────────────────────────────────────────────────────
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+
+      if (error) {
+        const detail = (error as any).status ? ` [${(error as any).status}]` : '';
+        toast.error(`${error.message}${detail}`, { duration: 8000 });
+        return;
+      }
+
+      await supabase.auth.signOut();
+      toast.success('Password updated successfully! Redirecting to sign in…', { duration: 3000 });
+      if (isMounted.current) setPageState('success');
+
+      setTimeout(() => {
+        if (isMounted.current) navigate('/auth');
+      }, 3200);
+    } catch (err) {
+      console.error('[ResetPassword] updateUser error:', err);
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      if (isMounted.current) setIsLoading(false);
+    }
+  };
+
+  const goBack = () => navigate('/auth');
+
+  // ── Spinner while verifying token ────────────────────────────────────────────
 
   if (pageState === 'checking') {
     return (
@@ -335,111 +313,111 @@ const ResetPassword = () => {
     );
   }
 
-  // ─── Success ───────────────────────────────────────────────────────────────
+  // ── Success screen ───────────────────────────────────────────────────────────
 
   if (pageState === 'success') {
     return (
-      <Shell>
+      <Shell onBack={goBack}>
         <div className="text-center space-y-5">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">{l.successTitle}</h1>
-            <p className="text-muted-foreground text-sm">{l.successDesc}</p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Password Updated!</h1>
+            <p className="text-muted-foreground text-sm">
+              Your password has been changed. Sign in with your new password.
+            </p>
           </div>
-          <Button variant="gold" className="w-full h-12" onClick={() => navigate('/auth')}>
-            {l.goToLogin}
+          <Button variant="gold" className="w-full h-12" onClick={goBack}>
+            Go to Sign In
           </Button>
         </div>
       </Shell>
     );
   }
 
-  // ─── Invalid / expired ─────────────────────────────────────────────────────
+  // ── Invalid / expired link ───────────────────────────────────────────────────
 
   if (pageState === 'invalid') {
     return (
-      <Shell>
+      <Shell onBack={goBack}>
         <div className="text-center space-y-5">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-destructive/10 border border-destructive/30 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-destructive" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground mb-2">{l.invalid}</h1>
-            <p className="text-muted-foreground text-sm">{l.expired}</p>
+            <h1 className="text-xl font-bold text-foreground mb-2">
+              Reset Link Invalid or Expired
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Request a fresh link from the sign-in page.
+            </p>
           </div>
           <Button
             variant="gold"
             className="w-full h-12"
             onClick={() => navigate('/auth?mode=forgot')}
           >
-            {l.requestNew}
+            Request New Link
           </Button>
           <button
-            onClick={() => navigate('/auth')}
+            type="button"
+            onClick={goBack}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors block mx-auto"
           >
-            {l.goToLogin}
+            Go to Sign In
           </button>
         </div>
       </Shell>
     );
   }
 
-  // ─── Password update form ──────────────────────────────────────────────────
+  // ── Password update form ─────────────────────────────────────────────────────
 
   return (
-    <Shell>
-      <h1 className="text-3xl font-bold text-foreground mb-2">{l.title}</h1>
-      <p className="text-muted-foreground text-sm mb-8">{l.subtitle}</p>
+    <Shell onBack={goBack}>
+      <h1 className="text-3xl font-bold text-foreground mb-2">Reset Password</h1>
+      <p className="text-muted-foreground text-sm mb-8">
+        Enter and confirm your new password below.
+      </p>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* New password */}
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+
+        {/* New Password */}
         <div className="space-y-2">
-          <Label htmlFor="pw">{l.password}</Label>
-          <div className="relative">
-            <Input
-              id="pw"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="h-12 pr-12"
-              required
-              autoComplete="new-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(p => !p)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
+          <label
+            htmlFor="pw"
+            className="text-sm font-medium text-foreground block"
+          >
+            New Password
+          </label>
+
+          <PasswordInput
+            id="pw"
+            value={password}
+            onChange={setPassword}
+            show={showPassword}
+            onToggleShow={() => setShowPassword(p => !p)}
+            placeholder="Enter new password"
+            autoComplete="new-password"
+          />
 
           {/* Strength bar */}
           {password && (
             <div className="space-y-1">
               <div className="flex gap-1">
-                {[1, 2, 3, 4].map(i => (
+                {([1, 2, 3, 4] as Strength[]).map(i => (
                   <div
                     key={i}
                     className={cn(
                       'h-1 flex-1 rounded-full transition-all duration-300',
-                      strength >= i ? STRENGTH_COLOR[strength] : 'bg-muted',
+                      strength >= i ? STRENGTH_BAR_COLOR[strength] : 'bg-muted',
                     )}
                   />
                 ))}
               </div>
               {strengthLabel && (
-                <p className={cn(
-                  'text-xs font-medium',
-                  strength <= 1 ? 'text-red-500'
-                    : strength === 2 ? 'text-amber-500'
-                    : strength === 3 ? 'text-yellow-400'
-                    : 'text-emerald-500',
-                )}>
+                <p className={cn('text-xs font-medium', STRENGTH_TEXT_COLOR[strength])}>
                   {strengthLabel}
                 </p>
               )}
@@ -447,40 +425,38 @@ const ResetPassword = () => {
           )}
         </div>
 
-        {/* Confirm password */}
+        {/* Confirm Password */}
         <div className="space-y-2">
-          <Label htmlFor="confirm">{l.confirm}</Label>
-          <div className="relative">
-            <Input
-              id="confirm"
-              type={showConfirm ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className={cn(
-                'h-12 pr-12',
-                confirmPassword && confirmPassword !== password
-                  ? 'border-red-500/60 focus-visible:ring-red-500/20'
-                  : confirmPassword && confirmPassword === password
-                    ? 'border-emerald-500/60 focus-visible:ring-emerald-500/20'
-                    : '',
-              )}
-              required
-              autoComplete="new-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(p => !p)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
+          <label
+            htmlFor="confirm"
+            className="text-sm font-medium text-foreground block"
+          >
+            Confirm New Password
+          </label>
+
+          <PasswordInput
+            id="confirm"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            show={showConfirm}
+            onToggleShow={() => setShowConfirm(p => !p)}
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+            className={
+              confirmPassword
+                ? confirmPassword !== password
+                  ? 'border-red-500/60 focus:ring-red-500/40'
+                  : 'border-emerald-500/60 focus:ring-emerald-500/40'
+                : ''
+            }
+          />
+
           {confirmPassword && confirmPassword !== password && (
-            <p className="text-xs text-red-500">{l.mismatch}</p>
+            <p className="text-xs text-red-500">Passwords do not match.</p>
           )}
         </div>
 
+        {/* Submit */}
         <Button
           type="submit"
           variant="gold"
@@ -490,9 +466,11 @@ const ResetPassword = () => {
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {l.updating}
+              Updating password…
             </>
-          ) : l.submit}
+          ) : (
+            'Update Password'
+          )}
         </Button>
       </form>
 
