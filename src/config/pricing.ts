@@ -10,7 +10,11 @@
  *   VITE_LEMONSQUEEZY_PRO_MONTHLY_URL      / _ANNUAL_URL
  *   VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL    / _ANNUAL_URL
  *   VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL / _ANNUAL_URL
+ *
+ * Variant IDs live in src/config/plans.ts (createCheckout / resolveCheckoutUrl).
  */
+
+import { createCheckout, type CheckoutPlanId } from "./plans";
 
 // ─── URL helper (safe env read) ───────────────────────────────────────────────
 
@@ -208,8 +212,8 @@ export function getTierByPlanType(planType: string): PricingTier | undefined {
 
 /** Active checkout URL for the given tier and billing period */
 export function getCheckoutUrlFor(tier: PricingTier, isAnnual: boolean): string {
-  if (tier.isOneTime) return tier.checkoutUrls.oneTime ?? "#";
-  return (isAnnual ? tier.checkoutUrls.annual : tier.checkoutUrls.monthly) ?? "#";
+  if (tier.isOneTime) return createCheckout("single_pass");
+  return createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly");
 }
 
 /** Display price string, e.g. "$22" */
@@ -280,8 +284,8 @@ export function getPlanByType(planType: string): PricingTier | undefined {
   return getTierByPlanType(planType);
 }
 
-/** @deprecated Use getCheckoutUrlFor(). */
-export function getCheckoutUrl(planId: PlanId, isAnnual = true): string {
+/** @deprecated Use getCheckoutUrlFor() or createCheckout() from src/config/plans.ts. */
+export function getCheckoutUrl(planId: PlanId, isAnnual = false): string {
   const tier = getTierById(planId);
   return tier ? getCheckoutUrlFor(tier, isAnnual) : "#";
 }

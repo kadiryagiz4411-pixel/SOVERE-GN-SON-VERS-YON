@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Zap, Ticket, Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  PRICING_TIERS, getSubscriptionTiers, getOneTimeTier,
+  getSubscriptionTiers, getOneTimeTier, getCheckoutUrlFor,
 } from "@/config/pricing";
+import { type BillingCycle, createCheckout } from "@/config/plans";
 import { CheckoutButton } from "@/components/checkout/CheckoutButton";
 import { PricingCard } from "./PricingCard";
 
@@ -19,7 +20,8 @@ export function PricingTable({
   showEnterprise = true,
   className,
 }: PricingTableProps) {
-  const [isAnnual, setIsAnnual] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
+  const isAnnual = billingCycle === "yearly";
 
   const subscriptionTiers = getSubscriptionTiers().filter(
     t => showEnterprise || t.id !== "enterprise"
@@ -34,13 +36,13 @@ export function PricingTable({
             "text-sm font-medium transition-colors cursor-pointer select-none",
             !isAnnual ? "text-slate-100" : "text-slate-500"
           )}
-          onClick={() => setIsAnnual(false)}
+          onClick={() => setBillingCycle("monthly")}
         >
           Monthly
         </span>
 
         <button
-          onClick={() => setIsAnnual(v => !v)}
+          onClick={() => setBillingCycle(cycle => cycle === "yearly" ? "monthly" : "yearly")}
           aria-label="Toggle billing period"
           className={cn(
             "relative w-14 h-7 rounded-full transition-colors duration-300",
@@ -61,7 +63,7 @@ export function PricingTable({
             "text-sm font-medium transition-colors cursor-pointer select-none",
             isAnnual ? "text-slate-100" : "text-slate-500"
           )}
-          onClick={() => setIsAnnual(true)}
+          onClick={() => setBillingCycle("yearly")}
         >
           Annual
         </span>
@@ -150,7 +152,7 @@ export function SinglePassBanner() {
         {/* CTA */}
         <div className="flex-shrink-0">
           <CheckoutButton
-            href={pass.checkoutUrls.oneTime ?? "#"}
+            href={getCheckoutUrlFor(pass, false) || createCheckout("single_pass")}
             overlay
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold border-0 shadow-lg shadow-teal-700/30 transition-all whitespace-nowrap"
           >

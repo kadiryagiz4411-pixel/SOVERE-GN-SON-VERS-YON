@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { buttonVariants, type ButtonProps } from '@/components/ui/button';
 
@@ -6,7 +7,9 @@ import { buttonVariants, type ButtonProps } from '@/components/ui/button';
 
 declare global {
   interface Window {
+    createLemonSqueezy?: () => void;
     LemonSqueezy?: {
+      Setup?: (opts?: unknown) => void;
       Url: {
         Open: (url: string) => void;
         Close: () => void;
@@ -15,30 +18,48 @@ declare global {
   }
 }
 
-// ─── Programmatic checkout helper ─────────────────────────────────────────────
+export function ensureLemonSqueezyReady(): boolean {
+  try {
+    if (typeof window.createLemonSqueezy === 'function') {
+      window.createLemonSqueezy();
+    }
+    return typeof window.LemonSqueezy?.Url?.Open === 'function';
+  } catch (err) {
+    console.error('[LemonSqueezy] SDK init failed', err);
+    return false;
+  }
+}
 
 /**
- * Opens a Lemon Squeezy hosted checkout.
- *
- * - Uses the LS overlay (`window.LemonSqueezy.Url.Open`) when the overlay
- *   script has loaded (preferred — keeps the user on the page).
- * - Falls back to `window.open` in a new tab when the script is absent
- *   (e.g. ad-blockers, SSR, or the script hasn't loaded yet).
- * - Silently no-ops when `checkoutUrl` is empty or `'#'`, logging a
- *   console warning so missing env vars are easy to spot during dev.
+ * Opens a Lemon Squeezy hosted checkout from the *current* URL/variant.
+ * Always call this on click — do not rely on a stale `.lemonsqueezy-button` bind.
  */
 export function openLemonSqueezyCheckout(checkoutUrl: string): void {
   if (!checkoutUrl || checkoutUrl === '#') {
-    console.warn(
-      '[Sovereign] Checkout URL not configured. ' +
-      'Set the matching VITE_LEMONSQUEEZY_* environment variable.'
+    console.error(
+      '[LemonSqueezy] Missing checkout URL / variant ID. ' +
+      'Set VITE_*_MONTHLY_VARIANT_ID / VITE_*_YEARLY_VARIANT_ID or VITE_LEMONSQUEEZY_*_URL.',
     );
+    toast.error('Checkout is not configured for this plan. Please try again or contact support.');
     return;
   }
-  if (window.LemonSqueezy) {
-    window.LemonSqueezy.Url.Open(checkoutUrl);
-  } else {
-    window.open(checkoutUrl, '_blank');
+
+  try {
+    const ready = ensureLemonSqueezyReady();
+    if (ready && window.LemonSqueezy?.Url?.Open) {
+      window.LemonSqueezy.Url.Open(checkoutUrl);
+      return;
+    }
+    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in a new tab', { checkoutUrl });
+    window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.error('[LemonSqueezy] Checkout open failed', err, { checkoutUrl });
+    try {
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+    } catch (fallbackErr) {
+      console.error('[LemonSqueezy] Fallback window.open also failed', fallbackErr);
+      toast.error('Could not open checkout. Please disable your ad blocker and try again.');
+    }
   }
 }
 
@@ -52,25 +73,35 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
 
 /**
  * Lemon Squeezy checkout link.
- * Adding class "lemonsqueezy-button" causes the LS overlay script (loaded in index.html)
- * to intercept the click and open the hosted checkout as an in-page modal.
- * Falls back gracefully to a regular link if the script is not loaded.
+ * Click always uses the live `href` (monthly vs yearly) via Url.Open —
+ * never a first-render overlay bind that can stick to the yearly variant.
  */
 export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButtonProps>(
-  ({ href, variant = 'default', size = 'default', className, children, overlay = true, ...props }, ref) => {
-    const isValidUrl = href && href !== '#';
+  ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, ...props }, ref) => {
+    const isValidUrl = Boolean(href && href !== '#');
+
+    const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+      onClick?.(event);
+      if (event.defaultPrevented) return;
+      if (!isValidUrl) {
+        event.preventDefault();
+        openLemonSqueezyCheckout(href);
+        return;
+      }
+      if (overlay) {
+        event.preventDefault();
+        openLemonSqueezyCheckout(href);
+      }
+    };
+
     return (
       <a
         ref={ref}
         href={isValidUrl ? href : '#'}
-        target={isValidUrl && !overlay ? '_blank' : '_self'}
+        target={isValidUrl && !overlay ? '_blank' : undefined}
         rel="noopener noreferrer"
-        className={cn(
-          buttonVariants({ variant, size }),
-          overlay && isValidUrl ? 'lemonsqueezy-button' : '',
-          className,
-        )}
-        onClick={!isValidUrl ? (e) => e.preventDefault() : undefined}
+        className={cn(buttonVariants({ variant, size }), className)}
+        onClick={handleClick}
         {...props}
       >
         {children}

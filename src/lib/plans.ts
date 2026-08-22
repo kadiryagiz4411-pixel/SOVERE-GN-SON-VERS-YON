@@ -3,6 +3,8 @@
 // NOTE: Canonical pricing config is now src/config/pricing.ts
 // This file retains feature-gate logic used throughout the app.
 
+import { createCheckout } from '@/config/plans';
+
 export type PlanType = 'free' | 'standard' | 'pro' | 'elite' | 'B2B_ENTERPRISE';
 
 export interface PlanLimits {
@@ -121,34 +123,33 @@ export const getAnnualSavings = (plan: 'pro' | 'elite') => {
   return (monthly * 12) - annual;
 };
 
-// Lemon Squeezy checkout URLs — loaded from VITE_ env vars.
-// See src/config/pricing.ts for the canonical implementation.
-// These legacy exports kept for backward compatibility with existing components.
+// Lemon Squeezy checkout URLs — resolved from src/config/plans.ts
+// (variant IDs + env URLs). Default billing cycle is monthly so callers
+// that omit the second arg never silently open the yearly checkout.
 export const CHECKOUT_URLS = {
   standard: {
-    monthly: import.meta.env.VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL ?? '#',
-    annual: import.meta.env.VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL ?? '#',
+    monthly: createCheckout('standard', 'monthly'),
+    annual: createCheckout('standard', 'yearly'),
   },
   pro: {
-    monthly: import.meta.env.VITE_LEMONSQUEEZY_PRO_MONTHLY_URL
-      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
-    annual: import.meta.env.VITE_LEMONSQUEEZY_PRO_ANNUAL_URL
-      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
+    monthly: createCheckout('pro', 'monthly'),
+    annual: createCheckout('pro', 'yearly'),
   },
   elite: {
-    monthly: import.meta.env.VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL
-      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
-    annual: import.meta.env.VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL
-      ?? 'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+    monthly: createCheckout('elite', 'monthly'),
+    annual: createCheckout('elite', 'yearly'),
   },
   enterprise: {
-    monthly: import.meta.env.VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL ?? '#',
-    annual: import.meta.env.VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL ?? '#',
+    monthly: createCheckout('enterprise', 'monthly'),
+    annual: createCheckout('enterprise', 'yearly'),
   },
 };
 
-export const getCheckoutUrl = (plan: 'standard' | 'pro' | 'elite' | 'enterprise', isAnnual: boolean = true): string => {
-  return isAnnual ? CHECKOUT_URLS[plan].annual : CHECKOUT_URLS[plan].monthly;
+export const getCheckoutUrl = (
+  plan: 'standard' | 'pro' | 'elite' | 'enterprise',
+  isAnnual: boolean = false,
+): string => {
+  return createCheckout(plan, isAnnual ? 'yearly' : 'monthly');
 };
 
 

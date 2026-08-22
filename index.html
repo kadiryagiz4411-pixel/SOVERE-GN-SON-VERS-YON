@@ -130,8 +130,19 @@
     ></noscript>
     <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
-    <!-- Lemon Squeezy checkout overlay — triggers modal on .lemonsqueezy-button links -->
+    <!-- Lemon Squeezy overlay. createLemonSqueezy() is required before Url.Open. -->
     <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+    <script>
+      window.addEventListener('load', function () {
+        try {
+          if (typeof window.createLemonSqueezy === 'function') {
+            window.createLemonSqueezy();
+          }
+        } catch (err) {
+          console.error('[LemonSqueezy] createLemonSqueezy() failed', err);
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

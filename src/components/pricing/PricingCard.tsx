@@ -3,8 +3,9 @@ import { cn } from "@/lib/utils";
 import { CheckoutButton } from "@/components/checkout/CheckoutButton";
 import {
   PricingTier, displayPrice, annualBillString,
-  getCheckoutUrlFor, isHighlightedFeature, TIER_ID_TO_PLAN_TYPE,
+  isHighlightedFeature, TIER_ID_TO_PLAN_TYPE,
 } from "@/config/pricing";
+import { createCheckout, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
 
 interface PricingCardProps {
   tier: PricingTier;
@@ -98,7 +99,10 @@ export function PricingCard({
   const style = resolveStyle(tier);
   const planType = TIER_ID_TO_PLAN_TYPE[tier.id] ?? tier.id;
   const isCurrent = planType === currentPlanType;
-  const checkoutUrl = getCheckoutUrlFor(tier, isAnnual);
+  const billingCycle: BillingCycle = isAnnual ? "yearly" : "monthly";
+  const checkoutUrl = tier.isOneTime
+    ? createCheckout("single_pass")
+    : createCheckout(tier.id as CheckoutPlanId, billingCycle);
   const cta = ctaLabel(tier, isAnnual, isCurrent);
 
   return (
@@ -184,7 +188,13 @@ export function PricingCard({
           ✓ Current Plan
         </button>
       ) : (
-        <CheckoutButton href={checkoutUrl} className={CTA_CLASS[style]} overlay>
+        <CheckoutButton
+          href={checkoutUrl}
+          className={CTA_CLASS[style]}
+          overlay
+          data-plan={tier.id}
+          data-billing-cycle={billingCycle}
+        >
           {cta}
         </CheckoutButton>
       )}
