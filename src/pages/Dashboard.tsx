@@ -30,6 +30,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
 import { SupportChatbot } from '@/components/SupportChatbot';
+import { ATSAnalyzer } from '@/components/ATSAnalyzer';
 import { SegmentSelector, type UserSegment } from '@/components/dashboard/SegmentSelector';
 import { FreelanceInputs } from '@/components/dashboard/FreelanceInputs';
 import { FreelanceScoreDisplay } from '@/components/dashboard/FreelanceScoreDisplay';
@@ -45,7 +46,7 @@ import { User } from '@supabase/supabase-js';
 import {
   Plus, FileText, Settings, User as UserIcon, LogOut, Sparkles,
   Copy, Check, RefreshCw, Zap, Loader2, Lock, Download, Shield,
-  ArrowRight, Send, Mail, ExternalLink, Building2, Wand2, Share2, Link as LinkIcon, Crown, Coins,
+  ArrowRight, Send, Mail, ExternalLink, Building2, Wand2, Share2, Link as LinkIcon, Crown, Coins, Target,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -124,6 +125,9 @@ const Dashboard = () => {
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillApplied, setAutoFillApplied] = useState(false);
   const [autoGenerateTriggered, setAutoGenerateTriggered] = useState(false);
+
+  // ATS Analyzer
+  const [showATSAnalyzer, setShowATSAnalyzer] = useState(false);
 
   // Check subscription expiry on frontend
   const checkSubscriptionExpiry = () => {
@@ -358,78 +362,151 @@ const Dashboard = () => {
   // Auth check + referral processing
   useEffect(() => {
     const fetchCreditActivity = async (userId: string) => {
-      const { data, error } = await supabase
-        .from('credit_transactions')
-        .select('id, amount, balance_after, created_at, transaction_type, description, reference_type')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(CREDIT_ACTIVITY_LIMIT);
+      try {
+        const { data, error } = await supabase
+          .from('credit_transactions')
+          .select('id, amount, balance_after, created_at, transaction_type, description, reference_type')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(CREDIT_ACTIVITY_LIMIT);
 
-      if (error) {
-        console.error('Failed to fetch credit activity:', error);
-        return;
+        if (error) {
+          console.warn('Failed to fetch credit activity:', error);
+          return;
+        }
+        setCreditActivity((data || []) as CreditActivityItem[]);
+      } catch (err) {
+        console.warn('Credit activity fetch error (non-fatal):', err);
       }
+    };
 
-      setCreditActivity((data || []) as CreditActivityItem[]);
+    /** Build a safe fallback profile for newly-registered users. */
+    const buildDefaultProfile = (userId: string): Profile => ({
+      full_name: null,
+      skills: [],
+      experience: null,
+      hourly_rate: null,
+      daily_proposals_used: 0,
+      subscription_plan: 'free',
+      trial_started_at: null,
+      trial_claimed: false,
+      onboarding_role: null,
+      onboarding_experience: null,
+      onboarding_goal: null,
+      onboarding_volume: null,
+      onboarding_completed: false,
+      career_roadmap: null,
+      bonus_credits: 0,
+      credits_balance: 0,
+      user_segment: null,
+      platform_type: null,
+      profession_cluster: null,
+      subscription_expires_at: null,
+      billing_period: null,
+    });
+
+    /** Fetch profile; if missing (new user / 400) auto-upsert a default row. */
+    const fetchOrCreateProfile = async (userId: string, email: string | undefined): Promise<Profile> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('Profile fetch returned error (will create default):', error.message);
+        }
+
+        if (data) return data as Profile;
+
+        // No row found — create one so subsequent queries never 400-fail
+        const defaultProfile = {
+          user_id: userId,
+          full_name: email?.split('@')[0] ?? null,
+          subscription_plan: 'free',
+          daily_proposals_used: 0,
+          bonus_credits: 0,
+          credits_balance: 0,
+          trial_claimed: false,
+          onboarding_completed: false,
+        };
+
+        const { data: created, error: createErr } = await supabase
+          .from('profiles')
+          .upsert(defaultProfile, { onConflict: 'user_id' })
+          .select('*')
+          .maybeSingle();
+
+        if (createErr) {
+          console.warn('Could not create default profile (non-fatal):', createErr.message);
+        }
+
+        return (created as Profile | null) ?? buildDefaultProfile(userId);
+      } catch (err) {
+        console.warn('fetchOrCreateProfile error (using in-memory fallback):', err);
+        return buildDefaultProfile(userId);
+      }
     };
 
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/auth');
-        return;
-      }
-      setUser(session.user);
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-      
-      setProfile(profileData);
-      await fetchCreditActivity(session.user.id);
-
-      // Restore segment from profile
-      if (profileData?.user_segment) {
-        setUserSegment(profileData.user_segment as UserSegment);
-      }
-      if (profileData?.platform_type) {
-        setPlatformType(profileData.platform_type as PlatformType);
-      }
-      if (profileData?.profession_cluster) {
-        setProfessionCluster(profileData.profession_cluster as ClusterCategory);
-      }
-
-      // Process referral if ?ref= param exists
-      const refCode = searchParams.get('ref');
-      if (refCode) {
-        try {
-          await supabase.functions.invoke('process-referral', {
-            body: { referral_code: refCode, new_user_id: session.user.id },
-          });
-          navigate('/dashboard', { replace: true });
-        } catch {
-          // Silent fail
-        }
-      }
-
-      // Check milestone: every 10 proposals → award 5 bonus credits
-      if (profileData && profileData.daily_proposals_used > 0 && profileData.daily_proposals_used % 10 === 0) {
-        const newBonus = (profileData.bonus_credits || 0) + 5;
-        await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', session.user.id);
-        toast.success(language === 'tr' ? '🎁 Kilometre taşı! +5 bonus proposal hakkı kazandın!' : language === 'de' ? '🎁 Meilenstein! +5 Bonus-Proposals erhalten!' : language === 'fr' ? '🎁 Jalon atteint ! +5 proposals bonus accordées !' : '🎁 Milestone reached! +5 bonus proposals awarded!');
-        profileData.bonus_credits = newBonus;
-      }
-
       try {
-        const proposals = await getRecentProposals(session.user.id, 5);
-        setRecentProposals(proposals);
-      } catch (err) {
-        console.error('Failed to fetch proposals:', err);
-      }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          navigate('/auth');
+          return;
+        }
+        setUser(session.user);
 
-      setLoading(false);
+        const profileData = await fetchOrCreateProfile(session.user.id, session.user.email);
+        setProfile(profileData);
+
+        // Restore segment from profile
+        if (profileData?.user_segment) {
+          setUserSegment(profileData.user_segment as UserSegment);
+        }
+        if (profileData?.platform_type) {
+          setPlatformType(profileData.platform_type as PlatformType);
+        }
+        if (profileData?.profession_cluster) {
+          setProfessionCluster(profileData.profession_cluster as ClusterCategory);
+        }
+
+        await fetchCreditActivity(session.user.id);
+
+        // Process referral if ?ref= param exists
+        const refCode = searchParams.get('ref');
+        if (refCode) {
+          try {
+            await supabase.functions.invoke('process-referral', {
+              body: { referral_code: refCode, new_user_id: session.user.id },
+            });
+            navigate('/dashboard', { replace: true });
+          } catch {
+            // Silent fail — referral is non-critical
+          }
+        }
+
+        // Check milestone: every 10 proposals → award 5 bonus credits
+        if (profileData && (profileData.daily_proposals_used ?? 0) > 0 && profileData.daily_proposals_used % 10 === 0) {
+          const newBonus = (profileData.bonus_credits || 0) + 5;
+          await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', session.user.id);
+          toast.success(language === 'tr' ? '🎁 Kilometre taşı! +5 bonus proposal hakkı kazandın!' : language === 'de' ? '🎁 Meilenstein! +5 Bonus-Proposals erhalten!' : language === 'fr' ? '🎁 Jalon atteint ! +5 proposals bonus accordées !' : '🎁 Milestone reached! +5 bonus proposals awarded!');
+          profileData.bonus_credits = newBonus;
+        }
+
+        try {
+          const proposals = await getRecentProposals(session.user.id, 5);
+          setRecentProposals(proposals);
+        } catch (err) {
+          console.warn('Failed to fetch proposals (non-fatal):', err);
+        }
+      } catch (err) {
+        console.error('Dashboard auth/load error:', err);
+        navigate('/auth');
+      } finally {
+        setLoading(false);
+      }
     };
 
     checkAuth();
@@ -1748,6 +1825,33 @@ const Dashboard = () => {
           }
         }}
       />
+
+      {/* ATS Gap Analyzer — B2C single-CV tool */}
+      <div className="max-w-5xl mx-auto mt-8">
+        {!showATSAnalyzer ? (
+          <button
+            onClick={() => setShowATSAnalyzer(true)}
+            className="w-full flex items-center justify-between px-5 py-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Target className="w-5 h-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-foreground">ATS Gap Analyzer & 1-Click CV Fix</p>
+                <p className="text-xs text-muted-foreground">Compare your resume vs any JD — get score, gap analysis, and AI-rewritten bullets</p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </button>
+        ) : (
+          <ATSAnalyzer
+            prefillJD={jobDescription}
+            plan={currentPlan}
+            onUpgrade={() => { setShowUpgradeModal(true); setUpgradeFeature('ATS AI Analysis'); }}
+          />
+        )}
+      </div>
 
       {/* Support Chatbot */}
       <SupportChatbot />

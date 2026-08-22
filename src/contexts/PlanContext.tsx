@@ -4,7 +4,7 @@
  * maps it to a PlanTier, and makes it available everywhere via usePlan().
  */
 import {
-  createContext, useContext, useState, useEffect, useCallback,
+  createContext, useContext, useState, useEffect, useCallback, useRef,
   type ReactNode,
 } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,14 +45,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [tier, setTier] = useState<PlanTier>('free');
   const [planType, setPlanType] = useState<string>('free');
   const [isLoading, setIsLoading] = useState(true);
+  const mounted = useRef(true);
 
   const loadPlan = useCallback(async (userId: string) => {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('plan_type, subscription_plan, subscription_expires_at')
         .eq('user_id', userId)
         .maybeSingle();
+
+      if (error) {
+        // 400 / PGRST116 (no row) — safe to ignore, treat as free
+        console.warn('PlanContext: profile fetch warning:', error.message);
+      }
 
       // Prefer plan_type (new column), fall back to subscription_plan (legacy)
       const raw =
@@ -63,35 +69,49 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const expiresAt = (profile as any)?.subscription_expires_at ?? null;
       const active = resolveActivePlan(raw, expiresAt);
 
-      setPlanType(active);
-      setTier(planTypeToTier(active));
-    } catch {
+      if (mounted.current) {
+        setPlanType(active);
+        setTier(planTypeToTier(active));
+      }
+    } catch (err) {
+      console.warn('PlanContext: loadPlan error (defaulting to free):', err);
       // Leave as free on error — fail-safe
     } finally {
-      setIsLoading(false);
+      if (mounted.current) setIsLoading(false);
     }
   }, []);
 
   const refresh = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setIsLoading(true);
-      await loadPlan(user.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        if (mounted.current) setIsLoading(true);
+        await loadPlan(user.id);
+      }
+    } catch {
+      if (mounted.current) setIsLoading(false);
     }
   }, [loadPlan]);
 
   useEffect(() => {
-    // Initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadPlan(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
-    });
+    mounted.current = true;
 
-    // React to auth state changes (login / logout)
+    // Initial load — getSession is the single source of truth
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          loadPlan(session.user.id);
+        } else {
+          if (mounted.current) setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted.current) setIsLoading(false);
+      });
+
+    // React to auth state changes (login / logout) — never drives initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted.current) return;
       if (session?.user) {
         setIsLoading(true);
         loadPlan(session.user.id);
@@ -102,7 +122,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted.current = false;
+      subscription.unsubscribe();
+    };
   }, [loadPlan]);
 
   return (

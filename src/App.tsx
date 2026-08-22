@@ -8,6 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SplashScreen from "@/components/SplashScreen";
 import PageTransition from "@/components/PageTransition";
 import { InstallPromptFAB } from "@/components/InstallPromptFAB";
@@ -41,6 +42,7 @@ import Organization from "./pages/Organization";
 import B2BDashboard from "./pages/B2BDashboard";
 import TalentPool from "./pages/TalentPool";
 import Billing from "./pages/Billing";
+import Redeem from "./pages/Redeem";
 
 // Capture ?ref=CODE affiliate links on first visit and persist to localStorage
 const AffiliateTracker = () => {
@@ -87,6 +89,7 @@ const AnimatedRoutes = () => {
         <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
         <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />
         <Route path="/settings/billing" element={<ProtectedRoute><PageTransition><Billing /></PageTransition></ProtectedRoute>} />
+        <Route path="/redeem" element={<PageTransition><Redeem /></PageTransition>} />
         {/* Programmatic SEO Routes */}
         <Route path="/get-hired-at/:company" element={<PageTransition><GetHiredAtPage /></PageTransition>} />
         <Route path="/how-to-get-job-at/:company" element={<PageTransition><HowToGetJobPage /></PageTransition>} />
@@ -136,21 +139,23 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <PlanProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-          <AffiliateTracker />
-          <InstallPromptFAB />
-          <AnimatedRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-        </PlanProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <PlanProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AffiliateTracker />
+                <InstallPromptFAB />
+                <AnimatedRoutes />
+              </BrowserRouter>
+            </TooltipProvider>
+          </PlanProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

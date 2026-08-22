@@ -19,6 +19,7 @@ import BulkCVUploader from "@/components/b2b/BulkCVUploader";
 import CandidateLeaderboard from "@/components/b2b/CandidateLeaderboard";
 import JobPostingManager from "@/components/b2b/JobPostingManager";
 import CreditMeter from "@/components/b2b/CreditMeter";
+import { BulkApplicantRanker } from "@/components/b2b/BulkApplicantRanker";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 
@@ -32,7 +33,7 @@ interface OrgInfo {
   cv_evaluations_limit: number;
 }
 
-type Tab = "leaderboard" | "upload" | "analytics";
+type Tab = "leaderboard" | "upload" | "analytics" | "screening";
 
 export default function B2BDashboard() {
   const navigate = useNavigate();
@@ -332,6 +333,13 @@ export default function B2BDashboard() {
                     <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
                     Analytics
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="screening"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-transparent rounded-none h-10 text-slate-400 text-sm px-4"
+                  >
+                    <Zap className="w-3.5 h-3.5 mr-1.5" />
+                    ATS Screening
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -388,6 +396,15 @@ export default function B2BDashboard() {
 
               <TabsContent value="analytics" className="flex-1 p-5 m-0 overflow-y-auto">
                 <AnalyticsPanel candidates={candidates} jobTitle={selectedJob?.title} />
+              </TabsContent>
+
+              <TabsContent value="screening" className="flex-1 p-5 m-0 overflow-y-auto">
+                <FeatureGate featureKey="BULK_CV_PARSER">
+                  <BulkApplicantRanker
+                    jobTitle={selectedJob?.title}
+                    jobDescription={selectedJob?.description}
+                  />
+                </FeatureGate>
               </TabsContent>
             </Tabs>
           </div>

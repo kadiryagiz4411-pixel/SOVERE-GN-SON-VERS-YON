@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
   Crown, Zap, Menu, X, Shield, ChevronLeft, Building2,
@@ -88,7 +89,7 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
           </Link>
         </div>
 
-        {/* Credit balance */}
+        {/* Credit balance (legacy B2B credits) */}
         <div className="px-5 py-3 border-b border-border">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground uppercase tracking-wider">{txt.credits}</span>
@@ -103,6 +104,9 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
             />
           </div>
         </div>
+
+        {/* Monthly AppSumo credit counter */}
+        <CreditCounterWidget userId={user?.id ?? null} variant="sidebar" />
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
@@ -159,6 +163,8 @@ export const AppShell = ({ children, user, plan = 'free', creditsBalance = 0, or
             }`}>
               {creditsBalance} {txt.credits}
             </span>
+            {/* Monthly AppSumo credits badge */}
+            <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
           </div>
         </div>

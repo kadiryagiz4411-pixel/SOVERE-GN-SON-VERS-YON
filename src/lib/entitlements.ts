@@ -27,15 +27,23 @@ export const TIER_RANK: Record<PlanTier, number> = {
   enterprise:  5,
 };
 
-// ─── Map from Supabase profile.plan_type → PlanTier ──────────────────────────
+// ─── Map from Supabase profile.plan_type / subscription_tier → PlanTier ───────
 
 export const PLAN_TYPE_TO_TIER: Record<string, PlanTier> = {
-  free:         'free',
-  single_pass:  'single_pass',
-  standard:     'standard',
-  pro:          'pro',
-  elite:        'elite',
+  // Subscription plans
+  free:           'free',
+  single_pass:    'single_pass',
+  standard:       'standard',
+  pro:            'pro',
+  elite:          'elite',
   B2B_ENTERPRISE: 'enterprise',
+
+  // AppSumo lifetime tiers — mapped to equivalent Sovereign plan tiers
+  appsumo_tier1:  'standard',   // 50 credits/mo — same capability as Standard
+  appsumo_tier2:  'pro',        // 200 credits/mo — same capability as Pro
+  appsumo_b2b:    'enterprise', // 1000 credits/mo — full B2B capability
+  // Legacy alias (from v1 migration)
+  appsumo_tier3:  'enterprise',
 };
 
 export function planTypeToTier(planType: string | null | undefined): PlanTier {

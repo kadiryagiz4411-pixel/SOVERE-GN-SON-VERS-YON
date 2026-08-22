@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { Crown, Eye, EyeOff, ArrowLeft, Loader2, Mail, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { Crown, Eye, EyeOff, ArrowLeft, Loader2, Mail, KeyRound, UserPlus, LogIn, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -20,6 +20,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -157,6 +159,20 @@ const Auth = () => {
     return `/reset-password${search}${hash}`;
   };
 
+  /**
+   * Returns the absolute URL Supabase will redirect back to after the user
+   * clicks the reset-password email link.
+   *
+   * On sovereignapp.pro (production) → always use the canonical domain so
+   * Supabase's "Allowed Redirect URLs" list is satisfied.
+   * On any other origin (localhost, Vercel preview) → use the current origin
+   * so local testing continues to work without editing the allow-list.
+   */
+  const getResetRedirectUrl = (): string =>
+    window.location.origin.includes('sovereignapp.pro')
+      ? 'https://sovereignapp.pro/reset-password'
+      : `${window.location.origin}/reset-password`;
+
   const hasRecoveryParams = () => {
     const hash = window.location.hash;
     const search = new URLSearchParams(window.location.search);
@@ -200,6 +216,47 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate, mode]);
 
+  // Start 60-second resend cooldown whenever the reset email is first sent
+  useEffect(() => {
+    if (!resetEmailSent) return;
+    setResendCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, [resetEmailSent]);
+
+  const handleResend = useCallback(async () => {
+    if (resendCooldown > 0 || !formData.email) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        formData.email.trim().toLowerCase(),
+        { redirectTo: getResetRedirectUrl() },
+      );
+      if (error) {
+        const detail = (error as any).status ? ` [${(error as any).status}]` : '';
+        toast.error(`${error.message}${detail}`, { duration: 8000 });
+      } else {
+        toast.success('Password reset link sent! Check your inbox and spam folder.');
+        setResendCooldown(60);
+        cooldownRef.current = setInterval(() => {
+          setResendCooldown(prev => {
+            if (prev <= 1) { clearInterval(cooldownRef.current!); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch { toast.error('Failed to resend. Please try again.'); }
+    finally { setIsLoading(false); }
+  }, [resendCooldown, formData.email, language]);
+
   const validationMsg: Record<string, Record<string, string>> = {
     en: { email: 'Please enter your email', fields: 'Please fill in all required fields', invalidEmail: 'Please enter a valid email address', shortPassword: 'Password must be at least 6 characters', mismatch: 'Passwords do not match', name: 'Please enter your full name' },
     tr: { email: 'Lütfen e-posta adresinizi girin', fields: 'Lütfen tüm alanları doldurun', invalidEmail: 'Geçerli bir e-posta adresi girin', shortPassword: 'Şifre en az 6 karakter olmalıdır', mismatch: 'Şifreler eşleşmiyor', name: 'Lütfen adınızı girin' },
@@ -229,15 +286,18 @@ const Auth = () => {
 
     try {
       if (mode === 'forgot-password') {
-        const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          formData.email.trim().toLowerCase(),
+          { redirectTo: getResetRedirectUrl() },
+        );
         if (error) {
-          toast.error(error.message);
+          // Show the exact Supabase error (rate limit, URL mismatch, etc.)
+          const detail = (error as any).status ? ` [${(error as any).status}]` : '';
+          toast.error(`${error.message}${detail}`, { duration: 8000 });
           return;
         }
         setResetEmailSent(true);
-        toast.success(l.resetSent);
+        toast.success('Password reset link sent! Check your inbox and spam folder.');
       } else if (mode === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -350,8 +410,23 @@ const Auth = () => {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold mx-auto mb-6">
             <KeyRound className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-3">{l.resetSent}</h1>
-          <p className="text-muted-foreground mb-6">{l.resetSentDesc}</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{l.resetSent}</h1>
+          <p className="text-muted-foreground mb-1">{l.resetSentDesc}</p>
+          <p className="text-sm font-medium text-foreground mb-6">{formData.email}</p>
+
+          {/* Resend link with cooldown */}
+          <button
+            onClick={handleResend}
+            disabled={resendCooldown > 0 || isLoading}
+            className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-primary hover:underline"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            {resendCooldown > 0
+              ? `Resend in ${resendCooldown}s`
+              : ({ en: 'Resend email', tr: 'Yeniden gönder', de: 'Erneut senden', fr: 'Renvoyer l\'email' }[language] ?? 'Resend email')
+            }
+          </button>
+
           <Button
             variant="gold"
             className="w-full h-12"
@@ -524,7 +599,12 @@ const Auth = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {language === 'tr' ? 'Yükleniyor...' : 'Loading...'}
+                  {mode === 'forgot-password'
+                    ? ({ en: 'Sending…', tr: 'Gönderiliyor…', de: 'Wird gesendet…', fr: 'Envoi…' }[language] ?? 'Sending…')
+                    : mode === 'signup'
+                      ? ({ en: 'Creating account…', tr: 'Hesap oluşturuluyor…', de: 'Konto wird erstellt…', fr: 'Création du compte…' }[language] ?? 'Creating account…')
+                      : ({ en: 'Signing in…', tr: 'Giriş yapılıyor…', de: 'Anmelden…', fr: 'Connexion…' }[language] ?? 'Signing in…')
+                  }
                 </>
               ) : mode === 'forgot-password' ? (
                 l.sendReset
