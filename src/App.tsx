@@ -152,8 +152,10 @@ const App = () => {
               <TooltipProvider>
                 <Sonner />
                 <BrowserRouter>
-                  <AffiliateTracker />
-                  <AppRoutes />
+                  <ErrorBoundary>
+                    <AffiliateTracker />
+                    <AppRoutes />
+                  </ErrorBoundary>
                 </BrowserRouter>
               </TooltipProvider>
             </PlanProvider>

@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
     // Log to console so devs can still inspect
-    console.error('[ErrorBoundary] Unhandled render error:', error, errorInfo);
+    console.error('[Sovereign Load Error]:', error, errorInfo);
   }
 
   private handleReload = () => {

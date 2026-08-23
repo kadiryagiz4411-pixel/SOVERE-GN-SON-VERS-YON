@@ -120,7 +120,7 @@ const CVBuilder = () => {
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate('/auth'); return; }
+      if (!session?.user?.id) { navigate('/auth'); return; }
       setUser(session.user);
 
       const { data: profile } = await fetchProfileByAuthId<{
@@ -137,9 +137,13 @@ const CVBuilder = () => {
       setPlan(userPlan);
       setCreditsBalance((profile as any)?.credits_balance ?? 0);
       if (profile?.full_name) setFullName(profile.full_name);
+    } catch (err) {
+      console.error('[Sovereign Load Error]:', 'CVBuilder init failed', err);
+    } finally {
       setLoading(false);
+    }
     };
-    init();
+    void init();
   }, [navigate]);
 
   const handleGenerate = async () => {

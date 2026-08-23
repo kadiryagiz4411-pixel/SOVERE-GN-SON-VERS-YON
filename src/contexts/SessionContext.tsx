@@ -1,19 +1,23 @@
 /**
  * SessionContext — one-shot auth + credit cache for the whole app.
- * Route changes must not re-fetch getSession() or profiles.
+ * Profile/credit queries run only after getSession() resolves with a user id.
  */
 import {
   createContext, useContext, useState, useEffect, useCallback, useRef,
   type ReactNode,
 } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+
+const LOG = '[Sovereign Load Error]:';
 
 interface SessionState {
   user: User | null;
   session: Session | null;
   sessionReady: boolean;
+  isLoading: boolean;
   creditsBalance: number;
   subscriptionPlan: string;
   refreshCredits: () => Promise<void>;
@@ -24,6 +28,7 @@ const SessionContext = createContext<SessionState>({
   user: null,
   session: null,
   sessionReady: false,
+  isLoading: true,
   creditsBalance: 0,
   subscriptionPlan: 'free',
   refreshCredits: async () => {},
@@ -37,47 +42,69 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
   const mounted = useRef(true);
+  const hydrated = useRef(false);
 
-  const loadProfileCredits = useCallback(async (userId: string) => {
+  const loadProfileCredits = useCallback(async (userId: string | undefined | null) => {
+    if (!userId) return;
     try {
-      const { data } = await fetchProfileByAuthId<{
+      const { data, error } = await fetchProfileByAuthId<{
         credits_balance?: number;
         subscription_plan?: string;
       }>(userId, 'credits_balance, subscription_plan');
       if (!mounted.current) return;
-      setCreditsBalance((data as any)?.credits_balance ?? 0);
-      setSubscriptionPlan((data as any)?.subscription_plan ?? 'free');
+      if (error) {
+        console.error(LOG, 'session profile/credits query failed', error.message);
+      }
+      setCreditsBalance(data?.credits_balance ?? 0);
+      setSubscriptionPlan(data?.subscription_plan ?? 'free');
     } catch (err) {
-      console.warn('[SessionContext] profile credit load failed', err);
+      console.error(LOG, 'session profile/credits threw', err);
     }
   }, []);
 
   const refreshCredits = useCallback(async () => {
-    if (user?.id) await loadProfileCredits(user.id);
+    if (!user?.id) return;
+    await loadProfileCredits(user.id);
   }, [user?.id, loadProfileCredits]);
 
   useEffect(() => {
     mounted.current = true;
 
     supabase.auth.getSession()
-      .then(({ data: { session: next } }) => {
+      .then(({ data: { session: next }, error }) => {
         if (!mounted.current) return;
-        setSession(next);
+        if (error) {
+          console.error(LOG, 'getSession failed', error.message);
+        }
+        setSession(next ?? null);
         setUser(next?.user ?? null);
+        hydrated.current = true;
         setSessionReady(true);
-        if (next?.user?.id) loadProfileCredits(next.user.id);
+        if (next?.user?.id) {
+          void loadProfileCredits(next.user.id);
+        }
       })
       .catch((err) => {
-        console.warn('[SessionContext] getSession failed', err);
-        if (mounted.current) setSessionReady(true);
+        console.error(LOG, 'getSession threw', err);
+        if (mounted.current) {
+          hydrated.current = true;
+          setSessionReady(true);
+        }
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
       if (!mounted.current) return;
+      // Ignore the first INITIAL_SESSION until getSession() finishes to avoid a double fetch race.
+      if (!hydrated.current && event === 'INITIAL_SESSION') return;
+
       setSession(next);
       setUser(next?.user ?? null);
+      if (!hydrated.current) {
+        hydrated.current = true;
+        setSessionReady(true);
+      }
       if (next?.user?.id) {
-        loadProfileCredits(next.user.id);
+        void loadProfileCredits(next.user.id);
       } else {
         setCreditsBalance(0);
         setSubscriptionPlan('free');
@@ -90,12 +117,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [loadProfileCredits]);
 
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <SessionContext.Provider
       value={{
         user,
         session,
         sessionReady,
+        isLoading: !sessionReady,
         creditsBalance,
         subscriptionPlan,
         refreshCredits,

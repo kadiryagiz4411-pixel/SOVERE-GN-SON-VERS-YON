@@ -7,6 +7,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { useSession } from '@/contexts/SessionContext';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
@@ -88,6 +90,7 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { session, sessionReady } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recentProposals, setRecentProposals] = useState<Proposal[]>([]);
@@ -405,15 +408,12 @@ const Dashboard = () => {
 
     /** Fetch profile; if missing (new user / 400) auto-upsert a default row. */
     const fetchOrCreateProfile = async (userId: string, email: string | undefined): Promise<Profile> => {
+      if (!userId) return buildDefaultProfile(userId);
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const { data, error } = await fetchProfileByAuthId<Profile>(userId, '*');
 
         if (error) {
-          console.warn('Profile fetch returned error (will create default):', error.message);
+          console.error('[Sovereign Load Error]:', 'Profile fetch returned error (will create default):', error.message);
         }
 
         if (data) return data as Profile;
@@ -437,20 +437,20 @@ const Dashboard = () => {
           .maybeSingle();
 
         if (createErr) {
-          console.warn('Could not create default profile (non-fatal):', createErr.message);
+          console.error('[Sovereign Load Error]:', 'Could not create default profile (non-fatal):', createErr.message);
         }
 
         return (created as Profile | null) ?? buildDefaultProfile(userId);
       } catch (err) {
-        console.warn('fetchOrCreateProfile error (using in-memory fallback):', err);
+        console.error('[Sovereign Load Error]:', 'fetchOrCreateProfile error (using in-memory fallback):', err);
         return buildDefaultProfile(userId);
       }
     };
 
     const checkAuth = async () => {
+      if (!sessionReady) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        if (!session?.user?.id) {
           navigate('/auth');
           return;
         }
@@ -500,23 +500,14 @@ const Dashboard = () => {
           console.warn('Failed to fetch proposals (non-fatal):', err);
         }
       } catch (err) {
-        console.error('Dashboard auth/load error:', err);
-        navigate('/auth');
+        console.error('[Sovereign Load Error]:', 'Dashboard auth/load error:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate('/auth');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, searchParams]);
+    void checkAuth();
+  }, [navigate, searchParams, sessionReady, session?.user?.id]);
 
   const handleSegmentSelect = async (segment: UserSegment) => {
     setUserSegment(segment);

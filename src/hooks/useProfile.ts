@@ -25,28 +25,32 @@ export const useProfile = (user: User | null) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.id) {
       setProfile(null);
       setLoading(false);
       return;
     }
 
     const fetchProfile = async () => {
-      const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
+      try {
+        const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
+        if (error) {
+          console.error('[Sovereign Load Error]:', 'useProfile fetch failed', error.message);
+        }
         setProfile(data);
+      } catch (err) {
+        console.error('[Sovereign Load Error]:', 'useProfile threw', err);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user?.id]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: new Error('Not authenticated') };
+    if (!user?.id) return { error: new Error('Not authenticated') };
 
     const { data, error } = await profileByAuthId(
       supabase.from('profiles').update(updates),
@@ -63,7 +67,7 @@ export const useProfile = (user: User | null) => {
   };
 
   const refreshProfile = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
 
