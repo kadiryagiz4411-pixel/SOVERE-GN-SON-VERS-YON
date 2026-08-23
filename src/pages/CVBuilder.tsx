@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
@@ -121,9 +122,12 @@ const CVBuilder = () => {
       if (!session) { navigate('/auth'); return; }
       setUser(session.user);
 
-      const { data: profile } = await supabase
-        .from('profiles').select('subscription_plan, subscription_expires_at, full_name, credits_balance')
-        .eq('user_id', session.user.id).maybeSingle();
+      const { data: profile } = await fetchProfileByAuthId<{
+        subscription_plan?: string;
+        subscription_expires_at?: string | null;
+        full_name?: string | null;
+        credits_balance?: number;
+      }>(session.user.id, 'subscription_plan, subscription_expires_at, full_name, credits_balance');
 
       let userPlan = profile?.subscription_plan || 'free';
       if ((userPlan === 'pro' || userPlan === 'elite') && profile?.subscription_expires_at) {

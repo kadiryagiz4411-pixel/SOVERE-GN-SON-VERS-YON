@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
 
 // ─── Context types ─────────────────────────────────────────────────────────────
@@ -49,11 +50,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const loadPlan = useCallback(async (userId: string) => {
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('plan_type, subscription_plan, subscription_expires_at')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const { data: profile, error } = await fetchProfileByAuthId(
+        userId,
+        'plan_type, subscription_plan, subscription_expires_at',
+      );
 
       if (error) {
         // 400 / PGRST116 (no row) — safe to ignore, treat as free

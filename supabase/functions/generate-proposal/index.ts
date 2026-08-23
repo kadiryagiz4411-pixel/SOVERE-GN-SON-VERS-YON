@@ -7,10 +7,7 @@ import {
   insufficientCreditsBody,
 } from "../_shared/actionCredits.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 
 function sanitizeText(input: unknown, maxLength: number = 10000): string {
   if (!input || typeof input !== 'string') return '';
@@ -228,7 +225,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2): P
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflight();
   }
 
   try {
@@ -275,14 +272,11 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("user_id", user.id)
+      .or(`user_id.eq.${user.id},id.eq.${user.id}`)
       .maybeSingle();
 
     if (profileError) {
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch profile" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[generate-proposal] profile fetch failed", profileError);
     }
 
     const creditGate = await assertActionCredits(supabase, user.id);

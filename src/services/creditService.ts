@@ -12,6 +12,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { COST_PER_ACTION } from '@/lib/credits';
+import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
 
 export { COST_PER_ACTION };
 
@@ -47,14 +48,15 @@ export interface RedeemResult {
  */
 export async function fetchCreditStatus(userId: string): Promise<CreditStatus | null> {
   try {
-    // Trigger lazy reset first (no-op if not due)
-    await supabase.rpc('reset_monthly_credits_if_due', { user_id_input: userId });
+    // Trigger lazy reset first (no-op if not due). Never fail the UI if RPC is missing.
+    await resetMonthlyCreditsIfDue(userId);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('remaining_credits, monthly_credit_limit, credit_reset_date, subscription_tier')
-      .eq('user_id', userId)
-      .single();
+    const { data, error } = await fetchProfileByAuthId<{
+      remaining_credits?: number;
+      monthly_credit_limit?: number;
+      credit_reset_date?: string | null;
+      subscription_tier?: string;
+    }>(userId, 'remaining_credits, monthly_credit_limit, credit_reset_date, subscription_tier');
 
     if (error || !data) return null;
 

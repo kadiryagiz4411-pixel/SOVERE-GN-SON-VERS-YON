@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProfileByAuthId } from '@/lib/profileQuery';
 
 interface SessionState {
   user: User | null;
@@ -39,11 +40,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const loadProfileCredits = useCallback(async (userId: string) => {
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('credits_balance, subscription_plan')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const { data } = await fetchProfileByAuthId<{
+        credits_balance?: number;
+        subscription_plan?: string;
+      }>(userId, 'credits_balance, subscription_plan');
       if (!mounted.current) return;
       setCreditsBalance((data as any)?.credits_balance ?? 0);
       setSubscriptionPlan((data as any)?.subscription_plan ?? 'free');

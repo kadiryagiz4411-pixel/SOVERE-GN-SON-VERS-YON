@@ -7,11 +7,7 @@ import {
   insufficientCreditsBody,
 } from "../_shared/actionCredits.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,7 +57,7 @@ function extractInjectedKeywords(original: string, optimized: string): string[] 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflight();
   }
 
   try {

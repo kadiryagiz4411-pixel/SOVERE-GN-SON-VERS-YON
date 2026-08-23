@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { fetchProfileByAuthId, profileByAuthId } from '@/lib/profileQuery';
 
 interface Profile {
   id: string;
@@ -31,11 +32,7 @@ export const useProfile = (user: User | null) => {
     }
 
     const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -51,12 +48,12 @@ export const useProfile = (user: User | null) => {
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('user_id', user.id)
+    const { data, error } = await profileByAuthId(
+      supabase.from('profiles').update(updates),
+      user.id,
+    )
       .select()
-      .single();
+      .maybeSingle();
 
     if (!error && data) {
       setProfile(data);
@@ -68,11 +65,7 @@ export const useProfile = (user: User | null) => {
   const refreshProfile = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
 
     if (!error && data) {
       setProfile(data);

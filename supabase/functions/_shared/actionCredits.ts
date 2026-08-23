@@ -10,7 +10,7 @@ export async function getCreditBalance(
   const { data, error } = await supabase
     .from("profiles")
     .select("credits_balance")
-    .eq("user_id", userId)
+    .or(`user_id.eq.${userId},id.eq.${userId}`)
     .maybeSingle();
 
   if (error) {
