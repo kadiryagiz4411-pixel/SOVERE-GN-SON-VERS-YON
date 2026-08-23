@@ -34,6 +34,9 @@ verify_jwt = false
 [functions.generate-cv]
 verify_jwt = false
 
+[functions.sovereign]
+verify_jwt = false
+
 [functions.generate-followup]
 verify_jwt = false
 

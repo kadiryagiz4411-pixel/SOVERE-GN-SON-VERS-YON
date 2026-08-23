@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { EDGE_FUNCTIONS, invokeEdgeJson } from '@/lib/edgeFunctions';
 
 interface GenerateProposalParams {
   jobDescription: string;
@@ -21,13 +22,14 @@ interface GenerateProposalResponse {
 export const generateProposal = async (
   params: GenerateProposalParams
 ): Promise<GenerateProposalResponse> => {
-  const { data, error } = await supabase.functions.invoke('generate-proposal', {
-    body: params,
-  });
+  const { data, error, status } = await invokeEdgeJson<GenerateProposalResponse & { error?: string; upgradeMessage?: string; limit?: number; used?: number }>(
+    EDGE_FUNCTIONS.proposal,
+    params,
+  );
 
-  if (error) {
-    console.error('[generate-proposal] invoke error', error);
-    throw new Error(error.message || 'Failed to generate proposal');
+  if (error || !data) {
+    console.error('[generate-proposal] invoke error', { status, error });
+    throw new Error(error || 'Failed to generate proposal');
   }
 
   if (data.error) {

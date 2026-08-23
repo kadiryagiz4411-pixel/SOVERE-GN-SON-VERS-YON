@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { invokeCvFunction } from '@/lib/edgeFunctions';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
@@ -216,38 +217,32 @@ const CVBuilder = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error(cv.errorLogin || 'Please log in'); return; }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-cv`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            mode,
-            targetRole,
-            targetCompany,
-            jobDescription: isPro ? jobDescription : '',
-            outputLanguage,
-            existingCvText,
-            formData: activeTab === 'form' ? formData : undefined,
-          }),
-        }
-      );
+      const { data: result, error, status } = await invokeCvFunction<{
+        cv?: string;
+        acceptanceScore?: unknown;
+        creditsRemaining?: number;
+        error?: string;
+      }>({
+        mode,
+        targetRole,
+        targetCompany,
+        jobDescription: isPro ? jobDescription : '',
+        outputLanguage,
+        existingCvText,
+        formData: activeTab === 'form' ? formData : undefined,
+      });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        console.error('[generate-cv] HTTP error', response.status, err);
-        if (response.status === 429) toast.error('Rate limit — please wait and retry.');
-        else if (response.status === 402) toast.error(err.error || INSUFFICIENT_CREDITS_MESSAGE);
-        else toast.error(err.error || 'Failed to generate CV');
+      if (error || !result) {
+        console.error('[sovereign] CV invoke failed', { status, error });
+        if (status === 429) toast.error('Rate limit — please wait and retry.');
+        else if (status === 402) toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
+        else if (status === 404 || status === 0) toast.error('CV service is unavailable. Please try again.');
+        else toast.error(error || 'Failed to generate CV');
         return;
       }
 
-      const result = await response.json();
       if (!result.cv) {
-        console.error('[generate-cv] empty payload', result);
+        console.error('[sovereign] empty payload', result);
         toast.error('CV generation failed. Please retry.');
         return;
       }
@@ -261,7 +256,7 @@ const CVBuilder = () => {
       incrementCVGenerations();
       toast.success(cv.successMsg || 'CV generated successfully!');
     } catch (err: any) {
-      console.error('[generate-cv] unexpected error', err);
+      console.error('[sovereign] unexpected error', err);
       toast.error(err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.');
     } finally {
       setGenerating(false);
