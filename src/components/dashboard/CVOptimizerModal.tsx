@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
+import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 
 type Step = 'input' | 'teaser' | 'full' | 'diff';
 
@@ -64,6 +65,7 @@ export const CVOptimizerModal = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isPaid = userPlan !== 'free';
@@ -80,7 +82,7 @@ export const CVOptimizerModal = ({
     targetRole: language === 'tr' ? 'Hedef pozisyon (opsiyonel)' : 'Target role (optional)',
     analyze: language === 'tr' ? 'Ücretsiz ATS Analizi Yap' : 'Run Free ATS Analysis',
     analyzing: language === 'tr' ? 'Analiz ediliyor...' : 'Analyzing...',
-    unlockFull: language === 'tr' ? 'Tam Optimizasyonu Aç (1 kredi)' : 'Unlock Full Optimization (1 credit)',
+    unlockFull: language === 'tr' ? `Tam Optimizasyonu Aç (${COST_PER_ACTION} kredi)` : `Unlock Full Optimization (${COST_PER_ACTION} credits)`,
     optimizing: language === 'tr' ? 'Optimize ediliyor...' : 'Optimizing...',
     downloadPDF: language === 'tr' ? 'PDF İndir' : 'Download PDF',
     downloadTxt: language === 'tr' ? 'TXT İndir' : 'Download TXT',
@@ -161,7 +163,10 @@ export const CVOptimizerModal = ({
   };
 
   const handleUnlockFull = async () => {
-    if (!canUnlock) { toast.error(INSUFFICIENT_CREDITS_MESSAGE); return; }
+    if (!canUnlock) {
+      setShowCreditsModal(true);
+      return;
+    }
     if (!cvText.trim()) return;
     setIsOptimizing(true);
     setOptimizedCV('');
@@ -239,6 +244,7 @@ export const CVOptimizerModal = ({
   const handleReset = () => { setStep('input'); setTeaserResult(null); setOptimizedCV(''); setScore(null); setImprovements([]); setInjectedKeywords([]); setQuantifiedBullets(0); };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -492,5 +498,12 @@ export const CVOptimizerModal = ({
         )}
       </DialogContent>
     </Dialog>
+    <InsufficientCreditsModal
+      open={showCreditsModal}
+      onOpenChange={setShowCreditsModal}
+      balance={creditsBalance}
+      actionLabel="CV Optimization"
+    />
+    </>
   );
 };

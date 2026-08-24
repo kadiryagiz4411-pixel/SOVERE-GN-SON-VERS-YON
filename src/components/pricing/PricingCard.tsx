@@ -5,7 +5,7 @@ import {
   PricingTier, displayPrice, annualBillString,
   isHighlightedFeature, TIER_ID_TO_PLAN_TYPE,
 } from "@/config/pricing";
-import { createCheckout, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
+import { createCheckout, getVariantId, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
 
 interface PricingCardProps {
   tier: PricingTier;
@@ -83,12 +83,12 @@ const CTA_CLASS: Record<CardStyle, string> = {
 
 // ─── CTA label ────────────────────────────────────────────────────────────────
 
-function ctaLabel(tier: PricingTier, isAnnual: boolean, isCurrent: boolean): string {
+function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean): string {
   if (isCurrent) return "✓ Current Plan";
-  if (tier.isEnterprise) return isAnnual ? "Contact Sales — Save 20%" : "Contact Sales";
-  if (tier.isPopular) return isAnnual ? "Go Pro — Best Value" : "Go Pro";
-  if (tier.id === "elite") return isAnnual ? "Go Elite — Save 24%" : "Go Elite";
-  return isAnnual ? "Get Started — Save 25%" : "Get Started";
+  if (tier.isEnterprise) return "Contact Sales";
+  if (tier.isPopular) return "Go Pro";
+  if (tier.id === "elite") return "Go Elite";
+  return "Get Started";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -100,6 +100,7 @@ export function PricingCard({
   const planType = TIER_ID_TO_PLAN_TYPE[tier.id] ?? tier.id;
   const isCurrent = planType === currentPlanType;
   const billingCycle: BillingCycle = isAnnual ? "yearly" : "monthly";
+  const variantId = tier.isOneTime ? "" : getVariantId(tier.id as CheckoutPlanId, billingCycle);
   const checkoutUrl = tier.isOneTime
     ? createCheckout("single_pass")
     : createCheckout(tier.id as CheckoutPlanId, billingCycle);
@@ -108,9 +109,8 @@ export function PricingCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl border p-7 transition-all duration-300",
+        "relative flex flex-col rounded-2xl border p-7 transition-colors duration-300 w-full max-w-full min-w-0 overflow-hidden box-border",
         CARD_BORDER[style],
-        style === "popular" ? "scale-[1.03] z-10" : ""
       )}
     >
       {/* Badge ribbon */}
@@ -194,6 +194,7 @@ export function PricingCard({
           overlay
           data-plan={tier.id}
           data-billing-cycle={billingCycle}
+          data-variant-id={variantId}
         >
           {cta}
         </CheckoutButton>

@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
+import { CreditBadge } from '@/components/credits/CreditBadge';
+import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 
 const OUTPUT_LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -90,6 +92,7 @@ const CVBuilder = () => {
   const [acceptanceScore, setAcceptanceScore] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('form');
   const [showCVLimitModal, setShowCVLimitModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [outputLanguage, setOutputLanguage] = useState('en');
 
   // Target fields
@@ -148,7 +151,7 @@ const CVBuilder = () => {
 
   const handleGenerate = async () => {
     if (!hasActionCredits(creditsBalance)) {
-      toast.error(INSUFFICIENT_CREDITS_MESSAGE);
+      setShowCreditsModal(true);
       return;
     }
 
@@ -416,6 +419,7 @@ const CVBuilder = () => {
                 {isElite ? 'Elite' : isPro ? 'Pro' : 'Free'}
               </span>
             </div>
+            <CreditBadge balance={creditsBalance} />
           </div>
         </header>
 
@@ -851,6 +855,13 @@ const CVBuilder = () => {
           </div>
         </div>
       )}
+
+      <InsufficientCreditsModal
+        open={showCreditsModal}
+        onOpenChange={setShowCreditsModal}
+        balance={creditsBalance}
+        actionLabel="CV creation / optimization"
+      />
     </SwipeablePageWrapper>
   );
 };

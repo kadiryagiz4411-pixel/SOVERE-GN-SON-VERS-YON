@@ -11,11 +11,12 @@ import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
-import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
+import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
 import { FeatureUpgradeModal } from '@/components/FeatureUpgradeModal';
+import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 import { EliteAnalytics } from '@/components/dashboard/EliteAnalytics';
 import { JobRecommendations } from '@/components/dashboard/JobRecommendations';
 import { DetailedAnalysisReport } from '@/components/dashboard/DetailedAnalysisReport';
@@ -103,6 +104,7 @@ const Dashboard = () => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [downloadsUsed, setDownloadsUsed] = useState(() => getDownloadsUsedToday());
   const [proposalViewsUsed, setProposalViewsUsed] = useState(() => getProposalViewsUsed());
   const [upgradeFeature, setUpgradeFeature] = useState<string>('');
@@ -615,14 +617,7 @@ const Dashboard = () => {
     // Credit check — block ALL plans when credits are below COST_PER_ACTION
     const currentCredits = profile?.credits_balance ?? 0;
     if (!hasActionCredits(currentCredits)) {
-      toast.error(
-        language === 'tr' ? `Krediniz yetersiz. Proposal için ${COST_PER_ACTION} kredi gerekli. Lütfen kredi satın alın.` :
-        language === 'de' ? `Nicht genügend Credits. ${COST_PER_ACTION} Credits pro Proposal erforderlich.` :
-        language === 'fr' ? `Crédits insuffisants. ${COST_PER_ACTION} crédits requis par proposal.` :
-        INSUFFICIENT_CREDITS_MESSAGE
-      );
-      setUpgradeFeature('Credits');
-      setShowUpgradeModal(true);
+      setShowCreditsModal(true);
       return;
     }
 
@@ -1255,7 +1250,13 @@ const Dashboard = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowCVOptimizer(true)}
+            onClick={() => {
+              if (!hasActionCredits(profile?.credits_balance ?? 0)) {
+                setShowCreditsModal(true);
+                return;
+              }
+              setShowCVOptimizer(true);
+            }}
             className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
           >
             <Sparkles className="w-4 h-4" />
@@ -1782,6 +1783,13 @@ const Dashboard = () => {
         onOpenChange={setShowUpgradeModal}
         currentPlan={currentPlan}
         featureName={upgradeFeature}
+      />
+
+      <InsufficientCreditsModal
+        open={showCreditsModal}
+        onOpenChange={setShowCreditsModal}
+        balance={profile?.credits_balance ?? 0}
+        actionLabel="This AI action"
       />
 
       {/* CV Optimizer Modal */}

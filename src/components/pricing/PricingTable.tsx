@@ -28,58 +28,67 @@ export function PricingTable({
   );
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full max-w-full overflow-hidden box-border", className)}>
       {/* ── Monthly / Annual billing toggle ────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-4 mb-12">
-        <span
-          className={cn(
-            "text-sm font-medium transition-colors cursor-pointer select-none",
-            !isAnnual ? "text-slate-100" : "text-slate-500"
-          )}
-          onClick={() => setBillingCycle("monthly")}
-        >
-          Monthly
-        </span>
-
-        <button
-          onClick={() => setBillingCycle(cycle => cycle === "yearly" ? "monthly" : "yearly")}
-          aria-label="Toggle billing period"
-          className={cn(
-            "relative w-14 h-7 rounded-full transition-colors duration-300",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
-            isAnnual ? "bg-violet-600" : "bg-slate-700"
-          )}
-        >
+      <div className="w-full max-w-full overflow-hidden flex-shrink-0 box-border flex items-center justify-center flex-wrap gap-3 mb-12 px-1">
+        <div className="inline-flex items-center gap-3 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 flex-shrink-0 box-border">
           <span
             className={cn(
-              "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform duration-300",
-              isAnnual ? "translate-x-7" : "translate-x-0.5"
+              "text-sm font-medium transition-colors cursor-pointer select-none",
+              !isAnnual ? "text-slate-100" : "text-slate-500"
             )}
-          />
-        </button>
+            onClick={() => setBillingCycle("monthly")}
+          >
+            Monthly
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setBillingCycle(cycle => cycle === "yearly" ? "monthly" : "yearly")}
+            aria-label="Toggle billing period"
+            className={cn(
+              "relative w-14 h-7 rounded-full transition-colors duration-300 shrink-0",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
+              isAnnual ? "bg-violet-600" : "bg-slate-700"
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform duration-300",
+                isAnnual ? "translate-x-7" : "translate-x-0.5"
+              )}
+            />
+          </button>
+
+          <span
+            className={cn(
+              "text-sm font-medium transition-colors cursor-pointer select-none",
+              isAnnual ? "text-slate-100" : "text-slate-500"
+            )}
+            onClick={() => setBillingCycle("yearly")}
+          >
+            Annual
+          </span>
+        </div>
 
         <span
           className={cn(
-            "text-sm font-medium transition-colors cursor-pointer select-none",
-            isAnnual ? "text-slate-100" : "text-slate-500"
+            "inline-flex items-center justify-center gap-1 min-w-[9.5rem] px-2.5 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-opacity duration-200",
+            isAnnual
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 opacity-100"
+              : "bg-transparent text-transparent border-transparent opacity-0 pointer-events-none"
           )}
-          onClick={() => setBillingCycle("yearly")}
+          aria-hidden={!isAnnual}
         >
-          Annual
+          <Zap className="w-3 h-3" />
+          Save up to 25%
         </span>
-
-        {isAnnual && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-            <Zap className="w-3 h-3" />
-            Save up to 25%
-          </span>
-        )}
       </div>
 
       {/* ── Subscription plan grid ──────────────────────────────────────────── */}
       <div
         className={cn(
-          "grid gap-5 items-start",
+          "grid gap-5 items-stretch w-full max-w-full min-w-0 overflow-hidden box-border",
           subscriptionTiers.length >= 4
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"

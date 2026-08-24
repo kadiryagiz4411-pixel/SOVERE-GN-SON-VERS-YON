@@ -4,11 +4,14 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { useSession } from '@/contexts/SessionContext';
+import { CreditBadge } from '@/components/credits/CreditBadge';
 
 export const Header = () => {
   const { t } = useLanguage();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, creditsBalance } = useSession();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -45,6 +48,7 @@ export const Header = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
+            {user && <CreditBadge balance={creditsBalance} />}
             <LanguageSelector />
             <Link to="/auth">
               <Button variant="ghost">{t.nav.login}</Button>
@@ -82,6 +86,7 @@ export const Header = () => {
                 </Link>
               ))}
               <div className="flex items-center justify-between pt-4 border-t border-border mt-2">
+                {user && <CreditBadge balance={creditsBalance} />}
                 <LanguageSelector />
                 <div className="flex gap-2">
                   <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>

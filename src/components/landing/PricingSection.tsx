@@ -30,7 +30,7 @@ export const PricingSection = () => {
         {/* Pricing table */}
         <PricingTable
           showEnterprise
-          className="max-w-screen-xl mx-auto"
+          className="max-w-screen-xl mx-auto w-full overflow-hidden box-border"
         />
       </div>
     </section>

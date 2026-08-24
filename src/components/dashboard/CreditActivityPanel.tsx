@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Coins, History, ReceiptText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { COST_PER_ACTION } from '@/lib/credits';
 
 export interface CreditActivityItem {
   id: string;
@@ -18,6 +18,16 @@ interface CreditActivityPanelProps {
 }
 
 const numberFormatter = new Intl.NumberFormat('en-US');
+
+function actionLabel(item: CreditActivityItem): string {
+  const haystack = `${item.reference_type ?? ''} ${item.description ?? ''} ${item.transaction_type ?? ''}`.toLowerCase();
+  if (haystack.includes('optim')) return 'CV Optimization';
+  if (haystack.includes('cv_creation') || haystack.includes('generate-cv') || haystack.includes('cv')) return 'CV Creation';
+  if (haystack.includes('proposal')) return 'Proposal Generation';
+  if (item.description) return item.description;
+  if (item.reference_type) return item.reference_type.replace(/_/g, ' ');
+  return 'Credit activity';
+}
 
 export const CreditActivityPanel = ({ currentBalance, items }: CreditActivityPanelProps) => {
   const { language } = useLanguage();
@@ -132,13 +142,17 @@ export const CreditActivityPanel = ({ currentBalance, items }: CreditActivityPan
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 }).format(new Date(item.created_at));
+                const label = actionLabel(item);
+                const creditDelta = positive
+                  ? `+${numberFormatter.format(item.amount)} Credits`
+                  : `-${numberFormatter.format(Math.abs(item.amount) || COST_PER_ACTION)} Credits`;
 
                 return (
                   <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-foreground">
-                          {item.description || t.noDescription}
+                          {label}
                         </span>
                         <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                           {item.transaction_type.replace(/_/g, ' ')}
@@ -152,8 +166,8 @@ export const CreditActivityPanel = ({ currentBalance, items }: CreditActivityPan
                     </div>
 
                     <div className="flex items-center gap-2 self-start sm:self-center">
-                      <span className={`rounded-full px-3 py-1 text-sm font-semibold ${positive ? 'bg-primary/10 text-primary' : 'bg-muted text-foreground'}`}>
-                        {positive ? '+' : ''}{numberFormatter.format(item.amount)}
+                      <span className={`rounded-full px-3 py-1 text-sm font-semibold ${positive ? 'bg-primary/10 text-primary' : 'bg-red-500/10 text-red-400'}`}>
+                        {creditDelta}
                       </span>
                     </div>
                   </div>

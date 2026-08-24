@@ -31,51 +31,74 @@ const firstEnv = (...keys: string[]): string => {
 export const LEMON_SQUEEZY_STORE_URL =
   firstEnv('VITE_LEMONSQUEEZY_STORE_URL') || 'https://sovereignapp.lemonsqueezy.com';
 
+/**
+ * Canonical Lemon Squeezy variant IDs.
+ * Env vars override these defaults when set.
+ */
+export const LEMON_SQUEEZY_VARIANTS = {
+  standard: {
+    monthly: firstEnv(
+      'VITE_STANDARD_MONTHLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_VARIANT_ID',
+      'VITE_LS_VARIANT_STANDARD_MONTHLY',
+    ) || '2020873',
+    yearly: firstEnv(
+      'VITE_STANDARD_YEARLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_STANDARD_ANNUAL_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_STANDARD_YEARLY_VARIANT_ID',
+      'VITE_LS_VARIANT_STANDARD_ANNUAL',
+    ) || '2020643',
+  },
+  pro: {
+    monthly: firstEnv(
+      'VITE_PRO_MONTHLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID',
+      'VITE_LS_VARIANT_PRO_MONTHLY',
+    ) || '2020868',
+    yearly: firstEnv(
+      'VITE_PRO_YEARLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_PRO_ANNUAL_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID',
+      'VITE_LS_VARIANT_PRO_ANNUAL',
+    ) || '2020735',
+  },
+  elite: {
+    monthly: firstEnv(
+      'VITE_ELITE_MONTHLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ELITE_MONTHLY_VARIANT_ID',
+      'VITE_LS_VARIANT_ELITE_MONTHLY',
+    ) || '2020866',
+    yearly: firstEnv(
+      'VITE_ELITE_YEARLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ELITE_ANNUAL_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ELITE_YEARLY_VARIANT_ID',
+      'VITE_LS_VARIANT_ELITE_ANNUAL',
+    ) || '2020838',
+  },
+  enterprise: {
+    monthly: firstEnv(
+      'VITE_ENTERPRISE_MONTHLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_VARIANT_ID',
+      'VITE_LS_VARIANT_ENTERPRISE_MONTHLY',
+    ) || '2020877',
+    yearly: firstEnv(
+      'VITE_ENTERPRISE_YEARLY_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_VARIANT_ID',
+      'VITE_LEMONSQUEEZY_ENTERPRISE_YEARLY_VARIANT_ID',
+      'VITE_LS_VARIANT_ENTERPRISE_ANNUAL',
+    ) || '2020842',
+  },
+} as const;
+
 /** Explicit variant IDs (UUID buy-slug or numeric LS variant id). */
-export const STANDARD_MONTHLY_VARIANT_ID = firstEnv(
-  'VITE_STANDARD_MONTHLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_VARIANT_ID',
-  'VITE_LS_VARIANT_STANDARD_MONTHLY',
-);
-export const STANDARD_YEARLY_VARIANT_ID = firstEnv(
-  'VITE_STANDARD_YEARLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_STANDARD_ANNUAL_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_STANDARD_YEARLY_VARIANT_ID',
-  'VITE_LS_VARIANT_STANDARD_ANNUAL',
-);
-export const PRO_MONTHLY_VARIANT_ID = firstEnv(
-  'VITE_PRO_MONTHLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID',
-  'VITE_LS_VARIANT_PRO_MONTHLY',
-);
-export const PRO_YEARLY_VARIANT_ID = firstEnv(
-  'VITE_PRO_YEARLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_PRO_ANNUAL_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID',
-  'VITE_LS_VARIANT_PRO_ANNUAL',
-);
-export const ELITE_MONTHLY_VARIANT_ID = firstEnv(
-  'VITE_ELITE_MONTHLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ELITE_MONTHLY_VARIANT_ID',
-  'VITE_LS_VARIANT_ELITE_MONTHLY',
-);
-export const ELITE_YEARLY_VARIANT_ID = firstEnv(
-  'VITE_ELITE_YEARLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ELITE_ANNUAL_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ELITE_YEARLY_VARIANT_ID',
-  'VITE_LS_VARIANT_ELITE_ANNUAL',
-);
-export const ENTERPRISE_MONTHLY_VARIANT_ID = firstEnv(
-  'VITE_ENTERPRISE_MONTHLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_VARIANT_ID',
-  'VITE_LS_VARIANT_ENTERPRISE_MONTHLY',
-);
-export const ENTERPRISE_YEARLY_VARIANT_ID = firstEnv(
-  'VITE_ENTERPRISE_YEARLY_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_VARIANT_ID',
-  'VITE_LEMONSQUEEZY_ENTERPRISE_YEARLY_VARIANT_ID',
-  'VITE_LS_VARIANT_ENTERPRISE_ANNUAL',
-);
+export const STANDARD_MONTHLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.standard.monthly;
+export const STANDARD_YEARLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.standard.yearly;
+export const PRO_MONTHLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.pro.monthly;
+export const PRO_YEARLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.pro.yearly;
+export const ELITE_MONTHLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.elite.monthly;
+export const ELITE_YEARLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.elite.yearly;
+export const ENTERPRISE_MONTHLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.enterprise.monthly;
+export const ENTERPRISE_YEARLY_VARIANT_ID = LEMON_SQUEEZY_VARIANTS.enterprise.yearly;
 export const SINGLE_PASS_VARIANT_ID = firstEnv(
   'VITE_SINGLE_PASS_VARIANT_ID',
   'VITE_LEMONSQUEEZY_ONETIME_PASS_VARIANT_ID',
@@ -131,22 +154,10 @@ const FALLBACK_CHECKOUT_URLS: Partial<Record<CheckoutPlanId, { monthly?: string;
 };
 
 const VARIANT_BY_PLAN: Record<CheckoutPlanId, { monthly?: string; yearly?: string; oneTime?: string }> = {
-  standard: {
-    monthly: STANDARD_MONTHLY_VARIANT_ID,
-    yearly: STANDARD_YEARLY_VARIANT_ID,
-  },
-  pro: {
-    monthly: PRO_MONTHLY_VARIANT_ID,
-    yearly: PRO_YEARLY_VARIANT_ID,
-  },
-  elite: {
-    monthly: ELITE_MONTHLY_VARIANT_ID,
-    yearly: ELITE_YEARLY_VARIANT_ID,
-  },
-  enterprise: {
-    monthly: ENTERPRISE_MONTHLY_VARIANT_ID,
-    yearly: ENTERPRISE_YEARLY_VARIANT_ID,
-  },
+  standard: LEMON_SQUEEZY_VARIANTS.standard,
+  pro: LEMON_SQUEEZY_VARIANTS.pro,
+  elite: LEMON_SQUEEZY_VARIANTS.elite,
+  enterprise: LEMON_SQUEEZY_VARIANTS.enterprise,
   single_pass: {
     oneTime: SINGLE_PASS_VARIANT_ID,
   },
@@ -232,9 +243,13 @@ export function createCheckout(
   planId: CheckoutPlanId,
   billingCycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
-  const target = describeCheckoutTarget(planId, billingCycle);
+  const cycle = normalizeBillingCycle(billingCycle);
+  const variantId = planId === 'single_pass'
+    ? getVariantId(planId)
+    : (LEMON_SQUEEZY_VARIANTS[planId as keyof typeof LEMON_SQUEEZY_VARIANTS]?.[cycle] ?? getVariantId(planId, cycle));
+  const target = describeCheckoutTarget(planId, cycle);
   if (!target.checkoutUrl || target.checkoutUrl === '#') {
-    console.error('[LemonSqueezy] createCheckout failed — missing variant ID or URL', target);
+    console.error('[LemonSqueezy] createCheckout failed — missing variant ID or URL', { ...target, variantId });
   }
   return target.checkoutUrl;
 }

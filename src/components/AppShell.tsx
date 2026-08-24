@@ -5,6 +5,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { CreditCounterWidget } from '@/components/CreditCounterWidget';
+import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
   Crown, Zap, Menu, X, Shield, ChevronLeft, Building2,
@@ -89,20 +90,16 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
           </Link>
         </div>
 
-        {/* Credit balance (legacy B2B credits) */}
+        {/* Credit balance */}
         <div className="px-5 py-3 border-b border-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">{txt.credits}</span>
-            <span className={`text-sm font-bold ${creditsBalance <= 0 ? 'text-destructive' : creditsBalance <= 300 ? 'text-amber-500' : 'text-foreground'}`}>
-              {creditsBalance}
-            </span>
-          </div>
+          <CreditBadge balance={creditsBalance} className="w-full justify-center" />
           <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${creditsBalance <= 0 ? 'bg-destructive' : creditsBalance <= 300 ? 'bg-amber-500' : 'bg-primary'}`}
+              className={`h-full rounded-full transition-all ${creditsBalance <= 0 ? 'bg-destructive' : creditsBalance < 20 ? 'bg-amber-500' : 'bg-primary'}`}
               style={{ width: `${Math.min(100, (creditsBalance / 5000) * 100)}%` }}
             />
           </div>
+          <p className="mt-1.5 text-[10px] text-muted-foreground">20 credits per AI action</p>
         </div>
 
         {/* Monthly AppSumo credit counter */}
@@ -158,11 +155,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              isElite ? 'bg-amber-500/20 text-amber-500' : isPro ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-            }`}>
-              {creditsBalance} {txt.credits}
-            </span>
+            <CreditBadge balance={creditsBalance} />
             {/* Monthly AppSumo credits badge */}
             <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
@@ -222,6 +215,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
+        <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
+          <CreditBadge balance={creditsBalance} />
+        </div>
         {children}
       </main>
     </div>
