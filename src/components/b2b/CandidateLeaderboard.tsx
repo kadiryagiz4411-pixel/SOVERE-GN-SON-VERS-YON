@@ -23,10 +23,14 @@ import {
   getFluffLabel,
 } from "@/services/b2bEvaluationEngine";
 import { exportCandidatesToCSV, exportBatchSummaryPDF } from "@/utils/b2bExport";
+import { downloadXlsx } from "@/lib/xlsxExport";
+import { logComplianceEvent, fetchComplianceLogs, downloadComplianceExport } from "@/lib/complianceAudit";
 import CandidateScoreCard from "./CandidateScoreCard";
 import XAIAuditModal from "./XAIAuditModal";
 import { useEntitlement } from "@/hooks/useEntitlement";
+import { useTierAccess } from "@/hooks/useTierAccess";
 import { UpgradeModal } from "@/components/entitlements/UpgradeModal";
+import { TierGate } from "@/components/auth/TierGate";
 
 interface Props {
   candidates: CandidateEvaluation[];
@@ -70,6 +74,10 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
 
   const csvGate = useEntitlement('BATCH_EXPORT_CSV');
   const xaiGate = useEntitlement('XAI_COMPLIANCE_REPORTS');
+  const eliteExport = useTierAccess('elite');
+  const enterpriseAudit = useTierAccess('enterprise');
+  const [exportLock, setExportLock] = useState<'elite' | 'enterprise' | null>(null);
+  const canLeaderboardExport = csvGate.hasAccess || eliteExport.hasAccess;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -222,11 +230,63 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
                 <DropdownMenuContent className="bg-slate-800 border-slate-700" align="end">
                   <DropdownMenuItem
                     className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
-                    onClick={() => { if (!csvGate.requireAccess()) return; exportCandidatesToCSV(candidates, jobTitle, orgName); }}
+                    onClick={() => {
+                      if (!canLeaderboardExport) {
+                        eliteExport.requireAccess('elite');
+                        setExportLock('elite');
+                        return;
+                      }
+                      exportCandidatesToCSV(candidates, jobTitle, orgName);
+                      void logComplianceEvent({ action: 'export_leaderboard_csv', resource_type: 'candidate_leaderboard' });
+                    }}
                   >
                     <FileText className="w-4 h-4 text-green-400" />
                     Export CSV (Excel)
                     {!csvGate.hasAccess && <span className="ml-auto text-xs text-slate-600">🔒</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
+                    onClick={async () => {
+                      if (!canLeaderboardExport && !eliteExport.requireAccess('elite')) {
+                        setExportLock('elite');
+                        return;
+                      }
+                      const completed = candidates.filter(c => c.processing_status === 'completed');
+                      await downloadXlsx(
+                        `sovereign-candidates-${jobTitle.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.xlsx`,
+                        ['Rank', 'Candidate', 'Email', 'Score', 'Verdict', 'Risk'],
+                        completed.map((c, i) => [
+                          i + 1,
+                          c.candidate_name,
+                          c.candidate_email ?? '',
+                          c.match_score_percentage ?? 0,
+                          c.ai_analysis?.hiring_verdict ?? '',
+                          c.ai_analysis?.risk_assessment?.risk_level ?? '',
+                        ]),
+                      );
+                      void logComplianceEvent({ action: 'export_leaderboard_xlsx', resource_type: 'candidate_leaderboard' });
+                    }}
+                  >
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    Export XLSX
+                    {!canLeaderboardExport && <span className="ml-auto text-xs text-slate-600">🔒 Elite</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
+                    onClick={async () => {
+                      if (!enterpriseAudit.hasAccess && !xaiGate.hasAccess) {
+                        enterpriseAudit.requireAccess('enterprise');
+                        setExportLock('enterprise');
+                        return;
+                      }
+                      const logs = await fetchComplianceLogs();
+                      downloadComplianceExport(logs);
+                      void logComplianceEvent({ action: 'export_gdpr_kvkk_audit', resource_type: 'compliance_audit' });
+                    }}
+                  >
+                    <Scale className="w-4 h-4 text-amber-400" />
+                    GDPR / KVKK Audit Export
+                    {!enterpriseAudit.hasAccess && !xaiGate.hasAccess && <span className="ml-auto text-xs text-slate-600">🔒</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-slate-300 hover:bg-slate-700 cursor-pointer gap-2"
@@ -411,6 +471,18 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
         open={csvGate.isUpgradeModalOpen}
         featureKey="BATCH_EXPORT_CSV"
         onClose={csvGate.closeModal}
+      />
+      <TierGate
+        open={exportLock === 'elite'}
+        onClose={() => setExportLock(null)}
+        featureName="Leaderboard CSV / Excel Export"
+        requiredTier="elite"
+      />
+      <TierGate
+        open={exportLock === 'enterprise'}
+        onClose={() => setExportLock(null)}
+        featureName="GDPR / KVKK Audit Export"
+        requiredTier="enterprise"
       />
     </>
   );

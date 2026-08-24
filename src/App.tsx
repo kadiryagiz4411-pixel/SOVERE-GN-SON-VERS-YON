@@ -39,6 +39,12 @@ const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const TalentPool = lazy(() => import("./pages/TalentPool"));
 const Billing = lazy(() => import("./pages/Billing"));
 const Redeem = lazy(() => import("./pages/Redeem"));
+const InterviewSimulator = lazy(() => import("./pages/InterviewSimulator"));
+const PortfolioBuilder = lazy(() => import("./pages/PortfolioBuilder"));
+const CVAnalyzer = lazy(() => import("./pages/CVAnalyzer"));
+const BatchUpload = lazy(() => import("./pages/BatchUpload"));
+const TeamWorkspace = lazy(() => import("./pages/TeamWorkspace"));
+const TalentPoolHub = lazy(() => import("./pages/TalentPoolHub"));
 
 const GetHiredAtPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.GetHiredAtPage })));
 const HowToGetJobPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.HowToGetJobPage })));
@@ -105,6 +111,12 @@ const AppRoutes = () => (
       <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
       <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
       <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />
+      <Route path="/interview-simulator" element={<ProtectedRoute><InterviewSimulator /></ProtectedRoute>} />
+      <Route path="/portfolio-builder" element={<ProtectedRoute><PortfolioBuilder /></ProtectedRoute>} />
+      <Route path="/cv-analyzer" element={<ProtectedRoute><CVAnalyzer /></ProtectedRoute>} />
+      <Route path="/batch-upload" element={<ProtectedRoute><BatchUpload /></ProtectedRoute>} />
+      <Route path="/team" element={<ProtectedRoute><TeamWorkspace /></ProtectedRoute>} />
+      <Route path="/talent-pool" element={<ProtectedRoute><TalentPoolHub /></ProtectedRoute>} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />
       <Route path="/get-hired-at/:company" element={<GetHiredAtPage />} />

@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
+import { useTierAccess, type AccessTier } from '@/hooks/useTierAccess';
+import { TierGate, TierLockBadge } from '@/components/auth/TierGate';
+import { ELITE_NAV_ITEMS, ENTERPRISE_NAV_ITEMS, type TierNavItem } from '@/config/tierNav';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -27,9 +30,12 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const navigate = useNavigate();
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const access = useTierAccess();
+  const [lockModal, setLockModal] = useState<{ featureName: string; required: AccessTier } | null>(null);
 
-  const isElite = plan === 'elite';
-  const isPro = plan === 'pro' || plan === 'elite';
+  const isElite = plan === 'elite' || access.canAccess('elite');
+  const isPro = plan === 'pro' || plan === 'elite' || access.canAccess('pro');
+  const isEnterprise = access.canAccess('enterprise') || plan === 'enterprise' || plan === 'B2B_ENTERPRISE';
 
   const txt = {
     dashboard: language === 'tr' ? 'Başvuru Motoru' : language === 'de' ? 'Application Engine' : language === 'fr' ? 'Moteur de candidature' : 'Application Engine',
@@ -67,7 +73,38 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     navigate('/');
   };
 
-  const planLabel = isElite ? 'Elite' : isPro ? 'Pro' : 'Free';
+  const planLabel = isEnterprise ? 'Enterprise' : isElite ? 'Elite' : isPro ? 'Pro' : plan === 'standard' ? 'Standard' : 'Free';
+
+  const handleLockedNav = (item: TierNavItem) => {
+    if (access.canAccess(item.required)) {
+      navigate(item.to);
+      setSidebarOpen(false);
+      return;
+    }
+    setLockModal({ featureName: item.label, required: item.required });
+  };
+
+  const renderTierNav = (items: TierNavItem[]) => items.map((item) => {
+    const Icon = item.icon;
+    const active = location.pathname === item.to;
+    const unlocked = access.canAccess(item.required);
+    return (
+      <button
+        type="button"
+        key={item.to}
+        onClick={() => handleLockedNav(item)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left ${
+          active
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+        }`}
+      >
+        <Icon className="w-4 h-4 shrink-0" />
+        <span className="truncate">{item.label}</span>
+        {!unlocked && <TierLockBadge required={item.required} />}
+      </button>
+    );
+  });
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -125,6 +162,10 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               </Link>
             );
           })}
+          <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
+          {renderTierNav(ELITE_NAV_ITEMS)}
+          <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
+          {renderTierNav(ENTERPRISE_NAV_ITEMS)}
         </nav>
 
         {/* Bottom */}
@@ -199,6 +240,10 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
                   </Link>
                 );
               })}
+              <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
+              {renderTierNav(ELITE_NAV_ITEMS)}
+              <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
+              {renderTierNav(ENTERPRISE_NAV_ITEMS)}
             </nav>
             <div className="p-3 border-t border-border">
               <button
@@ -220,6 +265,12 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
         </div>
         {children}
       </main>
+      <TierGate
+        open={!!lockModal}
+        onClose={() => setLockModal(null)}
+        featureName={lockModal?.featureName ?? 'Locked feature'}
+        requiredTier={lockModal?.required ?? 'elite'}
+      />
     </div>
   );
 });

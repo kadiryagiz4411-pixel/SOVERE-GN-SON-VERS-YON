@@ -36,7 +36,11 @@ export const PLAN_TYPE_TO_TIER: Record<string, PlanTier> = {
   standard:       'standard',
   pro:            'pro',
   elite:          'elite',
+  enterprise:     'enterprise',
   B2B_ENTERPRISE: 'enterprise',
+  enterprise_b2b: 'enterprise',
+  enterprise_plus:'enterprise',
+  staffing_agency:'enterprise',
 
   // AppSumo lifetime tiers — mapped to equivalent Sovereign plan tiers
   appsumo_tier1:  'standard',   // 50 credits/mo — same capability as Standard
@@ -79,6 +83,8 @@ export const FEATURES = {
   FREELANCE_PITCH_GEN:     'FREELANCE_PITCH_GEN',
   PRIORITY_LLM_SPEED:      'PRIORITY_LLM_SPEED',
   PORTFOLIO_WEB_EXPORT:    'PORTFOLIO_WEB_EXPORT',
+  CV_FRAUD_ANALYZER:       'CV_FRAUD_ANALYZER',
+  LEADERBOARD_EXPORT:      'LEADERBOARD_EXPORT',
 
   // ── Tier 5 — enterprise ──────────────────────────────────────────────────────
   BULK_CV_PARSER:           'BULK_CV_PARSER',
@@ -87,6 +93,7 @@ export const FEATURES = {
   XAI_COMPLIANCE_REPORTS:   'XAI_COMPLIANCE_REPORTS',
   TALENT_POOL_VECTOR_SEARCH:'TALENT_POOL_VECTOR_SEARCH',
   BATCH_EXPORT_CSV:         'BATCH_EXPORT_CSV',
+  GDPR_COMPLIANCE_EXPORT:   'GDPR_COMPLIANCE_EXPORT',
 } as const;
 
 export type FeatureKey = typeof FEATURES[keyof typeof FEATURES];
@@ -216,6 +223,20 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     description: 'Export your CV as a personal portfolio website (HTML/hosted).',
     upgradeHint: 'Upgrade to Elite — $59/month.',
   },
+  CV_FRAUD_ANALYZER: {
+    featureKey:  'CV_FRAUD_ANALYZER',
+    minTier:     'elite',
+    title:       'AI Fraud, Fluff & Contradiction Detector',
+    description: 'Scan candidate text for buzzwords, timeline overlaps, and inflated claims.',
+    upgradeHint: 'Upgrade to Elite — $59/month.',
+  },
+  LEADERBOARD_EXPORT: {
+    featureKey:  'LEADERBOARD_EXPORT',
+    minTier:     'elite',
+    title:       'Leaderboard CSV / Excel Export',
+    description: 'One-click export of ranked candidate scores to CSV and XLSX.',
+    upgradeHint: 'Upgrade to Elite — $59/month.',
+  },
 
   // enterprise ─────────────────────────────────────────────────────────────────
   BULK_CV_PARSER: {
@@ -258,6 +279,13 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'enterprise',
     title:       'Batch Candidate CSV Export',
     description: 'One-click export of the full candidate leaderboard to CSV/Excel format.',
+    upgradeHint: 'Upgrade to Enterprise B2B — $299/month.',
+  },
+  GDPR_COMPLIANCE_EXPORT: {
+    featureKey:  'GDPR_COMPLIANCE_EXPORT',
+    minTier:     'enterprise',
+    title:       'GDPR / KVKK Audit Export',
+    description: 'Legal audit logger and compliance export for candidate data tables.',
     upgradeHint: 'Upgrade to Enterprise B2B — $299/month.',
   },
 };

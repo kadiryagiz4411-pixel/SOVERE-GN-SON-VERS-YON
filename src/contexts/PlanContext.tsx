@@ -63,7 +63,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile, error } = await fetchProfileByAuthId(
         userId,
-        'plan_type, subscription_plan, subscription_expires_at',
+        'plan_type, subscription_plan, subscription_tier, subscription_expires_at',
       );
 
       if (error) {
@@ -73,6 +73,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       // Prefer plan_type (new column), fall back to subscription_plan (legacy)
       const raw =
         (profile as any)?.plan_type ??
+        (profile as any)?.subscription_tier ??
         (profile as any)?.subscription_plan ??
         'free';
 

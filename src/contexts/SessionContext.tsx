@@ -20,6 +20,8 @@ interface SessionState {
   isLoading: boolean;
   creditsBalance: number;
   subscriptionPlan: string;
+  subscriptionTier: string;
+  planType: string;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
 }
@@ -31,6 +33,8 @@ const SessionContext = createContext<SessionState>({
   isLoading: true,
   creditsBalance: 0,
   subscriptionPlan: 'free',
+  subscriptionTier: 'free',
+  planType: 'free',
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
 });
@@ -41,6 +45,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionReady, setSessionReady] = useState(false);
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
+  const [subscriptionTier, setSubscriptionTier] = useState('free');
+  const [planType, setPlanType] = useState('free');
   const mounted = useRef(true);
   const hydrated = useRef(false);
 
@@ -50,13 +56,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const { data, error } = await fetchProfileByAuthId<{
         credits_balance?: number;
         subscription_plan?: string;
-      }>(userId, 'credits_balance, subscription_plan');
+        subscription_tier?: string;
+        plan_type?: string;
+      }>(userId, 'credits_balance, subscription_plan, subscription_tier, plan_type');
       if (!mounted.current) return;
       if (error) {
         console.error(LOG, 'session profile/credits query failed', error.message);
       }
       setCreditsBalance(data?.credits_balance ?? 0);
       setSubscriptionPlan(data?.subscription_plan ?? 'free');
+      setSubscriptionTier(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free');
+      setPlanType(data?.plan_type ?? data?.subscription_plan ?? 'free');
     } catch (err) {
       console.error(LOG, 'session profile/credits threw', err);
     }
@@ -108,6 +118,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         setCreditsBalance(0);
         setSubscriptionPlan('free');
+        setSubscriptionTier('free');
+        setPlanType('free');
       }
     });
 
@@ -134,6 +146,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         isLoading: !sessionReady,
         creditsBalance,
         subscriptionPlan,
+        subscriptionTier,
+        planType,
         refreshCredits,
         setCreditsBalance,
       }}
