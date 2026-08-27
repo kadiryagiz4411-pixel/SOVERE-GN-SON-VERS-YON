@@ -16,7 +16,7 @@ import { useState, useCallback, useRef } from 'react';
 import {
   Upload, Play, Download, Copy, X, CheckCircle2, Loader2,
   AlertCircle, Zap, Key, Building2, FileText, ClipboardList,
-  ChevronDown, ChevronUp, BarChart3,
+  ChevronDown, ChevronUp, BarChart3, RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,7 +70,7 @@ function StatusBadge({ status }: { status: BatchJob['status'] }) {
   );
 }
 
-function JobCard({ job, index }: { job: BatchJob; index: number }) {
+function JobCard({ job, index, onRetry }: { job: BatchJob; index: number; onRetry?: (job: BatchJob) => void }) {
   const [expanded, setExpanded] = useState(false);
   const preview = job.jobDescription.slice(0, 100) + (job.jobDescription.length > 100 ? '…' : '');
 
@@ -104,6 +104,16 @@ function JobCard({ job, index }: { job: BatchJob; index: number }) {
               <BarChart3 className="w-3 h-3" />
               {job.matchScore}%
             </span>
+          )}
+          {job.status === 'error' && onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(job)}
+              className="flex items-center gap-1 text-[10px] font-semibold text-amber-400 hover:text-amber-300 border border-amber-500/30 rounded-full px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+              title="Retry this item"
+            >
+              <RotateCcw className="w-3 h-3" /> Retry
+            </button>
           )}
           {(job.proposal || job.errorMessage) && (
             <button
@@ -262,6 +272,97 @@ export default function BatchProposal() {
       setRunning(false);
     }
   };
+
+  // ── Retry a single failed job ───────────────────────────────────────────────
+
+  const handleRetryJob = useCallback(async (failedJob: BatchJob) => {
+    if (!user) { toast.error('You must be logged in.'); return; }
+    setRunning(true);
+    setError(null);
+
+    // Mark the specific job as running again
+    setJobs((prev) => prev.map((j) => j.id === failedJob.id ? { ...j, status: 'running', errorMessage: undefined } : j));
+
+    try {
+      const result = await runBatchProposals({
+        userId: user.id,
+        jobDescriptions: [failedJob.jobDescription],
+        agencyProfile: agency,
+        onProgress: (updated) => {
+          setJobs((prev) => prev.map((j) =>
+            j.id === failedJob.id ? { ...j, ...updated[0], id: failedJob.id, index: failedJob.index } : j,
+          ));
+        },
+      });
+      const retried = result.jobs[0];
+      setJobs((prev) => prev.map((j) =>
+        j.id === failedJob.id ? { ...retried, id: failedJob.id, index: failedJob.index } : j,
+      ));
+      if (result.usedByok) setUsedByok(true);
+      if (result.creditsUsed) setCreditsUsed((c) => c + result.creditsUsed);
+      if (retried.status === 'done') toast.success(`Job ${failedJob.index + 1} generated successfully.`);
+      else toast.error(`Job ${failedJob.index + 1} failed again: ${retried.errorMessage ?? 'Unknown error'}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setJobs((prev) => prev.map((j) => j.id === failedJob.id ? { ...j, status: 'error', errorMessage: msg } : j));
+      toast.error(msg);
+    } finally {
+      setRunning(false);
+    }
+  }, [user, agency]);
+
+  // ── Retry all failed jobs ───────────────────────────────────────────────────
+
+  const handleRetryAllFailed = useCallback(async () => {
+    if (!user) { toast.error('You must be logged in.'); return; }
+    const failedJobs = jobs.filter((j) => j.status === 'error');
+    if (!failedJobs.length) return;
+    setRunning(true);
+    setError(null);
+
+    setJobs((prev) => prev.map((j) => j.status === 'error' ? { ...j, status: 'running', errorMessage: undefined } : j));
+
+    try {
+      const result = await runBatchProposals({
+        userId: user.id,
+        jobDescriptions: failedJobs.map((j) => j.jobDescription),
+        agencyProfile: agency,
+        onProgress: (updated) => {
+          setJobs((prev) => {
+            const next = [...prev];
+            updated.forEach((u, ui) => {
+              const origIndex = failedJobs[ui]?.id;
+              const idx = next.findIndex((j) => j.id === origIndex);
+              if (idx >= 0) next[idx] = { ...u, id: origIndex!, index: next[idx].index };
+            });
+            return next;
+          });
+        },
+      });
+
+      setJobs((prev) => {
+        const next = [...prev];
+        result.jobs.forEach((r, ri) => {
+          const origJob = failedJobs[ri];
+          if (!origJob) return;
+          const idx = next.findIndex((j) => j.id === origJob.id);
+          if (idx >= 0) next[idx] = { ...r, id: origJob.id, index: origJob.index };
+        });
+        return next;
+      });
+
+      if (result.usedByok) setUsedByok(true);
+      if (result.creditsUsed) setCreditsUsed((c) => c + result.creditsUsed);
+      const newDone = result.jobs.filter((j) => j.status === 'done').length;
+      toast.success(`Retried ${failedJobs.length} job${failedJobs.length > 1 ? 's' : ''} — ${newDone} succeeded.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setRunning(false);
+    }
+  }, [user, jobs, agency]);
 
   // ── Export helpers ──────────────────────────────────────────────────────────
 
@@ -506,26 +607,41 @@ export default function BatchProposal() {
                     )}
                   </div>
 
-                  {doneCount > 0 && !running && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        onClick={handleCopyAll}
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Copy All
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        onClick={() => downloadBatchCsv(doneJobs)}
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Export CSV
-                      </Button>
+                  {!running && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {jobs.filter((j) => j.status === 'error').length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                          onClick={handleRetryAllFailed}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Retry Failed ({jobs.filter((j) => j.status === 'error').length})
+                        </Button>
+                      )}
+                      {doneCount > 0 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs"
+                            onClick={handleCopyAll}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copy All
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs"
+                            onClick={() => downloadBatchCsv(doneJobs)}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Export CSV
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -533,7 +649,7 @@ export default function BatchProposal() {
                 {/* Job cards */}
                 <div className="space-y-3">
                   {jobs.map((job) => (
-                    <JobCard key={job.id} job={job} index={job.index} />
+                    <JobCard key={job.id} job={job} index={job.index} onRetry={!running ? handleRetryJob : undefined} />
                   ))}
                 </div>
 

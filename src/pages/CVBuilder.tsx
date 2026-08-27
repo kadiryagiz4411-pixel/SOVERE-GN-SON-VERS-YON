@@ -20,6 +20,7 @@ import { GatedButton } from '@/components/entitlements/FeatureGate';
 import {
   Crown, FileText, Upload, PenTool, Loader2, Download, Lock,
   ArrowLeft, Sparkles, CheckCircle, XCircle, Target, Globe,
+  AlertCircle, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
@@ -88,6 +89,7 @@ const CVBuilder = () => {
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [generatedCV, setGeneratedCV] = useState('');
   const [acceptanceScore, setAcceptanceScore] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('form');
@@ -219,6 +221,7 @@ const CVBuilder = () => {
 
     setGenerating(true);
     setGeneratedCV('');
+    setGenerateError(null);
     setAcceptanceScore(null);
 
     try {
@@ -265,7 +268,9 @@ const CVBuilder = () => {
       toast.success(cv.successMsg || 'CV generated successfully!');
     } catch (err: any) {
       console.error('[sovereign] unexpected error', err);
-      toast.error(err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.');
+      const msg = err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.';
+      setGenerateError(msg);
+      toast.error(msg);
     } finally {
       setGenerating(false);
     }
@@ -660,7 +665,7 @@ const CVBuilder = () => {
             disabled={generating}
             variant="gold"
             size="xl"
-            className="w-full mb-8"
+            className="w-full"
           >
             {generating ? (
               <><Loader2 className="w-5 h-5 animate-spin" /> {cv.generating || 'Generating CV...'}</>
@@ -670,6 +675,23 @@ const CVBuilder = () => {
               <><Sparkles className="w-5 h-5" /> {cv.generateBtn || 'Generate CV'}</>
             )}
           </Button>
+
+          {/* Retry banner shown after a generation error */}
+          {generateError && !generating && (
+            <div className="mt-3 mb-5 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+              <span className="flex-1 text-red-300">{generateError}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerate}
+                className="gap-1.5 border-red-500/40 text-red-300 hover:bg-red-500/10 shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Retry
+              </Button>
+            </div>
+          )}
+          {!generateError && <div className="mb-8" />}
 
           {/* Generated CV Output */}
           {generatedCV && (

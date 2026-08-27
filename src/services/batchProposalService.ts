@@ -216,17 +216,22 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
     onProgress?.([...jobs]);
 
     try {
-      // Deduct credit before generation (platform key only)
+      const prompt = buildPrompt(jd, agencyProfile);
+      const result = await callOpenAI(prompt, apiKey);
+
+      // Validate payload before touching credits
+      if (!result.proposal) {
+        throw new Error('OpenAI returned an empty proposal. No credits were deducted.');
+      }
+
+      // Deduct credit ONLY after receiving a valid payload (platform key only)
       if (!isByok) {
         const deduct = await deductCredit(userId, COST_PER_ACTION);
         if (!deduct.success) {
-          throw new Error('Credit deduction failed — insufficient credits.');
+          throw new Error('Credit deduction failed — please retry.');
         }
         creditsUsed += COST_PER_ACTION;
       }
-
-      const prompt = buildPrompt(jd, agencyProfile);
-      const result = await callOpenAI(prompt, apiKey);
 
       jobs = jobs.map((j) =>
         j.index === i

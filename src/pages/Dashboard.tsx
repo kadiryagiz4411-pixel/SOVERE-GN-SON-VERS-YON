@@ -49,6 +49,7 @@ import {
   Plus, FileText, Settings, User as UserIcon, LogOut, Sparkles,
   Copy, Check, RefreshCw, Zap, Loader2, Lock, Download, Shield,
   ArrowRight, Send, Mail, ExternalLink, Building2, Wand2, Share2, Link as LinkIcon, Crown, Coins, Target,
+  AlertCircle, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -103,6 +104,7 @@ const Dashboard = () => {
   const [proposalVariants, setProposalVariants] = useState<Array<{id: string; label: string; badge: string; description: string; text: string}> | null>(null);
   const [activeVariant, setActiveVariant] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -632,6 +634,7 @@ const Dashboard = () => {
     }
 
     setIsGenerating(true);
+    setGenerateError(null);
     setProposalVariants(null);
     setActiveVariant('');
     setFreelanceScore(null);
@@ -756,7 +759,9 @@ const Dashboard = () => {
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
       console.error('Generation error:', err);
-      toast.error(err.message || 'Failed to generate proposal');
+      const msg = err.message || 'Failed to generate proposal. Please try again.';
+      setGenerateError(msg);
+      toast.error(msg);
     } finally {
       setIsGenerating(false);
     }
@@ -1434,6 +1439,22 @@ const Dashboard = () => {
                   </>
                 )}
               </Button>
+
+              {/* Retry banner — shown after a failed generation attempt */}
+              {generateError && !isGenerating && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                  <span className="flex-1 text-red-300">{generateError}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerate}
+                    className="gap-1.5 border-red-500/40 text-red-300 hover:bg-red-500/10 shrink-0"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Retry
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 

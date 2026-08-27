@@ -19,7 +19,7 @@ import { GuaranteeBadge } from '@/components/GuaranteeBadge';
 import {
   Upload, FileText, PenTool, Loader2, Download, Sparkles,
   CheckCircle, Target, Copy, Check, TrendingUp, Lock, Unlock, AlertTriangle,
-  GitCompare,
+  GitCompare, RotateCcw, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
@@ -63,7 +63,9 @@ export const CVOptimizerModal = ({
   const [injectedKeywords, setInjectedKeywords] = useState<string[]>([]);
   const [quantifiedBullets, setQuantifiedBullets] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +136,7 @@ export const CVOptimizerModal = ({
       return;
     }
     setIsAnalyzing(true);
+    setAnalyzeError(null);
     setTeaserResult(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -152,11 +155,18 @@ export const CVOptimizerModal = ({
         }
       );
       const result = await response.json();
-      if (!response.ok) { toast.error(result.error || 'Analysis failed'); return; }
+      if (!response.ok) {
+        const msg = result.error || 'Analysis failed. Please retry.';
+        setAnalyzeError(msg);
+        toast.error(msg);
+        return;
+      }
       setTeaserResult(result);
       setStep('teaser');
-    } catch {
-      toast.error('An error occurred');
+    } catch (err: any) {
+      const msg = err?.message || 'An error occurred. Please retry.';
+      setAnalyzeError(msg);
+      toast.error(msg);
     } finally {
       setIsAnalyzing(false);
     }
@@ -169,6 +179,7 @@ export const CVOptimizerModal = ({
     }
     if (!cvText.trim()) return;
     setIsOptimizing(true);
+    setOptimizeError(null);
     setOptimizedCV('');
     setScore(null);
     setImprovements([]);
@@ -193,12 +204,16 @@ export const CVOptimizerModal = ({
       const result = await response.json();
       if (!response.ok) {
         console.error('[optimize-cv] HTTP error', response.status, result);
-        toast.error(result.error || INSUFFICIENT_CREDITS_MESSAGE);
+        const msg = result.error || INSUFFICIENT_CREDITS_MESSAGE;
+        setOptimizeError(msg);
+        toast.error(msg);
         return;
       }
       if (!result.optimizedCV) {
         console.error('[optimize-cv] empty payload', result);
-        toast.error('Optimization failed. Please retry.');
+        const msg = 'Optimization failed — empty response. Please retry.';
+        setOptimizeError(msg);
+        toast.error(msg);
         return;
       }
       setOptimizedCV(result.optimizedCV);
@@ -209,9 +224,11 @@ export const CVOptimizerModal = ({
       setStep('diff');
       onCreditsConsumed?.(result.creditsRemaining);
       toast.success('CV optimized!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[optimize-cv] unexpected error', err);
-      toast.error('An error occurred');
+      const msg = err?.message || 'An unexpected error occurred. Please retry.';
+      setOptimizeError(msg);
+      toast.error(msg);
     } finally {
       setIsOptimizing(false);
     }
@@ -307,6 +324,16 @@ export const CVOptimizerModal = ({
               {isAnalyzing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{txt.analyzing}</> : <><Sparkles className="w-4 h-4 mr-2" />{txt.analyze}</>}
             </Button>
 
+            {analyzeError && !isAnalyzing && (
+              <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                <span className="flex-1 text-red-300">{analyzeError}</span>
+                <Button variant="outline" size="sm" onClick={handleAnalyze} className="gap-1.5 border-red-500/40 text-red-300 hover:bg-red-500/10 shrink-0">
+                  <RotateCcw className="w-3.5 h-3.5" /> Retry
+                </Button>
+              </div>
+            )}
+
             <p className="text-center text-xs text-muted-foreground">Free preview • No credits used</p>
           </div>
         )}
@@ -381,12 +408,23 @@ export const CVOptimizerModal = ({
               </div>
 
               {canUnlock ? (
-                <Button variant="gold" className="w-full" size="lg" onClick={handleUnlockFull} disabled={isOptimizing}>
-                  {isOptimizing
-                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{txt.optimizing}</>
-                    : <><Sparkles className="w-4 h-4 mr-2" />{isPaid ? 'Rewrite Full CV' : txt.unlockFull}</>
-                  }
-                </Button>
+                <>
+                  <Button variant="gold" className="w-full" size="lg" onClick={handleUnlockFull} disabled={isOptimizing}>
+                    {isOptimizing
+                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{txt.optimizing}</>
+                      : <><Sparkles className="w-4 h-4 mr-2" />{isPaid ? 'Rewrite Full CV' : txt.unlockFull}</>
+                    }
+                  </Button>
+                  {optimizeError && !isOptimizing && (
+                    <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span className="flex-1 text-red-300">{optimizeError}</span>
+                      <Button variant="outline" size="sm" onClick={handleUnlockFull} className="gap-1.5 border-red-500/40 text-red-300 hover:bg-red-500/10 shrink-0">
+                        <RotateCcw className="w-3.5 h-3.5" /> Retry
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="space-y-2">
                   <Button variant="gold" className="w-full" size="lg" onClick={() => { onOpenChange(false); window.location.href = '/pricing'; }}>
