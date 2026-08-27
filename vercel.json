@@ -1,13 +1,5 @@
 {
   "rewrites": [
-    {
-      "source": "/((?!manifest\\.json|robots\\.txt|sitemap\\.xml|favicon\\.ico|.*\\.[A-Za-z0-9]+$).*)",
-      "destination": "/index.html"
-    }
-  ],
-  "functions": {
-    "api/**/*": {
-      "maxDuration": 60
-    }
-  }
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
+import { useSession } from '@/contexts/SessionContext';
 import { useTierAccess, type AccessTier } from '@/hooks/useTierAccess';
 import { TierGate, TierLockBadge } from '@/components/auth/TierGate';
 import { ELITE_NAV_ITEMS, ENTERPRISE_NAV_ITEMS, type TierNavItem } from '@/config/tierNav';
@@ -28,6 +29,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const { language } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
+  const { remainingCredits, monthlyCreditLimit } = useSession();
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
@@ -36,6 +38,10 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const isElite = plan === 'elite' || access.canAccess('elite');
   const isPro = plan === 'pro' || plan === 'elite' || access.canAccess('pro');
   const isEnterprise = access.canAccess('enterprise') || plan === 'enterprise' || plan === 'B2B_ENTERPRISE';
+
+  const currentCredits = remainingCredits ?? creditsBalance ?? 0;
+  const maxCredits = monthlyCreditLimit || 400;
+  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
 
   const txt = {
     dashboard: language === 'tr' ? 'Başvuru Motoru' : language === 'de' ? 'Application Engine' : language === 'fr' ? 'Moteur de candidature' : 'Application Engine',
@@ -132,11 +138,11 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
           <CreditBadge balance={creditsBalance} className="w-full justify-center" />
           <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${creditsBalance <= 0 ? 'bg-destructive' : creditsBalance < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-              style={{ width: `${Math.min(100, (creditsBalance / 5000) * 100)}%` }}
+              className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+              style={{ width: `${percentage}%` }}
             />
           </div>
-          <p className="mt-1.5 text-[10px] text-muted-foreground">20 credits per AI action</p>
+          <p className="mt-1.5 text-[10px] text-muted-foreground">{currentCredits.toLocaleString()} / {maxCredits.toLocaleString()} · 20 credits per AI action</p>
         </div>
 
         {/* Monthly AppSumo credit counter */}

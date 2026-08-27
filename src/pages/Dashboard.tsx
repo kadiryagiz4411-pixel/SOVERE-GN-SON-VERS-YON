@@ -70,6 +70,8 @@ interface Profile {
   career_roadmap: any;
   bonus_credits: number;
   credits_balance: number;
+  remaining_credits?: number;
+  monthly_credit_limit?: number;
   user_segment?: string | null;
   platform_type?: string | null;
   profession_cluster?: string | null;
@@ -401,6 +403,8 @@ const Dashboard = () => {
       career_roadmap: null,
       bonus_credits: 0,
       credits_balance: 0,
+      remaining_credits: 0,
+      monthly_credit_limit: 400,
       user_segment: null,
       platform_type: null,
       profession_cluster: null,
@@ -917,6 +921,9 @@ const Dashboard = () => {
 
   const isFreelancer = userSegment === 'freelancer';
   const creditsBalance = profile?.credits_balance ?? 0;
+  const currentCredits = profile?.remaining_credits ?? creditsBalance ?? 0;
+  const maxCredits = profile?.monthly_credit_limit || 400;
+  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
   const proposalUsageLabel = hasUnlimitedProposals ? dashboardUiText.unlimited : `${proposalsUsed}/${dailyLimit}`;
   const planLabel = getPlanLabel();
   const downloadLimit = getDownloadLimit(currentPlan);
@@ -1005,7 +1012,14 @@ const Dashboard = () => {
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.creditBalance}</p>
-                    <p className="mt-2 text-2xl font-bold text-foreground">{creditsBalance}</p>
+                    <p className="mt-2 text-2xl font-bold text-foreground">{currentCredits.toLocaleString()}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {maxCredits.toLocaleString()}</p>
+                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.currentPlan}</p>
@@ -1074,7 +1088,13 @@ const Dashboard = () => {
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">{dashboardUiText.creditsReady}</p>
                       <div className="mt-1.5 flex items-center gap-1.5 text-foreground">
                         <Coins className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                        <span className="text-lg font-bold">{creditsBalance}</span>
+                        <span className="text-lg font-bold">{currentCredits.toLocaleString()}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                          style={{ width: `${percentage}%` }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1116,6 +1136,14 @@ const Dashboard = () => {
                           <span>{downloadUsageLabel}</span>
                         </div>
                         <Progress value={downloadProgressValue} className="h-2.5" />
+                      </div>
+
+                      <div>
+                        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                          <span>{dashboardUiText.creditBalance}</span>
+                          <span>{currentCredits.toLocaleString()} / {maxCredits.toLocaleString()}</span>
+                        </div>
+                        <Progress value={percentage} className="h-2.5" />
                       </div>
                     </div>
                   </div>
@@ -1213,7 +1241,7 @@ const Dashboard = () => {
         </section>
 
         <section className="max-w-6xl mx-auto">
-          <CreditActivityPanel currentBalance={creditsBalance} items={creditActivity} />
+          <CreditActivityPanel currentBalance={currentCredits} monthlyLimit={maxCredits} items={creditActivity} />
         </section>
 
         {/* Bonus Credits & Referral Banner */}

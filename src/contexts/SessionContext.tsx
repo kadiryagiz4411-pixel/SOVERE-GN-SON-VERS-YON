@@ -19,6 +19,8 @@ interface SessionState {
   sessionReady: boolean;
   isLoading: boolean;
   creditsBalance: number;
+  remainingCredits: number;
+  monthlyCreditLimit: number;
   subscriptionPlan: string;
   subscriptionTier: string;
   planType: string;
@@ -32,6 +34,8 @@ const SessionContext = createContext<SessionState>({
   sessionReady: false,
   isLoading: true,
   creditsBalance: 0,
+  remainingCredits: 0,
+  monthlyCreditLimit: 400,
   subscriptionPlan: 'free',
   subscriptionTier: 'free',
   planType: 'free',
@@ -44,6 +48,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [creditsBalance, setCreditsBalance] = useState(0);
+  const [remainingCredits, setRemainingCredits] = useState(0);
+  const [monthlyCreditLimit, setMonthlyCreditLimit] = useState(400);
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
   const [subscriptionTier, setSubscriptionTier] = useState('free');
   const [planType, setPlanType] = useState('free');
@@ -55,15 +61,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await fetchProfileByAuthId<{
         credits_balance?: number;
+        remaining_credits?: number;
+        monthly_credit_limit?: number;
         subscription_plan?: string;
         subscription_tier?: string;
         plan_type?: string;
-      }>(userId, 'credits_balance, subscription_plan, subscription_tier, plan_type');
+      }>(userId, 'credits_balance, remaining_credits, monthly_credit_limit, subscription_plan, subscription_tier, plan_type');
       if (!mounted.current) return;
       if (error) {
         console.error(LOG, 'session profile/credits query failed', error.message);
       }
-      setCreditsBalance(data?.credits_balance ?? 0);
+      const balance = data?.credits_balance ?? 0;
+      const remaining = data?.remaining_credits ?? balance;
+      const limit = data?.monthly_credit_limit || 400;
+      setCreditsBalance(balance);
+      setRemainingCredits(remaining);
+      setMonthlyCreditLimit(limit);
       setSubscriptionPlan(data?.subscription_plan ?? 'free');
       setSubscriptionTier(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free');
       setPlanType(data?.plan_type ?? data?.subscription_plan ?? 'free');
@@ -117,6 +130,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void loadProfileCredits(next.user.id);
       } else {
         setCreditsBalance(0);
+        setRemainingCredits(0);
+        setMonthlyCreditLimit(400);
         setSubscriptionPlan('free');
         setSubscriptionTier('free');
         setPlanType('free');
@@ -145,6 +160,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sessionReady,
         isLoading: !sessionReady,
         creditsBalance,
+        remainingCredits,
+        monthlyCreditLimit,
         subscriptionPlan,
         subscriptionTier,
         planType,

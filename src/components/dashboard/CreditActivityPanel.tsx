@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Coins, History, ReceiptText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { COST_PER_ACTION } from '@/lib/credits';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 export interface CreditActivityItem {
   id: string;
@@ -14,6 +15,7 @@ export interface CreditActivityItem {
 
 interface CreditActivityPanelProps {
   currentBalance: number;
+  monthlyLimit?: number;
   items: CreditActivityItem[];
 }
 
@@ -29,8 +31,11 @@ function actionLabel(item: CreditActivityItem): string {
   return 'Credit activity';
 }
 
-export const CreditActivityPanel = ({ currentBalance, items }: CreditActivityPanelProps) => {
+export const CreditActivityPanel = ({ currentBalance, monthlyLimit = 400, items }: CreditActivityPanelProps) => {
   const { language } = useLanguage();
+  const currentCredits = currentBalance ?? 0;
+  const maxCredits = monthlyLimit || 400;
+  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
 
   const copy = {
     en: {
@@ -104,6 +109,13 @@ export const CreditActivityPanel = ({ currentBalance, items }: CreditActivityPan
             <div className="mt-3 flex items-center gap-2 text-foreground">
               <Coins className="h-4 w-4 text-primary" />
               <span className="text-2xl font-bold">{numberFormatter.format(currentBalance)}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {numberFormatter.format(maxCredits)}</p>
+            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                style={{ width: `${percentage}%` }}
+              />
             </div>
           </div>
 

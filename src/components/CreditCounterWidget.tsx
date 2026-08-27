@@ -63,7 +63,7 @@ export function CreditCounterWidget({
   }
 
   /* ── Sidebar variant (desktop) ── */
-  const barWidth = `${Math.max(2, status.usagePct)}%`;
+  const barWidth = `${Math.min(100, Math.max(0, Math.round(status.usagePct)))}%`;
 
   return (
     <div className={cn('px-5 py-3 border-b border-border', className)}>

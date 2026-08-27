@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { COST_PER_ACTION } from '@/lib/credits';
+import { COST_PER_ACTION, creditUsagePercentage } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
 
 export { COST_PER_ACTION };
@@ -60,9 +60,9 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
 
     if (error || !data) return null;
 
-    const remaining = (data as any).remaining_credits ?? 50;
-    const limit     = (data as any).monthly_credit_limit ?? 50;
-    const usagePct  = limit > 0 ? Math.round((remaining / limit) * 100) : 0;
+    const remaining = (data as any).remaining_credits ?? 0;
+    const limit     = (data as any).monthly_credit_limit || 400;
+    const usagePct  = creditUsagePercentage(remaining, limit);
 
     return {
       remainingCredits: remaining,
