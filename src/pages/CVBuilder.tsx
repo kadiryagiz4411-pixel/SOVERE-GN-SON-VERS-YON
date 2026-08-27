@@ -122,29 +122,30 @@ const CVBuilder = () => {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) { navigate('/auth'); return; }
-      setUser(session.user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) { navigate('/auth'); return; }
+        setUser(session.user);
 
-      const { data: profile } = await fetchProfileByAuthId<{
-        subscription_plan?: string;
-        subscription_expires_at?: string | null;
-        full_name?: string | null;
-        credits_balance?: number;
-      }>(session.user.id, 'subscription_plan, subscription_expires_at, full_name, credits_balance');
+        const { data: profile } = await fetchProfileByAuthId<{
+          subscription_plan?: string;
+          subscription_expires_at?: string | null;
+          full_name?: string | null;
+          credits_balance?: number;
+        }>(session.user.id, 'subscription_plan, subscription_expires_at, full_name, credits_balance');
 
-      let userPlan = profile?.subscription_plan || 'free';
-      if ((userPlan === 'pro' || userPlan === 'elite') && profile?.subscription_expires_at) {
-        if (new Date() > new Date(profile.subscription_expires_at)) userPlan = 'free';
+        let userPlan = profile?.subscription_plan || 'free';
+        if ((userPlan === 'pro' || userPlan === 'elite') && profile?.subscription_expires_at) {
+          if (new Date() > new Date(profile.subscription_expires_at)) userPlan = 'free';
+        }
+        setPlan(userPlan);
+        setCreditsBalance((profile as any)?.credits_balance ?? 0);
+        if (profile?.full_name) setFullName(profile.full_name);
+      } catch (err) {
+        console.error('[Sovereign Load Error]:', 'CVBuilder init failed', err);
+      } finally {
+        setLoading(false);
       }
-      setPlan(userPlan);
-      setCreditsBalance((profile as any)?.credits_balance ?? 0);
-      if (profile?.full_name) setFullName(profile.full_name);
-    } catch (err) {
-      console.error('[Sovereign Load Error]:', 'CVBuilder init failed', err);
-    } finally {
-      setLoading(false);
-    }
     };
     void init();
   }, [navigate]);
