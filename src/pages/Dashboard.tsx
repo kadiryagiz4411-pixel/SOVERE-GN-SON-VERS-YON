@@ -923,7 +923,9 @@ const Dashboard = () => {
   const creditsBalance = profile?.credits_balance ?? 0;
   const currentCredits = profile?.remaining_credits ?? creditsBalance ?? 0;
   const maxCredits = profile?.monthly_credit_limit || 400;
-  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
+  const percentage = maxCredits > 0
+    ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
+    : 0;
   const proposalUsageLabel = hasUnlimitedProposals ? dashboardUiText.unlimited : `${proposalsUsed}/${dailyLimit}`;
   const planLabel = getPlanLabel();
   const downloadLimit = getDownloadLimit(currentPlan);

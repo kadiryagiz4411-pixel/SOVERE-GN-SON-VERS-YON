@@ -35,7 +35,9 @@ export const CreditActivityPanel = ({ currentBalance, monthlyLimit = 400, items 
   const { language } = useLanguage();
   const currentCredits = currentBalance ?? 0;
   const maxCredits = monthlyLimit || 400;
-  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
+  const percentage = maxCredits > 0
+    ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
+    : 0;
 
   const copy = {
     en: {

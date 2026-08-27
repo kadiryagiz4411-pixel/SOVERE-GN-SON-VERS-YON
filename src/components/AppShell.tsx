@@ -41,7 +41,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
-  const percentage = Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)));
+  const percentage = maxCredits > 0
+    ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
+    : 0;
 
   const txt = {
     dashboard: language === 'tr' ? 'Başvuru Motoru' : language === 'de' ? 'Application Engine' : language === 'fr' ? 'Moteur de candidature' : 'Application Engine',
