@@ -123,6 +123,74 @@ export async function deductCredit(userId: string, amount = COST_PER_ACTION): Pr
   }
 }
 
+// ─── BYOK & AppSumo enforcement ──────────────────────────────────────────────
+
+export interface ByokStatus {
+  /** True when credits should be bypassed entirely */
+  isByokActive: boolean;
+  /** The resolved OpenAI key to use (custom key or platform key) */
+  apiKey: string;
+  /** Where the key came from */
+  source: 'custom_key' | 'byok_unlocked' | 'dev_simulate' | 'platform';
+}
+
+/**
+ * Resolves BYOK status for a user.
+ * Priority:
+ *   1. Dev sandbox simulation (localStorage dev_byok_simulate=true)
+ *   2. profile.custom_openai_key present
+ *   3. profile.byok_unlocked === true (granted by 3+ AppSumo code stacking)
+ *   4. Platform VITE_OPENAI_API_KEY (credits apply)
+ */
+export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
+  // Dev sandbox override
+  if (
+    (import.meta.env.DEV || new URLSearchParams(window.location.search).get('dev_mode') === 'true')
+    && localStorage.getItem('dev_byok_simulate') === 'true'
+  ) {
+    const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
+    return { isByokActive: true, apiKey: platformKey, source: 'dev_simulate' };
+  }
+
+  try {
+    const { data } = await fetchProfileByAuthId<{
+      custom_openai_key?: string;
+      byok_unlocked?: boolean;
+    }>(userId, 'custom_openai_key, byok_unlocked');
+
+    const customKey = (data as { custom_openai_key?: string } | null)?.custom_openai_key?.trim();
+    const byokFlag  = (data as { byok_unlocked?: boolean } | null)?.byok_unlocked ?? false;
+
+    if (customKey) {
+      return { isByokActive: true, apiKey: customKey, source: 'custom_key' };
+    }
+    if (byokFlag) {
+      // byok_unlocked but no custom key yet — still bypass credits, use platform key
+      const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
+      return { isByokActive: true, apiKey: platformKey, source: 'byok_unlocked' };
+    }
+  } catch { /* fall through */ }
+
+  const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
+  return { isByokActive: false, apiKey: platformKey, source: 'platform' };
+}
+
+/**
+ * Deducts credits OR short-circuits when BYOK is active.
+ * Use this instead of `deductCredit` in all AI generation flows.
+ */
+export async function deductCreditOrBypass(
+  userId: string,
+  amount = COST_PER_ACTION,
+): Promise<DeductResult & { bypassedViaByok: boolean }> {
+  const byok = await resolveByokStatus(userId);
+  if (byok.isByokActive) {
+    return { success: true, remaining: -1, bypassedViaByok: true };
+  }
+  const result = await deductCredit(userId, amount);
+  return { ...result, bypassedViaByok: false };
+}
+
 // ─── AppSumo code redemption ──────────────────────────────────────────────────
 
 const REDEEM_MESSAGES: Record<string, string> = {

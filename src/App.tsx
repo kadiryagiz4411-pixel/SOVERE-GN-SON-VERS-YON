@@ -8,6 +8,7 @@ import { PlanProvider } from "@/contexts/PlanContext";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DevSandbox } from "@/components/dev/DevSandbox";
 import SplashScreen from "@/components/SplashScreen";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
@@ -46,6 +47,7 @@ const BatchUpload = lazy(() => import("./pages/BatchUpload"));
 const TeamWorkspace = lazy(() => import("./pages/TeamWorkspace"));
 const TalentPoolHub = lazy(() => import("./pages/TalentPoolHub"));
 const BatchProposal = lazy(() => import("./pages/BatchProposal"));
+const ApplicationsCRM = lazy(() => import("./pages/ApplicationsCRM"));
 
 const GetHiredAtPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.GetHiredAtPage })));
 const HowToGetJobPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.HowToGetJobPage })));
@@ -119,6 +121,7 @@ const AppRoutes = () => (
       <Route path="/team" element={<ProtectedRoute><TeamWorkspace /></ProtectedRoute>} />
       <Route path="/talent-pool" element={<ProtectedRoute><TalentPoolHub /></ProtectedRoute>} />
       <Route path="/batch-proposal" element={<ProtectedRoute><BatchProposal /></ProtectedRoute>} />
+      <Route path="/crm" element={<ProtectedRoute><ApplicationsCRM /></ProtectedRoute>} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />
       <Route path="/get-hired-at/:company" element={<GetHiredAtPage />} />
@@ -169,6 +172,7 @@ const App = () => {
                   <ErrorBoundary>
                     <AffiliateTracker />
                     <AppRoutes />
+                    <DevSandbox />
                   </ErrorBoundary>
                 </BrowserRouter>
               </TooltipProvider>
