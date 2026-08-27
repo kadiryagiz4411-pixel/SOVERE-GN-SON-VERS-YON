@@ -30,59 +30,38 @@ export function PricingTable({
   return (
     <div className={cn("w-full max-w-full overflow-hidden box-border", className)}>
       {/* ── Monthly / Annual billing toggle ────────────────────────────────── */}
-      <div className="w-full max-w-full overflow-hidden flex-shrink-0 box-border flex items-center justify-center flex-wrap gap-3 mb-12 px-1">
-        <div className="inline-flex items-center gap-3 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 flex-shrink-0 box-border">
-          <span
-            className={cn(
-              "text-sm font-medium transition-colors cursor-pointer select-none",
-              !isAnnual ? "text-slate-100" : "text-slate-500"
-            )}
-            onClick={() => setBillingCycle("monthly")}
-          >
-            Monthly
-          </span>
+      <div className="flex items-center justify-center gap-3 sm:gap-4 my-8 relative z-10">
+        <span
+          className={`text-sm font-medium transition-colors cursor-pointer select-none ${!isAnnual ? 'text-white font-semibold' : 'text-zinc-400'}`}
+          onClick={() => setBillingCycle("monthly")}
+        >
+          Monthly
+        </span>
 
-          <button
-            type="button"
-            onClick={() => setBillingCycle(cycle => cycle === "yearly" ? "monthly" : "yearly")}
-            aria-label="Toggle billing period"
-            className={cn(
-              "relative w-14 h-7 rounded-full transition-colors duration-300 shrink-0",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
-              isAnnual ? "bg-violet-600" : "bg-slate-700"
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform duration-300",
-                isAnnual ? "translate-x-7" : "translate-x-0.5"
-              )}
-            />
-          </button>
-
+        <button
+          type="button"
+          onClick={() => setBillingCycle(cycle => cycle === "yearly" ? "monthly" : "yearly")}
+          aria-label="Toggle billing period"
+          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full bg-purple-600 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        >
           <span
-            className={cn(
-              "text-sm font-medium transition-colors cursor-pointer select-none",
-              isAnnual ? "text-slate-100" : "text-slate-500"
-            )}
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out mt-1 ${
+              isAnnual ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-sm font-medium transition-colors cursor-pointer select-none ${isAnnual ? 'text-white font-semibold' : 'text-zinc-400'}`}
             onClick={() => setBillingCycle("yearly")}
           >
             Annual
           </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+            <Zap className="w-3 h-3" /> Save up to 25%
+          </span>
         </div>
-
-        <span
-          className={cn(
-            "inline-flex items-center justify-center gap-1 min-w-[9.5rem] px-2.5 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-opacity duration-200",
-            isAnnual
-              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 opacity-100"
-              : "bg-transparent text-transparent border-transparent opacity-0 pointer-events-none"
-          )}
-          aria-hidden={!isAnnual}
-        >
-          <Zap className="w-3 h-3" />
-          Save up to 25%
-        </span>
       </div>
 
       {/* ── Subscription plan grid ──────────────────────────────────────────── */}
