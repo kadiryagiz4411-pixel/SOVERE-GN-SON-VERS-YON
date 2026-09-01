@@ -233,7 +233,9 @@ export function isHighlightedFeature(text: string): boolean {
     text.startsWith("Includes ALL") ||
     /\bUNLIMITED\b/.test(text) ||
     text.startsWith("Batch Upload") ||
-    text.startsWith("Organization Team")
+    text.startsWith("Organization Team") ||
+    text.includes("Credits Rollover") ||
+    text.startsWith("Pause Anytime")
   );
 }
 

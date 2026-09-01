@@ -70,6 +70,11 @@ const CHECK_DIM: Record<CardStyle, string> = {
   enterprise: "text-slate-600",
 };
 
+const ANNUAL_VALUE_FEATURES = [
+  "Unused Credits Rollover to Next Month",
+  "Pause Anytime (Job-Found / Low-Workload Guarantee)",
+];
+
 const CTA_CLASS: Record<CardStyle, string> = {
   standard:
     "w-full bg-slate-700 hover:bg-slate-600 text-slate-100 border-0 font-semibold",
@@ -105,6 +110,12 @@ export function PricingCard({
     ? createCheckout("single_pass")
     : createCheckout(tier.id as CheckoutPlanId, billingCycle);
   const cta = ctaLabel(tier, isAnnual, isCurrent);
+  const annualBadge = !tier.isOneTime && isAnnual
+    ? (tier.isEnterprise ? "🔒 12-Month Price Lock Guaranteed" : "⚡ 3 Months Free")
+    : null;
+  const features = isAnnual && !tier.isOneTime
+    ? [...tier.features, ...ANNUAL_VALUE_FEATURES]
+    : tier.features;
 
   return (
     <div
@@ -152,7 +163,13 @@ export function PricingCard({
         )}
       </div>
 
-      {/* Divider */}
+      {annualBadge && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+            {annualBadge}
+          </span>
+        </div>
+      )}
       <div className={cn(
         "my-5 h-px",
         style === "popular" ? "bg-violet-500/20" : "bg-slate-800"
@@ -160,7 +177,7 @@ export function PricingCard({
 
       {/* Feature list */}
       <ul className="space-y-2.5 flex-1 mb-7">
-        {tier.features.map((f, i) => {
+        {features.map((f, i) => {
           const hl = isHighlightedFeature(f);
           return (
             <li key={i} className="flex items-start gap-2.5">

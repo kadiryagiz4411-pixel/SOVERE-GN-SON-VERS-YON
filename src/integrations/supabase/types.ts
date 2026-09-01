@@ -419,6 +419,15 @@ export type Database = {
           plan_type: string
           referred_by: string | null
           org_id: string | null
+          remaining_credits: number | null
+          monthly_credit_limit: number | null
+          credit_reset_date: string | null
+          subscription_status: string
+          subscription_paused_at: string | null
+          subscription_pause_until: string | null
+          subscription_pause_reason: string | null
+          ls_subscription_id: string | null
+          ls_customer_id: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -455,6 +464,15 @@ export type Database = {
           plan_type?: string
           referred_by?: string | null
           org_id?: string | null
+          remaining_credits?: number | null
+          monthly_credit_limit?: number | null
+          credit_reset_date?: string | null
+          subscription_status?: string
+          subscription_paused_at?: string | null
+          subscription_pause_until?: string | null
+          subscription_pause_reason?: string | null
+          ls_subscription_id?: string | null
+          ls_customer_id?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -491,6 +509,15 @@ export type Database = {
           plan_type?: string
           referred_by?: string | null
           org_id?: string | null
+          remaining_credits?: number | null
+          monthly_credit_limit?: number | null
+          credit_reset_date?: string | null
+          subscription_status?: string
+          subscription_paused_at?: string | null
+          subscription_pause_until?: string | null
+          subscription_pause_reason?: string | null
+          ls_subscription_id?: string | null
+          ls_customer_id?: string | null
         }
         Relationships: []
       }

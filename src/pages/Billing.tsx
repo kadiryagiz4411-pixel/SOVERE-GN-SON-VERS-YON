@@ -6,15 +6,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CreditCard, ArrowLeft, Zap, Calendar, ShieldCheck,
-  ExternalLink, Loader2, Crown, Building2, Star,
+  ExternalLink, Loader2, Crown, Building2, Star, PauseCircle, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { PricingTable, SinglePassBanner } from "@/components/pricing/PricingTable";
 import { getTierByPlanType } from "@/config/pricing";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PauseSubscriptionModal } from "@/components/subscription/PauseSubscriptionModal";
+import { SubscriptionPausedBanner } from "@/components/subscription/SubscriptionPausedBanner";
+import { InvoiceRequestModal } from "@/components/InvoiceRequestModal";
 
 interface UserBilling {
   planType: string;
@@ -45,6 +48,9 @@ export default function Billing() {
   const navigate = useNavigate();
   const [billing, setBilling] = useState<UserBilling | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const subscription = useSubscription();
 
   useEffect(() => {
     loadBilling();
@@ -113,6 +119,19 @@ export default function Billing() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-10 space-y-10">
+        {subscription.isPaused && (
+          <SubscriptionPausedBanner
+            pauseUntil={subscription.pauseUntil}
+            remainingCredits={subscription.remainingCredits}
+            busy={subscription.busy}
+            onUnpause={async () => {
+              const result = await subscription.unpause();
+              if (result.error) toast.error(result.error);
+              else toast.success("Subscription resumed.");
+            }}
+          />
+        )}
+
         {/* Current plan card */}
         {isLoading ? (
           <div className="flex items-center gap-3 py-8 text-slate-500">
@@ -174,24 +193,73 @@ export default function Billing() {
           </div>
         )}
 
-        {/* Manage subscription link */}
+        {/* Manage subscription / pause / invoices */}
         {billing?.planType && billing.planType !== "free" && (
-          <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-slate-300">Manage Subscription</p>
-              <p className="text-xs text-slate-500 mt-0.5">Update payment method, view invoices, or cancel your plan.</p>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-300">Manage Subscription</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Update payment method, pause billing, or cancel your plan.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {!subscription.isPaused && subscription.status !== "canceled" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setShowPauseModal(true)}
+                  >
+                    <PauseCircle className="w-3.5 h-3.5" />
+                    Pause Subscription
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setShowInvoiceModal(true)}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Download Tax Invoice / Update Company Details
+                </Button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await subscription.openPortal();
+                    } catch {
+                      toast.error("Could not open customer portal");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors whitespace-nowrap"
+                >
+                  Customer Portal
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            <a
-              href="https://app.lemonsqueezy.com/my-orders"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors whitespace-nowrap"
-            >
-              Customer Portal
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
           </div>
         )}
+
+        <PauseSubscriptionModal
+          open={showPauseModal}
+          onOpenChange={setShowPauseModal}
+          audience={subscription.audience ?? "b2c"}
+          busy={subscription.busy}
+          onConfirm={async (reason) => {
+            const result = await subscription.pause(reason);
+            if (result.error) toast.error(result.error);
+            else toast.success("Subscription paused. Credits are frozen, not reset.");
+          }}
+        />
+        <InvoiceRequestModal
+          open={showInvoiceModal}
+          onOpenChange={setShowInvoiceModal}
+          busy={subscription.busy}
+          onOpenPortal={subscription.openPortal}
+        />
 
         {/* Upgrade / plan comparison */}
         <div>

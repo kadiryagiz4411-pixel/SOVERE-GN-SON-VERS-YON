@@ -29,8 +29,14 @@ import {
   Building2,
   Key,
   CheckCircle,
+  PauseCircle,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PauseSubscriptionModal } from '@/components/subscription/PauseSubscriptionModal';
+import { SubscriptionPausedBanner } from '@/components/subscription/SubscriptionPausedBanner';
+import { InvoiceRequestModal } from '@/components/InvoiceRequestModal';
 
 const ProfileSettings = () => {
   const { t, language } = useLanguage();
@@ -43,6 +49,9 @@ const ProfileSettings = () => {
   const [orgRedeemed, setOrgRedeemed] = useState(false);
 
   const { profile, loading: profileLoading, updateProfile, refreshProfile } = useProfile(user);
+  const subscription = useSubscription();
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const handleRedeemOrgKey = async () => {
     if (!orgKey.trim() || !user) return;
@@ -256,6 +265,20 @@ const ProfileSettings = () => {
 
       {/* Content */}
       <main className="container mx-auto px-4 lg:px-8 py-8 max-w-2xl">
+        {subscription.isPaused && (
+          <div className="mb-6">
+            <SubscriptionPausedBanner
+              pauseUntil={subscription.pauseUntil}
+              remainingCredits={subscription.remainingCredits}
+              busy={subscription.busy}
+              onUnpause={async () => {
+                const result = await subscription.unpause();
+                if (result.error) toast.error(result.error);
+                else toast.success('Subscription resumed.');
+              }}
+            />
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-card p-6">
           {/* Avatar Section */}
           <div className="flex flex-col items-center mb-8 pb-6 border-b border-border">
@@ -479,6 +502,44 @@ const ProfileSettings = () => {
             </Button>
           </form>
         </div>
+
+        {subscription.isPaid && (
+          <div className="mt-6 rounded-xl border border-border bg-card p-6 space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">Subscription</h2>
+            <p className="text-sm text-muted-foreground">
+              Status: <span className="capitalize font-medium text-foreground">{subscription.status}</span>
+              {subscription.billingPeriod ? ` · billed ${subscription.billingPeriod}` : ''}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {!subscription.isPaused && subscription.status !== 'canceled' && (
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setShowPauseModal(true)}>
+                  <PauseCircle className="w-4 h-4" /> Pause Subscription
+                </Button>
+              )}
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setShowInvoiceModal(true)}>
+                <FileText className="w-4 h-4" /> Download Tax Invoice / Update Company Details
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <PauseSubscriptionModal
+          open={showPauseModal}
+          onOpenChange={setShowPauseModal}
+          audience={subscription.audience ?? 'b2c'}
+          busy={subscription.busy}
+          onConfirm={async (reason) => {
+            const result = await subscription.pause(reason);
+            if (result.error) toast.error(result.error);
+            else toast.success('Subscription paused. Remaining credits were kept.');
+          }}
+        />
+        <InvoiceRequestModal
+          open={showInvoiceModal}
+          onOpenChange={setShowInvoiceModal}
+          busy={subscription.busy}
+          onOpenPortal={subscription.openPortal}
+        />
 
         {/* User Stats & Level Card */}
         {user && profile && (

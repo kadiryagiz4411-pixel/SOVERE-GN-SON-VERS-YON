@@ -158,15 +158,21 @@ async function upgradePlan(
   userId: string,
   cfg: TierConfig,
   lsSubscriptionId: string,
+  lsCustomerId?: string | null,
 ) {
   const expires = expiryDate(cfg.period);
 
   const { error } = await db.from("profiles").update({
     plan_type: cfg.tier,
     subscription_plan: cfg.tier,
+    subscription_status: "active",
     subscription_expires_at: expires,
     billing_period: cfg.period === "once" ? null : cfg.period,
-    ls_subscription_id: lsSubscriptionId,
+    ls_subscription_id: lsSubscriptionId || undefined,
+    ls_customer_id: lsCustomerId || undefined,
+    subscription_paused_at: null,
+    subscription_pause_until: null,
+    subscription_pause_reason: null,
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
 
@@ -225,8 +231,42 @@ async function downgradePlan(
   await db.from("profiles").update({
     plan_type: "free",
     subscription_plan: "free",
+    subscription_status: "canceled",
     subscription_expires_at: null,
     billing_period: null,
+    subscription_paused_at: null,
+    subscription_pause_until: null,
+    subscription_pause_reason: null,
+    updated_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+}
+
+async function markPaused(
+  db: ReturnType<typeof makeAdminClient>,
+  userId: string,
+  lsId: string,
+  resumesAt?: string | null,
+) {
+  await db.from("profiles").update({
+    subscription_status: "paused",
+    ls_subscription_id: lsId || undefined,
+    subscription_paused_at: new Date().toISOString(),
+    subscription_pause_until: resumesAt ?? null,
+    updated_at: new Date().toISOString(),
+  }).eq("user_id", userId);
+}
+
+async function markActive(
+  db: ReturnType<typeof makeAdminClient>,
+  userId: string,
+  lsId?: string,
+) {
+  await db.from("profiles").update({
+    subscription_status: "active",
+    ls_subscription_id: lsId || undefined,
+    subscription_paused_at: null,
+    subscription_pause_until: null,
+    subscription_pause_reason: null,
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
 }
@@ -295,13 +335,32 @@ Deno.serve(async (req) => {
 
   const userId = await resolveUserId(db, customData.user_id as string | undefined, email);
 
+  const lsStatus = String(attrs.status ?? "").toLowerCase();
+  const pausePayload = attrs.pause as { mode?: string; resumes_at?: string } | null | undefined;
+  const lsCustomerId = attrs.customer_id != null ? String(attrs.customer_id) : null;
+
   // ── Route by event name ───────────────────────────────────────────────────
   switch (eventName) {
+    case "subscription_paused": {
+      if (userId) await markPaused(db, userId, lsId, pausePayload?.resumes_at ?? null);
+      return json({ success: true, status: "paused" });
+    }
+
+    case "subscription_unpaused":
+    case "subscription_resumed": {
+      if (userId) await markActive(db, userId, lsId);
+      return json({ success: true, status: "active" });
+    }
+
     // ── New purchase / subscription created ──────────────────────────────
     case "order_created":
     case "subscription_created":
     case "subscription_renewed":
     case "subscription_updated": {
+      if (lsStatus === "paused" || (pausePayload && pausePayload.mode)) {
+        if (userId) await markPaused(db, userId, lsId, pausePayload?.resumes_at ?? null);
+        return json({ success: true, status: "paused" });
+      }
       if (!tierCfg) {
         console.warn("[LS webhook] Could not resolve tier for event", eventName, { variantId });
         return json({ success: true, warning: "Tier not resolved — no action taken" });
@@ -328,7 +387,7 @@ Deno.serve(async (req) => {
         return json({ success: true, queued: true });
       }
 
-      await upgradePlan(db, userId, tierCfg, lsId);
+      await upgradePlan(db, userId, tierCfg, lsId, lsCustomerId);
       console.log(`[LS webhook] Upgraded user ${userId} to ${tierCfg.tier} (${tierCfg.period})`);
       return json({ success: true, tier: tierCfg.tier });
     }
@@ -340,6 +399,8 @@ Deno.serve(async (req) => {
       if (userId) {
         await db.from("profiles").update({
           ls_subscription_id: lsId,
+          ls_customer_id: lsCustomerId || undefined,
+          subscription_status: "canceled",
           subscription_cancelled_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }).eq("user_id", userId);

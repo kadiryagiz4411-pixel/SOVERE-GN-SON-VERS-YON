@@ -6,6 +6,9 @@
  * Handles:
  *  - AppSumo LTD monthly credit checks (remaining_credits / monthly_credit_limit)
  *  - Lazy credit reset when credit_reset_date has passed
+ *  - Annual plans: remaining_credits + monthly_credit_limit (capped at 2× limit)
+ *  - Monthly plans: unused credits expire (overwrite remaining_credits)
+ *  - Paused subscriptions: remaining credits are frozen, not reset
  *  - Credit deduction before AI workflow execution
  *  - Out-of-credits state signalling
  */
