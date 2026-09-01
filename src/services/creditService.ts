@@ -32,6 +32,8 @@ export interface CreditStatus {
   usagePct: number;
   /** Visual colour token for UI indicators */
   colorClass: 'text-emerald-400' | 'text-amber-400' | 'text-red-400';
+  appsumoTier: number;
+  isByokUnlimited: boolean;
 }
 
 export interface RedeemResult {
@@ -56,28 +58,42 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
 
     const { data, error } = await fetchProfileByAuthId<{
       remaining_credits?: number;
+      credits_remaining?: number;
       monthly_credit_limit?: number;
       credit_reset_date?: string | null;
+      credits_reset_at?: string | null;
       subscription_tier?: string;
-    }>(userId, 'remaining_credits, monthly_credit_limit, credit_reset_date, subscription_tier');
+      appsumo_tier?: number;
+      appsumo_codes_count?: number;
+      byok_unlocked?: boolean;
+      encrypted_openai_key?: string;
+      custom_openai_key?: string;
+    }>(userId, 'remaining_credits, credits_remaining, monthly_credit_limit, credit_reset_date, credits_reset_at, subscription_tier, appsumo_tier, appsumo_codes_count, byok_unlocked, encrypted_openai_key, custom_openai_key');
 
     if (error || !data) return null;
 
-    const remaining = (data as any).remaining_credits ?? 0;
+    const remaining = (data as any).credits_remaining ?? (data as any).remaining_credits ?? 0;
     const limit     = (data as any).monthly_credit_limit || 400;
     const usagePct  = creditUsagePercentage(remaining, limit);
+    const appsumoTier = Number((data as any).appsumo_tier ?? (data as any).appsumo_codes_count ?? 0);
+    const hasKey = Boolean(String((data as any).encrypted_openai_key ?? (data as any).custom_openai_key ?? '').trim());
+    const isByokUnlimited = appsumoTier >= 3 && (Boolean((data as any).byok_unlocked) || hasKey);
 
     return {
       remainingCredits: remaining,
       monthlyLimit:     limit,
-      resetDate:        (data as any).credit_reset_date ? new Date((data as any).credit_reset_date) : null,
+      resetDate:        ((data as any).credits_reset_at || (data as any).credit_reset_date)
+        ? new Date((data as any).credits_reset_at || (data as any).credit_reset_date)
+        : null,
       subscriptionTier: (data as any).subscription_tier ?? 'free',
-      isExhausted:      remaining <= 0,
+      isExhausted:      !isByokUnlimited && remaining <= 0,
       usagePct,
       colorClass:
         remaining <= 0          ? 'text-red-400'
         : usagePct <= 20        ? 'text-amber-400'
         : 'text-emerald-400',
+      appsumoTier,
+      isByokUnlimited,
     };
   } catch {
     return null;

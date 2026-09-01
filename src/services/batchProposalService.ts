@@ -17,6 +17,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { COST_PER_ACTION } from '@/lib/credits';
 import { hasEnoughCredits, deductCredit } from '@/services/creditService';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { prepareAiExecution, CreditLimitError, FeatureForbiddenError } from '@/lib/ai-engine';
+import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -74,11 +76,15 @@ export interface BatchOptions {
 
 async function resolveApiKey(userId: string): Promise<{ key: string; isByok: boolean }> {
   try {
-    const { data } = await fetchProfileByAuthId<{ custom_openai_key?: string }>(
+    const { data } = await fetchProfileByAuthId<{ custom_openai_key?: string; encrypted_openai_key?: string }>(
       userId,
-      'custom_openai_key',
+      'custom_openai_key, encrypted_openai_key',
     );
-    const byokKey = (data as { custom_openai_key?: string } | null)?.custom_openai_key?.trim();
+    const byokKey = String(
+      (data as { encrypted_openai_key?: string; custom_openai_key?: string } | null)?.encrypted_openai_key
+      || (data as { custom_openai_key?: string } | null)?.custom_openai_key
+      || '',
+    ).trim();
     if (byokKey) return { key: byokKey, isByok: true };
   } catch {
     // fall through to platform key
@@ -178,6 +184,26 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
 
   if (jds.length === 0) throw new Error('Please provide at least one job description.');
 
+  try {
+    await prepareAiExecution(userId, 'batch_proposals');
+  } catch (err) {
+    if (err instanceof FeatureForbiddenError) throw new Error(err.message);
+    if (err instanceof CreditLimitError) throw err;
+    throw err;
+  }
+
+  let knowledgeBlock = '';
+  try {
+    const entries = await listKnowledge(userId);
+    knowledgeBlock = knowledgeToPromptBlock(entries);
+  } catch {
+    knowledgeBlock = '';
+  }
+  const agencyWithKb: AgencyProfile = {
+    ...agencyProfile,
+    caseStudies: [agencyProfile.caseStudies, knowledgeBlock].filter(Boolean).join('\n\n'),
+  };
+
   // 1. Resolve API key + BYOK status
   const { key: apiKey, isByok } = await resolveApiKey(userId);
   if (!apiKey) {
@@ -216,7 +242,7 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
     onProgress?.([...jobs]);
 
     try {
-      const prompt = buildPrompt(jd, agencyProfile);
+      const prompt = buildPrompt(jd, agencyWithKb);
       const result = await callOpenAI(prompt, apiKey);
 
       // Validate payload before touching credits

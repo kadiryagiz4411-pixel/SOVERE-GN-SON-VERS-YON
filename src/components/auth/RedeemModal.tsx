@@ -29,13 +29,13 @@ export interface StackingStatus {
 
 function resolveStackingStatus(codesRedeemed: number, byokUnlocked: boolean): StackingStatus {
   if (codesRedeemed >= 3) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 3 (B2B)', nextTierLabel: null, codesNeededForNext: null, byokUnlocked: true, monthlyCredits: 1200 };
+    return { codesRedeemed, tierLabel: 'AppSumo Tier 3 (BYOK)', nextTierLabel: null, codesNeededForNext: null, byokUnlocked: true, monthlyCredits: 999999 };
   }
   if (codesRedeemed === 2) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 2', nextTierLabel: 'Tier 3 (B2B)', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 500 };
+    return { codesRedeemed, tierLabel: 'AppSumo Tier 2', nextTierLabel: 'Tier 3 (Unlimited BYOK)', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 300 };
   }
   if (codesRedeemed === 1) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 1', nextTierLabel: 'Tier 2', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 200 };
+    return { codesRedeemed, tierLabel: 'AppSumo Tier 1', nextTierLabel: 'Tier 2', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 100 };
   }
   return { codesRedeemed: 0, tierLabel: 'No AppSumo Code', nextTierLabel: 'Tier 1', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 0 };
 }
@@ -44,9 +44,9 @@ function resolveStackingStatus(codesRedeemed: number, byokUnlocked: boolean): St
 
 function StackingProgress({ status }: { status: StackingStatus }) {
   const steps = [
-    { label: 'Tier 1', credits: '200/mo', reached: status.codesRedeemed >= 1 },
-    { label: 'Tier 2', credits: '500/mo', reached: status.codesRedeemed >= 2 },
-    { label: 'Tier 3 + BYOK', credits: '1,200/mo', reached: status.codesRedeemed >= 3 },
+    { label: 'Tier 1', credits: '100/mo', reached: status.codesRedeemed >= 1 },
+    { label: 'Tier 2', credits: '300/mo', reached: status.codesRedeemed >= 2 },
+    { label: 'Tier 3 + BYOK', credits: 'Unlimited', reached: status.codesRedeemed >= 3 },
   ];
 
   return (
@@ -156,6 +156,8 @@ export function RedeemModal({
         onSuccess?.(newCount);
       } else if (result === 'already_redeemed') {
         setError('This code has already been used.');
+      } else if (result === 'max_stack') {
+        setError('Maximum of 3 AppSumo codes per account.');
       } else if (result === 'invalid_code') {
         setError('Code not found. Check for typos and try again.');
       } else {
@@ -179,7 +181,7 @@ export function RedeemModal({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Activate AppSumo Code</p>
-            <p className="text-xs text-muted-foreground">Stacking supported — redeem multiple codes</p>
+        <p className="text-xs text-muted-foreground">Stacking supported — max 3 codes (100 / 300 / Unlimited BYOK)</p>
           </div>
         </div>
         {onClose && variant === 'modal' && (
@@ -256,7 +258,7 @@ export function RedeemModal({
       {codesRedeemed > 0 && (
         <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 flex items-center gap-2 text-xs text-emerald-300">
           <Zap className="w-3.5 h-3.5 shrink-0" />
-          <span><strong>{status.monthlyCredits} credits/mo</strong> · resets every 30 days</span>
+          <span><strong>{status.codesRedeemed >= 3 ? 'Unlimited (BYOK)' : `${status.monthlyCredits} credits/mo`}</strong> · resets every 30 days</span>
         </div>
       )}
     </div>

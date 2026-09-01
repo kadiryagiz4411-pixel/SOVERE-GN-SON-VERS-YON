@@ -47,6 +47,7 @@ const BatchUpload = lazy(() => import("./pages/BatchUpload"));
 const TeamWorkspace = lazy(() => import("./pages/TeamWorkspace"));
 const TalentPoolHub = lazy(() => import("./pages/TalentPoolHub"));
 const BatchProposal = lazy(() => import("./pages/BatchProposal"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const ApplicationsCRM = lazy(() => import("./pages/ApplicationsCRM"));
 
 const GetHiredAtPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.GetHiredAtPage })));
@@ -121,6 +122,7 @@ const AppRoutes = () => (
       <Route path="/team" element={<ProtectedRoute><TeamWorkspace /></ProtectedRoute>} />
       <Route path="/talent-pool" element={<ProtectedRoute><TalentPoolHub /></ProtectedRoute>} />
       <Route path="/batch-proposal" element={<ProtectedRoute><BatchProposal /></ProtectedRoute>} />
+      <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
       <Route path="/crm" element={<ProtectedRoute><ApplicationsCRM /></ProtectedRoute>} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />

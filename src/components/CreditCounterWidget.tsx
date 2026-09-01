@@ -44,6 +44,14 @@ export function CreditCounterWidget({
 
   /* ── Badge variant (mobile header) ── */
   if (variant === 'badge') {
+    if (status.isByokUnlimited) {
+      return (
+        <span className={cn('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400', className)}>
+          <Zap className="w-3 h-3" />
+          UNLIMITED (BYOK Active)
+        </span>
+      );
+    }
     return (
       <span
         className={cn(
@@ -87,12 +95,18 @@ export function CreditCounterWidget({
 
       {/* Count */}
       <div className="flex items-end gap-1 mb-1">
-        <span className={cn('text-lg font-bold leading-none', status.colorClass)}>
-          {status.remainingCredits}
-        </span>
-        <span className="text-xs text-muted-foreground mb-0.5">
-          / {status.monthlyLimit} left
-        </span>
+        {status.isByokUnlimited ? (
+          <span className="text-sm font-bold leading-none text-emerald-400">UNLIMITED (BYOK Active)</span>
+        ) : (
+          <>
+            <span className={cn('text-lg font-bold leading-none', status.colorClass)}>
+              {status.remainingCredits}
+            </span>
+            <span className="text-xs text-muted-foreground mb-0.5">
+              / {status.monthlyLimit} left
+            </span>
+          </>
+        )}
       </div>
 
       {/* Progress bar */}

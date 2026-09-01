@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PauseSubscriptionModal } from '@/components/subscription/PauseSubscriptionModal';
 import { SubscriptionPausedBanner } from '@/components/subscription/SubscriptionPausedBanner';
-import { InvoiceRequestModal } from '@/components/InvoiceRequestModal';
+import { AccountEnginePanel } from '@/components/settings/AccountEnginePanel';
 
 const ProfileSettings = () => {
   const { t, language } = useLanguage();
@@ -502,6 +502,10 @@ const ProfileSettings = () => {
             </Button>
           </form>
         </div>
+
+        {user && (
+          <AccountEnginePanel userId={user.id} />
+        )}
 
         {subscription.isPaid && (
           <div className="mt-6 rounded-xl border border-border bg-card p-6 space-y-3">

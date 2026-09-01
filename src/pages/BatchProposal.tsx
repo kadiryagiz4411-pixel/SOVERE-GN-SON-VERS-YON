@@ -383,11 +383,15 @@ export default function BatchProposal() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <GatedAppPage>
+    <GatedAppPage
+      required="pro"
+      featureName="Batch Proposal Generator"
+      description="Generate proposals in parallel. Requires AppSumo Tier 2 or Pro."
+    >
       <GatedFeature
-        required="elite"
+        required="pro"
         featureName="Batch Proposal Generator"
-        description="Generate up to 20 high-converting proposals simultaneously. Available on Elite and Enterprise plans."
+        description="Generate up to 20 high-converting proposals simultaneously. Requires Tier 2 or higher."
       >
         <div className="min-h-screen bg-background">
           {/* Header */}
