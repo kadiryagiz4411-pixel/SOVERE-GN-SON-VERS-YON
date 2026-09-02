@@ -172,13 +172,34 @@ export const PRICING_TIERS: PricingTier[] = [
 
 // ─── Derived subsets ──────────────────────────────────────────────────────────
 
+function isValidPricingTier(t: PricingTier | undefined | null): t is PricingTier {
+  return Boolean(t?.id && t?.name && Array.isArray(t.features));
+}
+
 /** Recurring subscription plans only (excludes single_pass) */
 export const getSubscriptionTiers = (): PricingTier[] =>
-  PRICING_TIERS.filter(t => !t.isOneTime);
+  PRICING_TIERS.filter((t) => !t.isOneTime && isValidPricingTier(t));
+
+const FALLBACK_ONE_TIME: PricingTier = {
+  id: "single_pass",
+  name: "Single Pass",
+  description: "1-time instant AI CV optimization with zero recurring subscription fees.",
+  priceMonthly: 4.99,
+  priceAnnual: 4.99,
+  annualTotal: 4.99,
+  discountPercentage: 0,
+  isOneTime: true,
+  features: [
+    "1-Time Full AI CV Optimization",
+    "1-Time Job Match & ATS Score Report",
+    "Instant PDF Export",
+  ],
+  checkoutUrls: { oneTime: "#" },
+};
 
 /** The one-time pass product */
 export const getOneTimeTier = (): PricingTier =>
-  PRICING_TIERS.find(t => t.isOneTime)!;
+  PRICING_TIERS.find((t) => t.isOneTime && isValidPricingTier(t)) ?? FALLBACK_ONE_TIME;
 
 // ─── Supabase plan_type ↔ PricingTier.id mapping ──────────────────────────────
 
@@ -196,7 +217,13 @@ export const PLAN_TYPE_TO_TIER_ID: Record<string, string> = {
   standard:      "standard",
   pro:           "pro",
   elite:         "elite",
+  enterprise:    "enterprise",
   B2B_ENTERPRISE:"enterprise",
+  enterprise_b2b:"enterprise",
+  appsumo_tier1: "standard",
+  appsumo_tier2: "pro",
+  appsumo_tier3: "enterprise",
+  appsumo_b2b:   "enterprise",
 };
 
 // ─── Lookup helpers ───────────────────────────────────────────────────────────
@@ -211,24 +238,32 @@ export function getTierByPlanType(planType: string): PricingTier | undefined {
 }
 
 /** Active checkout URL for the given tier and billing period */
-export function getCheckoutUrlFor(tier: PricingTier, isAnnual: boolean): string {
-  if (tier.isOneTime) return createCheckout("single_pass");
-  return createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly");
+export function getCheckoutUrlFor(tier: PricingTier | undefined | null, isAnnual: boolean): string {
+  if (!tier?.id) return "#";
+  try {
+    if (tier.isOneTime) return createCheckout("single_pass");
+    return createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly");
+  } catch (err) {
+    console.error("[Pricing Diagnostic] checkout URL failed", err);
+    return "#";
+  }
 }
 
 /** Display price string, e.g. "$22" */
-export function displayPrice(tier: PricingTier, isAnnual: boolean): string {
-  return `$${isAnnual ? tier.priceAnnual : tier.priceMonthly}`;
+export function displayPrice(tier: PricingTier | undefined | null, isAnnual: boolean): string {
+  const n = isAnnual ? tier?.priceAnnual : tier?.priceMonthly;
+  return `$${Number(n ?? 0)}`;
 }
 
 /** Annual billed string, e.g. "Billed $264 annually" */
-export function annualBillString(tier: PricingTier): string {
-  return `Billed $${tier.annualTotal.toLocaleString()} annually`;
+export function annualBillString(tier: PricingTier | undefined | null): string {
+  return `Billed $${Number(tier?.annualTotal ?? 0).toLocaleString()} annually`;
 }
 
 /** Returns true if feature text should be visually highlighted.
  *  Detects "Includes ALL …", all-caps words (e.g. "UNLIMITED"), or "Sub-3-second" */
-export function isHighlightedFeature(text: string): boolean {
+export function isHighlightedFeature(text: string | undefined | null): boolean {
+  if (typeof text !== "string") return false;
   return (
     text.startsWith("Includes ALL") ||
     /\bUNLIMITED\b/.test(text) ||
@@ -278,7 +313,7 @@ export const SINGLE_PASS = {
 
 /** @deprecated Use getTierById(). */
 export function getPlanById(id: PlanId): PricingTier {
-  return getTierById(id)!;
+  return getTierById(id) ?? getSubscriptionTiers()[0] ?? FALLBACK_ONE_TIME;
 }
 
 /** @deprecated Use getTierByPlanType(). */

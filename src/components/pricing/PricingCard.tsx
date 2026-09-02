@@ -11,6 +11,8 @@ interface PricingCardProps {
   tier: PricingTier;
   isAnnual: boolean;
   currentPlanType?: string;
+  userTier?: string;
+  isSuperAdmin?: boolean;
 }
 
 // ─── Style maps derived from tier shape ────────────────────────────────────────
@@ -88,7 +90,8 @@ const CTA_CLASS: Record<CardStyle, string> = {
 
 // ─── CTA label ────────────────────────────────────────────────────────────────
 
-function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean): string {
+function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean, isSuperAdmin: boolean): string {
+  if (isSuperAdmin) return "Unlocked (SuperAdmin)";
   if (isCurrent) return "✓ Current Plan";
   if (tier.isEnterprise) return "Contact Sales";
   if (tier.isPopular) return "Go Pro";
@@ -99,23 +102,39 @@ function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean): st
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PricingCard({
-  tier, isAnnual, currentPlanType = "free",
+  tier, isAnnual, currentPlanType = "free", userTier, isSuperAdmin = false,
 }: PricingCardProps) {
+  if (!tier?.id) return null;
+
   const style = resolveStyle(tier);
   const planType = TIER_ID_TO_PLAN_TYPE[tier.id] ?? tier.id;
-  const isCurrent = planType === currentPlanType;
+  const isCurrent = !isSuperAdmin && planType === currentPlanType;
   const billingCycle: BillingCycle = isAnnual ? "yearly" : "monthly";
-  const variantId = tier.isOneTime ? "" : getVariantId(tier.id as CheckoutPlanId, billingCycle);
-  const checkoutUrl = tier.isOneTime
-    ? createCheckout("single_pass")
-    : createCheckout(tier.id as CheckoutPlanId, billingCycle);
-  const cta = ctaLabel(tier, isAnnual, isCurrent);
+  let variantId = "";
+  let checkoutUrl = "#";
+  try {
+    variantId = tier.isOneTime ? "" : getVariantId(tier.id as CheckoutPlanId, billingCycle);
+    checkoutUrl = tier.isOneTime
+      ? createCheckout("single_pass")
+      : createCheckout(tier.id as CheckoutPlanId, billingCycle);
+  } catch (err) {
+    console.error("[Pricing Diagnostic] checkout resolve failed", err);
+  }
+  const cta = ctaLabel(tier, isAnnual, isCurrent, isSuperAdmin);
   const annualBadge = !tier.isOneTime && isAnnual
     ? (tier.isEnterprise ? "🔒 12-Month Price Lock Guaranteed" : "⚡ 3 Months Free")
     : null;
+  const baseFeatures = Array.isArray(tier.features) ? tier.features.filter(Boolean) : [];
   const features = isAnnual && !tier.isOneTime
-    ? [...tier.features, ...ANNUAL_VALUE_FEATURES]
-    : tier.features;
+    ? [...baseFeatures, ...ANNUAL_VALUE_FEATURES]
+    : baseFeatures;
+
+  const logSelection = () => {
+    console.log("[Pricing Diagnostic]", {
+      selectedPlan: tier.id,
+      userTier: userTier ?? currentPlanType,
+    });
+  };
 
   return (
     <div
@@ -197,8 +216,17 @@ export function PricingCard({
       </ul>
 
       {/* CTA */}
-      {isCurrent ? (
+      {isSuperAdmin ? (
         <button
+          type="button"
+          onClick={logSelection}
+          className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+        >
+          All tiers unlocked (SuperAdmin)
+        </button>
+      ) : isCurrent ? (
+        <button
+          type="button"
           disabled
           className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-800 text-slate-500 border border-slate-700 cursor-default"
         >
@@ -212,6 +240,7 @@ export function PricingCard({
           data-plan={tier.id}
           data-billing-cycle={billingCycle}
           data-variant-id={variantId}
+          onClick={logSelection}
         >
           {cta}
         </CheckoutButton>

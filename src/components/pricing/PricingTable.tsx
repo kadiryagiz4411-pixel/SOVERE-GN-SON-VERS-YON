@@ -7,28 +7,47 @@ import {
 import { type BillingCycle, createCheckout } from "@/config/plans";
 import { CheckoutButton } from "@/components/checkout/CheckoutButton";
 import { PricingCard } from "./PricingCard";
+import { usePlan } from "@/contexts/PlanContext";
+import { useSession } from "@/contexts/SessionContext";
+import { isOwnerEmail, isSuperAdminUser } from "@/lib/superadmin";
 
 interface PricingTableProps {
   currentPlanType?: string;
   /** When false, hides the Enterprise card. Default: true */
   showEnterprise?: boolean;
+  isLoggedIn?: boolean;
   className?: string;
 }
 
 export function PricingTable({
-  currentPlanType = "free",
+  currentPlanType,
   showEnterprise = true,
   className,
 }: PricingTableProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("yearly");
   const isAnnual = billingCycle === "yearly";
+  const { user } = useSession();
+  const plan = usePlan();
+  const isSuperAdmin =
+    plan.isSuperAdmin ||
+    isSuperAdminUser(user) ||
+    isOwnerEmail(user?.email) ||
+    user?.email === "kadiryagiz4411@gmail.com";
+  const resolvedPlanType = currentPlanType ?? plan.planType ?? "free";
+  const userTier = plan.tier ?? resolvedPlanType;
 
   const subscriptionTiers = getSubscriptionTiers().filter(
-    t => showEnterprise || t.id !== "enterprise"
+    t => t && (showEnterprise || t.id !== "enterprise")
   );
 
   return (
     <div className={cn("w-full max-w-full overflow-hidden box-border", className)}>
+      {isSuperAdmin && (
+        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center text-sm text-emerald-200">
+          Signed in as <span className="font-semibold">kadiryagiz4411@gmail.com</span>
+          {" "}— all pricing tiers are already unlocked via SuperAdmin.
+        </div>
+      )}
       {/* ── Monthly / Annual billing toggle ────────────────────────────────── */}
       <div className="flex items-center justify-center gap-3 sm:gap-4 my-8 relative z-10">
         <span
@@ -78,7 +97,9 @@ export function PricingTable({
             key={tier.id}
             tier={tier}
             isAnnual={isAnnual}
-            currentPlanType={currentPlanType}
+            currentPlanType={resolvedPlanType}
+            userTier={userTier}
+            isSuperAdmin={isSuperAdmin}
           />
         ))}
       </div>
@@ -99,6 +120,23 @@ export function PricingTable({
 
 export function SinglePassBanner() {
   const pass = getOneTimeTier();
+  const features = Array.isArray(pass?.features) ? pass.features.filter(Boolean) : [];
+  const { user } = useSession();
+  const plan = usePlan();
+  const isSuperAdmin =
+    plan.isSuperAdmin ||
+    isSuperAdminUser(user) ||
+    isOwnerEmail(user?.email) ||
+    user?.email === "kadiryagiz4411@gmail.com";
+
+  const logSelection = () => {
+    console.log("[Pricing Diagnostic]", {
+      selectedPlan: pass?.id ?? "single_pass",
+      userTier: plan.tier,
+    });
+  };
+
+  if (!pass) return null;
 
   return (
     <div className="mt-8 mx-auto max-w-3xl">
@@ -128,7 +166,7 @@ export function SinglePassBanner() {
           </p>
           <p className="text-xs text-slate-500 mt-0.5 mb-2">{pass.description}</p>
           <ul className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1">
-            {pass.features.map((f, i) => (
+            {features.map((f, i) => (
               <li key={i} className="flex items-center gap-1.5 text-xs text-slate-400">
                 <Check className="w-3 h-3 text-teal-500 shrink-0" />
                 {f}
@@ -139,14 +177,25 @@ export function SinglePassBanner() {
 
         {/* CTA */}
         <div className="flex-shrink-0">
-          <CheckoutButton
-            href={getCheckoutUrlFor(pass, false) || createCheckout("single_pass")}
-            overlay
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold border-0 shadow-lg shadow-teal-700/30 transition-all whitespace-nowrap"
-          >
-            Get Single Pass
-            <ArrowRight className="w-4 h-4" />
-          </CheckoutButton>
+          {isSuperAdmin ? (
+            <button
+              type="button"
+              onClick={logSelection}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-200 text-sm font-semibold border border-emerald-500/30 whitespace-nowrap"
+            >
+              Unlocked (SuperAdmin)
+            </button>
+          ) : (
+            <CheckoutButton
+              href={getCheckoutUrlFor(pass, false) || createCheckout("single_pass")}
+              overlay
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold border-0 shadow-lg shadow-teal-700/30 transition-all whitespace-nowrap"
+              onClick={logSelection}
+            >
+              Get Single Pass
+              <ArrowRight className="w-4 h-4" />
+            </CheckoutButton>
+          )}
         </div>
       </div>
     </div>

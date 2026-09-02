@@ -2,6 +2,13 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { buttonVariants, type ButtonProps } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // ─── Lemon Squeezy global type ────────────────────────────────────────────────
 
@@ -78,6 +85,7 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
  */
 export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButtonProps>(
   ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, ...props }, ref) => {
+    const [noticeOpen, setNoticeOpen] = React.useState(false);
     const isValidUrl = Boolean(href && href !== '#');
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
@@ -85,7 +93,11 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
       if (event.defaultPrevented) return;
       if (!isValidUrl) {
         event.preventDefault();
-        openLemonSqueezyCheckout(href);
+        setNoticeOpen(true);
+        console.error(
+          '[LemonSqueezy] Missing checkout URL / variant ID. ' +
+          'Set VITE_*_MONTHLY_VARIANT_ID / VITE_*_YEARLY_VARIANT_ID or VITE_LEMONSQUEEZY_*_URL.',
+        );
         return;
       }
       if (overlay) {
@@ -95,17 +107,31 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
     };
 
     return (
-      <a
-        ref={ref}
-        href={isValidUrl ? href : '#'}
-        target={isValidUrl && !overlay ? '_blank' : undefined}
-        rel="noopener noreferrer"
-        className={cn(buttonVariants({ variant, size }), className)}
-        onClick={handleClick}
-        {...props}
-      >
-        {children}
-      </a>
+      <>
+        <a
+          ref={ref}
+          href={isValidUrl ? href : '#'}
+          target={isValidUrl && !overlay ? '_blank' : undefined}
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant, size }), className)}
+          onClick={handleClick}
+          {...props}
+        >
+          {children}
+        </a>
+        <Dialog open={noticeOpen} onOpenChange={setNoticeOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Checkout unavailable in this environment</DialogTitle>
+              <DialogDescription>
+                Lemon Squeezy checkout URLs or variant IDs are not configured for this plan.
+                In local development this is expected if Stripe/Lemon Squeezy keys are missing.
+                Set the VITE_LEMONSQUEEZY_* URL or variant ID env vars, then retry.
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 );

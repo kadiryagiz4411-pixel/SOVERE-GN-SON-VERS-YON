@@ -243,6 +243,10 @@ export function createCheckout(
   planId: CheckoutPlanId,
   billingCycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
+  if (planId !== 'single_pass' && !LEMON_SQUEEZY_VARIANTS[planId as keyof typeof LEMON_SQUEEZY_VARIANTS]) {
+    console.error('[LemonSqueezy] createCheckout failed — unknown plan', { planId });
+    return '#';
+  }
   const cycle = normalizeBillingCycle(billingCycle);
   const variantId = planId === 'single_pass'
     ? getVariantId(planId)

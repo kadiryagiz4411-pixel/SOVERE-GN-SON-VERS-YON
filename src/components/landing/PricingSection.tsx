@@ -1,11 +1,13 @@
 import { useSearchParams } from 'react-router-dom';
 import { PricingTable } from '@/components/pricing/PricingTable';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { usePlan } from '@/contexts/PlanContext';
 
 export const PricingSection = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const fromOnboarding = searchParams.get('from') === 'onboarding';
+  const { planType } = usePlan();
 
   return (
     <section id="pricing" className="py-24 bg-slate-950 relative overflow-hidden">
@@ -29,6 +31,7 @@ export const PricingSection = () => {
 
         {/* Pricing table */}
         <PricingTable
+          currentPlanType={planType}
           showEnterprise
           className="max-w-screen-xl mx-auto w-full overflow-hidden box-border"
         />
