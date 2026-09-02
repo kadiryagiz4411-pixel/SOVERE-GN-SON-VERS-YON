@@ -9,6 +9,8 @@ import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottom
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
+import { usePlan } from '@/contexts/PlanContext';
+import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
@@ -95,7 +97,8 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess } = useSession();
+  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, user: sessionUser } = useSession();
+  const { planLabel: contextPlanLabel, isSuperAdmin: contextSuperAdmin } = usePlan();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recentProposals, setRecentProposals] = useState<Proposal[]>([]);
@@ -150,16 +153,21 @@ const Dashboard = () => {
     return plan;
   };
 
+  const isSuperAdmin =
+    user?.email === OWNER_EMAIL ||
+    sessionUser?.email === OWNER_EMAIL ||
+    session.user?.email === OWNER_EMAIL ||
+    contextSuperAdmin;
   const currentPlan = (
-    user?.email === 'kadiryagiz4411@gmail.com' || session.user?.email === 'kadiryagiz4411@gmail.com'
-      ? 'B2B_ENTERPRISE'
+    isSuperAdmin
+      ? SUPERADMIN_PLAN_TYPE
       : Number(profile?.appsumo_tier ?? 0) >= 3
-        ? 'B2B_ENTERPRISE'
+        ? SUPERADMIN_PLAN_TYPE
         : Number(profile?.appsumo_tier ?? 0) >= 2
           ? 'pro'
           : checkSubscriptionExpiry()
   );
-  const isFreePlan = !isPaidPlan(currentPlan);
+  const isFreePlan = !isSuperAdmin && !isPaidPlan(currentPlan);
   const dailyLimit = getDailyLimit(currentPlan);
   const proposalsUsed = profile?.daily_proposals_used || 0;
   const bonusCredits = profile?.bonus_credits || 0;
@@ -917,7 +925,7 @@ const Dashboard = () => {
   // Show segment selector if not chosen yet
   if (!userSegment) {
     return (
-      <AppShell user={user} plan={currentPlan} creditsBalance={profile?.credits_balance ?? 0}>
+      <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={profile?.credits_balance ?? 0}>
         <div className="min-h-screen bg-background">
           <SegmentSelector onSelect={handleSegmentSelect} />
         </div>
@@ -926,9 +934,14 @@ const Dashboard = () => {
   }
 
   const getPlanLabel = () => {
+    if (isSuperAdmin) return SUPERADMIN_PLAN_LABEL;
+    if (contextPlanLabel && currentPlan === SUPERADMIN_PLAN_TYPE) return contextPlanLabel;
     switch (currentPlan) {
       case 'elite': return 'Elite';
       case 'pro': return 'Pro';
+      case 'standard': return 'Standard';
+      case SUPERADMIN_PLAN_TYPE:
+      case 'enterprise': return 'Enterprise B2B';
       default: return t.pricing.basic.name;
     }
   };
@@ -1000,7 +1013,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <AppShell user={user} plan={currentPlan} creditsBalance={creditsBalance}>
+    <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={creditsBalance}>
     <div className="min-h-screen bg-background">
 
       {/* Main Content */}
@@ -1622,7 +1635,7 @@ const Dashboard = () => {
                   )}
 
                   {/* Upgrade Banner */}
-                  {currentPlan !== 'elite' && (
+                  {currentPlan !== 'elite' && currentPlan !== SUPERADMIN_PLAN_TYPE && !isSuperAdmin && (
                     <div className="mt-4">
                       <UpgradeBanner currentPlan={currentPlan} />
                     </div>

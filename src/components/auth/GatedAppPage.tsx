@@ -16,9 +16,11 @@ export function GatedAppPage({ required, featureName, description, children }: G
   const { user, creditsBalance, hasB2BAccess, appsumoTier } = useSession();
   const { currentTier, planType } = useTierAccess();
   const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
-  const plan = isSuperAdmin || hasB2BAccess
-    ? (appsumoTier >= 3 || isSuperAdmin ? 'enterprise' : 'pro')
-    : (currentTier === 'free' ? planType : currentTier);
+  const plan = isSuperAdmin
+    ? 'B2B_ENTERPRISE'
+    : hasB2BAccess
+      ? (appsumoTier >= 3 ? 'enterprise' : 'pro')
+      : (currentTier === 'free' ? planType : currentTier);
 
   return (
     <AppShell

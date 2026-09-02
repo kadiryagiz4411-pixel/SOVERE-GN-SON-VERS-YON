@@ -8,14 +8,16 @@ import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
-  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key,
+  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
 import { useSession } from '@/contexts/SessionContext';
+import { usePlan } from '@/contexts/PlanContext';
 import { useTierAccess, type AccessTier } from '@/hooks/useTierAccess';
 import { TierGate, TierLockBadge } from '@/components/auth/TierGate';
 import { ELITE_NAV_ITEMS, ENTERPRISE_NAV_ITEMS, type TierNavItem } from '@/config/tierNav';
+import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL } from '@/lib/superadmin';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -35,17 +37,21 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     monthlyCreditLimit,
     appsumoTier,
     isByokUnlimited,
+    hasB2BAccess: sessionB2B,
+    hasBYOKAccess: sessionBYOK,
+    planType,
   } = session;
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
+  const planState = usePlan();
   const [lockModal, setLockModal] = useState<{ featureName: string; required: AccessTier } | null>(null);
 
   const isSuperAdmin =
-    user?.email === 'kadiryagiz4411@gmail.com' ||
-    session.user?.email === 'kadiryagiz4411@gmail.com';
-  const hasB2BAccess = isSuperAdmin || Number(appsumoTier) >= 2;
-  const hasBYOKAccess = isSuperAdmin || Number(appsumoTier) === 3;
+    user?.email === OWNER_EMAIL ||
+    session.user?.email === OWNER_EMAIL;
+  const hasB2BAccess = isSuperAdmin || sessionB2B || planState.isSuperAdmin || Number(appsumoTier) >= 2;
+  const hasBYOKAccess = isSuperAdmin || sessionBYOK || Number(appsumoTier) >= 3;
 
   useEffect(() => {
     console.log('[Sovereign Auth]', {
@@ -57,16 +63,24 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   const isElite = isSuperAdmin || plan === 'elite' || access.canAccess('elite');
   const isPro = isSuperAdmin || plan === 'pro' || plan === 'elite' || access.canAccess('pro');
-  const isEnterprise = isSuperAdmin || access.canAccess('enterprise') || plan === 'enterprise' || plan === 'B2B_ENTERPRISE';
+  const isEnterprise =
+    isSuperAdmin ||
+    access.canAccess('enterprise') ||
+    plan === 'enterprise' ||
+    plan === 'B2B_ENTERPRISE' ||
+    planType === 'B2B_ENTERPRISE';
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
-  const showAgencyTools = hasB2BAccess;
-  const showByokSettings = hasBYOKAccess || isByokUnlimited;
-  const eliteNav = ELITE_NAV_ITEMS.filter((item) => {
-    if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
-    return true;
-  });
+  const showAgencyTools = isSuperAdmin || hasB2BAccess;
+  const showByokSettings = isSuperAdmin || hasBYOKAccess || isByokUnlimited;
+  const eliteNav = isSuperAdmin
+    ? ELITE_NAV_ITEMS
+    : ELITE_NAV_ITEMS.filter((item) => {
+      if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
+      return true;
+    });
+  const enterpriseNav = ENTERPRISE_NAV_ITEMS;
   const percentage = maxCredits > 0
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
     : 0;
@@ -98,8 +112,13 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     navItems.push({ to: '/profile#byok', label: 'BYOK Settings', icon: Key });
   }
 
-  if (orgRole === 'org_admin') {
-    navItems.push({ to: '/organization', label: 'Org Dashboard', icon: Building2 });
+  if (isSuperAdmin || orgRole === 'org_admin' || isEnterprise) {
+    if (!navItems.some((item) => item.to === '/organization')) {
+      navItems.push({ to: '/organization', label: 'Org Dashboard', icon: Building2 });
+    }
+    if (!navItems.some((item) => item.to === '/team')) {
+      navItems.push({ to: '/team', label: 'Team Workspace', icon: Users });
+    }
   }
 
   if (isAdmin) {
@@ -111,7 +130,17 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     navigate('/');
   };
 
-  const planLabel = isEnterprise ? 'Enterprise' : isElite ? 'Elite' : isPro ? 'Pro' : plan === 'standard' ? 'Standard' : 'Free';
+  const planLabel = isSuperAdmin
+    ? SUPERADMIN_PLAN_LABEL
+    : isEnterprise
+      ? 'Enterprise B2B'
+      : isElite
+        ? 'Elite'
+        : isPro
+          ? 'Pro'
+          : plan === 'standard'
+            ? 'Standard'
+            : 'Free';
 
   const handleLockedNav = (item: TierNavItem) => {
     if (isSuperAdmin || hasB2BAccess || access.canAccess(item.required)) {
@@ -125,8 +154,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const renderTierNav = (items: TierNavItem[]) => items.map((item) => {
     const Icon = item.icon;
     const active = location.pathname === item.to;
-    const isB2BItem = item.to === '/batch-proposal' || item.to === '/knowledge-base';
-    const unlocked = isSuperAdmin || (isB2BItem && hasB2BAccess) || access.canAccess(item.required);
+    const unlocked = isSuperAdmin || access.canAccess(item.required);
     if (unlocked) {
       return (
         <Link
@@ -225,7 +253,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
           <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
           {renderTierNav(eliteNav)}
           <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
-          {renderTierNav(ENTERPRISE_NAV_ITEMS)}
+          {renderTierNav(enterpriseNav)}
         </nav>
 
         {/* Bottom */}
@@ -303,7 +331,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
               {renderTierNav(eliteNav)}
               <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
-              {renderTierNav(ENTERPRISE_NAV_ITEMS)}
+              {renderTierNav(enterpriseNav)}
             </nav>
             <div className="p-3 border-t border-border">
               <button

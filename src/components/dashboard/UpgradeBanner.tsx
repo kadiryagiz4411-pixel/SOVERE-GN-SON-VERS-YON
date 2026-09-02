@@ -38,7 +38,7 @@ export const UpgradeBanner = ({ currentPlan }: UpgradeBannerProps) => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
 
-  if (currentPlan === 'elite') return null;
+  if (currentPlan === 'elite' || currentPlan === 'B2B_ENTERPRISE' || currentPlan === 'enterprise') return null;
 
   const isFreePlan = currentPlan !== 'pro' && currentPlan !== 'elite';
 

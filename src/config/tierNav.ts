@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen,
+  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen, Building2, LayoutDashboard,
 } from 'lucide-react';
 import type { AccessTier } from '@/hooks/useTierAccess';
 
@@ -24,4 +24,6 @@ export const ENTERPRISE_NAV_ITEMS: TierNavItem[] = [
   { to: '/batch-upload', label: 'Batch Upload & Rank', icon: Upload, required: 'enterprise' },
   { to: '/team', label: 'Team Workspace', icon: Users, required: 'enterprise' },
   { to: '/talent-pool', label: 'Talent Pool', icon: Database, required: 'enterprise' },
+  { to: '/organization', label: 'Org Dashboard', icon: Building2, required: 'enterprise' },
+  { to: '/b2b', label: 'B2B Command Center', icon: LayoutDashboard, required: 'enterprise' },
 ];

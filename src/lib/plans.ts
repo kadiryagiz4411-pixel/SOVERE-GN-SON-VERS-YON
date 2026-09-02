@@ -208,6 +208,9 @@ export const FEATURE_META: Record<keyof Omit<PlanLimits, 'dailyProposals' | 'dai
 };
 
 export const getPlanLimits = (plan: string): PlanLimits => {
+  if (plan === 'B2B_ENTERPRISE' || plan === 'enterprise' || plan === 'enterprise_b2b') {
+    return PLAN_LIMITS.B2B_ENTERPRISE;
+  }
   const planKey = plan.toLowerCase() as PlanType;
   return PLAN_LIMITS[planKey] || PLAN_LIMITS.free;
 };
@@ -217,11 +220,11 @@ export const isPaidPlan = (plan: string): boolean => {
 };
 
 export const isElitePlan = (plan: string): boolean => {
-  return plan === 'elite';
+  return plan === 'elite' || plan === 'B2B_ENTERPRISE' || plan === 'enterprise';
 };
 
 export const isProPlan = (plan: string): boolean => {
-  return plan === 'pro';
+  return plan === 'pro' || isElitePlan(plan);
 };
 
 export const canAccessFeature = (

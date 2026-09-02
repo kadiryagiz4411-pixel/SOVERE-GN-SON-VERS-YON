@@ -10,7 +10,7 @@ import {
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
-import { isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
+import { isOwnerEmail, isSuperAdminUser, OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { SUBSCRIPTION_PLANS, numericTierFromPlanType, type CatalogPlan } from '@/data/plans';
 
 const LOG = '[Sovereign Load Error]:';
@@ -22,6 +22,8 @@ interface PlanState {
   tier: PlanTier;
   /** Raw plan_type string from the profiles table */
   planType: string;
+  /** UI label, e.g. Enterprise B2B (SuperAdmin) */
+  planLabel: string;
   /** Numeric rank: 0=free, 1=Standard, 2=Pro, 3=Elite, 4=Enterprise B2B */
   numericTier: 0 | 1 | 2 | 3 | 4;
   /** All four paid catalog rows with id/name/price/features/tier */
@@ -41,6 +43,7 @@ const SAFE_CATALOG: CatalogPlan[] = SUBSCRIPTION_PLANS.filter(
 const PlanContext = createContext<PlanState>({
   tier: 'free',
   planType: 'free',
+  planLabel: 'Free',
   numericTier: 0,
   catalog: SAFE_CATALOG,
   isSuperAdmin: false,
@@ -61,9 +64,10 @@ function resolveActivePlan(planType: string, expiresAt: string | null): string {
 
 export function PlanProvider({ children }: { children: ReactNode }) {
   const { user, sessionReady } = useSession();
-  const [tier, setTier] = useState<PlanTier>('free');
-  const [planType, setPlanType] = useState<string>('free');
-  const [isLoading, setIsLoading] = useState(true);
+  const ownerInit = user?.email === OWNER_EMAIL || isSuperAdminUser(user);
+  const [tier, setTier] = useState<PlanTier>(ownerInit ? 'enterprise' : 'free');
+  const [planType, setPlanType] = useState<string>(ownerInit ? SUPERADMIN_PLAN_TYPE : 'free');
+  const [isLoading, setIsLoading] = useState(!ownerInit);
   const mounted = useRef(true);
 
   const loadPlan = useCallback(async (userId: string | undefined | null, email?: string | null) => {
@@ -75,9 +79,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
-    if (isOwnerEmail(email)) {
+    if (email === OWNER_EMAIL || isOwnerEmail(email)) {
       if (mounted.current) {
-        setPlanType('B2B_ENTERPRISE');
+        setPlanType(SUPERADMIN_PLAN_TYPE);
         setTier('enterprise');
         setIsLoading(false);
       }
@@ -134,15 +138,30 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     };
   }, [sessionReady, user?.id, user?.email, loadPlan]);
 
-  const owner = isSuperAdminUser(user) || isOwnerEmail(user?.email) || user?.email === 'kadiryagiz4411@gmail.com';
-  const resolvedPlanType = owner ? 'B2B_ENTERPRISE' : (planType || 'free');
+  const owner =
+    user?.email === OWNER_EMAIL ||
+    isSuperAdminUser(user) ||
+    isOwnerEmail(user?.email);
+  const resolvedPlanType = owner ? SUPERADMIN_PLAN_TYPE : (planType || 'free');
   const resolvedTier = owner ? 'enterprise' : (tier || 'free');
+  const resolvedLabel = owner
+    ? SUPERADMIN_PLAN_LABEL
+    : resolvedTier === 'enterprise'
+      ? 'Enterprise B2B'
+      : resolvedTier === 'elite'
+        ? 'Elite'
+        : resolvedTier === 'pro'
+          ? 'Pro'
+          : resolvedTier === 'standard'
+            ? 'Standard'
+            : 'Free';
 
   return (
     <PlanContext.Provider
       value={{
         tier: resolvedTier,
         planType: resolvedPlanType,
+        planLabel: resolvedLabel,
         numericTier: owner ? 4 : numericTierFromPlanType(resolvedPlanType),
         catalog: SAFE_CATALOG,
         isSuperAdmin: owner,

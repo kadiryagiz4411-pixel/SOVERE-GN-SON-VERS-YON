@@ -10,7 +10,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
-import { isOwnerEmail, isSuperAdminUser, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { isOwnerEmail, isSuperAdminUser, OWNER_EMAIL, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -69,7 +69,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
-    const superAdmin = isOwnerEmail(email);
+    const superAdmin = email === OWNER_EMAIL || isOwnerEmail(email);
     try {
       const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
         userId,
@@ -91,7 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
         setSubscriptionPlan('appsumo_tier3');
         setSubscriptionTier('appsumo_tier3');
-        setPlanType('B2B_ENTERPRISE');
+        setPlanType(SUPERADMIN_PLAN_TYPE);
         setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
         setIsByokUnlimited(true);
       } else {
@@ -119,7 +119,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
         setSubscriptionPlan('appsumo_tier3');
         setSubscriptionTier('appsumo_tier3');
-        setPlanType('B2B_ENTERPRISE');
+        setPlanType(SUPERADMIN_PLAN_TYPE);
         setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
         setIsByokUnlimited(true);
       }
@@ -211,7 +211,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  const owner = isSuperAdminUser(user);
+  const owner = user?.email === OWNER_EMAIL || isSuperAdminUser(user);
 
   return (
     <SessionContext.Provider
@@ -225,10 +225,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         monthlyCreditLimit: owner ? OWNER_PRIVILEGES.monthly_credit_limit : monthlyCreditLimit,
         subscriptionPlan: owner ? 'appsumo_tier3' : subscriptionPlan,
         subscriptionTier: owner ? 'appsumo_tier3' : subscriptionTier,
-        planType: owner ? 'B2B_ENTERPRISE' : planType,
+        planType: owner ? SUPERADMIN_PLAN_TYPE : planType,
         appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
         isByokUnlimited: owner || isByokUnlimited,
-        hasB2BAccess: owner || appsumoTier >= 2 || planType === 'B2B_ENTERPRISE' || planType === 'enterprise',
+        hasB2BAccess: owner || appsumoTier >= 2 || planType === SUPERADMIN_PLAN_TYPE || planType === 'enterprise',
         hasBYOKAccess: owner || appsumoTier >= 3 || isByokUnlimited,
         refreshCredits,
         setCreditsBalance,
