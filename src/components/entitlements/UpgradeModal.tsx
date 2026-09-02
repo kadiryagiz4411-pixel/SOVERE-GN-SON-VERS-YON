@@ -43,6 +43,10 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
 
   const handleUpgrade = () => {
     onClose();
+    if (requiredTier === 'enterprise') {
+      navigate('/pricing');
+      return;
+    }
     navigate('/settings/billing');
   };
 
@@ -165,7 +169,7 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
             )}
           >
             {TIER_ICONS[requiredTier]}
-            View {meta.label} Plans
+            {requiredTier === 'enterprise' ? 'Contact B2B Sales' : `View ${meta.label} Plans`}
             <ArrowRight className="w-4 h-4" />
           </button>
 

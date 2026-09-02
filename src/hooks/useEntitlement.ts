@@ -7,7 +7,9 @@
  */
 import { useCallback, useState } from 'react';
 import { usePlan } from '@/contexts/PlanContext';
+import { useSession } from '@/contexts/SessionContext';
 import { canAccess, getGate, getRequiredTierFor, type FeatureKey, type PlanTier, type FeatureGate } from '@/lib/entitlements';
+import { canAccessFeatureKey } from '@/lib/permissions';
 
 export interface EntitlementResult {
   /** True if the user's current plan grants access to this feature */
@@ -31,12 +33,20 @@ export interface EntitlementResult {
 }
 
 export function useEntitlement(featureKey: FeatureKey): EntitlementResult {
-  const { tier, isLoading } = usePlan();
+  const { tier, isLoading, planType } = usePlan();
+  const { user, appsumoTier, subscriptionTier } = useSession();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const gate = getGate(featureKey);
   const requiredTier = getRequiredTierFor(featureKey);
-  const hasAccess = !isLoading && canAccess(tier, featureKey);
+  const hasAccess = canAccessFeatureKey(featureKey, {
+    email: user?.email,
+    user,
+    planTier: tier,
+    planType,
+    appsumoTier,
+    subscriptionTier,
+  }) || (!isLoading && canAccess(tier, featureKey));
 
   const requireAccess = useCallback((): boolean => {
     if (hasAccess) return true;
@@ -63,10 +73,17 @@ export function useEntitlement(featureKey: FeatureKey): EntitlementResult {
  * Returns a map of featureKey → hasAccess boolean.
  */
 export function useEntitlements(featureKeys: FeatureKey[]): Record<FeatureKey, boolean> {
-  const { tier, isLoading } = usePlan();
+  const { tier, isLoading, planType } = usePlan();
+  const { user, appsumoTier } = useSession();
   const result = {} as Record<FeatureKey, boolean>;
   for (const key of featureKeys) {
-    result[key] = !isLoading && canAccess(tier, key);
+    result[key] = canAccessFeatureKey(key, {
+      email: user?.email,
+      user,
+      planTier: tier,
+      planType,
+      appsumoTier,
+    }) || (!isLoading && canAccess(tier, key));
   }
   return result;
 }

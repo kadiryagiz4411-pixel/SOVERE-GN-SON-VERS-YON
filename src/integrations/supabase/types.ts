@@ -689,6 +689,8 @@ export type Database = {
           invited_at: string
           joined_at: string | null
           invited_by: string | null
+          invited_email: string | null
+          org_id: string | null
         }
         Insert: {
           id?: string
@@ -698,6 +700,8 @@ export type Database = {
           invited_at?: string
           joined_at?: string | null
           invited_by?: string | null
+          invited_email?: string | null
+          org_id?: string | null
         }
         Update: {
           id?: string

@@ -3,6 +3,7 @@ import { ShieldAlert, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { GatedAppPage } from '@/components/auth/GatedAppPage';
+import { FeatureGuard } from '@/components/auth/FeatureGuard';
 import { analyzeTextLocally, interpretFluffScore } from '@/services/b2b/fraudDetector';
 
 const MONTHS: Record<string, number> = {
@@ -67,10 +68,11 @@ export default function CVAnalyzer() {
 
   return (
     <GatedAppPage
-      required="elite"
+      required="enterprise"
       featureName="Fraud, Fluff & Contradiction Detector"
-      description="Resume authenticity analysis is locked to Elite and above."
+      description="Resume authenticity analysis is locked to Enterprise B2B."
     >
+      <FeatureGuard feature="fraud_detector">
       <div className="p-6 max-w-4xl mx-auto space-y-5">
         <div>
           <p className="text-xs uppercase tracking-widest text-amber-400 font-semibold">Elite</p>
@@ -113,6 +115,7 @@ export default function CVAnalyzer() {
           </div>
         )}
       </div>
+      </FeatureGuard>
     </GatedAppPage>
   );
 }

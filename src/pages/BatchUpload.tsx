@@ -3,6 +3,7 @@ import { Upload, Trophy, FileSpreadsheet, FileText, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { GatedAppPage } from '@/components/auth/GatedAppPage';
+import { FeatureGuard } from '@/components/auth/FeatureGuard';
 import { useTierAccess } from '@/hooks/useTierAccess';
 import { TierGate } from '@/components/auth/TierGate';
 import { downloadXlsx } from '@/lib/xlsxExport';
@@ -110,6 +111,7 @@ export default function BatchUpload() {
       featureName="Batch Upload & Rank"
       description="Multi-CV ATS ranking is locked to Enterprise."
     >
+      <FeatureGuard feature="batch_cv_upload">
       <div className="p-6 max-w-5xl mx-auto space-y-5">
         <div>
           <p className="text-xs uppercase tracking-widest text-yellow-400 font-semibold">Enterprise</p>
@@ -177,6 +179,7 @@ export default function BatchUpload() {
           </div>
         )}
       </div>
+      </FeatureGuard>
       <TierGate
         open={exportLock && !eliteExport.hasAccess}
         onClose={() => setExportLock(false)}
