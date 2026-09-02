@@ -194,7 +194,6 @@ export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
     (import.meta.env.DEV || new URLSearchParams(window.location.search).get('dev_mode') === 'true')
     && localStorage.getItem('dev_byok_simulate') === 'true'
   ) {
-    const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
     return { isByokActive: true, apiKey: platformKey, source: 'dev_simulate' };
   }
 
@@ -212,12 +211,10 @@ export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
     }
     if (byokFlag) {
       // byok_unlocked but no custom key yet — still bypass credits, use platform key
-      const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
       return { isByokActive: true, apiKey: platformKey, source: 'byok_unlocked' };
     }
   } catch { /* fall through */ }
 
-  const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
   return { isByokActive: false, apiKey: platformKey, source: 'platform' };
 }
 
