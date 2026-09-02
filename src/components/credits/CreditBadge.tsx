@@ -6,9 +6,26 @@ interface CreditBadgeProps {
   balance: number;
   className?: string;
   to?: string;
+  unlimited?: boolean;
 }
 
-export function CreditBadge({ balance, className, to = '/pricing' }: CreditBadgeProps) {
+export function CreditBadge({ balance, className, to = '/pricing', unlimited = false }: CreditBadgeProps) {
+  if (unlimited) {
+    return (
+      <Link
+        to={to}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap shrink-0',
+          'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+          className,
+        )}
+        title="Tier 3 BYOK — credits are not deducted"
+      >
+        <Zap className="w-3.5 h-3.5" />
+        UNLIMITED (BYOK Active)
+      </Link>
+    );
+  }
   const tone =
     balance <= 0
       ? 'border-red-500/30 bg-red-500/10 text-red-400'

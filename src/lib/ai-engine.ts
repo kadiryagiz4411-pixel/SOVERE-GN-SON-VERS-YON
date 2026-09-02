@@ -96,7 +96,8 @@ export async function runAiAction<T>(options: {
   const result = await options.execute({ apiKey, byok, profile });
 
   if (!byok) {
-    const cost = options.creditCost ?? COST_PER_ACTION;
+    const cost = options.creditCost
+      ?? (profile.appsumoTier >= 1 && profile.appsumoTier < 3 ? 1 : COST_PER_ACTION);
     const deduct = await deductCredit(options.userId, cost);
     if (!deduct.success) throw new CreditLimitError();
     return { result, byok: false, remaining: deduct.remaining };
@@ -125,4 +126,27 @@ export async function saveEncryptedOpenAiKey(userId: string, key: string | null)
     } as never),
     userId,
   );
+}
+
+const DEV_TIER_LIMITS: Record<1 | 2 | 3, number> = { 1: 100, 2: 300, 3: 999999 };
+
+/** Development-only: persist AppSumo numeric tier and refresh UI. */
+export async function applyDevAppsumoTier(userId: string, tier: 1 | 2 | 3): Promise<void> {
+  const limit = DEV_TIER_LIMITS[tier];
+  const subscriptionTier = tier === 3 ? 'appsumo_tier3' : `appsumo_tier${tier}`;
+  await profileByAuthId(
+    supabase.from('profiles').update({
+      appsumo_tier: tier,
+      appsumo_codes_count: tier,
+      monthly_credit_limit: limit,
+      remaining_credits: limit,
+      credits_remaining: limit,
+      byok_unlocked: tier === 3,
+      subscription_tier: subscriptionTier,
+      plan_type: tier === 3 ? 'B2B_ENTERPRISE' : tier === 2 ? 'pro' : 'standard',
+      updated_at: new Date().toISOString(),
+    } as never),
+    userId,
+  );
+  window.dispatchEvent(new Event('sovereign:profile-updated'));
 }

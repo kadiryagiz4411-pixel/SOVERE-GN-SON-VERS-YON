@@ -29,7 +29,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const { language } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
-  const { remainingCredits, monthlyCreditLimit } = useSession();
+  const { remainingCredits, monthlyCreditLimit, appsumoTier, isByokUnlimited } = useSession();
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
@@ -41,6 +41,11 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
+  const showAgencyTools = appsumoTier >= 2 || access.canAccess('pro');
+  const eliteNav = ELITE_NAV_ITEMS.filter((item) => {
+    if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
+    return true;
+  });
   const percentage = maxCredits > 0
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
     : 0;
@@ -137,7 +142,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
         {/* Credit balance */}
         <div className="px-5 py-3 border-b border-border">
-          <CreditBadge balance={creditsBalance} className="w-full justify-center" />
+          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} className="w-full justify-center" />
+          {!isByokUnlimited && (
+            <>
           <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
@@ -145,6 +152,8 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             />
           </div>
           <p className="mt-1.5 text-[10px] text-muted-foreground">{currentCredits.toLocaleString()} / {maxCredits.toLocaleString()} · 20 credits per AI action</p>
+            </>
+          )}
         </div>
 
         {/* Monthly AppSumo credit counter */}
@@ -171,7 +180,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             );
           })}
           <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
-          {renderTierNav(ELITE_NAV_ITEMS)}
+          {renderTierNav(eliteNav)}
           <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
           {renderTierNav(ENTERPRISE_NAV_ITEMS)}
         </nav>
@@ -204,7 +213,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <CreditBadge balance={creditsBalance} />
+            <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} />
             {/* Monthly AppSumo credits badge */}
             <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
@@ -249,7 +258,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
                 );
               })}
               <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Elite</p>
-              {renderTierNav(ELITE_NAV_ITEMS)}
+              {renderTierNav(eliteNav)}
               <p className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Enterprise</p>
               {renderTierNav(ENTERPRISE_NAV_ITEMS)}
             </nav>
@@ -269,7 +278,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
         <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
-          <CreditBadge balance={creditsBalance} />
+          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} />
         </div>
         {children}
       </main>

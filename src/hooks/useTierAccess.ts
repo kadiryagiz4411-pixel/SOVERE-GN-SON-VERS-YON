@@ -97,12 +97,15 @@ export interface TierAccessResult {
 
 export function useTierAccess(required?: AccessTier): TierAccessResult {
   const { tier, planType, isLoading } = usePlan();
-  const { subscriptionPlan, subscriptionTier } = useSession();
+  const { subscriptionPlan, subscriptionTier, appsumoTier } = useSession();
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
 
+  const appsumoPlan =
+    appsumoTier >= 3 ? 'appsumo_tier3' : appsumoTier === 2 ? 'appsumo_tier2' : appsumoTier === 1 ? 'appsumo_tier1' : null;
+
   const currentTier = useMemo(
-    () => resolveAccessTier(planType, subscriptionTier, subscriptionPlan, tier as PlanTier),
-    [planType, subscriptionTier, subscriptionPlan, tier],
+    () => resolveAccessTier(planType, subscriptionTier, subscriptionPlan, appsumoPlan, tier as PlanTier),
+    [planType, subscriptionTier, subscriptionPlan, appsumoPlan, tier],
   );
 
   const currentLevel = accessLevel(currentTier);

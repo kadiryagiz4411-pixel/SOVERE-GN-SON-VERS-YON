@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Bug, X, ChevronDown, ChevronUp, Key, RefreshCw, CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { applyDevAppsumoTier } from '@/lib/ai-engine';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,11 +43,7 @@ const TIERS = [
 // ─── Visibility guard ─────────────────────────────────────────────────────────
 
 function isSandboxVisible(): boolean {
-  if (import.meta.env.DEV) return true;
-  if (typeof window !== 'undefined') {
-    return new URLSearchParams(window.location.search).get('dev_mode') === 'true';
-  }
-  return false;
+  return import.meta.env.DEV === true;
 }
 
 // ─── Code test row ────────────────────────────────────────────────────────────
@@ -134,6 +130,8 @@ export function DevSandbox() {
   const [currentTier, setCurrentTier] = useState<string>(
     () => localStorage.getItem(LS_TIER_KEY) ?? 'free',
   );
+  const [appsumoN, setAppsumoN] = useState<1 | 2 | 3 | 0>(0);
+  const [tierBusy, setTierBusy] = useState(false);
   const [byokActive, setByokActive] = useState<boolean>(
     () => localStorage.getItem(LS_BYOK_KEY) === 'true',
   );
@@ -145,10 +143,24 @@ export function DevSandbox() {
     });
   }, []);
 
+  const applyAppsumoTier = useCallback(async (n: 1 | 2 | 3) => {
+    if (!userId) { toast.error('No user logged in'); return; }
+    setTierBusy(true);
+    try {
+      await applyDevAppsumoTier(userId, n);
+      setAppsumoN(n);
+      toast.success(`AppSumo tier → ${n} (written to Supabase)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to set AppSumo tier');
+    } finally {
+      setTierBusy(false);
+    }
+  }, [userId]);
+
   const applyTier = useCallback((tier: string) => {
     setCurrentTier(tier);
     localStorage.setItem(LS_TIER_KEY, tier);
-    toast.success(`Dev tier → ${tier}. Reload the page to see gating changes.`);
+    toast.success(`Dev plan override → ${tier}`);
   }, []);
 
   const toggleByok = useCallback(() => {
@@ -199,6 +211,33 @@ export function DevSandbox() {
           </div>
 
           <div className="p-4 space-y-4">
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                AppSumo tier (writes to Supabase)
+              </p>
+              <div className="grid grid-cols-3 gap-1">
+                {([1, 2, 3] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={tierBusy || !userId}
+                    onClick={() => applyAppsumoTier(n)}
+                    className={cn(
+                      'text-[10px] font-bold rounded-md px-2 py-2 border transition-colors',
+                      appsumoN === n
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-300'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {n === 3 ? 'T3 BYOK' : `Tier ${n}`}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground/70">
+                1 = 100 credits · 2 = 300 + batch/KB · 3 = unlimited BYOK
+              </p>
+            </div>
+
             {/* ── Tier switcher ─────────────────────────────────────────────── */}
             <div className="space-y-1.5">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Subscription Tier</p>
@@ -264,8 +303,11 @@ export function DevSandbox() {
               <p className="text-[9px] text-muted-foreground/60">
                 Active override: <span className="text-amber-400 font-mono">{currentTier}</span>
               </p>
+              <p className="text-[9px] text-muted-foreground/60">
+                AppSumo DB tier: <span className="text-amber-400 font-mono">{appsumoN || '—'}</span>
+              </p>
               <p className="text-[9px] text-muted-foreground/50 italic">
-                Overrides live in localStorage — reload to apply to hooks.
+                AppSumo buttons update profiles.appsumo_tier immediately.
               </p>
             </div>
           </div>

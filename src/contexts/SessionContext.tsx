@@ -24,6 +24,8 @@ interface SessionState {
   subscriptionPlan: string;
   subscriptionTier: string;
   planType: string;
+  appsumoTier: number;
+  isByokUnlimited: boolean;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
 }
@@ -39,6 +41,8 @@ const SessionContext = createContext<SessionState>({
   subscriptionPlan: 'free',
   subscriptionTier: 'free',
   planType: 'free',
+  appsumoTier: 0,
+  isByokUnlimited: false,
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
 });
@@ -53,6 +57,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
   const [subscriptionTier, setSubscriptionTier] = useState('free');
   const [planType, setPlanType] = useState('free');
+  const [appsumoTier, setAppsumoTier] = useState(0);
+  const [isByokUnlimited, setIsByokUnlimited] = useState(false);
   const mounted = useRef(true);
   const hydrated = useRef(false);
 
@@ -62,24 +68,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const { data, error } = await fetchProfileByAuthId<{
         credits_balance?: number;
         remaining_credits?: number;
+        credits_remaining?: number;
         monthly_credit_limit?: number;
         subscription_plan?: string;
         subscription_tier?: string;
         plan_type?: string;
-      }>(userId, 'credits_balance, remaining_credits, monthly_credit_limit, subscription_plan, subscription_tier, plan_type');
+        appsumo_tier?: number;
+        appsumo_codes_count?: number;
+        byok_unlocked?: boolean;
+        encrypted_openai_key?: string;
+        custom_openai_key?: string;
+      }>(userId, 'credits_balance, remaining_credits, credits_remaining, monthly_credit_limit, subscription_plan, subscription_tier, plan_type, appsumo_tier, appsumo_codes_count, byok_unlocked, encrypted_openai_key, custom_openai_key');
       if (!mounted.current) return;
       if (error) {
         console.error(LOG, 'session profile/credits query failed', error.message);
       }
       const balance = data?.credits_balance ?? 0;
-      const remaining = data?.remaining_credits ?? balance;
+      const remaining = data?.credits_remaining ?? data?.remaining_credits ?? balance;
       const limit = data?.monthly_credit_limit || 400;
+      const numericTier = Number(data?.appsumo_tier ?? data?.appsumo_codes_count ?? 0);
+      const hasKey = Boolean(String(data?.encrypted_openai_key ?? data?.custom_openai_key ?? '').trim());
       setCreditsBalance(balance);
       setRemainingCredits(remaining);
       setMonthlyCreditLimit(limit);
       setSubscriptionPlan(data?.subscription_plan ?? 'free');
       setSubscriptionTier(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free');
       setPlanType(data?.plan_type ?? data?.subscription_plan ?? 'free');
+      setAppsumoTier(numericTier);
+      setIsByokUnlimited(numericTier >= 3 && (Boolean(data?.byok_unlocked) || hasKey));
     } catch (err) {
       console.error(LOG, 'session profile/credits threw', err);
     }
@@ -135,12 +151,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setSubscriptionPlan('free');
         setSubscriptionTier('free');
         setPlanType('free');
+        setAppsumoTier(0);
+        setIsByokUnlimited(false);
       }
     });
+
+    const onProfileUpdated = () => {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user?.id) void loadProfileCredits(data.session.user.id);
+      });
+    };
+    window.addEventListener('sovereign:profile-updated', onProfileUpdated);
 
     return () => {
       mounted.current = false;
       subscription.unsubscribe();
+      window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
   }, [loadProfileCredits]);
 
@@ -165,6 +191,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         subscriptionPlan,
         subscriptionTier,
         planType,
+        appsumoTier,
+        isByokUnlimited,
         refreshCredits,
         setCreditsBalance,
       }}
