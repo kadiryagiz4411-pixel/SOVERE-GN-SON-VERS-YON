@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
       console.error("[generate-proposal] profile fetch failed", profileError);
     }
 
-    const creditGate = await assertActionCredits(supabase, user.id);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email);
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -667,7 +667,7 @@ Write the application text now. No explanations — just the text I'll send.`;
         })
         .eq("user_id", user.id);
 
-      const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
+      const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
 
       return new Response(
         JSON.stringify({
@@ -778,7 +778,7 @@ Write the application text now. No explanations — just the text I'll send.`;
               })
               .eq("user_id", user.id);
 
-            const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
+            const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
             
             return new Response(
               JSON.stringify({
@@ -814,7 +814,7 @@ Write the application text now. No explanations — just the text I'll send.`;
       })
       .eq("user_id", user.id);
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation");
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
 
     console.log(`Generated ${successfulVariants.length} variants for ${plan} plan, segment: ${userSegment}`);
 

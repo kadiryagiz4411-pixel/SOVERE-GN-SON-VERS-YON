@@ -95,6 +95,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    const owner = (user.email ?? "").trim().toLowerCase() === "kadiryagiz4411@gmail.com";
+
     // Check if user has Pro or Elite plan
     const { data: profile } = await supabase
       .from("profiles")
@@ -106,14 +108,14 @@ Deno.serve(async (req) => {
     
     // Elite features require Elite plan
     const eliteFeatures: OptimizationType[] = ["decision-maker", "outreach-messages", "full-strategy"];
-    if (eliteFeatures.includes(optimizationType)) {
+    if (!owner && eliteFeatures.includes(optimizationType)) {
       if (plan !== "elite") {
         return new Response(
           JSON.stringify({ error: "Elite plan required for this feature" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } else {
+    } else if (!owner) {
       // Pro features require Pro or Elite
       if (plan !== "pro" && plan !== "elite") {
         return new Response(

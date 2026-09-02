@@ -1,7 +1,12 @@
 export const COST_PER_ACTION = 20;
+export const OWNER_EMAIL = "kadiryagiz4411@gmail.com";
 
 export const INSUFFICIENT_CREDITS_MESSAGE =
   `Insufficient credits. Required: ${COST_PER_ACTION}`;
+
+function isOwnerEmail(email?: string | null): boolean {
+  return (email ?? "").trim().toLowerCase() === OWNER_EMAIL;
+}
 
 export async function getCreditBalance(
   supabase: { from: Function },
@@ -23,7 +28,11 @@ export async function getCreditBalance(
 export async function assertActionCredits(
   supabase: { from: Function },
   userId: string,
+  email?: string | null,
 ): Promise<{ ok: true; balance: number } | { ok: false; balance: number }> {
+  if (isOwnerEmail(email)) {
+    return { ok: true, balance: 999999 };
+  }
   const balance = await getCreditBalance(supabase, userId);
   if (balance < COST_PER_ACTION) {
     console.warn(`[credits] insufficient for ${userId}: ${balance} < ${COST_PER_ACTION}`);
@@ -40,7 +49,11 @@ export async function deductActionCredits(
   supabase: { rpc: Function },
   userId: string,
   referenceType: string,
+  email?: string | null,
 ): Promise<number | null> {
+  if (isOwnerEmail(email)) {
+    return 999999;
+  }
   const { data, error } = await supabase.rpc("apply_credit_change", {
     _user_id: userId,
     _amount: -COST_PER_ACTION,

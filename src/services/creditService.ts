@@ -16,6 +16,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { COST_PER_ACTION, creditUsagePercentage } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
+import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
 
 export { COST_PER_ACTION };
 
@@ -53,6 +54,21 @@ export interface RedeemResult {
  */
 export async function fetchCreditStatus(userId: string): Promise<CreditStatus | null> {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    if (isOwnerEmail(auth.user?.email)) {
+      return {
+        remainingCredits: OWNER_PRIVILEGES.credits_remaining,
+        monthlyLimit: OWNER_PRIVILEGES.monthly_credit_limit,
+        resetDate: null,
+        subscriptionTier: 'appsumo_tier3',
+        isExhausted: false,
+        usagePct: 100,
+        colorClass: 'text-emerald-400',
+        appsumoTier: OWNER_PRIVILEGES.appsumo_tier,
+        isByokUnlimited: true,
+      };
+    }
+
     // Trigger lazy reset first (no-op if not due). Never fail the UI if RPC is missing.
     await resetMonthlyCreditsIfDue(userId);
 
@@ -126,6 +142,11 @@ export interface DeductResult {
  */
 export async function deductCredit(userId: string, amount = COST_PER_ACTION): Promise<DeductResult> {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    if (isOwnerEmail(auth.user?.email)) {
+      return { success: true, remaining: OWNER_PRIVILEGES.credits_remaining };
+    }
+
     const { data, error } = await supabase.rpc('deduct_monthly_credit', {
       user_id_input: userId,
       amount_input:  amount,
@@ -162,6 +183,12 @@ export interface ByokStatus {
  *   4. Platform VITE_OPENAI_API_KEY (credits apply)
  */
 export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
+  const { data: auth } = await supabase.auth.getUser();
+  const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
+  if (isOwnerEmail(auth.user?.email)) {
+    return { isByokActive: true, apiKey: platformKey, source: 'byok_unlocked' };
+  }
+
   // Dev sandbox override
   if (
     (import.meta.env.DEV || new URLSearchParams(window.location.search).get('dev_mode') === 'true')
@@ -202,6 +229,10 @@ export async function deductCreditOrBypass(
   userId: string,
   amount = COST_PER_ACTION,
 ): Promise<DeductResult & { bypassedViaByok: boolean }> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (isOwnerEmail(auth.user?.email)) {
+    return { success: true, remaining: OWNER_PRIVILEGES.credits_remaining, bypassedViaByok: true };
+  }
   const byok = await resolveByokStatus(userId);
   if (byok.isByokActive) {
     return { success: true, remaining: -1, bypassedViaByok: true };

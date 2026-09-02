@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const creditGate = await assertActionCredits(supabase, user.id);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email);
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -246,7 +246,7 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
 
     console.log(`[optimize-cv] score=${score} keywords=${injectedKeywords.length} starBullets=${quantifiedBullets}`);
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_optimization");
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_optimization", user.email);
 
     return new Response(
       JSON.stringify({

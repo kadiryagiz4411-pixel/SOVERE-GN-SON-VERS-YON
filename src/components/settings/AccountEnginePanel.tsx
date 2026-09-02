@@ -9,8 +9,10 @@ import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { numericAppSumoTier, canUseFeature } from '@/lib/appsumoGating';
 import { saveEncryptedOpenAiKey, setAccountPaused } from '@/lib/ai-engine';
 import { toast } from 'sonner';
+import { useSession } from '@/contexts/SessionContext';
 
 export function AccountEnginePanel({ userId }: { userId: string }) {
+  const { hasBYOKAccess } = useSession();
   const [codes, setCodes] = useState(0);
   const [tier, setTier] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -32,10 +34,10 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
 
   useEffect(() => { void load(); }, [userId]);
 
-  const showByok = canUseFeature(tier, 'byok_setup');
+  const showByok = hasBYOKAccess || canUseFeature(tier, 'byok_setup');
 
   return (
-    <div className="mt-6 space-y-6">
+    <div id="byok" className="mt-6 space-y-6">
       <RedeemModal
         userId={userId}
         initialCodesRedeemed={codes}

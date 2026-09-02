@@ -8,7 +8,7 @@ import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
-  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2,
+  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
@@ -29,7 +29,14 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const { language } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
-  const { remainingCredits, monthlyCreditLimit, appsumoTier, isByokUnlimited } = useSession();
+  const {
+    remainingCredits,
+    monthlyCreditLimit,
+    appsumoTier,
+    isByokUnlimited,
+    hasB2BAccess,
+    hasBYOKAccess,
+  } = useSession();
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
@@ -41,7 +48,8 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
-  const showAgencyTools = appsumoTier >= 2 || access.canAccess('pro');
+  const showAgencyTools = hasB2BAccess || appsumoTier >= 2 || access.canAccess('pro');
+  const showByokSettings = hasBYOKAccess || isByokUnlimited;
   const eliteNav = ELITE_NAV_ITEMS.filter((item) => {
     if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
     return true;
@@ -71,7 +79,11 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     { to: '/cv-builder', label: txt.cvBuilder, icon: FileText },
     { to: '/pricing', label: txt.pricing, icon: Zap },
     { to: '/profile', label: txt.profile, icon: Settings },
-  ];
+  ] as Array<{ to: string; label: string; icon: typeof Settings }>;
+
+  if (showByokSettings) {
+    navItems.push({ to: '/profile#byok', label: 'BYOK Settings', icon: Key });
+  }
 
   if (orgRole === 'org_admin') {
     navItems.push({ to: '/organization', label: 'Org Dashboard', icon: Building2 });
@@ -142,8 +154,8 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
         {/* Credit balance */}
         <div className="px-5 py-3 border-b border-border">
-          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} className="w-full justify-center" />
-          {!isByokUnlimited && (
+          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} className="w-full justify-center" />
+          {!(isByokUnlimited || hasBYOKAccess) && (
             <>
           <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
             <div
@@ -213,7 +225,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} />
+            <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
             {/* Monthly AppSumo credits badge */}
             <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
@@ -278,7 +290,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
         <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
-          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited} />
+          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
         </div>
         {children}
       </main>

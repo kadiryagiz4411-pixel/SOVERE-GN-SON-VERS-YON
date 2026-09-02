@@ -18,6 +18,7 @@ import { COST_PER_ACTION } from '@/lib/credits';
 import { hasEnoughCredits, deductCredit } from '@/services/creditService';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { prepareAiExecution, CreditLimitError, FeatureForbiddenError } from '@/lib/ai-engine';
+import { isOwnerEmail } from '@/lib/superadmin';
 import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -204,16 +205,20 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
     caseStudies: [agencyProfile.caseStudies, knowledgeBlock].filter(Boolean).join('\n\n'),
   };
 
+  const { data: auth } = await supabase.auth.getUser();
+  const owner = isOwnerEmail(auth.user?.email);
+
   // 1. Resolve API key + BYOK status
   const { key: apiKey, isByok } = await resolveApiKey(userId);
+  const skipCredits = owner || isByok;
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key configured. Add your key in Profile → Settings or contact support.',
     );
   }
 
-  // 2. Credit pre-flight check (skip when BYOK)
-  if (!isByok) {
+  // 2. Credit pre-flight check (skip when BYOK or owner)
+  if (!skipCredits) {
     const totalCost = jds.length * COST_PER_ACTION;
     const enough = await hasEnoughCredits(userId, totalCost);
     if (!enough) {
@@ -251,7 +256,7 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
       }
 
       // Deduct credit ONLY after receiving a valid payload (platform key only)
-      if (!isByok) {
+      if (!skipCredits) {
         const deduct = await deductCredit(userId, COST_PER_ACTION);
         if (!deduct.success) {
           throw new Error('Credit deduction failed — please retry.');
@@ -283,7 +288,7 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
   // 5. Run with concurrency limit
   await runPool(tasks, MAX_PARALLEL);
 
-  return { jobs, usedByok: isByok, creditsUsed };
+  return { jobs, usedByok: skipCredits, creditsUsed };
 }
 
 // ─── CSV export helper ────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
+import { isOwnerEmail } from '@/lib/superadmin';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -51,11 +52,19 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const mounted = useRef(true);
 
-  const loadPlan = useCallback(async (userId: string | undefined | null) => {
+  const loadPlan = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) {
       if (mounted.current) {
         setTier('free');
         setPlanType('free');
+        setIsLoading(false);
+      }
+      return;
+    }
+    if (isOwnerEmail(email)) {
+      if (mounted.current) {
+        setPlanType('B2B_ENTERPRISE');
+        setTier('enterprise');
         setIsLoading(false);
       }
       return;
@@ -94,20 +103,29 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     if (mounted.current) setIsLoading(true);
-    await loadPlan(user.id);
-  }, [loadPlan, user?.id]);
+    await loadPlan(user.id, user.email);
+  }, [loadPlan, user?.id, user?.email]);
 
   useEffect(() => {
     mounted.current = true;
     if (!sessionReady) return;
-    void loadPlan(user?.id);
+    void loadPlan(user?.id, user?.email);
     return () => {
       mounted.current = false;
     };
-  }, [sessionReady, user?.id, loadPlan]);
+  }, [sessionReady, user?.id, user?.email, loadPlan]);
+
+  const owner = isOwnerEmail(user?.email);
 
   return (
-    <PlanContext.Provider value={{ tier, planType, isLoading, refresh }}>
+    <PlanContext.Provider
+      value={{
+        tier: owner ? 'enterprise' : tier,
+        planType: owner ? 'B2B_ENTERPRISE' : planType,
+        isLoading,
+        refresh,
+      }}
+    >
       {children}
     </PlanContext.Provider>
   );

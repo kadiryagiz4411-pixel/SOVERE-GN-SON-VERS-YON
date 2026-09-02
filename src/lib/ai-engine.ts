@@ -9,6 +9,7 @@ import {
   numericAppSumoTier,
   type AppSumoFeature,
 } from '@/lib/appsumoGating';
+import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
 
 export class CreditLimitError extends Error {
   status = 402;
@@ -61,6 +62,18 @@ export async function prepareAiExecution(
   userId: string,
   feature: AppSumoFeature = 'ats_optimize',
 ): Promise<EngineProfile> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (isOwnerEmail(auth.user?.email)) {
+    const loaded = await loadEngineProfile(userId).catch(() => null);
+    return {
+      appsumoTier: OWNER_PRIVILEGES.appsumo_tier,
+      remaining: OWNER_PRIVILEGES.credits_remaining,
+      monthlyLimit: OWNER_PRIVILEGES.monthly_credit_limit,
+      byokUnlocked: true,
+      openaiKey: loaded?.openaiKey ?? null,
+      paused: false,
+    };
+  }
   const profile = await loadEngineProfile(userId);
   if (profile.paused) {
     throw new FeatureForbiddenError('Account is paused. Unpause to run AI actions.');
@@ -85,24 +98,26 @@ export async function runAiAction<T>(options: {
   execute: (ctx: { apiKey: string | null; byok: boolean; profile: EngineProfile }) => Promise<T>;
   creditCost?: number;
 }): Promise<{ result: T; byok: boolean; remaining: number }> {
+  const { data: auth } = await supabase.auth.getUser();
+  const owner = isOwnerEmail(auth.user?.email);
   const profile = await prepareAiExecution(options.userId, options.feature ?? 'ats_optimize');
-  const byok = isByokActive(profile);
+  const byok = owner || isByokActive(profile);
   const platformKey =
     (typeof import.meta !== 'undefined'
       ? (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY
       : '') || '';
-  const apiKey = byok ? profile.openaiKey : (profile.openaiKey || platformKey);
+  const apiKey = byok ? (profile.openaiKey || platformKey) : (profile.openaiKey || platformKey);
 
   const result = await options.execute({ apiKey, byok, profile });
 
-  if (!byok) {
-    const cost = options.creditCost
-      ?? (profile.appsumoTier >= 1 && profile.appsumoTier < 3 ? 1 : COST_PER_ACTION);
-    const deduct = await deductCredit(options.userId, cost);
-    if (!deduct.success) throw new CreditLimitError();
-    return { result, byok: false, remaining: deduct.remaining };
+  if (owner || byok) {
+    return { result, byok: true, remaining: OWNER_PRIVILEGES.credits_remaining };
   }
-  return { result, byok: true, remaining: profile.remaining };
+  const cost = options.creditCost
+    ?? (profile.appsumoTier >= 1 && profile.appsumoTier < 3 ? 1 : COST_PER_ACTION);
+  const deduct = await deductCredit(options.userId, cost);
+  if (!deduct.success) throw new CreditLimitError();
+  return { result, byok: false, remaining: deduct.remaining };
 }
 
 export async function setAccountPaused(userId: string, paused: boolean): Promise<void> {

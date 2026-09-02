@@ -94,7 +94,7 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, sessionReady } = useSession();
+  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recentProposals, setRecentProposals] = useState<Proposal[]>([]);
@@ -925,8 +925,10 @@ const Dashboard = () => {
   };
 
   const isFreelancer = userSegment === 'freelancer';
-  const creditsBalance = profile?.credits_balance ?? 0;
-  const currentCredits = profile?.remaining_credits ?? creditsBalance ?? 0;
+  const creditsBalance = remainingCredits || profile?.credits_balance || 0;
+  const currentCredits = isByokUnlimited || hasBYOKAccess
+    ? remainingCredits
+    : (profile?.remaining_credits ?? creditsBalance ?? 0);
   const maxCredits = profile?.monthly_credit_limit || 400;
   const percentage = maxCredits > 0
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
@@ -1106,6 +1108,7 @@ const Dashboard = () => {
                     </div>
                   </div>
 
+                  {!(isByokUnlimited || hasBYOKAccess) && (
                   <div className={`rounded-2xl border p-4 ${creditAlert.className}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -1121,6 +1124,7 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   </div>
+                  )}
 
                   <div className="rounded-2xl border border-border bg-background/40 p-4">
                     <div className="mb-4 flex items-center justify-between gap-3">

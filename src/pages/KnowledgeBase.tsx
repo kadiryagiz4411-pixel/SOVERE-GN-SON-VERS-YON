@@ -15,6 +15,7 @@ import {
 } from '@/services/knowledgeBaseService';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { canUseFeature, numericAppSumoTier } from '@/lib/appsumoGating';
+import { isOwnerEmail } from '@/lib/superadmin';
 
 const CATEGORIES: { id: KnowledgeCategory; label: string }[] = [
   { id: 'case_study', label: 'Case study' },
@@ -23,7 +24,7 @@ const CATEGORIES: { id: KnowledgeCategory; label: string }[] = [
 ];
 
 export default function KnowledgeBase() {
-  const { user } = useSession();
+  const { user, hasB2BAccess } = useSession();
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
@@ -35,10 +36,12 @@ export default function KnowledgeBase() {
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
+      const owner = isOwnerEmail(user.email);
       const { data } = await fetchProfileByAuthId(user.id, 'appsumo_tier, appsumo_codes_count, subscription_tier, plan_type');
       const tier = numericAppSumoTier(data as Record<string, unknown>);
-      setAllowed(canUseFeature(tier, 'agency_knowledge'));
-      if (canUseFeature(tier, 'agency_knowledge')) {
+      const ok = owner || hasB2BAccess || canUseFeature(tier, 'agency_knowledge');
+      setAllowed(ok);
+      if (ok) {
         try {
           setEntries(await listKnowledge(user.id));
         } catch (err) {
@@ -47,7 +50,7 @@ export default function KnowledgeBase() {
       }
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id, user?.email, hasB2BAccess]);
 
   const handleCreate = async () => {
     if (!user?.id || !title.trim() || !content.trim()) return;

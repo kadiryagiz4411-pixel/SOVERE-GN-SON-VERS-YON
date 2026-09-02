@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase
       .from("profiles").select("*").or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle();
 
-    const creditGate = await assertActionCredits(supabase, user.id);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email);
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -320,7 +320,7 @@ ${parts.join('\n\n')}`;
       }
     }
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_creation");
+    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_creation", user.email);
 
     return new Response(
       JSON.stringify({

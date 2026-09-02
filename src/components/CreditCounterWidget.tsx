@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Zap, RefreshCw } from 'lucide-react';
 import { fetchCreditStatus, daysUntilReset, tierLabel, type CreditStatus } from '@/services/creditService';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/contexts/SessionContext';
 
 interface CreditCounterWidgetProps {
   userId: string | null;
@@ -24,6 +25,7 @@ export function CreditCounterWidget({
   variant = 'sidebar',
   className,
 }: CreditCounterWidgetProps) {
+  const { hasBYOKAccess, isByokUnlimited } = useSession();
   const [status, setStatus] = useState<CreditStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,14 +39,16 @@ export function CreditCounterWidget({
 
   useEffect(() => { load(); }, [load]);
 
+  const unlimited = hasBYOKAccess || isByokUnlimited || Boolean(status?.isByokUnlimited);
+
   // Don't render for non-AppSumo / non-credit tiers
-  if (!status || (!status.subscriptionTier.startsWith('appsumo') && status.subscriptionTier === 'free')) {
+  if (!unlimited && (!status || (!status.subscriptionTier.startsWith('appsumo') && status.subscriptionTier === 'free'))) {
     return null;
   }
 
   /* ── Badge variant (mobile header) ── */
   if (variant === 'badge') {
-    if (status.isByokUnlimited) {
+    if (unlimited) {
       return (
         <span className={cn('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400', className)}>
           <Zap className="w-3 h-3" />
@@ -52,6 +56,7 @@ export function CreditCounterWidget({
         </span>
       );
     }
+    if (!status) return null;
     return (
       <span
         className={cn(
@@ -69,6 +74,22 @@ export function CreditCounterWidget({
       </span>
     );
   }
+
+  if (unlimited) {
+    return (
+      <div className={cn('px-5 py-3 border-b border-border', className)}>
+        <div className="flex items-center gap-1.5 mb-1">
+          <Zap className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+            Monthly Credits
+          </span>
+        </div>
+        <span className="text-sm font-bold leading-none text-emerald-400">UNLIMITED (BYOK Active)</span>
+      </div>
+    );
+  }
+
+  if (!status) return null;
 
   /* ── Sidebar variant (desktop) ── */
   const barWidth = `${Math.min(100, Math.max(0, Math.round(status.usagePct)))}%`;

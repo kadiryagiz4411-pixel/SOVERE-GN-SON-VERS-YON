@@ -10,6 +10,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -26,6 +27,8 @@ interface SessionState {
   planType: string;
   appsumoTier: number;
   isByokUnlimited: boolean;
+  hasB2BAccess: boolean;
+  hasBYOKAccess: boolean;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
 }
@@ -43,6 +46,8 @@ const SessionContext = createContext<SessionState>({
   planType: 'free',
   appsumoTier: 0,
   isByokUnlimited: false,
+  hasB2BAccess: false,
+  hasBYOKAccess: false,
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
 });
@@ -62,8 +67,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
   const hydrated = useRef(false);
 
-  const loadProfileCredits = useCallback(async (userId: string | undefined | null) => {
+  const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
+    if (isOwnerEmail(email)) {
+      if (!mounted.current) return;
+      setCreditsBalance(OWNER_PRIVILEGES.credits_remaining);
+      setRemainingCredits(OWNER_PRIVILEGES.credits_remaining);
+      setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
+      setSubscriptionPlan('appsumo_tier3');
+      setSubscriptionTier('appsumo_tier3');
+      setPlanType('B2B_ENTERPRISE');
+      setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
+      setIsByokUnlimited(true);
+      return;
+    }
     try {
       const { data, error } = await fetchProfileByAuthId<{
         credits_balance?: number;
@@ -103,8 +120,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refreshCredits = useCallback(async () => {
     if (!user?.id) return;
-    await loadProfileCredits(user.id);
-  }, [user?.id, loadProfileCredits]);
+    await loadProfileCredits(user.id, user.email);
+  }, [user?.id, user?.email, loadProfileCredits]);
 
   useEffect(() => {
     mounted.current = true;
@@ -120,7 +137,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         hydrated.current = true;
         setSessionReady(true);
         if (next?.user?.id) {
-          void loadProfileCredits(next.user.id);
+          void loadProfileCredits(next.user.id, next.user.email);
         }
       })
       .catch((err) => {
@@ -143,7 +160,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setSessionReady(true);
       }
       if (next?.user?.id) {
-        void loadProfileCredits(next.user.id);
+        void loadProfileCredits(next.user.id, next.user.email);
       } else {
         setCreditsBalance(0);
         setRemainingCredits(0);
@@ -158,7 +175,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const onProfileUpdated = () => {
       void supabase.auth.getSession().then(({ data }) => {
-        if (data.session?.user?.id) void loadProfileCredits(data.session.user.id);
+        if (data.session?.user?.id) {
+          void loadProfileCredits(data.session.user.id, data.session.user.email);
+        }
       });
     };
     window.addEventListener('sovereign:profile-updated', onProfileUpdated);
@@ -178,6 +197,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  const owner = isOwnerEmail(user?.email);
+
   return (
     <SessionContext.Provider
       value={{
@@ -185,14 +206,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         session,
         sessionReady,
         isLoading: !sessionReady,
-        creditsBalance,
-        remainingCredits,
-        monthlyCreditLimit,
-        subscriptionPlan,
-        subscriptionTier,
-        planType,
-        appsumoTier,
-        isByokUnlimited,
+        creditsBalance: owner ? OWNER_PRIVILEGES.credits_remaining : creditsBalance,
+        remainingCredits: owner ? OWNER_PRIVILEGES.credits_remaining : remainingCredits,
+        monthlyCreditLimit: owner ? OWNER_PRIVILEGES.monthly_credit_limit : monthlyCreditLimit,
+        subscriptionPlan: owner ? 'appsumo_tier3' : subscriptionPlan,
+        subscriptionTier: owner ? 'appsumo_tier3' : subscriptionTier,
+        planType: owner ? 'B2B_ENTERPRISE' : planType,
+        appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
+        isByokUnlimited: owner || isByokUnlimited,
+        hasB2BAccess: owner || appsumoTier >= 2 || planType === 'B2B_ENTERPRISE' || planType === 'enterprise',
+        hasBYOKAccess: owner || isByokUnlimited,
         refreshCredits,
         setCreditsBalance,
       }}
