@@ -13,13 +13,17 @@ interface GatedAppPageProps {
 }
 
 export function GatedAppPage({ required, featureName, description, children }: GatedAppPageProps) {
-  const { user, creditsBalance } = useSession();
+  const { user, creditsBalance, hasB2BAccess, appsumoTier } = useSession();
   const { currentTier, planType } = useTierAccess();
+  const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
+  const plan = isSuperAdmin || hasB2BAccess
+    ? (appsumoTier >= 3 || isSuperAdmin ? 'enterprise' : 'pro')
+    : (currentTier === 'free' ? planType : currentTier);
 
   return (
     <AppShell
       user={user}
-      plan={currentTier === 'free' ? planType : currentTier}
+      plan={plan}
       creditsBalance={creditsBalance}
     >
       <GatedFeature required={required} featureName={featureName} description={description}>

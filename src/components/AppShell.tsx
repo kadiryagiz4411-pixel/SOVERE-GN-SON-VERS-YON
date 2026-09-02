@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -29,26 +29,39 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const { language } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
+  const session = useSession();
   const {
     remainingCredits,
     monthlyCreditLimit,
     appsumoTier,
     isByokUnlimited,
-    hasB2BAccess,
-    hasBYOKAccess,
-  } = useSession();
+  } = session;
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
   const [lockModal, setLockModal] = useState<{ featureName: string; required: AccessTier } | null>(null);
 
-  const isElite = plan === 'elite' || access.canAccess('elite');
-  const isPro = plan === 'pro' || plan === 'elite' || access.canAccess('pro');
-  const isEnterprise = access.canAccess('enterprise') || plan === 'enterprise' || plan === 'B2B_ENTERPRISE';
+  const isSuperAdmin =
+    user?.email === 'kadiryagiz4411@gmail.com' ||
+    session.user?.email === 'kadiryagiz4411@gmail.com';
+  const hasB2BAccess = isSuperAdmin || Number(appsumoTier) >= 2;
+  const hasBYOKAccess = isSuperAdmin || Number(appsumoTier) === 3;
+
+  useEffect(() => {
+    console.log('[Sovereign Auth]', {
+      email: user?.email ?? session.user?.email,
+      tier: isSuperAdmin ? 3 : appsumoTier,
+      hasB2B: hasB2BAccess,
+    });
+  }, [user?.email, session.user?.email, appsumoTier, isSuperAdmin, hasB2BAccess]);
+
+  const isElite = isSuperAdmin || plan === 'elite' || access.canAccess('elite');
+  const isPro = isSuperAdmin || plan === 'pro' || plan === 'elite' || access.canAccess('pro');
+  const isEnterprise = isSuperAdmin || access.canAccess('enterprise') || plan === 'enterprise' || plan === 'B2B_ENTERPRISE';
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
-  const showAgencyTools = hasB2BAccess || appsumoTier >= 2 || access.canAccess('pro');
+  const showAgencyTools = hasB2BAccess;
   const showByokSettings = hasBYOKAccess || isByokUnlimited;
   const eliteNav = ELITE_NAV_ITEMS.filter((item) => {
     if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
@@ -101,7 +114,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const planLabel = isEnterprise ? 'Enterprise' : isElite ? 'Elite' : isPro ? 'Pro' : plan === 'standard' ? 'Standard' : 'Free';
 
   const handleLockedNav = (item: TierNavItem) => {
-    if (access.canAccess(item.required)) {
+    if (isSuperAdmin || hasB2BAccess || access.canAccess(item.required)) {
       navigate(item.to);
       setSidebarOpen(false);
       return;
@@ -112,7 +125,25 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const renderTierNav = (items: TierNavItem[]) => items.map((item) => {
     const Icon = item.icon;
     const active = location.pathname === item.to;
-    const unlocked = access.canAccess(item.required);
+    const isB2BItem = item.to === '/batch-proposal' || item.to === '/knowledge-base';
+    const unlocked = isSuperAdmin || (isB2BItem && hasB2BAccess) || access.canAccess(item.required);
+    if (unlocked) {
+      return (
+        <Link
+          key={item.to}
+          to={item.to}
+          onClick={() => setSidebarOpen(false)}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left ${
+            active
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          }`}
+        >
+          <Icon className="w-4 h-4 shrink-0" />
+          <span className="truncate">{item.label}</span>
+        </Link>
+      );
+    }
     return (
       <button
         type="button"
@@ -126,7 +157,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
       >
         <Icon className="w-4 h-4 shrink-0" />
         <span className="truncate">{item.label}</span>
-        {!unlocked && <TierLockBadge required={item.required} />}
+        <TierLockBadge required={item.required} />
       </button>
     );
   });

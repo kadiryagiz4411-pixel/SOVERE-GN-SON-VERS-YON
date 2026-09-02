@@ -13,43 +13,52 @@ export function profileByAuthId<T>(query: T, userId: string): T {
   return q.or(`id.eq.${userId},user_id.eq.${userId}`);
 }
 
+/** Always include appsumo_tier so B2B/BYOK gating can hydrate even if `*` typing omits it. */
+export const PROFILE_SELECT_WITH_TIER = '*, appsumo_tier';
+
 export async function fetchProfileByAuthId<Row extends Record<string, unknown> = Record<string, unknown>>(
   userId: string | undefined | null,
-  select = '*',
+  select: string = PROFILE_SELECT_WITH_TIER,
 ): Promise<{ data: Row | null; error: PostgrestError | null }> {
   if (!userId) {
     return { data: null, error: null };
   }
 
-  try {
+  const lookup = async (cols: string) => {
     const byId = await supabase
       .from('profiles')
-      .select(select)
+      .select(cols)
       .eq('id', userId)
       .maybeSingle();
 
     if (byId.data && !byId.error) {
-      return { data: byId.data as Row, error: null };
+      return { data: byId.data as Row, error: null as PostgrestError | null };
     }
 
     const byUserId = await supabase
       .from('profiles')
-      .select(select)
+      .select(cols)
       .eq('user_id', userId)
       .maybeSingle();
 
     if (byUserId.data && !byUserId.error) {
-      return { data: byUserId.data as Row, error: null };
+      return { data: byUserId.data as Row, error: null as PostgrestError | null };
     }
 
-    if (byId.error) {
-      console.error(LOG, 'profiles.id lookup failed', byId.error.message);
-    }
-    if (byUserId.error) {
-      console.error(LOG, 'profiles.user_id lookup failed', byUserId.error.message);
-    }
+    return { data: null as Row | null, error: byUserId.error ?? byId.error };
+  };
 
-    return { data: null, error: byUserId.error ?? byId.error };
+  try {
+    const first = await lookup(select);
+    if (first.data) return first;
+    if (select.includes('appsumo_tier')) {
+      const fallback = await lookup('*');
+      if (fallback.data) return fallback;
+    }
+    if (first.error) {
+      console.error(LOG, 'profiles lookup failed', first.error.message);
+    }
+    return first;
   } catch (err) {
     console.error(LOG, 'profiles fetch threw', err);
     return { data: null, error: null };

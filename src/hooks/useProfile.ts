@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { fetchProfileByAuthId, profileByAuthId } from '@/lib/profileQuery';
+import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 
 interface Profile {
   id: string;
@@ -13,6 +13,7 @@ interface Profile {
   bio: string | null;
   avatar_url: string | null;
   subscription_plan: string;
+  appsumo_tier?: number | null;
   daily_proposals_used: number;
   last_usage_reset: string;
   trial_started_at: string | null;
@@ -33,7 +34,7 @@ export const useProfile = (user: User | null) => {
 
     const fetchProfile = async () => {
       try {
-        const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
+        const { data, error } = await fetchProfileByAuthId<Profile>(user.id, PROFILE_SELECT_WITH_TIER);
         if (error) {
           console.error('[Sovereign Load Error]:', 'useProfile fetch failed', error.message);
         }
@@ -69,7 +70,7 @@ export const useProfile = (user: User | null) => {
   const refreshProfile = async () => {
     if (!user?.id) return;
 
-    const { data, error } = await fetchProfileByAuthId<Profile>(user.id, '*');
+    const { data, error } = await fetchProfileByAuthId<Profile>(user.id, PROFILE_SELECT_WITH_TIER);
 
     if (!error && data) {
       setProfile(data);

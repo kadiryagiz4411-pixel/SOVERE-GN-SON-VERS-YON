@@ -9,7 +9,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { usePlan } from '@/contexts/PlanContext';
 import { useSession } from '@/contexts/SessionContext';
 import { planTypeToTier, type PlanTier } from '@/lib/entitlements';
-import { isOwnerEmail } from '@/lib/superadmin';
+import { isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
 
 export type AccessTier = 'standard' | 'pro' | 'elite' | 'enterprise';
 
@@ -100,7 +100,7 @@ export function useTierAccess(required?: AccessTier): TierAccessResult {
   const { tier, planType, isLoading } = usePlan();
   const { user, subscriptionPlan, subscriptionTier, appsumoTier } = useSession();
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
-  const owner = isOwnerEmail(user?.email);
+  const owner = isSuperAdminUser(user) || user?.email === 'kadiryagiz4411@gmail.com';
 
   const appsumoPlan =
     appsumoTier >= 3 ? 'appsumo_tier3' : appsumoTier === 2 ? 'appsumo_tier2' : appsumoTier === 1 ? 'appsumo_tier1' : null;
@@ -138,7 +138,7 @@ export function useTierAccess(required?: AccessTier): TierAccessResult {
     currentLevel,
     requiredTier: required ?? null,
     requiredLevel,
-    hasAccess: !isLoading && hasAccess,
+    hasAccess: owner || (!isLoading && hasAccess),
     isLoading,
     planType: planType || subscriptionPlan || 'free',
     subscriptionTier: subscriptionTier || planType || 'free',

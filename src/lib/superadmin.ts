@@ -9,6 +9,21 @@ export const OWNER_PRIVILEGES = {
   hasBYOKAccess: true,
 } as const;
 
+type AuthLike = {
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+} | null | undefined;
+
+export function resolveAuthEmail(user: AuthLike): string {
+  const direct = (user?.email ?? '').trim();
+  const meta = String(user?.user_metadata?.email ?? '').trim();
+  return (direct || meta).toLowerCase();
+}
+
 export function isOwnerEmail(email: string | null | undefined): boolean {
   return (email ?? '').trim().toLowerCase() === OWNER_EMAIL;
+}
+
+export function isSuperAdminUser(user: AuthLike): boolean {
+  return resolveAuthEmail(user) === OWNER_EMAIL || user?.email === OWNER_EMAIL;
 }

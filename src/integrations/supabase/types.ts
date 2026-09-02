@@ -428,6 +428,11 @@ export type Database = {
           subscription_pause_reason: string | null
           ls_subscription_id: string | null
           ls_customer_id: string | null
+          appsumo_tier: number | null
+          appsumo_codes_count: number | null
+          credits_remaining: number | null
+          byok_unlocked: boolean | null
+          subscription_tier: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -473,6 +478,11 @@ export type Database = {
           subscription_pause_reason?: string | null
           ls_subscription_id?: string | null
           ls_customer_id?: string | null
+          appsumo_tier?: number | null
+          appsumo_codes_count?: number | null
+          credits_remaining?: number | null
+          byok_unlocked?: boolean | null
+          subscription_tier?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -518,6 +528,11 @@ export type Database = {
           subscription_pause_reason?: string | null
           ls_subscription_id?: string | null
           ls_customer_id?: string | null
+          appsumo_tier?: number | null
+          appsumo_codes_count?: number | null
+          credits_remaining?: number | null
+          byok_unlocked?: boolean | null
+          subscription_tier?: string | null
         }
         Relationships: []
       }

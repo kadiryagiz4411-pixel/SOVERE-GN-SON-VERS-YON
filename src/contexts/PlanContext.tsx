@@ -10,7 +10,7 @@ import {
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
-import { isOwnerEmail } from '@/lib/superadmin';
+import { isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -72,19 +72,23 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile, error } = await fetchProfileByAuthId(
         userId,
-        'plan_type, subscription_plan, subscription_tier, subscription_expires_at',
+        '*, appsumo_tier',
       );
 
       if (error) {
         console.error(LOG, 'plan profile fetch failed', error.message);
       }
 
-      // Prefer plan_type (new column), fall back to subscription_plan (legacy)
+      const appsumoTier = Number((profile as any)?.appsumo_tier ?? 0);
       const raw =
-        (profile as any)?.plan_type ??
-        (profile as any)?.subscription_tier ??
-        (profile as any)?.subscription_plan ??
-        'free';
+        appsumoTier >= 3
+          ? 'B2B_ENTERPRISE'
+          : appsumoTier >= 2
+            ? 'pro'
+            : (profile as any)?.plan_type ??
+              (profile as any)?.subscription_tier ??
+              (profile as any)?.subscription_plan ??
+              'free';
 
       const expiresAt = (profile as any)?.subscription_expires_at ?? null;
       const active = resolveActivePlan(raw, expiresAt);
@@ -115,7 +119,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     };
   }, [sessionReady, user?.id, user?.email, loadPlan]);
 
-  const owner = isOwnerEmail(user?.email);
+  const owner = isSuperAdminUser(user) || isOwnerEmail(user?.email);
 
   return (
     <PlanContext.Provider

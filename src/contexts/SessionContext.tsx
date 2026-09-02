@@ -9,8 +9,8 @@ import {
 import type { User, Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchProfileByAuthId } from '@/lib/profileQuery';
-import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
+import { isOwnerEmail, isSuperAdminUser, OWNER_PRIVILEGES } from '@/lib/superadmin';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -69,52 +69,60 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
-    if (isOwnerEmail(email)) {
-      if (!mounted.current) return;
-      setCreditsBalance(OWNER_PRIVILEGES.credits_remaining);
-      setRemainingCredits(OWNER_PRIVILEGES.credits_remaining);
-      setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
-      setSubscriptionPlan('appsumo_tier3');
-      setSubscriptionTier('appsumo_tier3');
-      setPlanType('B2B_ENTERPRISE');
-      setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
-      setIsByokUnlimited(true);
-      return;
-    }
+    const superAdmin = isOwnerEmail(email);
     try {
-      const { data, error } = await fetchProfileByAuthId<{
-        credits_balance?: number;
-        remaining_credits?: number;
-        credits_remaining?: number;
-        monthly_credit_limit?: number;
-        subscription_plan?: string;
-        subscription_tier?: string;
-        plan_type?: string;
-        appsumo_tier?: number;
-        appsumo_codes_count?: number;
-        byok_unlocked?: boolean;
-        encrypted_openai_key?: string;
-        custom_openai_key?: string;
-      }>(userId, 'credits_balance, remaining_credits, credits_remaining, monthly_credit_limit, subscription_plan, subscription_tier, plan_type, appsumo_tier, appsumo_codes_count, byok_unlocked, encrypted_openai_key, custom_openai_key');
+      const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
+        userId,
+        PROFILE_SELECT_WITH_TIER,
+      );
       if (!mounted.current) return;
       if (error) {
         console.error(LOG, 'session profile/credits query failed', error.message);
       }
-      const balance = data?.credits_balance ?? 0;
-      const remaining = data?.credits_remaining ?? data?.remaining_credits ?? balance;
-      const limit = data?.monthly_credit_limit || 400;
       const numericTier = Number(data?.appsumo_tier ?? data?.appsumo_codes_count ?? 0);
+      const balance = Number(data?.credits_balance ?? 0);
+      const remaining = Number(data?.credits_remaining ?? data?.remaining_credits ?? balance);
+      const limit = Number(data?.monthly_credit_limit ?? 400);
       const hasKey = Boolean(String(data?.encrypted_openai_key ?? data?.custom_openai_key ?? '').trim());
-      setCreditsBalance(balance);
-      setRemainingCredits(remaining);
-      setMonthlyCreditLimit(limit);
-      setSubscriptionPlan(data?.subscription_plan ?? 'free');
-      setSubscriptionTier(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free');
-      setPlanType(data?.plan_type ?? data?.subscription_plan ?? 'free');
-      setAppsumoTier(numericTier);
-      setIsByokUnlimited(numericTier >= 3 && (Boolean(data?.byok_unlocked) || hasKey));
+
+      if (superAdmin) {
+        setCreditsBalance(OWNER_PRIVILEGES.credits_remaining);
+        setRemainingCredits(OWNER_PRIVILEGES.credits_remaining);
+        setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
+        setSubscriptionPlan('appsumo_tier3');
+        setSubscriptionTier('appsumo_tier3');
+        setPlanType('B2B_ENTERPRISE');
+        setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
+        setIsByokUnlimited(true);
+      } else {
+        setCreditsBalance(balance);
+        setRemainingCredits(remaining);
+        setMonthlyCreditLimit(limit || 400);
+        setSubscriptionPlan(String(data?.subscription_plan ?? 'free'));
+        setSubscriptionTier(String(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free'));
+        setPlanType(String(data?.plan_type ?? data?.subscription_plan ?? 'free'));
+        setAppsumoTier(numericTier);
+        setIsByokUnlimited(numericTier >= 3 && (Boolean(data?.byok_unlocked) || hasKey));
+      }
+
+      console.log('[Sovereign Auth]', {
+        email: email ?? null,
+        tier: superAdmin ? OWNER_PRIVILEGES.appsumo_tier : numericTier,
+        hasB2B: superAdmin || numericTier >= 2,
+        dbTier: data?.appsumo_tier ?? null,
+      });
     } catch (err) {
       console.error(LOG, 'session profile/credits threw', err);
+      if (superAdmin && mounted.current) {
+        setCreditsBalance(OWNER_PRIVILEGES.credits_remaining);
+        setRemainingCredits(OWNER_PRIVILEGES.credits_remaining);
+        setMonthlyCreditLimit(OWNER_PRIVILEGES.monthly_credit_limit);
+        setSubscriptionPlan('appsumo_tier3');
+        setSubscriptionTier('appsumo_tier3');
+        setPlanType('B2B_ENTERPRISE');
+        setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
+        setIsByokUnlimited(true);
+      }
     }
   }, []);
 
@@ -127,18 +135,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     mounted.current = true;
 
     supabase.auth.getSession()
-      .then(({ data: { session: next }, error }) => {
+      .then(async ({ data: { session: next }, error }) => {
         if (!mounted.current) return;
         if (error) {
           console.error(LOG, 'getSession failed', error.message);
         }
+        let authedUser = next?.user ?? null;
+        if (authedUser?.id && !authedUser.email) {
+          const { data } = await supabase.auth.getUser();
+          authedUser = data.user ?? authedUser;
+        }
         setSession(next ?? null);
-        setUser(next?.user ?? null);
+        setUser(authedUser);
+        if (authedUser?.id) {
+          await loadProfileCredits(authedUser.id, authedUser.email);
+        }
+        if (!mounted.current) return;
         hydrated.current = true;
         setSessionReady(true);
-        if (next?.user?.id) {
-          void loadProfileCredits(next.user.id, next.user.email);
-        }
       })
       .catch((err) => {
         console.error(LOG, 'getSession threw', err);
@@ -197,7 +211,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  const owner = isOwnerEmail(user?.email);
+  const owner = isSuperAdminUser(user);
 
   return (
     <SessionContext.Provider
@@ -215,7 +229,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
         isByokUnlimited: owner || isByokUnlimited,
         hasB2BAccess: owner || appsumoTier >= 2 || planType === 'B2B_ENTERPRISE' || planType === 'enterprise',
-        hasBYOKAccess: owner || isByokUnlimited,
+        hasBYOKAccess: owner || appsumoTier >= 3 || isByokUnlimited,
         refreshCredits,
         setCreditsBalance,
       }}

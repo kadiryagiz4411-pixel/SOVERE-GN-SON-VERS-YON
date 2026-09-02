@@ -78,6 +78,7 @@ interface Profile {
   profession_cluster?: string | null;
   subscription_expires_at?: string | null;
   billing_period?: string | null;
+  appsumo_tier?: number | null;
 }
 
 interface Proposal {
@@ -149,7 +150,15 @@ const Dashboard = () => {
     return plan;
   };
 
-  const currentPlan = checkSubscriptionExpiry();
+  const currentPlan = (
+    user?.email === 'kadiryagiz4411@gmail.com' || session.user?.email === 'kadiryagiz4411@gmail.com'
+      ? 'B2B_ENTERPRISE'
+      : Number(profile?.appsumo_tier ?? 0) >= 3
+        ? 'B2B_ENTERPRISE'
+        : Number(profile?.appsumo_tier ?? 0) >= 2
+          ? 'pro'
+          : checkSubscriptionExpiry()
+  );
   const isFreePlan = !isPaidPlan(currentPlan);
   const dailyLimit = getDailyLimit(currentPlan);
   const proposalsUsed = profile?.daily_proposals_used || 0;
@@ -418,7 +427,7 @@ const Dashboard = () => {
     const fetchOrCreateProfile = async (userId: string, email: string | undefined): Promise<Profile> => {
       if (!userId) return buildDefaultProfile(userId);
       try {
-        const { data, error } = await fetchProfileByAuthId<Profile>(userId, '*');
+        const { data, error } = await fetchProfileByAuthId<Profile>(userId, '*, appsumo_tier');
 
         if (error) {
           console.error('[Sovereign Load Error]:', 'Profile fetch returned error (will create default):', error.message);

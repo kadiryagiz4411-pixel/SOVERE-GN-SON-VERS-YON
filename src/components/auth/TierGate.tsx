@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Lock, Crown, Building2, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TIER_LABELS, type AccessTier, useTierAccess } from '@/hooks/useTierAccess';
+import { useSession } from '@/contexts/SessionContext';
 
 interface TierGateProps {
   open?: boolean;
@@ -160,10 +161,12 @@ interface GatedPageProps {
 
 /** Page wrapper: shows children when allowed, otherwise banner + lock modal. */
 export function GatedFeature({ required, featureName, description, children }: GatedPageProps) {
+  const { user } = useSession();
   const access = useTierAccess(required);
   const [modalOpen, setModalOpen] = useState(true);
+  const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
 
-  if (access.isLoading) {
+  if (isSuperAdmin || access.isLoading) {
     return <>{children}</>;
   }
 
