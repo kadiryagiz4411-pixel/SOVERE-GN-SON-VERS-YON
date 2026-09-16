@@ -267,3 +267,83 @@ export async function runFullPipeline(input: AISynthesisInput): Promise<{
   const stage2 = await synthesiseCVAndLetter(input, stage1);
   return { stage1, stage2 };
 }
+
+// ─── Sovereign Core-Generation Wrapper ───────────────────────────────────────
+
+import { invokeEdgeJson, invokeCvFunction, EDGE_FUNCTIONS } from '@/lib/edgeFunctions';
+
+const FALLBACK_CONTENT =
+  'Service is currently experiencing high load. Please try again in a few moments.';
+
+export interface SovereignGeneratePayload {
+  /** Authenticated user ID (used for server-side credit deduction). */
+  userId: string;
+  /** The main text input — job description for proposals, CV text for CV generation. */
+  prompt: string;
+  /** Generation type. */
+  type: 'cv' | 'proposal';
+  /** Any additional params passed through to the edge function. */
+  [key: string]: unknown;
+}
+
+export interface SovereignGenerateResult {
+  success: boolean;
+  /** True when the primary call failed and a safe fallback message was returned. */
+  fallback: boolean;
+  /** Raw edge-function response on success. */
+  data?: unknown;
+  /** Human-readable fallback copy shown directly in the UI. */
+  content?: string;
+  /** Machine-readable error for logging. */
+  error?: string;
+}
+
+/**
+ * Unified resilient wrapper for Sovereign's core generation functions.
+ *
+ * • Routes `type: 'cv'` through `invokeCvFunction` (sovereign → generate-cv fallback).
+ * • Routes `type: 'proposal'` through `invokeEdgeJson` → `generate-proposal`.
+ * • On ANY failure (network, CORS, 5xx, parse error) returns
+ *   `{ success: false, fallback: true, content: FALLBACK_CONTENT }`
+ *   so the UI never white-screens.
+ */
+export async function generateSovereignContent(
+  payload: SovereignGeneratePayload,
+): Promise<SovereignGenerateResult> {
+  try {
+    if (payload.type === 'cv') {
+      const { userId: _u, prompt, type: _t, ...rest } = payload;
+      const result = await invokeCvFunction<{ cv?: string; error?: string }>({
+        mode: 'generate-from-text',
+        existingCvText: prompt,
+        ...rest,
+      });
+      if (result.error || !result.data) {
+        console.error('[generateSovereignContent:cv] failed', result.error, result.status);
+        return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
+      }
+      return { success: true, fallback: false, data: result.data };
+    }
+
+    // type === 'proposal'
+    const { userId: _u, prompt, type: _t, ...rest } = payload;
+    const result = await invokeEdgeJson<{ proposal?: string; error?: string }>(
+      EDGE_FUNCTIONS.proposal,
+      { jobDescription: prompt, ...rest },
+    );
+    if (result.error || !result.data) {
+      console.error('[generateSovereignContent:proposal] failed', result.error, result.status);
+      return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
+    }
+    return { success: true, fallback: false, data: result.data };
+
+  } catch (err) {
+    console.error('[generateSovereignContent] unexpected error:', err);
+    return {
+      success: false,
+      fallback: true,
+      content: FALLBACK_CONTENT,
+      error: err instanceof Error ? err.message : 'Unexpected error',
+    };
+  }
+}

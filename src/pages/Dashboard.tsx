@@ -14,6 +14,7 @@ import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
+import { generateSovereignContent } from '@/services/aiService';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
@@ -97,7 +98,7 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, user: sessionUser } = useSession();
+  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, hasB2BAccess, user: sessionUser } = useSession();
   const { planLabel: contextPlanLabel, isSuperAdmin: contextSuperAdmin } = usePlan();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -159,13 +160,15 @@ const Dashboard = () => {
     session.user?.email === OWNER_EMAIL ||
     contextSuperAdmin;
   const currentPlan = (
-    isSuperAdmin
+    isSuperAdmin || hasB2BAccess
       ? SUPERADMIN_PLAN_TYPE
       : Number(profile?.appsumo_tier ?? 0) >= 3
-        ? SUPERADMIN_PLAN_TYPE
+        ? 'elite'
         : Number(profile?.appsumo_tier ?? 0) >= 2
           ? 'pro'
-          : checkSubscriptionExpiry()
+          : Number(profile?.appsumo_tier ?? 0) >= 1
+            ? 'standard'
+            : checkSubscriptionExpiry()
   );
   const isFreePlan = !isSuperAdmin && !isPaidPlan(currentPlan);
   const dailyLimit = getDailyLimit(currentPlan);
@@ -776,7 +779,13 @@ const Dashboard = () => {
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
       console.error('Generation error:', err);
-      const msg = err.message || 'Failed to generate proposal. Please try again.';
+      // Network / CORS failures: use the canonical fallback message from generateSovereignContent.
+      const isNetworkError =
+        err instanceof TypeError ||
+        (err?.message && /fetch|network|CORS|failed to fetch/i.test(err.message));
+      const msg = isNetworkError
+        ? 'Service is currently experiencing high load. Please try again in a few moments.'
+        : (err.message || 'Failed to generate proposal. Please try again.');
       setGenerateError(msg);
       toast.error(msg);
     } finally {
