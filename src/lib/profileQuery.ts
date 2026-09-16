@@ -14,7 +14,8 @@ export function profileByAuthId<T>(query: T, userId: string): T {
 }
 
 /** Always include appsumo_tier so B2B/BYOK gating can hydrate even if `*` typing omits it. */
-export const PROFILE_SELECT_WITH_TIER = '*, appsumo_tier';
+export const PROFILE_SELECT_WITH_TIER =
+  '*, appsumo_tier, appsumo_plan, trial_ends_at, is_trial_active, has_used_trial, b2b_subscription_status';
 
 export async function fetchProfileByAuthId<Row extends Record<string, unknown> = Record<string, unknown>>(
   userId: string | undefined | null,

@@ -173,6 +173,10 @@ async function upgradePlan(
     subscription_paused_at: null,
     subscription_pause_until: null,
     subscription_pause_reason: null,
+    ...(cfg.tier === "B2B_ENTERPRISE" ? {
+      b2b_subscription_status: "active",
+      is_trial_active: false,
+    } : {}),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
 
@@ -237,6 +241,8 @@ async function downgradePlan(
     subscription_paused_at: null,
     subscription_pause_until: null,
     subscription_pause_reason: null,
+    b2b_subscription_status: "canceled",
+    is_trial_active: false,
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
 }
@@ -389,6 +395,11 @@ Deno.serve(async (req) => {
 
       await upgradePlan(db, userId, tierCfg, lsId, lsCustomerId);
       console.log(`[LS webhook] Upgraded user ${userId} to ${tierCfg.tier} (${tierCfg.period})`);
+      console.log("[B2B Trial Engine]", {
+        userId,
+        status: tierCfg.tier === "B2B_ENTERPRISE" ? "active" : undefined,
+        daysRemaining: 0,
+      });
       return json({ success: true, tier: tierCfg.tier });
     }
 
@@ -402,6 +413,8 @@ Deno.serve(async (req) => {
           ls_customer_id: lsCustomerId || undefined,
           subscription_status: "canceled",
           subscription_cancelled_at: new Date().toISOString(),
+          b2b_subscription_status: "canceled",
+          is_trial_active: false,
           updated_at: new Date().toISOString(),
         }).eq("user_id", userId);
       }

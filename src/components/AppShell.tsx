@@ -8,7 +8,7 @@ import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
-  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users,
+  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
@@ -18,6 +18,11 @@ import { useTierAccess, type AccessTier } from '@/hooks/useTierAccess';
 import { TierGate, TierLockBadge } from '@/components/auth/TierGate';
 import { ELITE_NAV_ITEMS, ENTERPRISE_NAV_ITEMS, type TierNavItem } from '@/config/tierNav';
 import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL } from '@/lib/superadmin';
+import { AppSumoUpsellBanner } from '@/components/banners/AppSumoUpsellBanner';
+import { TrialCountdownBadge } from '@/components/dashboard/TrialCountdownBadge';
+import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequiredModal';
+import { useB2BTrial } from '@/hooks/useB2BTrial';
+import { isB2BEnterprisePath } from '@/lib/b2bTrial';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -45,12 +50,13 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const access = useTierAccess();
   const planState = usePlan();
+  const b2bTrial = useB2BTrial();
   const [lockModal, setLockModal] = useState<{ featureName: string; required: AccessTier } | null>(null);
 
   const isSuperAdmin =
     user?.email === OWNER_EMAIL ||
     session.user?.email === OWNER_EMAIL;
-  const hasB2BAccess = isSuperAdmin || sessionB2B || planState.isSuperAdmin || Number(appsumoTier) >= 2;
+  const hasB2BAccess = isSuperAdmin || sessionB2B || planState.hasEnterpriseAccess;
   const hasBYOKAccess = isSuperAdmin || sessionBYOK || Number(appsumoTier) >= 3;
 
   useEffect(() => {
@@ -72,7 +78,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   const currentCredits = remainingCredits ?? creditsBalance ?? 0;
   const maxCredits = monthlyCreditLimit || 400;
-  const showAgencyTools = isSuperAdmin || hasB2BAccess;
+  const showAgencyTools = isSuperAdmin || Number(appsumoTier) >= 2 || isPro;
   const showByokSettings = isSuperAdmin || hasBYOKAccess || isByokUnlimited;
   const eliteNav = isSuperAdmin
     ? ELITE_NAV_ITEMS
@@ -154,7 +160,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const renderTierNav = (items: TierNavItem[]) => items.map((item) => {
     const Icon = item.icon;
     const active = location.pathname === item.to;
-    const unlocked = isSuperAdmin || access.canAccess(item.required);
+  const unlocked = isSuperAdmin || planState.hasEnterpriseAccess || access.canAccess(item.required);
     if (unlocked) {
       return (
         <Link
@@ -192,6 +198,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   return (
     <div className="min-h-screen bg-background flex">
+      <SubscriptionRequiredModal
+        open={!isSuperAdmin && b2bTrial.trialExpiredUnpaid && isB2BEnterprisePath(location.pathname)}
+      />
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-card fixed h-full z-30">
         {/* Brand */}
@@ -229,6 +238,14 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
         {/* Monthly AppSumo credit counter */}
         <CreditCounterWidget userId={user?.id ?? null} variant="sidebar" />
+        {b2bTrial.showSidebarUpsellBadge && (
+          <div className="px-3 pt-2">
+            <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] font-semibold text-amber-200">
+              <Rocket className="w-3 h-3" />
+              Unlock B2B Enterprise
+            </span>
+          </div>
+        )}
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
@@ -348,7 +365,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
+        <AppSumoUpsellBanner />
         <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
+          <TrialCountdownBadge />
           <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
         </div>
         {children}

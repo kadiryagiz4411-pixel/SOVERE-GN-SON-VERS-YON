@@ -80,8 +80,8 @@ export function getCatalogPlan(id: string | null | undefined): CatalogPlan | und
 
 export function numericTierFromPlanType(planType: string | null | undefined): 0 | 1 | 2 | 3 | 4 {
   const raw = (planType ?? '').trim();
-  if (raw === 'enterprise' || raw === 'B2B_ENTERPRISE' || raw === 'appsumo_b2b' || raw === 'appsumo_tier3') return 4;
-  if (raw === 'elite') return 3;
+  if (raw === 'enterprise' || raw === 'B2B_ENTERPRISE') return 4;
+  if (raw === 'elite' || raw === 'appsumo_b2b' || raw === 'appsumo_tier3') return 3;
   if (raw === 'pro' || raw === 'appsumo_tier2') return 2;
   if (raw === 'standard' || raw === 'appsumo_tier1' || raw === 'single_pass') return 1;
   return 0;

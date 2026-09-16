@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { Lock, Crown, Building2, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TIER_LABELS, type AccessTier, useTierAccess } from '@/hooks/useTierAccess';
-import { useSession } from '@/contexts/SessionContext';
+import { StartB2BTrialButton } from '@/components/trial/StartB2BTrialButton';
+import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { enterpriseCheckoutUrl, isAppsumoLtdUser, toAppsumoPlanEnum } from '@/lib/b2bTrial';
 
 interface TierGateProps {
   open?: boolean;
@@ -138,6 +140,18 @@ export function TierGate({
               🔒 Required: {label}
             </span>
           </div>
+          {requiredTier === 'enterprise' && (
+            <div className="mt-4 space-y-2">
+              <StartB2BTrialButton className="w-full" />
+              <CheckoutButton
+                href={enterpriseCheckoutUrl()}
+                overlay
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 border-0 font-semibold"
+              >
+                Unlock B2B Enterprise
+              </CheckoutButton>
+            </div>
+          )}
           <Link
             to="/pricing"
             onClick={onClose}
@@ -161,10 +175,11 @@ interface GatedPageProps {
 
 /** Page wrapper: shows children when allowed, otherwise banner + lock modal. */
 export function GatedFeature({ required, featureName, description, children }: GatedPageProps) {
-  const { user } = useSession();
+  const { user, appsumoTier, appsumoPlan } = useSession();
   const access = useTierAccess(required);
   const [modalOpen, setModalOpen] = useState(true);
   const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
+  const appsumoLtd = isAppsumoLtdUser(toAppsumoPlanEnum(appsumoPlan, appsumoTier));
 
   if (isSuperAdmin || access.isLoading) {
     return <>{children}</>;
@@ -177,7 +192,33 @@ export function GatedFeature({ required, featureName, description, children }: G
   return (
     <>
       <TierGateBanner featureName={featureName} requiredTier={required} description={description} />
-      <div className="pointer-events-none select-none opacity-40 blur-[1px]">{children}</div>
+      <div className="relative">
+        <div className="pointer-events-none select-none opacity-40 blur-[2px]">{children}</div>
+        {required === 'enterprise' && appsumoLtd && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-amber-500/30 bg-slate-950/95 p-5 shadow-2xl">
+              <h3 className="text-lg font-semibold text-foreground">AppSumo LTD vs. Enterprise B2B</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Your AppSumo license covers lifetime credits. Team workspaces, multi-seat hiring, and advanced vector CV search are Enterprise B2B features.
+              </p>
+              <ul className="mt-3 grid gap-2 text-xs text-slate-300">
+                <li>AppSumo LTD — lifetime credits, personal workspace</li>
+                <li>Enterprise B2B — unlimited workspaces, vector search, audit logs</li>
+              </ul>
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <StartB2BTrialButton className="flex-1" />
+                <CheckoutButton
+                  href={enterpriseCheckoutUrl()}
+                  overlay
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 border-0 font-semibold"
+                >
+                  Unlock B2B Enterprise
+                </CheckoutButton>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       <TierGate
         open={modalOpen}
         onClose={() => setModalOpen(false)}

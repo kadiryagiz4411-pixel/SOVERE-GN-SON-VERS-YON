@@ -411,8 +411,13 @@ export type Database = {
           skills: string[] | null
           subscription_expires_at: string | null
           subscription_plan: string
-          trial_claimed: boolean | null
           trial_started_at: string | null
+          trial_ends_at: string | null
+          trial_claimed: boolean | null
+          is_trial_active: boolean
+          has_used_trial: boolean
+          b2b_subscription_status: string
+          appsumo_plan: string
           updated_at: string
           user_id: string
           user_segment: string | null
@@ -461,8 +466,13 @@ export type Database = {
           skills?: string[] | null
           subscription_expires_at?: string | null
           subscription_plan?: string
-          trial_claimed?: boolean | null
           trial_started_at?: string | null
+          trial_ends_at?: string | null
+          trial_claimed?: boolean | null
+          is_trial_active?: boolean
+          has_used_trial?: boolean
+          b2b_subscription_status?: string
+          appsumo_plan?: string
           updated_at?: string
           user_id: string
           user_segment?: string | null
@@ -511,8 +521,13 @@ export type Database = {
           skills?: string[] | null
           subscription_expires_at?: string | null
           subscription_plan?: string
-          trial_claimed?: boolean | null
           trial_started_at?: string | null
+          trial_ends_at?: string | null
+          trial_claimed?: boolean | null
+          is_trial_active?: boolean
+          has_used_trial?: boolean
+          b2b_subscription_status?: string
+          appsumo_plan?: string
           updated_at?: string
           user_id?: string
           user_segment?: string | null
@@ -842,6 +857,8 @@ export type Database = {
         Returns: number
       }
       can_claim_trial: { Args: { _user_id: string }; Returns: boolean }
+      start_b2b_cardless_trial: { Args: Record<PropertyKey, never>; Returns: Json }
+      expire_stale_b2b_trials: { Args: Record<PropertyKey, never>; Returns: undefined }
       get_trial_claims_count: { Args: never; Returns: number }
       has_role: {
         Args: {

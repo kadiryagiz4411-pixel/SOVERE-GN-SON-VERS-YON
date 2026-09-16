@@ -45,9 +45,8 @@ export const PLAN_TYPE_TO_TIER: Record<string, PlanTier> = {
   // AppSumo lifetime tiers — mapped to equivalent Sovereign plan tiers
   appsumo_tier1:  'standard',   // 50 credits/mo — same capability as Standard
   appsumo_tier2:  'pro',        // 200 credits/mo — same capability as Pro
-  appsumo_b2b:    'enterprise', // 1000 credits/mo — full B2B capability
-  // Legacy alias (from v1 migration)
-  appsumo_tier3:  'enterprise',
+  appsumo_b2b:    'elite', // LTD — B2B seats require paid Enterprise or trial
+  appsumo_tier3:  'elite',
 };
 
 export function planTypeToTier(planType: string | null | undefined): PlanTier {

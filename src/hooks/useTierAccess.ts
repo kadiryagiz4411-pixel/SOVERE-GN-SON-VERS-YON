@@ -38,7 +38,7 @@ const PLAN_TO_ACCESS: Record<string, AccessTier | 'free'> = {
   enterprise: 'enterprise',
   B2B_ENTERPRISE: 'enterprise',
   appsumo_b2b: 'enterprise',
-  appsumo_tier3: 'enterprise',
+  appsumo_tier3: 'elite',
   enterprise_b2b: 'enterprise',
   enterprise_plus: 'enterprise',
   staffing_agency: 'enterprise',
@@ -97,40 +97,40 @@ export interface TierAccessResult {
 }
 
 export function useTierAccess(required?: AccessTier): TierAccessResult {
-  const { tier, planType, isLoading } = usePlan();
+  const { tier, planType, isLoading, hasEnterpriseAccess } = usePlan();
   const { user, subscriptionPlan, subscriptionTier, appsumoTier } = useSession();
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const owner = isSuperAdminUser(user) || user?.email === 'kadiryagiz4411@gmail.com';
 
   const appsumoPlan =
-    appsumoTier >= 3 ? 'appsumo_tier3' : appsumoTier === 2 ? 'appsumo_tier2' : appsumoTier === 1 ? 'appsumo_tier1' : null;
+    appsumoTier >= 3 ? 'elite' : appsumoTier === 2 ? 'appsumo_tier2' : appsumoTier === 1 ? 'appsumo_tier1' : null;
 
   const currentTier = useMemo(
     () =>
-      owner
+      owner || hasEnterpriseAccess
         ? 'enterprise'
         : resolveAccessTier(planType, subscriptionTier, subscriptionPlan, appsumoPlan, tier as PlanTier),
-    [owner, planType, subscriptionTier, subscriptionPlan, appsumoPlan, tier],
+    [owner, hasEnterpriseAccess, planType, subscriptionTier, subscriptionPlan, appsumoPlan, tier],
   );
 
-  const currentLevel = owner ? TIER_HIERARCHY.enterprise : accessLevel(currentTier);
+  const currentLevel = owner || hasEnterpriseAccess ? TIER_HIERARCHY.enterprise : accessLevel(currentTier);
   const requiredLevel = required ? TIER_HIERARCHY[required] : 0;
-  const hasAccess = owner || !required || currentLevel >= requiredLevel;
+  const hasAccess = owner || hasEnterpriseAccess || !required || currentLevel >= requiredLevel;
 
   const canAccessFn = useCallback(
-    (need: AccessTier) => owner || currentLevel >= TIER_HIERARCHY[need],
-    [owner, currentLevel],
+    (need: AccessTier) => owner || hasEnterpriseAccess || currentLevel >= TIER_HIERARCHY[need],
+    [owner, hasEnterpriseAccess, currentLevel],
   );
 
   const requireAccess = useCallback(
     (need?: AccessTier) => {
       const target = need ?? required;
-      if (!target || owner) return true;
+      if (!target || owner || hasEnterpriseAccess) return true;
       if (currentLevel >= TIER_HIERARCHY[target]) return true;
       setIsLockModalOpen(true);
       return false;
     },
-    [owner, currentLevel, required],
+    [owner, hasEnterpriseAccess, currentLevel, required],
   );
 
   return {
