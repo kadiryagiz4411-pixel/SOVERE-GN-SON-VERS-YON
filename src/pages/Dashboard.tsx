@@ -822,11 +822,12 @@ const Dashboard = () => {
       
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
-      console.error('[Sovereign Error] Generation error:', err);
+      const rawMsg = err?.message || err?.toString() || 'Unknown error';
+      console.error('[SOVEREIGN_ERR] Dashboard handleGenerate:', rawMsg, err);
 
       // ── Client-side OpenAI fallback ─────────────────────────────────────────
-      // If the edge function is unreachable but VITE_OPENAI_API_KEY is set
-      // (BYOK / admin key), generate the proposal directly on the client.
+      // If the edge function is unreachable but VITE_OPENAI_API_KEY / BYOK is set,
+      // generate the proposal directly on the client.
       try {
         const fallbackProposal = await generateProposalFallback(jobDescription, profile, customProfession || undefined);
         if (fallbackProposal) {
@@ -839,17 +840,17 @@ const Dashboard = () => {
           );
           return; // Fallback succeeded — skip the error display below.
         }
-      } catch (fallbackErr) {
-        console.error('[Sovereign Error] Client-side fallback also failed:', fallbackErr);
+      } catch (fallbackErr: any) {
+        console.error('[SOVEREIGN_ERR] Dashboard handleGenerate — client fallback also failed:', fallbackErr?.message ?? fallbackErr);
       }
 
-      // Both paths failed — surface a clear error to the user.
+      // Both paths failed — surface explicit diagnostic message to the user.
       const isNetworkError =
         err instanceof TypeError ||
-        (err?.message && /fetch|network|CORS|failed to fetch/i.test(err.message));
+        /fetch|network|CORS|failed to fetch/i.test(rawMsg);
       const msg = isNetworkError
-        ? 'Service is currently experiencing high load. Please try again in a few moments.'
-        : (err.message || 'Failed to generate proposal. Please try again.');
+        ? `Connection Timeout: Could not reach the AI service. Check your internet connection and try again. (${rawMsg})`
+        : `Generation Failed: ${rawMsg}`;
       setGenerateError(msg);
       toast.error(msg);
     } finally {

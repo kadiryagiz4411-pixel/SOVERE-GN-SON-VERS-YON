@@ -12,20 +12,29 @@ const SUPABASE_PUBLISHABLE_KEY: string =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   '';
 
-// Guard: warn loudly in development if env vars are missing so buttons
-// don't silently fail. A placeholder URL prevents createClient() from
-// throwing synchronously and crashing the whole module graph.
+// ── Environment validation ────────────────────────────────────────────────────
+// `isMisconfigured` is consumed by <EnvConfigBanner> in App.tsx to render a
+// high-visibility UI alert when variables are absent (not just a console warning).
+export const isMisconfigured = !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY;
+export const missingVars: string[] = [
+  ...(!SUPABASE_URL ? ['VITE_SUPABASE_URL'] : []),
+  ...(!SUPABASE_PUBLISHABLE_KEY ? ['VITE_SUPABASE_ANON_KEY'] : []),
+];
+
 if (!SUPABASE_URL) {
   console.error(
-    '[Sovereign] VITE_SUPABASE_URL is not set. ' +
-    'All Supabase/Edge-Function calls will fail. ' +
-    'Add it to your .env file and restart the dev server.',
+    '%c[SOVEREIGN_ERR] VITE_SUPABASE_URL is not set.\n' +
+    'All Supabase / Edge-Function calls will fail.\n' +
+    'Add it to your Vercel Environment Variables and redeploy.',
+    'color:#ef4444;font-weight:bold;font-size:14px',
   );
 }
 if (!SUPABASE_PUBLISHABLE_KEY) {
   console.error(
-    '[Sovereign] VITE_SUPABASE_ANON_KEY is not set. ' +
-    'Auth and anonymous requests will fail.',
+    '%c[SOVEREIGN_ERR] VITE_SUPABASE_ANON_KEY is not set.\n' +
+    'Auth and anonymous requests will fail.\n' +
+    'Add it to your Vercel Environment Variables and redeploy.',
+    'color:#ef4444;font-weight:bold;font-size:14px',
   );
 }
 

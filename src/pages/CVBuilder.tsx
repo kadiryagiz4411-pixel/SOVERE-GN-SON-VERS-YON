@@ -286,11 +286,12 @@ const CVBuilder = () => {
       incrementCVGenerations();
       toast.success(cv.successMsg || 'CV generated successfully!');
     } catch (err: any) {
-      console.error('[sovereign] unexpected error', err);
-      const isNetworkErr = err instanceof TypeError || /fetch|network|CORS|failed to fetch/i.test(err?.message ?? '');
+      const rawMsg = err?.message || err?.toString() || 'Unknown error';
+      console.error('[SOVEREIGN_ERR] CVBuilder handleGenerate:', rawMsg, err);
+      const isNetworkErr = err instanceof TypeError || /fetch|network|CORS|failed to fetch/i.test(rawMsg);
       const msg = isNetworkErr
-        ? 'Service is currently experiencing high load. Please try again in a few moments.'
-        : (err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.');
+        ? `Connection Timeout: CV service unreachable. Check your internet connection and try again. (${rawMsg})`
+        : `CV Generation Failed: ${rawMsg}`;
       setGenerateError(msg);
       toast.error(msg);
     } finally {

@@ -46,8 +46,9 @@ export async function invokeEdgeJson<T>(
       const token = sessionData.session?.access_token;
       const base = functionsBaseUrl();
       if (!base) {
-        console.error('[edge] VITE_SUPABASE_URL is missing');
-        return { data: null, error: 'Supabase URL is not configured', status: 0, functionName: name };
+        const msg = 'Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in Vercel settings. Add it to your Vercel Environment Variables and redeploy.';
+        console.error('[SOVEREIGN_ERR] edgeFunctions: ' + msg);
+        return { data: null, error: msg, status: 0, functionName: name };
       }
 
       const response = await fetch(`${base}/functions/v1/${name}`, {
@@ -72,10 +73,11 @@ export async function invokeEdgeJson<T>(
 
       const json = await response.json().catch(() => null);
       if (!response.ok) {
-        console.error(`[edge:${name}] HTTP ${response.status}`, json);
+        const errDetail = (json as { error?: string } | null)?.error || `HTTP ${response.status}`;
+        console.error(`[SOVEREIGN_ERR] edge:${name} — HTTP ${response.status}:`, errDetail, json);
         return {
           data: null,
-          error: (json as { error?: string } | null)?.error || `HTTP ${response.status}`,
+          error: errDetail,
           status: response.status,
           functionName: name,
         };
@@ -83,8 +85,13 @@ export async function invokeEdgeJson<T>(
 
       return { data: json as T, error: null, status: response.status, functionName: name };
     } catch (err) {
-      console.error(`[edge:${name}] network/CORS error`, err);
-      lastError = err instanceof Error ? err.message : 'Network error';
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isNetwork = err instanceof TypeError || /fetch|CORS|network/i.test(errMsg);
+      const humanMsg = isNetwork
+        ? `Connection Timeout — ${name} edge function unreachable. Check your Supabase project is running and VITE_SUPABASE_URL is correct. (${errMsg})`
+        : `Edge Function Error (${name}): ${errMsg}`;
+      console.error(`[SOVEREIGN_ERR] edge:${name} — network/CORS error:`, errMsg, err);
+      lastError = humanMsg;
       lastStatus = 0;
     }
   }

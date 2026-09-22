@@ -164,9 +164,10 @@ export const CVOptimizerModal = ({
       setTeaserResult(result);
       setStep('teaser');
     } catch (err: any) {
-      const msg = err?.message || 'An error occurred. Please retry.';
+      const msg = err?.message || err?.toString() || 'ATS Analysis failed — unexpected error.';
+      console.error('[SOVEREIGN_ERR] CVOptimizerModal handleAnalyze:', msg, err);
       setAnalyzeError(msg);
-      toast.error(msg);
+      toast.error('ATS Analysis Failed: ' + msg);
     } finally {
       setIsAnalyzing(false);
     }
@@ -225,10 +226,10 @@ export const CVOptimizerModal = ({
       onCreditsConsumed?.(result.creditsRemaining);
       toast.success('CV optimized!');
     } catch (err: any) {
-      console.error('[optimize-cv] unexpected error', err);
-      const msg = err?.message || 'An unexpected error occurred. Please retry.';
+      const msg = err?.message || err?.toString() || 'CV Optimization failed — unexpected error.';
+      console.error('[SOVEREIGN_ERR] CVOptimizerModal handleUnlockFull:', msg, err);
       setOptimizeError(msg);
-      toast.error(msg);
+      toast.error('CV Optimization Failed: ' + msg);
     } finally {
       setIsOptimizing(false);
     }

@@ -10,8 +10,39 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DevSandbox } from "@/components/dev/DevSandbox";
 import SplashScreen from "@/components/SplashScreen";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
+import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
+
+// ── ENV Configuration Banner ─────────────────────────────────────────────────
+// Shown as a fixed top bar whenever VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY
+// are missing. This replaces the silent console.error with a visible UI alert
+// so Vercel/hosting misconfigurations are immediately obvious to the operator.
+const EnvConfigBanner = () => {
+  const [dismissed, setDismissed] = useState(false);
+  if (!isMisconfigured || dismissed) return null;
+  return (
+    <div
+      role="alert"
+      className="fixed top-0 left-0 right-0 z-[9999] flex items-center gap-3 bg-red-600 text-white px-4 py-2.5 text-sm font-medium shadow-lg"
+    >
+      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+      <span className="flex-1">
+        <strong>Configuration Error:</strong>{' '}
+        {missingVars.join(', ')} {missingVars.length === 1 ? 'is' : 'are'} missing from your environment variables.
+        {' '}Add {missingVars.length === 1 ? 'it' : 'them'} in your Vercel project settings and redeploy.
+        All AI features will fail until this is fixed.
+      </span>
+      <button
+        onClick={() => setDismissed(true)}
+        className="flex-shrink-0 hover:bg-red-700 rounded p-0.5 transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -164,6 +195,9 @@ const App = () => {
 
   return (
     <ErrorBoundary>
+      {/* Visible banner when Supabase env vars are missing — rendered outside all providers
+          so it works even when the app fails to initialise. */}
+      <EnvConfigBanner />
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <SessionProvider>

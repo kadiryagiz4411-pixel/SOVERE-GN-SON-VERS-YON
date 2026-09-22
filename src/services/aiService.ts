@@ -95,7 +95,11 @@ async function callOpenAI(
   maxTokens = 800,
 ): Promise<string> {
   const key = getApiKey();
-  if (!key) throw new Error('VITE_OPENAI_API_KEY is not set.');
+  if (!key) {
+    const msg = 'API Key Missing — set VITE_OPENAI_API_KEY in your environment variables, or add your personal key in Profile → BYOK Settings.';
+    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
+    throw new Error(msg);
+  }
 
   const res = await fetch(OPENAI_BASE, {
     method: 'POST',
@@ -107,8 +111,10 @@ async function callOpenAI(
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OpenAI API error (${res.status}): ${err}`);
+    const errText = await res.text().catch(() => '(no body)');
+    const msg = `OpenAI API Error (HTTP ${res.status}): ${errText}`;
+    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
+    throw new Error(msg);
   }
 
   const json = await res.json();
@@ -147,7 +153,8 @@ ${trimmedJD}`;
   try {
     const parsed = parseLLMJson<Stage1Result>(raw);
     return { ...parsed, fromCache: false, cacheHit: false };
-  } catch {
+  } catch (parseErr) {
+    console.error('[SOVEREIGN_ERR] runStage1API: failed to parse LLM JSON response', parseErr, '\nRaw response:', raw.slice(0, 300));
     return {
       keywords: [], must_have_skills: [], nice_to_have: [],
       seniority_level: 'mid', employment_type: 'full_time',
@@ -442,11 +449,15 @@ export async function generateSovereignContent(
     return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
 
   } catch (err) {
-    console.error('[generateSovereignContent] unexpected error:', err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[SOVEREIGN_ERR] generateSovereignContent — unexpected exception:', errMsg, err);
 
     // Last-chance client-side fallback for proposal type
     if (payload.type === 'proposal') {
-      const fallbackText = await generateProposalFallback(payload.prompt).catch(() => null);
+      const fallbackText = await generateProposalFallback(payload.prompt).catch((fbErr) => {
+        console.error('[SOVEREIGN_ERR] generateProposalFallback — client fallback also failed:', fbErr instanceof Error ? fbErr.message : fbErr);
+        return null;
+      });
       if (fallbackText) {
         return { success: true, fallback: false, data: { proposal: fallbackText } };
       }
@@ -456,7 +467,7 @@ export async function generateSovereignContent(
       success: false,
       fallback: true,
       content: FALLBACK_CONTENT,
-      error: err instanceof Error ? err.message : 'Unexpected error',
+      error: errMsg,
     };
   }
 }
