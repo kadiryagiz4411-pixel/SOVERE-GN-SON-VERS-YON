@@ -23,6 +23,7 @@ import { TrialCountdownBadge } from '@/components/dashboard/TrialCountdownBadge'
 import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequiredModal';
 import { useB2BTrial } from '@/hooks/useB2BTrial';
 import { isB2BEnterprisePath } from '@/lib/b2bTrial';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -198,9 +199,11 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
   return (
     <div className="min-h-screen bg-background flex">
-      <SubscriptionRequiredModal
-        open={!isSuperAdmin && b2bTrial.trialExpiredUnpaid && isB2BEnterprisePath(location.pathname)}
-      />
+      <ErrorBoundary fallback={null}>
+        <SubscriptionRequiredModal
+          open={!isSuperAdmin && b2bTrial.trialExpiredUnpaid && isB2BEnterprisePath(location.pathname)}
+        />
+      </ErrorBoundary>
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-card fixed h-full z-30">
         {/* Brand */}
@@ -365,9 +368,14 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
-        <AppSumoUpsellBanner />
+        {/* Wrap B2B widgets in a boundary so a render error there never blocks the main UI */}
+        <ErrorBoundary fallback={null}>
+          <AppSumoUpsellBanner />
+        </ErrorBoundary>
         <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
-          <TrialCountdownBadge />
+          <ErrorBoundary fallback={null}>
+            <TrialCountdownBadge />
+          </ErrorBoundary>
           <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
         </div>
         {children}
