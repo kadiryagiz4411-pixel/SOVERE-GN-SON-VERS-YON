@@ -299,13 +299,71 @@ export interface SovereignGenerateResult {
 }
 
 /**
+ * Client-side proposal fallback — used when the Supabase Edge Function is
+ * unreachable (network error, CORS, cold start timeout, misconfiguration).
+ *
+ * Requires VITE_OPENAI_API_KEY to be set (BYOK or admin-configured key).
+ * Returns null when no API key is available so the caller can fall through
+ * to its own error UX.
+ */
+export async function generateProposalFallback(
+  jobDescription: string,
+  profile?: {
+    skills?: string[] | null;
+    experience?: string | null;
+    hourly_rate?: number | null;
+  } | null,
+): Promise<string | null> {
+  const key = getApiKey();
+  if (!key) return null;
+
+  const skillsList = (profile?.skills ?? []).slice(0, 12).join(', ') || 'Not specified';
+  const experience = (profile?.experience ?? '').slice(0, 500) || 'Not specified';
+
+  const systemPrompt =
+    'You are a world-class freelance proposal writer specialising in high-conversion client pitches. ' +
+    'Write natural, specific, and compelling proposals. Avoid generic filler. ' +
+    'Lead with the client\'s problem, prove expertise, end with a clear CTA.';
+
+  const userPrompt = `Write a professional, high-converting freelance proposal for this opportunity.
+
+JOB / CLIENT BRIEF:
+${jobDescription.slice(0, 2500)}
+
+CANDIDATE:
+- Skills: ${skillsList}
+- Experience: ${experience}
+${profile?.hourly_rate ? `- Rate: $${profile.hourly_rate}/hr` : ''}
+
+Structure:
+1. Hook — address the client's core problem directly (2-3 sentences)
+2. Value proof — specific experience that solves their problem (3-4 sentences)
+3. CTA — confident, clear next step (1-2 sentences)
+
+Tone: professional, warm, confident. No generic phrases like "I am excited to apply".`;
+
+  try {
+    const result = await callOpenAI(
+      'gpt-4o-mini',
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt },
+      ],
+      900,
+    );
+    return result || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Unified resilient wrapper for Sovereign's core generation functions.
  *
- * • Routes `type: 'cv'` through `invokeCvFunction` (sovereign → generate-cv fallback).
- * • Routes `type: 'proposal'` through `invokeEdgeJson` → `generate-proposal`.
- * • On ANY failure (network, CORS, 5xx, parse error) returns
- *   `{ success: false, fallback: true, content: FALLBACK_CONTENT }`
- *   so the UI never white-screens.
+ * Primary:   Supabase Edge Function (generate-proposal / generate-cv).
+ * Secondary: Client-side OpenAI call via generateProposalFallback() when the
+ *            edge function fails AND VITE_OPENAI_API_KEY is configured.
+ * Final:     Safe fallback message so the UI never white-screens.
  */
 export async function generateSovereignContent(
   payload: SovereignGeneratePayload,
@@ -325,20 +383,38 @@ export async function generateSovereignContent(
       return { success: true, fallback: false, data: result.data };
     }
 
-    // type === 'proposal'
+    // type === 'proposal' — try edge function first
     const { userId: _u, prompt, type: _t, ...rest } = payload;
     const result = await invokeEdgeJson<{ proposal?: string; error?: string }>(
       EDGE_FUNCTIONS.proposal,
       { jobDescription: prompt, ...rest },
     );
-    if (result.error || !result.data) {
-      console.error('[generateSovereignContent:proposal] failed', result.error, result.status);
-      return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
+    if (!result.error && result.data) {
+      return { success: true, fallback: false, data: result.data };
     }
-    return { success: true, fallback: false, data: result.data };
+
+    // Edge function failed — try client-side OpenAI fallback
+    console.warn('[generateSovereignContent:proposal] edge failed, trying client fallback', result.error);
+    const fallbackText = await generateProposalFallback(prompt);
+    if (fallbackText) {
+      return { success: true, fallback: false, data: { proposal: fallbackText } };
+    }
+
+    // Both paths failed
+    console.error('[generateSovereignContent:proposal] both paths failed', result.error);
+    return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
 
   } catch (err) {
     console.error('[generateSovereignContent] unexpected error:', err);
+
+    // Last-chance client-side fallback for proposal type
+    if (payload.type === 'proposal') {
+      const fallbackText = await generateProposalFallback(payload.prompt).catch(() => null);
+      if (fallbackText) {
+        return { success: true, fallback: false, data: { proposal: fallbackText } };
+      }
+    }
+
     return {
       success: false,
       fallback: true,

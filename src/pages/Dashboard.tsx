@@ -14,7 +14,7 @@ import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
-import { generateSovereignContent } from '@/services/aiService';
+import { generateSovereignContent, generateProposalFallback } from '@/services/aiService';
 import { supabaseAnonKey } from '@/integrations/supabase/client';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
@@ -184,7 +184,7 @@ const Dashboard = () => {
     const copy = {
       en: {
         welcome: 'Welcome back',
-        memberWorkspace: 'Your member workspace is ready. Analyze jobs, generate stronger proposals, and manage credits from one place.',
+        memberWorkspace: 'Your workspace is ready. Create high-converting proposals, pitch B2B clients, and optimize your CV — all from one place.',
         creditBalance: 'Credit balance',
         buyCredits: 'Buy credits',
         currentPlan: 'Current plan',
@@ -207,8 +207,8 @@ const Dashboard = () => {
         elitePlanHint: 'You are on the highest tier with the full premium toolkit.',
         upgradeNow: 'See upgrade options',
         topUpNow: 'Top up now',
-        startGenerating: 'Optimize New Application',
-        startGeneratingDesc: 'Paste a job description and tailor your application for ATS + hiring managers.',
+        startGenerating: 'Create New Proposal',
+        startGeneratingDesc: 'Paste a client brief or job listing — get a high-converting proposal in seconds.',
         viewHistory: 'View history',
         viewHistoryDesc: 'Open saved applications and continue from where you left off.',
         editProfile: 'Edit profile',
@@ -500,6 +500,21 @@ const Dashboard = () => {
         }
 
         await fetchCreditActivity(session.user.id);
+
+        // ── Payment success notification ──────────────────────────────────
+        // Lemon Squeezy redirects to /dashboard?payment=success after checkout.
+        const paymentParam = searchParams.get('payment');
+        if (paymentParam === 'success') {
+          setTimeout(() => {
+            toast.success(
+              language === 'tr'
+                ? '🎉 Ödeme alındı! Planın güncelleniyor — birkaç saniye bekle.'
+                : '🎉 Payment confirmed! Your plan is being activated — refresh in a moment.',
+              { duration: 8000 },
+            );
+          }, 800);
+          navigate('/dashboard', { replace: true });
+        }
 
         // Process referral if ?ref= param exists
         const refCode = searchParams.get('ref');
@@ -800,8 +815,27 @@ const Dashboard = () => {
       
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
-      console.error('Generation error:', err);
-      // Network / CORS failures: use the canonical fallback message.
+      console.error('[Sovereign Error] Generation error:', err);
+
+      // ── Client-side OpenAI fallback ─────────────────────────────────────────
+      // If the edge function is unreachable but VITE_OPENAI_API_KEY is set
+      // (BYOK / admin key), generate the proposal directly on the client.
+      try {
+        const fallbackProposal = await generateProposalFallback(jobDescription, profile);
+        if (fallbackProposal) {
+          setGeneratedProposal(fallbackProposal);
+          toast.success(
+            language === 'tr'
+              ? '✅ Teklif doğrudan bağlantıyla üretildi.'
+              : '✅ Proposal generated via direct connection.',
+          );
+          return; // Fallback succeeded — skip the error display below.
+        }
+      } catch (fallbackErr) {
+        console.error('[Sovereign Error] Client-side fallback also failed:', fallbackErr);
+      }
+
+      // Both paths failed — surface a clear error to the user.
       const isNetworkError =
         err instanceof TypeError ||
         (err?.message && /fetch|network|CORS|failed to fetch/i.test(err.message));

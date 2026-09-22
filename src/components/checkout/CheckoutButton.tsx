@@ -38,10 +38,28 @@ export function ensureLemonSqueezyReady(): boolean {
 }
 
 /**
+ * Append Lemon Squeezy checkout parameters:
+ *  - checkout[redirect_url] → /dashboard?payment=success
+ *  - checkout[email]        → pre-fills the email field if provided
+ */
+export function buildLemonSqueezyUrl(baseUrl: string, userEmail?: string | null): string {
+  if (!baseUrl || baseUrl === '#') return baseUrl;
+  try {
+    const url = new URL(baseUrl);
+    const redirectBase = typeof window !== 'undefined' ? window.location.origin : 'https://sovereignapp.pro';
+    url.searchParams.set('checkout[redirect_url]', `${redirectBase}/dashboard?payment=success`);
+    if (userEmail) url.searchParams.set('checkout[email]', userEmail);
+    return url.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+/**
  * Opens a Lemon Squeezy hosted checkout from the *current* URL/variant.
  * Always call this on click — do not rely on a stale `.lemonsqueezy-button` bind.
  */
-export function openLemonSqueezyCheckout(checkoutUrl: string): void {
+export function openLemonSqueezyCheckout(checkoutUrl: string, userEmail?: string | null): void {
   if (!checkoutUrl || checkoutUrl === '#') {
     console.error(
       '[LemonSqueezy] Missing checkout URL / variant ID. ' +
@@ -51,18 +69,21 @@ export function openLemonSqueezyCheckout(checkoutUrl: string): void {
     return;
   }
 
+  // Append redirect + email params before opening
+  const enrichedUrl = buildLemonSqueezyUrl(checkoutUrl, userEmail);
+
   try {
     const ready = ensureLemonSqueezyReady();
     if (ready && window.LemonSqueezy?.Url?.Open) {
-      window.LemonSqueezy.Url.Open(checkoutUrl);
+      window.LemonSqueezy.Url.Open(enrichedUrl);
       return;
     }
-    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in a new tab', { checkoutUrl });
-    window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in a new tab', { enrichedUrl });
+    window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
   } catch (err) {
-    console.error('[LemonSqueezy] Checkout open failed', err, { checkoutUrl });
+    console.error('[LemonSqueezy] Checkout open failed', err, { enrichedUrl });
     try {
-      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+      window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
     } catch (fallbackErr) {
       console.error('[LemonSqueezy] Fallback window.open also failed', fallbackErr);
       toast.error('Could not open checkout. Please disable your ad blocker and try again.');
@@ -102,7 +123,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
       }
       if (overlay) {
         event.preventDefault();
-        openLemonSqueezyCheckout(href);
+        openLemonSqueezyCheckout(href); // redirect URL injected inside openLemonSqueezyCheckout
       }
     };
 

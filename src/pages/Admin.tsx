@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,8 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Crown, Shield, Users, Loader2, Search, X, ChevronLeft, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Crown, Shield, Users, Loader2, Search, X, ChevronLeft, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, RefreshCw, Activity, Key, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { OWNER_EMAIL, OWNER_PRIVILEGES } from '@/lib/superadmin';
+
+// ─── System Health Types ──────────────────────────────────────────────────────
+type HealthStatus = 'checking' | 'ok' | 'warn' | 'error';
+interface HealthItem {
+  label: string;
+  status: HealthStatus;
+  detail?: string;
+}
 
 interface UserProfile {
   id: string;
@@ -39,6 +48,68 @@ const Admin = () => {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  // ── System Health ────────────────────────────────────────────────────────────
+  const [health, setHealth] = useState<HealthItem[]>([
+    { label: 'Supabase DB', status: 'checking' },
+    { label: 'OpenAI API Key', status: 'checking' },
+    { label: 'Edge Function', status: 'checking' },
+  ]);
+  const [healthChecking, setHealthChecking] = useState(false);
+
+  const runHealthChecks = useCallback(async () => {
+    setHealthChecking(true);
+    const results: HealthItem[] = [];
+
+    // 1. Supabase DB
+    try {
+      const { error } = await supabase.from('profiles').select('user_id').limit(1);
+      results.push({
+        label: 'Supabase DB',
+        status: error ? 'error' : 'ok',
+        detail: error ? error.message : 'Connected',
+      });
+    } catch (e: any) {
+      results.push({ label: 'Supabase DB', status: 'error', detail: e?.message ?? 'Unreachable' });
+    }
+
+    // 2. OpenAI API Key
+    const apiKey = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ?? '';
+    results.push({
+      label: 'OpenAI API Key',
+      status: apiKey ? 'ok' : 'warn',
+      detail: apiKey ? `Configured (…${apiKey.slice(-4)})` : 'Not set — edge functions use server-side key',
+    });
+
+    // 3. Edge Function ping (generate-proposal OPTIONS)
+    try {
+      const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? '';
+      const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '';
+      const res = await fetch(`${base}/functions/v1/generate-proposal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: anonKey,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ _healthCheck: true }),
+      });
+      // 400 / 422 means the function is alive (just rejecting bad payload)
+      const alive = res.status < 500 || res.status === 405;
+      results.push({
+        label: 'Edge Function',
+        status: alive ? 'ok' : 'error',
+        detail: alive ? `HTTP ${res.status} — function reachable` : `HTTP ${res.status} — function may be down`,
+      });
+    } catch (e: any) {
+      results.push({ label: 'Edge Function', status: 'error', detail: e?.message ?? 'Network error' });
+    }
+
+    setHealth(results);
+    setHealthChecking(false);
+  }, []);
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -55,8 +126,9 @@ const Admin = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchUsers();
+      runHealthChecks();
     }
-  }, [isAdmin]);
+  }, [isAdmin, runHealthChecks]);
 
   // Reset to page 1 when filters or sort changes
   useEffect(() => {
@@ -278,6 +350,71 @@ const Admin = () => {
             </div>
           </div>
         </div>
+
+        {/* ── SuperAdmin Identity Banner ─────────────────────────────────── */}
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Key className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-primary">SuperAdmin: {OWNER_EMAIL}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Unlimited credits · Enterprise B2B · All paywalls bypassed · {OWNER_PRIVILEGES.monthly_credit_limit.toLocaleString()} credits/mo
+              </p>
+            </div>
+          </div>
+          <Badge className="self-start sm:self-center bg-primary/20 text-primary border-primary/30">
+            Tier {OWNER_PRIVILEGES.appsumo_tier} · B2B_ENTERPRISE
+          </Badge>
+        </div>
+
+        {/* ── System Health Panel ───────────────────────────────────────── */}
+        <Card className="mb-8">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">System Health</CardTitle>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={runHealthChecks}
+                disabled={healthChecking}
+                className="h-8 gap-2 text-xs"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${healthChecking ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {health.map((item) => {
+                const icon =
+                  item.status === 'checking' ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> :
+                  item.status === 'ok'       ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> :
+                  item.status === 'warn'     ? <AlertCircle className="h-4 w-4 text-amber-500" /> :
+                                              <AlertCircle className="h-4 w-4 text-destructive" />;
+                const bg =
+                  item.status === 'ok'   ? 'border-emerald-500/20 bg-emerald-500/5' :
+                  item.status === 'warn' ? 'border-amber-500/20 bg-amber-500/5' :
+                  item.status === 'error'? 'border-destructive/20 bg-destructive/5' :
+                                          'border-border bg-muted/30';
+                return (
+                  <div key={item.label} className={`rounded-lg border p-4 ${bg}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {icon}
+                      <span className="text-sm font-semibold">{item.label}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{item.detail ?? 'Checking…'}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

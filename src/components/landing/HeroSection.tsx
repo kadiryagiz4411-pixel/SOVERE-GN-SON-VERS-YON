@@ -1,27 +1,27 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { ArrowRight, Sparkles, Shield, Globe, Target, Download, FileText, Briefcase } from 'lucide-react';
+import { ArrowRight, Sparkles, Shield, Target, Download, FileText, Briefcase, Building2 } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 import { motion } from 'framer-motion';
 
 const translations = {
   en: {
-    badge: 'AI Application Engine — Match, Optimize, Apply',
-    headline1: 'Turn any job post into',
-    headline2: 'an interview-ready application.',
+    badge: 'AI Proposal & B2B Pitch Generator — Win More Clients',
+    headline1: 'Win more clients with',
+    headline2: 'AI-crafted proposals.',
     headline3: '',
-    subtitle: 'Sovereign is an application optimizer and maker: match the job description, bypass ATS filters, and generate targeted proposals or cover letters built for hiring-manager callbacks.',
-    ctaApplication: 'Optimize New Application',
-    ctaCV: 'Open CV Builder',
+    subtitle: 'Sovereign is an AI-powered proposal & B2B pitch generator for agencies and freelancers. Create high-converting pitches, optimize CVs for ATS, and land more contracts — 3× faster.',
+    ctaApplication: 'Generate New Proposal',
+    ctaCV: 'ATS CV Builder',
     downloadApp: 'Download App',
-    microtext: 'No credit card required · 15 daily proposals + 1 free CV',
+    microtext: 'No credit card required · 15 daily proposals + ATS CV optimization',
     platformLabel: 'Works with',
     signals: [
-      'Upwork & Fiverr optimized',
-      '50+ language support',
-      'Corporate ATS-ready CVs',
-      'Acceptance prediction',
+      'High-Converting Proposals',
+      'B2B Agency Pitches',
+      'ATS-Optimized CVs',
+      'Acceptance Prediction',
     ],
   },
   tr: {
@@ -85,9 +85,10 @@ const platforms = [
   { name: 'Fiverr', color: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30' },
   { name: 'Freelancer', color: 'from-blue-500/20 to-blue-600/20 border-blue-500/30' },
   { name: 'LinkedIn', color: 'from-sky-500/20 to-sky-600/20 border-sky-500/30' },
+  { name: 'Direct B2B', color: 'from-violet-500/20 to-violet-600/20 border-violet-500/30' },
 ];
 
-const signalIcons = [Briefcase, Globe, Shield, Target];
+const signalIcons = [Briefcase, Building2, Shield, Target];
 
 export const HeroSection = () => {
   const { language } = useLanguage();
