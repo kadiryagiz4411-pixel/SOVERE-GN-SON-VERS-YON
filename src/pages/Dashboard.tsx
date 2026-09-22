@@ -13,7 +13,8 @@ import { usePlan } from '@/contexts/PlanContext';
 import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
-import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
+import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
+import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateSovereignContent, generateProposalFallback } from '@/services/aiService';
 import { supabaseAnonKey } from '@/integrations/supabase/client';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
@@ -662,9 +663,12 @@ const Dashboard = () => {
       return;
     }
 
-    // Credit check — block ALL plans when credits are below COST_PER_ACTION
-    const currentCredits = profile?.credits_balance ?? 0;
-    if (!hasActionCredits(currentCredits)) {
+    // Credit check — bypass for superadmin / BYOK / unlimited; block everyone else.
+    // IMPORTANT: use session remainingCredits (not raw profile.credits_balance) so the
+    // SessionContext's 999999 superadmin override is always respected.
+    const isUnlimited = isSuperAdmin || isByokUnlimited || hasBYOKAccess;
+    const effectiveBalance = isUnlimited ? 999999 : (remainingCredits ?? profile?.credits_balance ?? 0);
+    if (!hasCreditsOrUnlimited(effectiveBalance, isUnlimited)) {
       setShowCreditsModal(true);
       return;
     }
@@ -749,6 +753,13 @@ const Dashboard = () => {
         if (response.status === 429) {
           toast.error(language === 'tr' ? 'Hız limiti aşıldı. Bir süre bekleyip tekrar deneyin.' : 'Rate limit exceeded. Please wait a moment and try again.');
         } else if (response.status === 402) {
+          // Unlimited / BYOK users should NEVER be blocked by a backend 402.
+          // The backend may not recognise them; fall through to client-side fallback.
+          if (should402BypassForUnlimited(user?.email, profile, isSuperAdmin || isByokUnlimited || hasBYOKAccess)) {
+            console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user — proceeding via client-side fallback.');
+            // Let the code fall through; the catch block will handle it.
+            throw new Error('__bypass_402__');
+          }
           toast.error(language === 'tr' ? 'AI kredileri tükendi. Daha sonra tekrar deneyin.' : 'AI credits exhausted. Please try again later.');
         } else if (result.error?.includes('Daily limit')) {
           setUpgradeFeature('Unlimited Proposals');
@@ -823,16 +834,24 @@ const Dashboard = () => {
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
       const rawMsg = err?.message || err?.toString() || 'Unknown error';
-      console.error('[SOVEREIGN_ERR] Dashboard handleGenerate:', rawMsg, err);
+      const isBypass402 = rawMsg === '__bypass_402__';
+      if (!isBypass402) {
+        console.error('[SOVEREIGN_ERR] Dashboard handleGenerate:', rawMsg, err);
+      }
 
       // ── Client-side OpenAI fallback ─────────────────────────────────────────
-      // If the edge function is unreachable but VITE_OPENAI_API_KEY / BYOK is set,
-      // generate the proposal directly on the client.
+      // Triggered by:
+      //   a) Network/CORS error reaching the edge function, OR
+      //   b) Backend 402 for an unlimited/BYOK user (__bypass_402__ sentinel), OR
+      //   c) Any unexpected exception when VITE_OPENAI_API_KEY / BYOK key is set.
       try {
         const fallbackProposal = await generateProposalFallback(jobDescription, profile, customProfession || undefined);
         if (fallbackProposal) {
           setGeneratedProposal(fallbackProposal);
           try { localStorage.setItem('sovereign_last_proposal', fallbackProposal); } catch {}
+          if (isBypass402) {
+            console.info('[CREDIT_BYPASS_OVERRIDE] Client-side generation succeeded for unlimited user.');
+          }
           toast.success(
             language === 'tr'
               ? '✅ Teklif doğrudan bağlantıyla üretildi.'
@@ -842,6 +861,15 @@ const Dashboard = () => {
         }
       } catch (fallbackErr: any) {
         console.error('[SOVEREIGN_ERR] Dashboard handleGenerate — client fallback also failed:', fallbackErr?.message ?? fallbackErr);
+      }
+
+      // If this was a bypass-402 attempt and the client fallback also failed,
+      // give a more helpful message than the generic one.
+      if (isBypass402) {
+        const msg = 'API Key Missing — add your OpenAI key in Profile → BYOK Settings to generate proposals without credits.';
+        setGenerateError(msg);
+        toast.error(msg);
+        return;
       }
 
       // Both paths failed — surface explicit diagnostic message to the user.
@@ -1405,7 +1433,7 @@ const Dashboard = () => {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (!hasActionCredits(profile?.credits_balance ?? 0)) {
+              if (!hasCreditsOrUnlimited(profile?.credits_balance ?? 0, isSuperAdmin || isByokUnlimited || hasBYOKAccess)) {
                 setShowCreditsModal(true);
                 return;
               }

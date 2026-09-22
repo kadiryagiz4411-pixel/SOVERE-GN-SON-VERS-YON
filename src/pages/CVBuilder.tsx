@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
@@ -8,11 +8,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { useSession } from '@/contexts/SessionContext';
+import { OWNER_EMAIL } from '@/lib/superadmin';
 import { invokeCvFunction } from '@/lib/edgeFunctions';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
-import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
+import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
+import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
@@ -84,6 +87,7 @@ const CVBuilder = () => {
   const { t, language } = useLanguage();
   const cv = (t as any).cvBuilder || {} as any;
   const navigate = useNavigate();
+  const session = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [plan, setPlan] = useState('free');
   const [creditsBalance, setCreditsBalance] = useState(0);
@@ -153,7 +157,17 @@ const CVBuilder = () => {
   }, [navigate]);
 
   const handleGenerate = async () => {
-    if (!hasActionCredits(creditsBalance)) {
+    // ── Bypass-aware credit gate ────────────────────────────────────────────────
+    // Use session context values (not raw DB creditsBalance) so the 999999
+    // superadmin override is always respected. isByokUnlimited / hasBYOKAccess
+    // also grant unlimited access without touching local state.
+    const isCVSuperAdmin =
+      user?.email === OWNER_EMAIL ||
+      session.user?.email === OWNER_EMAIL ||
+      session.isByokUnlimited ||
+      session.hasBYOKAccess;
+    const effectiveCVBalance = isCVSuperAdmin ? 999999 : (session.remainingCredits > 0 ? session.remainingCredits : creditsBalance);
+    if (!hasCreditsOrUnlimited(effectiveCVBalance, isCVSuperAdmin)) {
       setShowCreditsModal(true);
       return;
     }
@@ -254,9 +268,15 @@ const CVBuilder = () => {
 
       if (error || !result) {
         console.error('[sovereign] CV invoke failed', { status, error });
-        if (status === 429) toast.error('Rate limit — please wait and retry.');
-        else if (status === 402) toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
-        else if (status === 404 || status === 0) {
+        if (status === 429) {
+          toast.error('Rate limit — please wait and retry.');
+        } else if (status === 402) {
+          // Unlimited / BYOK users should never be blocked by a backend 402.
+          if (should402BypassForUnlimited(user?.email, undefined, isCVSuperAdmin)) {
+            console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user on CV — no client fallback available for CV, showing credit prompt.');
+          }
+          toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
+        } else if (status === 404 || status === 0) {
           toast.error('CV service is unavailable. Please try again in a moment.');
         } else {
           const isNetworkErr = status === 0 || (error && /fetch|network|CORS/i.test(error));

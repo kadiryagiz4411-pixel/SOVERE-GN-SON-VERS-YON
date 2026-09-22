@@ -19,6 +19,7 @@ import { hasEnoughCredits, deductCredit } from '@/services/creditService';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { prepareAiExecution, CreditLimitError, FeatureForbiddenError } from '@/lib/ai-engine';
 import { isOwnerEmail } from '@/lib/superadmin';
+import { hasByokKey } from '@/services/aiService';
 import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -207,10 +208,12 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
 
   const { data: auth } = await supabase.auth.getUser();
   const owner = isOwnerEmail(auth.user?.email);
+  // Also check localStorage BYOK key (set via Profile → BYOK Settings)
+  const localByok = hasByokKey();
 
   // 1. Resolve API key + BYOK status
   const { key: apiKey, isByok } = await resolveApiKey(userId);
-  const skipCredits = owner || isByok;
+  const skipCredits = owner || isByok || localByok;
   if (!apiKey) {
     throw new Error(
       'No OpenAI API key configured. Add your key in Profile → Settings or contact support.',

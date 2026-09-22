@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/contexts/SessionContext';
+import { OWNER_EMAIL } from '@/lib/superadmin';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { exportCVAsPDF } from '@/lib/cvExport';
 import { CVDiffViewer } from '@/components/dashboard/CVDiffViewer';
@@ -70,8 +72,11 @@ export const CVOptimizerModal = ({
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { isByokUnlimited, hasBYOKAccess, user: sessionUser } = useSession();
+  const isModalUnlimited = isByokUnlimited || hasBYOKAccess || sessionUser?.email === OWNER_EMAIL;
   const isPaid = userPlan !== 'free';
-  const hasCredits = hasActionCredits(creditsBalance);
+  // Bypass credit check for superadmin / BYOK users.
+  const hasCredits = isModalUnlimited || hasActionCredits(creditsBalance);
   const canUnlock = hasCredits;
 
   const txt = {
