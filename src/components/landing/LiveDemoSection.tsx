@@ -13,6 +13,7 @@ import { Loader2, Lock, Sparkles, ArrowRight, TrendingUp } from 'lucide-react';
 import { getCheckoutUrl } from '@/lib/plans';
 import { trackEvent } from '@/lib/analytics';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { toast } from 'sonner';
 
 const translations = {
   en: {
@@ -185,13 +186,29 @@ export const LiveDemoSection = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = () => {
-    if (!selectedRole || !selectedPlatform) return;
+    if (!selectedRole || !selectedPlatform) {
+      // Give the user clear feedback instead of silently doing nothing.
+      if (!selectedRole && !selectedPlatform) {
+        toast.info('Select your role and platform to see the preview.');
+      } else if (!selectedRole) {
+        toast.info('Please select your role first.');
+      } else {
+        toast.info('Please select a platform to continue.');
+      }
+      return;
+    }
     trackEvent('cta_click', { label: 'demo_generate', source: 'landing_demo' });
     setIsGenerating(true);
     setTimeout(() => {
-      const key = getDemoKey(selectedRole, selectedPlatform);
-      setDemoResult(DEMO_OUTPUTS[key]);
-      setIsGenerating(false);
+      try {
+        const key = getDemoKey(selectedRole, selectedPlatform);
+        setDemoResult(DEMO_OUTPUTS[key]);
+      } catch {
+        // Fallback to first demo entry if lookup fails
+        setDemoResult(DEMO_OUTPUTS[Object.keys(DEMO_OUTPUTS)[0]]);
+      } finally {
+        setIsGenerating(false);
+      }
     }, 1500);
   };
 
@@ -245,7 +262,7 @@ export const LiveDemoSection = () => {
               size="lg"
               className="h-12 px-8"
               onClick={handleGenerate}
-              disabled={!selectedRole || !selectedPlatform || isGenerating}
+              disabled={isGenerating}
             >
               {isGenerating ? (
                 <>
