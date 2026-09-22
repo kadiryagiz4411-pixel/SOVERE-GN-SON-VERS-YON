@@ -275,6 +275,8 @@ const CVBuilder = () => {
         return;
       }
       setGeneratedCV(result.cv);
+      // LocalStorage backup — user never loses content even if Supabase is down.
+      try { localStorage.setItem('sovereign_last_cv', result.cv); } catch {}
       if (result.acceptanceScore) setAcceptanceScore(result.acceptanceScore);
       if (typeof result.creditsRemaining === 'number') {
         setCreditsBalance(result.creditsRemaining);

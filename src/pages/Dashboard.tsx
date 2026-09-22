@@ -139,6 +139,9 @@ const Dashboard = () => {
   const [autoFillApplied, setAutoFillApplied] = useState(false);
   const [autoGenerateTriggered, setAutoGenerateTriggered] = useState(false);
 
+  // Custom profession / specialty (injected into AI system prompt)
+  const [customProfession, setCustomProfession] = useState<string>('');
+
   // ATS Analyzer
   const [showATSAnalyzer, setShowATSAnalyzer] = useState(false);
 
@@ -717,6 +720,8 @@ const Dashboard = () => {
               experience: profile.experience,
               hourly_rate: profile.hourly_rate,
             } : undefined,
+            // Profession / specialty — injected into system prompt
+            customProfession: customProfession.trim() || undefined,
             // Freelance-specific params
             userSegment,
             platformType: userSegment === 'freelancer' ? platformType : undefined,
@@ -761,7 +766,9 @@ const Dashboard = () => {
       }
 
       setGeneratedProposal(result.proposal);
-      
+      // LocalStorage backup — user never loses content even if Supabase is down.
+      try { localStorage.setItem('sovereign_last_proposal', result.proposal); } catch {}
+
       // For free users: track view count
       if (isFreePlan) {
         const newCount = incrementProposalViews();
@@ -821,9 +828,10 @@ const Dashboard = () => {
       // If the edge function is unreachable but VITE_OPENAI_API_KEY is set
       // (BYOK / admin key), generate the proposal directly on the client.
       try {
-        const fallbackProposal = await generateProposalFallback(jobDescription, profile);
+        const fallbackProposal = await generateProposalFallback(jobDescription, profile, customProfession || undefined);
         if (fallbackProposal) {
           setGeneratedProposal(fallbackProposal);
+          try { localStorage.setItem('sovereign_last_proposal', fallbackProposal); } catch {}
           toast.success(
             language === 'tr'
               ? '✅ Teklif doğrudan bağlantıyla üretildi.'
@@ -1014,10 +1022,15 @@ const Dashboard = () => {
 
   const isFreelancer = userSegment === 'freelancer';
   const creditsBalance = remainingCredits || profile?.credits_balance || 0;
-  const currentCredits = isByokUnlimited || hasBYOKAccess
+  // SuperAdmin always sees 999999 from SessionContext; non-SA reads profile DB.
+  const currentCredits = isSuperAdmin || isByokUnlimited || hasBYOKAccess
     ? remainingCredits
     : (profile?.remaining_credits ?? creditsBalance ?? 0);
-  const maxCredits = profile?.monthly_credit_limit || 400;
+  const maxCredits = isSuperAdmin ? 999999 : (profile?.monthly_credit_limit || 400);
+  // Human-readable label for credit displays that should never show a raw number for SA.
+  const creditDisplayLabel = isSuperAdmin || isByokUnlimited || hasBYOKAccess
+    ? '∞ UNLIMITED'
+    : currentCredits.toLocaleString();
   const percentage = maxCredits > 0
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
     : 0;
@@ -1109,14 +1122,20 @@ const Dashboard = () => {
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.creditBalance}</p>
-                    <p className="mt-2 text-2xl font-bold text-foreground">{currentCredits.toLocaleString()}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {maxCredits.toLocaleString()}</p>
-                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
+                    <p className={`mt-2 text-2xl font-bold ${isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400' : 'text-foreground'}`}>
+                      {creditDisplayLabel}
+                    </p>
+                    {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
+                      <>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {maxCredits.toLocaleString()}</p>
+                        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.currentPlan}</p>
@@ -1183,16 +1202,18 @@ const Dashboard = () => {
                     </div>
                     <div className="rounded-2xl border border-border bg-background/60 p-3 min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">{dashboardUiText.creditsReady}</p>
-                      <div className="mt-1.5 flex items-center gap-1.5 text-foreground">
+                      <div className={`mt-1.5 flex items-center gap-1.5 ${isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400' : 'text-foreground'}`}>
                         <Coins className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                        <span className="text-lg font-bold">{currentCredits.toLocaleString()}</span>
+                        <span className="text-lg font-bold">{creditDisplayLabel}</span>
                       </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
+                      {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
+                        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1240,9 +1261,14 @@ const Dashboard = () => {
                       <div>
                         <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                           <span>{dashboardUiText.creditBalance}</span>
-                          <span>{currentCredits.toLocaleString()} / {maxCredits.toLocaleString()}</span>
+                          <span className={isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400 font-semibold' : ''}>
+                            {creditDisplayLabel}
+                            {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && ` / ${maxCredits.toLocaleString()}`}
+                          </span>
                         </div>
-                        <Progress value={percentage} className="h-2.5" />
+                        {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
+                          <Progress value={percentage} className="h-2.5" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1434,6 +1460,43 @@ const Dashboard = () => {
                   />
                 </div>
               )}
+
+              {/* ── Profession / Specialty Input ───────────────────────── */}
+              <div className="mb-4 pb-4 border-b border-border">
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+                  <Wand2 className="w-3 h-3" />
+                  Your Profession / Specialty
+                  <span className="ml-1 text-[10px] text-muted-foreground/60">(AI adapts tone & terminology)</span>
+                </label>
+                <input
+                  type="text"
+                  value={customProfession}
+                  onChange={(e) => setCustomProfession(e.target.value)}
+                  placeholder='e.g. Full-stack Developer, Gastronomy Specialist, B2B Sales Consultant…'
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                {/* Quick-select suggestion chips */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[
+                    'Full-stack Developer', 'UI/UX Designer', 'Copywriter', 'SEO Specialist',
+                    'Digital Marketer', 'Data Analyst', 'Video Editor', 'Chef / Gastronomy',
+                    'B2B Sales Consultant', 'Graphic Designer', 'Product Manager', 'DevOps Engineer',
+                  ].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setCustomProfession(chip)}
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                        customProfession === chip
+                          ? 'border-primary/60 bg-primary/15 text-primary'
+                          : 'border-border bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <label className="text-sm font-medium text-foreground mb-3 flex items-center justify-between">
                 <span>{isFreelancer ? txt.clientBrief : txt.inputLabel}</span>

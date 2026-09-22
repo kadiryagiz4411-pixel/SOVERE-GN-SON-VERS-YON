@@ -313,6 +313,7 @@ export async function generateProposalFallback(
     experience?: string | null;
     hourly_rate?: number | null;
   } | null,
+  profession?: string,
 ): Promise<string | null> {
   const key = getApiKey();
   if (!key) return null;
@@ -320,17 +321,23 @@ export async function generateProposalFallback(
   const skillsList = (profile?.skills ?? []).slice(0, 12).join(', ') || 'Not specified';
   const experience = (profile?.experience ?? '').slice(0, 500) || 'Not specified';
 
-  const systemPrompt =
-    'You are a world-class freelance proposal writer specialising in high-conversion client pitches. ' +
-    'Write natural, specific, and compelling proposals. Avoid generic filler. ' +
-    'Lead with the client\'s problem, prove expertise, end with a clear CTA.';
+  // Dynamic system prompt: adapt tone & terminology to the user's profession.
+  const professionLine = profession?.trim()
+    ? `You are an expert ${profession.trim()}. Adapt the proposal's tone, terminology, value proposition, and deliverables specifically to match the standards and client expectations of the ${profession.trim()} industry.`
+    : 'You are a world-class freelance proposal writer specialising in high-conversion client pitches.';
 
-  const userPrompt = `Write a professional, high-converting freelance proposal for this opportunity.
+  const systemPrompt =
+    professionLine +
+    ' Write natural, specific, and compelling proposals. Avoid generic filler.' +
+    ' Lead with the client\'s problem, prove expertise, end with a clear CTA.';
+
+  const userPrompt = `Write a professional, high-converting proposal for this opportunity.
 
 JOB / CLIENT BRIEF:
 ${jobDescription.slice(0, 2500)}
 
 CANDIDATE:
+${profession ? `- Profession: ${profession}` : ''}
 - Skills: ${skillsList}
 - Experience: ${experience}
 ${profile?.hourly_rate ? `- Rate: $${profile.hourly_rate}/hr` : ''}

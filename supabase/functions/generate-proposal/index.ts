@@ -237,6 +237,8 @@ Deno.serve(async (req) => {
     const platformType = body.platformType || '';
     const professionCluster = body.professionCluster || '';
     const selectedProfession = body.selectedProfession || '';
+    // User-typed profession / specialty — injected into the AI system prompt.
+    const customProfession = typeof body.customProfession === 'string' ? body.customProfession.trim().slice(0, 120) : '';
     const outputLanguage = body.outputLanguage || '';
     const culturalTone = body.culturalTone || '';
 
@@ -380,6 +382,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- Dynamic profession adapter (applied to ALL segments) ----
+    // When the user specifies their profession, we prepend an expert persona line
+    // so the AI adapts tone, vocabulary, and deliverables to that field.
+    const professionAdapterLine = customProfession
+      ? `You are an expert ${customProfession}. Adapt your proposal's tone, terminology, value proposition, and deliverables specifically to match the standards and client expectations of the ${customProfession} industry.\n\n`
+      : '';
+
     // ---- Build system prompt based on segment ----
     let baseSystemPrompt: string;
     let userPromptBase: string;
@@ -388,7 +397,7 @@ Deno.serve(async (req) => {
       const clusterTemplate = CLUSTER_TEMPLATES[professionCluster] || CLUSTER_TEMPLATES.technical;
       const platformConfig = PLATFORM_CONFIGS[platformType] || PLATFORM_CONFIGS.upwork;
 
-      baseSystemPrompt = `You are a skilled freelance professional writing your own proposal. Write naturally—like a real person, not a template engine.
+      baseSystemPrompt = `${professionAdapterLine}You are a skilled freelance professional writing your own proposal. Write naturally—like a real person, not a template engine.
 
 PLATFORM: ${platformConfig.style}
 TARGET LENGTH: ${platformConfig.lengthRange}
@@ -432,7 +441,7 @@ Platform: ${platformType || 'upwork'} | Cluster: ${professionCluster || 'technic
 Write the proposal now following the cluster template. No explanations — just the text I'll send.`;
     } else {
       // Corporate / Job Seeker mode — existing logic
-      baseSystemPrompt = `You are a skilled professional writing your own job application. Write naturally—like a real person who genuinely wants this role, not a template engine.
+      baseSystemPrompt = `${professionAdapterLine}You are a skilled professional writing your own job application. Write naturally—like a real person who genuinely wants this role, not a template engine.
 
 TONE INSTRUCTION: ${toneHint}
 
