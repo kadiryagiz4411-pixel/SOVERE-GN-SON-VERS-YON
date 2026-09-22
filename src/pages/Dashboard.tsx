@@ -15,6 +15,7 @@ import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits } from '@/lib/credits';
 import { generateSovereignContent } from '@/services/aiService';
+import { supabaseAnonKey } from '@/integrations/supabase/client';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
@@ -635,8 +636,11 @@ const Dashboard = () => {
     }
 
     if (!user) {
-      toast.error(language === 'tr' ? 'Proposal üretmek için giriş yapın' : 'Please sign in to generate proposals');
-      navigate('/auth?mode=signup');
+      // Show auth modal rather than navigating away so the user doesn't lose their draft.
+      toast.error(
+        language === 'tr' ? 'Proposal üretmek için giriş yapın' : 'Please sign in to generate proposals',
+        { action: { label: 'Sign in', onClick: () => navigate('/auth?mode=signup') } },
+      );
       return;
     }
 
@@ -659,17 +663,35 @@ const Dashboard = () => {
     setActiveVariant('');
     setFreelanceScore(null);
     setCompetitiveScoreResult(null);
+
+    // Safety valve: reset isGenerating after 60 s no matter what, so the button
+    // can never get permanently stuck in a loading state.
+    const safetyTimer = setTimeout(() => {
+      setIsGenerating(false);
+      console.warn('[Sovereign] handleGenerate safety timeout fired — resetting isGenerating');
+    }, 60_000);
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error(language === 'tr' ? 'Lütfen giriş yapın' : 'Please log in'); return; }
+      if (!session) {
+        toast.error(language === 'tr' ? 'Lütfen giriş yapın' : 'Please log in');
+        return;
+      }
+
+      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+      if (!supabaseUrl) {
+        toast.error('Configuration error: Supabase URL missing. Contact support.');
+        return;
+      }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-proposal`,
+        `${supabaseUrl}/functions/v1/generate-proposal`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            // Include both apikey and Authorization for maximum Edge Function compatibility
+            'apikey': supabaseAnonKey,
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
@@ -779,7 +801,7 @@ const Dashboard = () => {
       toast.success(txt.proposalGenerated);
     } catch (err: any) {
       console.error('Generation error:', err);
-      // Network / CORS failures: use the canonical fallback message from generateSovereignContent.
+      // Network / CORS failures: use the canonical fallback message.
       const isNetworkError =
         err instanceof TypeError ||
         (err?.message && /fetch|network|CORS|failed to fetch/i.test(err.message));
@@ -789,6 +811,7 @@ const Dashboard = () => {
       setGenerateError(msg);
       toast.error(msg);
     } finally {
+      clearTimeout(safetyTimer);
       setIsGenerating(false);
     }
   };

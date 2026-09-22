@@ -224,9 +224,18 @@ const CVBuilder = () => {
     setGenerateError(null);
     setAcceptanceScore(null);
 
+    // Safety valve: the button can never get permanently stuck.
+    const safetyTimer = setTimeout(() => {
+      setGenerating(false);
+      console.warn('[Sovereign] CV handleGenerate safety timeout — resetting generating state');
+    }, 60_000);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error(cv.errorLogin || 'Please log in'); return; }
+      if (!session) {
+        toast.error(cv.errorLogin || 'Please log in');
+        return;
+      }
 
       const { data: result, error, status } = await invokeCvFunction<{
         cv?: string;
@@ -247,8 +256,16 @@ const CVBuilder = () => {
         console.error('[sovereign] CV invoke failed', { status, error });
         if (status === 429) toast.error('Rate limit — please wait and retry.');
         else if (status === 402) toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
-        else if (status === 404 || status === 0) toast.error('CV service is unavailable. Please try again.');
-        else toast.error(error || 'Failed to generate CV');
+        else if (status === 404 || status === 0) {
+          toast.error('CV service is unavailable. Please try again in a moment.');
+        } else {
+          const isNetworkErr = status === 0 || (error && /fetch|network|CORS/i.test(error));
+          toast.error(
+            isNetworkErr
+              ? 'Service is currently experiencing high load. Please try again in a few moments.'
+              : (error || 'Failed to generate CV'),
+          );
+        }
         return;
       }
 
@@ -268,10 +285,14 @@ const CVBuilder = () => {
       toast.success(cv.successMsg || 'CV generated successfully!');
     } catch (err: any) {
       console.error('[sovereign] unexpected error', err);
-      const msg = err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.';
+      const isNetworkErr = err instanceof TypeError || /fetch|network|CORS|failed to fetch/i.test(err?.message ?? '');
+      const msg = isNetworkErr
+        ? 'Service is currently experiencing high load. Please try again in a few moments.'
+        : (err?.message || cv.errorGenFailed || 'CV generation failed. Please retry.');
       setGenerateError(msg);
       toast.error(msg);
     } finally {
+      clearTimeout(safetyTimer);
       setGenerating(false);
     }
   };
