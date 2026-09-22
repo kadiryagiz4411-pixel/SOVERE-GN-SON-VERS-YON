@@ -2,6 +2,45 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { APP_VERSION, VERSION_STORAGE_KEY, PRESERVED_KEYS } from "./config/version.ts";
+
+// ── 1. Aggressive Service Worker Unregister ──────────────────────────────────
+// Removes any stale Workbox / PWA service workers so cached assets from a
+// previous build can never serve outdated JS/CSS.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().catch(() => {});
+    }
+  }).catch(() => {});
+}
+
+// ── 2. Version-based localStorage cache flush ────────────────────────────────
+// If the stored version mismatches the current APP_VERSION, wipe all stale
+// cached state (but preserve auth tokens and user-owned keys), then do a
+// single hard reload so the app starts fresh.
+try {
+  const stored = localStorage.getItem(VERSION_STORAGE_KEY);
+  if (stored !== APP_VERSION) {
+    // Collect all keys to remove (everything except preserved ones).
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && !PRESERVED_KEYS.has(k) && k !== VERSION_STORAGE_KEY) {
+        toRemove.push(k);
+      }
+    }
+    toRemove.forEach((k) => { try { localStorage.removeItem(k); } catch {} });
+    localStorage.setItem(VERSION_STORAGE_KEY, APP_VERSION);
+
+    // Only reload once — guard against infinite loops.
+    if (stored !== null) {
+      window.location.reload();
+    }
+  }
+} catch {
+  // localStorage unavailable (private mode / storage full) — silent no-op.
+}
 
 // ── Global DOM patch ────────────────────────────────────────────────────────
 // Prevents React "removeChild / insertBefore" crashes caused by Google

@@ -198,12 +198,26 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   });
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col">
       <ErrorBoundary fallback={null}>
         <SubscriptionRequiredModal
           open={!isSuperAdmin && b2bTrial.trialExpiredUnpaid && isB2BEnterprisePath(location.pathname)}
         />
       </ErrorBoundary>
+
+      {/* ── SuperAdmin Unlimited Access Banner ─────────────────────────────── */}
+      {isSuperAdmin && (
+        <div className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600/20 via-purple-600/20 to-indigo-600/20 border-b border-indigo-500/30 px-4 py-1.5 text-xs font-semibold text-indigo-300 z-50 flex-shrink-0">
+          <Zap className="w-3 h-3 text-indigo-400 animate-pulse" />
+          <span>⚡ SOVEREIGN UNLIMITED ACCESS ACTIVE</span>
+          <span className="text-indigo-500">|</span>
+          <span>BYOK READY</span>
+          <span className="text-indigo-500">|</span>
+          <span className="text-indigo-400">∞ Credits · All Features Unlocked</span>
+        </div>
+      )}
+
+      <div className="flex flex-1 min-h-0">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-card fixed h-full z-30">
         {/* Brand */}
@@ -386,6 +400,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
         featureName={lockModal?.featureName ?? 'Locked feature'}
         requiredTier={lockModal?.required ?? 'elite'}
       />
+      </div>{/* end flex-1 flex */}
     </div>
   );
 });

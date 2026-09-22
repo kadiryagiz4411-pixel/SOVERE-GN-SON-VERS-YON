@@ -31,7 +31,12 @@ import {
   CheckCircle,
   PauseCircle,
   FileText,
+  Eye,
+  EyeOff,
+  Zap,
+  Trash2,
 } from 'lucide-react';
+import { BYOK_STORAGE_KEY, hasByokKey } from '@/services/aiService';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PauseSubscriptionModal } from '@/components/subscription/PauseSubscriptionModal';
@@ -48,10 +53,44 @@ const ProfileSettings = () => {
   const [orgKeyLoading, setOrgKeyLoading] = useState(false);
   const [orgRedeemed, setOrgRedeemed] = useState(false);
 
+  // ── BYOK state ──────────────────────────────────────────────────────────────
+  const [byokKey, setByokKey] = useState<string>(() => {
+    try { return localStorage.getItem(BYOK_STORAGE_KEY) ?? ''; } catch { return ''; }
+  });
+  const [byokVisible, setByokVisible] = useState(false);
+  const [byokActive, setByokActive] = useState<boolean>(() => hasByokKey());
+
   const { profile, loading: profileLoading, updateProfile, refreshProfile } = useProfile(user);
   const subscription = useSubscription();
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+
+  const handleSaveByok = () => {
+    const trimmed = byokKey.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith('sk-')) {
+      toast.error('Invalid key — OpenAI keys start with "sk-"');
+      return;
+    }
+    try {
+      localStorage.setItem(BYOK_STORAGE_KEY, trimmed);
+      setByokActive(true);
+      toast.success('✅ BYOK key saved — you now have unlimited AI access via your own key.');
+    } catch {
+      toast.error('Could not save key to storage. Check browser permissions.');
+    }
+  };
+
+  const handleRemoveByok = () => {
+    try {
+      localStorage.removeItem(BYOK_STORAGE_KEY);
+      setByokKey('');
+      setByokActive(false);
+      toast.info('BYOK key removed. Requests will use the shared service again.');
+    } catch {
+      toast.error('Could not remove key from storage.');
+    }
+  };
 
   const handleRedeemOrgKey = async () => {
     if (!orgKey.trim() || !user) return;
@@ -603,6 +642,87 @@ const ProfileSettings = () => {
             </div>
           </div>
         )}
+
+        {/* ── BYOK (Bring Your Own Key) Section ───────────────────────────────── */}
+        <div id="byok" className="mt-6 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-4 scroll-mt-24">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+              <Key className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-semibold text-foreground">Bring Your Own Key (BYOK)</h3>
+                {byokActive && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <Zap className="w-2.5 h-2.5" />
+                    BYOK ACTIVE — UNLIMITED
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Connect your personal OpenAI API key for unlimited AI generation. Your key is stored only in your browser and never sent to our servers.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={byokVisible ? 'text' : 'password'}
+                placeholder="sk-..."
+                value={byokKey}
+                onChange={(e) => setByokKey(e.target.value)}
+                className="pr-10 text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setByokVisible((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {byokVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              onClick={handleSaveByok}
+              disabled={!byokKey.trim() || !byokKey.trim().startsWith('sk-')}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0"
+            >
+              Save Key
+            </Button>
+            {byokActive && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRemoveByok}
+                className="border-red-500/40 text-red-400 hover:bg-red-500/10 shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {byokActive && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <p className="text-xs text-emerald-400">
+                Your OpenAI key is active. All AI calls bypass the shared service — you have <strong>unlimited</strong> generations.
+              </p>
+            </div>
+          )}
+
+          <p className="text-[11px] text-muted-foreground">
+            💡 Get your key at{' '}
+            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+              platform.openai.com/api-keys
+            </a>
+            . BYOK usage is billed directly to your OpenAI account at{' '}
+            <a href="https://openai.com/pricing" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+              OpenAI rates
+            </a>
+            .
+          </p>
+        </div>
 
         {/* Tips Card */}
         <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4">

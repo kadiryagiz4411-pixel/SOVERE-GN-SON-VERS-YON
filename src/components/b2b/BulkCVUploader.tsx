@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   JobPosting,
   UploadQueueItem,
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const MAX_FILES = 50;
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
 const ACCEPTED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -36,10 +38,26 @@ export default function BulkCVUploader({ jobPosting, orgId, onComplete }: Props)
   }, []);
 
   const addFiles = useCallback((newFiles: File[]) => {
-    const valid = newFiles
-      .filter(f => ACCEPTED_TYPES.includes(f.type))
-      .slice(0, MAX_FILES - queue.length);
+    const typeRejected: string[] = [];
+    const sizeRejected: string[] = [];
+    const valid: File[] = [];
 
+    for (const f of newFiles) {
+      if (!ACCEPTED_TYPES.includes(f.type)) {
+        typeRejected.push(f.name);
+      } else if (f.size > MAX_FILE_BYTES) {
+        sizeRejected.push(f.name);
+      } else if (valid.length + queue.length < MAX_FILES) {
+        valid.push(f);
+      }
+    }
+
+    if (typeRejected.length > 0) {
+      toast.error(`Invalid File Format — only PDF, DOCX, and TXT are accepted: ${typeRejected.slice(0, 3).join(', ')}${typeRejected.length > 3 ? ` +${typeRejected.length - 3} more` : ''}`);
+    }
+    if (sizeRejected.length > 0) {
+      toast.error(`File Too Large — max 10 MB per file: ${sizeRejected.slice(0, 3).join(', ')}${sizeRejected.length > 3 ? ` +${sizeRejected.length - 3} more` : ''}`);
+    }
     if (valid.length === 0) return;
 
     setQueue(prev => [
@@ -91,8 +109,29 @@ export default function BulkCVUploader({ jobPosting, orgId, onComplete }: Props)
         concurrency: 4,
         onItemUpdate: (relativeIndex, update) => {
           updateItem(startIndex + relativeIndex, update);
+          // Surface per-item errors as structured toasts instead of a generic modal.
+          if (update.status === "error" && update.error) {
+            const fileName = pending[relativeIndex]?.file?.name ?? 'File';
+            const errMsg = update.error.length > 120 ? update.error.slice(0, 120) + '…' : update.error;
+            toast.error(`${fileName} — ${errMsg}`);
+          }
         },
       });
+      const doneCount = queue.filter(q => q.status === "done").length + pending.length;
+      toast.success(`✅ ${doneCount} CV${doneCount !== 1 ? 's' : ''} evaluated successfully.`);
+    } catch (err: any) {
+      const isNetwork = err instanceof TypeError || /fetch|network|CORS|failed to fetch/i.test(err?.message ?? '');
+      if (isNetwork) {
+        toast.error('Connection Timeout — the evaluation service is temporarily unavailable. Please retry in a moment.');
+      } else {
+        toast.error(`Batch Processing Error — ${err?.message ?? 'Unknown error. Please try again.'}`);
+      }
+      // Mark all still-processing items as errored so buttons unfreeze.
+      setQueue(prev => prev.map(item =>
+        (item.status === "uploading" || item.status === "evaluating")
+          ? { ...item, status: "error" as const, error: "Processing interrupted — please retry." }
+          : item,
+      ));
     } finally {
       setIsProcessing(false);
       onComplete?.();

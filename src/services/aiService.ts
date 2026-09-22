@@ -21,9 +21,39 @@ import { parseLLMJson } from '@/utils/llmJson';
 
 const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 
-/** Pull API key from env (server-side edge functions supply this; never expose client-side). */
-const getApiKey = () =>
-  (typeof import.meta !== 'undefined' ? import.meta.env.VITE_OPENAI_API_KEY : '') as string;
+/** BYOK localStorage key where the user's personal OpenAI API key is stored. */
+export const BYOK_STORAGE_KEY = 'sovereign_byok_key';
+
+/**
+ * Resolve the OpenAI API key to use for client-side calls.
+ *
+ * Priority order:
+ *   1. User-provided BYOK key from localStorage (BYOK mode — unlimited, their quota).
+ *   2. App-level VITE_OPENAI_API_KEY env var (admin-configured shared key).
+ *
+ * When a BYOK key is present the user completely bypasses the Supabase Edge
+ * Function so their personal key is never sent to our backend.
+ */
+const getApiKey = (): string => {
+  try {
+    const byok = localStorage.getItem(BYOK_STORAGE_KEY);
+    if (byok && byok.startsWith('sk-')) return byok;
+  } catch {}
+  return (typeof import.meta !== 'undefined' ? import.meta.env.VITE_OPENAI_API_KEY : '') as string;
+};
+
+/**
+ * Returns true when the user has an active BYOK key stored in localStorage.
+ * Components use this to surface the "BYOK ACTIVE" badge.
+ */
+export const hasByokKey = (): boolean => {
+  try {
+    const k = localStorage.getItem(BYOK_STORAGE_KEY);
+    return !!(k && k.startsWith('sk-'));
+  } catch {
+    return false;
+  }
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
