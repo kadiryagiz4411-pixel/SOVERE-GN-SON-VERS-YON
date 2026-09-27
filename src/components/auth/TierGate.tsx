@@ -6,6 +6,7 @@ import { TIER_LABELS, type AccessTier, useTierAccess } from '@/hooks/useTierAcce
 import { StartB2BTrialButton } from '@/components/trial/StartB2BTrialButton';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { enterpriseCheckoutUrl, isAppsumoLtdUser, toAppsumoPlanEnum } from '@/lib/b2bTrial';
+import { useSession } from '@/contexts/SessionContext';
 
 interface TierGateProps {
   open?: boolean;
