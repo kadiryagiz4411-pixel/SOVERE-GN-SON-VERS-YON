@@ -10,23 +10,30 @@
  */
 
 import OpenAI from 'openai';
+import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 /** Resolve API key for both Vite (browser) and Edge-Function (Node/Deno) runtimes. */
 const resolveApiKey = (): string => {
-  // Vite browser bundle
-  if (typeof import.meta !== 'undefined') {
-    const viteKey = (import.meta.env as Record<string, string | undefined>)
-      .VITE_OPENAI_API_KEY;
-    if (viteKey) return viteKey;
-  }
-  // Node / Supabase Edge Function
+  // a) Shared resolver (VITE_OPENAI_API_KEY → BYOK localStorage)
+  const resolved = resolveOpenAIKey();
+  if (resolved) return resolved;
+  // b) Node / Supabase Edge Function environment
   if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY) {
     return process.env.OPENAI_API_KEY;
   }
   return '';
 };
 
-const openai = new OpenAI({ apiKey: resolveApiKey(), dangerouslyAllowBrowser: true });
+/**
+ * Lazily-resolved OpenAI client.
+ * Returns a new instance each call so it always picks up the latest key
+ * (e.g. after the user saves a BYOK key in Profile → Settings).
+ */
+const getOpenAIClient = () =>
+  new OpenAI({ apiKey: resolveApiKey() || 'sk-placeholder', dangerouslyAllowBrowser: true });
+
+// Backwards-compat alias used by testOpenAIConnection / generateProposal below.
+const openai = { chat: { completions: { create: (...args: Parameters<OpenAI['chat']['completions']['create']>) => getOpenAIClient().chat.completions.create(...args) } }, models: { list: () => getOpenAIClient().models.list() } };
 
 // ─── Connection test ──────────────────────────────────────────────────────────
 

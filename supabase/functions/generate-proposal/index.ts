@@ -356,11 +356,16 @@ Deno.serve(async (req) => {
 
     const model = "gpt-4o-mini";
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    // Resolve the OpenAI key: prefer the Supabase secret, fall back to the
+    // client-provided key (BYOK / VITE_OPENAI_API_KEY forwarded in the body).
+    const clientKey = typeof body.customApiKey === 'string' ? body.customApiKey.trim() : '';
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || (clientKey.startsWith('sk-') ? clientKey : '');
     if (!OPENAI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "AI service not configured. OPENAI_API_KEY missing." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "AI service not configured: OpenAI API key missing. Add OPENAI_API_KEY to Supabase secrets, or configure your personal key in Profile → BYOK Settings.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

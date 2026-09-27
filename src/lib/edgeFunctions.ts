@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 /**
  * Dashboard display name is "Sovereign"; slug may be `sovereign` or `generate-cv`.
@@ -51,6 +52,14 @@ export async function invokeEdgeJson<T>(
         return { data: null, error: msg, status: 0, functionName: name };
       }
 
+      // Attach the client-side OpenAI key so the edge function can use it
+      // as a fallback when the OPENAI_API_KEY Supabase secret is not set.
+      const clientApiKey = resolveOpenAIKey();
+      const enrichedBody =
+        clientApiKey && typeof body === 'object' && body !== null
+          ? { ...(body as Record<string, unknown>), customApiKey: clientApiKey }
+          : body;
+
       const response = await fetch(`${base}/functions/v1/${name}`, {
         method: 'POST',
         headers: {
@@ -58,7 +67,7 @@ export async function invokeEdgeJson<T>(
           apikey: anonKey(),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(enrichedBody),
       });
 
       lastStatus = response.status;

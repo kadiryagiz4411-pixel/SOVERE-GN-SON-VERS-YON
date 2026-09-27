@@ -16,44 +16,33 @@
 import { supabase } from '@/integrations/supabase/client';
 import { trimForLLM, contentHash } from '@/utils/tokenTrimmer';
 import { parseLLMJson } from '@/utils/llmJson';
+import { toast } from 'sonner';
+import { resolveOpenAIKey, hasByokKeyStored, BYOK_STORAGE_KEY } from '@/lib/apiKeyResolver';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 
-/** BYOK localStorage key where the user's personal OpenAI API key is stored. */
-export const BYOK_STORAGE_KEY = 'sovereign_byok_key';
+/** @deprecated Import BYOK_STORAGE_KEY from @/lib/apiKeyResolver instead. */
+export { BYOK_STORAGE_KEY };
 
 /**
  * Resolve the OpenAI API key to use for client-side calls.
  *
- * Priority order:
- *   1. User-provided BYOK key from localStorage (BYOK mode — unlimited, their quota).
- *   2. App-level VITE_OPENAI_API_KEY env var (admin-configured shared key).
+ * Priority order (a → b):
+ *   a) VITE_OPENAI_API_KEY  — admin-configured Vercel / .env key.
+ *   b) sovereign_byok_key   — user's personal BYOK key from localStorage.
  *
- * When a BYOK key is present the user completely bypasses the Supabase Edge
- * Function so their personal key is never sent to our backend.
+ * Returns '' when neither is configured.
+ * Exported so callers can check availability without triggering a toast.
  */
-const getApiKey = (): string => {
-  try {
-    const byok = localStorage.getItem(BYOK_STORAGE_KEY);
-    if (byok && byok.startsWith('sk-')) return byok;
-  } catch {}
-  return (typeof import.meta !== 'undefined' ? import.meta.env.VITE_OPENAI_API_KEY : '') as string;
-};
+export const getApiKey = (): string => resolveOpenAIKey();
 
 /**
  * Returns true when the user has an active BYOK key stored in localStorage.
  * Components use this to surface the "BYOK ACTIVE" badge.
  */
-export const hasByokKey = (): boolean => {
-  try {
-    const k = localStorage.getItem(BYOK_STORAGE_KEY);
-    return !!(k && k.startsWith('sk-'));
-  } catch {
-    return false;
-  }
-};
+export const hasByokKey = (): boolean => hasByokKeyStored();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,8 +85,11 @@ async function callOpenAI(
 ): Promise<string> {
   const key = getApiKey();
   if (!key) {
-    const msg = 'API Key Missing — set VITE_OPENAI_API_KEY in your environment variables, or add your personal key in Profile → BYOK Settings.';
-    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
+    const msg =
+      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.';
+    console.error('[SOVEREIGN_ERR] callOpenAI: No API key configured (VITE_OPENAI_API_KEY not set and no BYOK key in localStorage).');
+    // Show once — use a stable toast id so multiple rapid calls don't stack.
+    toast.error(msg, { id: 'sovereign-no-api-key', duration: 8000 });
     throw new Error(msg);
   }
 
@@ -112,9 +104,17 @@ async function callOpenAI(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '(no body)');
-    const msg = `OpenAI API Error (HTTP ${res.status}): ${errText}`;
-    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
-    throw new Error(msg);
+    // Surface a friendly Turkish message for common HTTP errors.
+    let userMsg: string;
+    if (res.status === 401) {
+      userMsg = 'OpenAI API Anahtarı Geçersiz (401). Lütfen Ayarlar sayfasından anahtarınızı kontrol edin.';
+    } else if (res.status === 429) {
+      userMsg = 'OpenAI API kota sınırına ulaşıldı (429). Lütfen bir süre bekleyin veya farklı bir anahtar deneyin.';
+    } else {
+      userMsg = `OpenAI API Hatası (HTTP ${res.status}): ${errText.slice(0, 200)}`;
+    }
+    console.error('[SOVEREIGN_ERR] callOpenAI:', userMsg);
+    throw new Error(userMsg);
   }
 
   const json = await res.json();
@@ -370,7 +370,13 @@ export interface CVFallbackInput {
  */
 export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
   const key = getApiKey();
-  if (!key) return null;
+  if (!key) {
+    toast.error(
+      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
+      { id: 'sovereign-no-api-key', duration: 8000 },
+    );
+    return null;
+  }
 
   const langNote = input.outputLanguage && input.outputLanguage !== 'en'
     ? `Write the ENTIRE CV in the language with ISO code "${input.outputLanguage}". Do NOT use English.`
@@ -471,7 +477,13 @@ export async function generateATSFallback(
   outputLanguage?: string,
 ): Promise<ATSFallbackResult | null> {
   const key = getApiKey();
-  if (!key) return null;
+  if (!key) {
+    toast.error(
+      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
+      { id: 'sovereign-no-api-key', duration: 8000 },
+    );
+    return null;
+  }
 
   const langNote = outputLanguage && outputLanguage !== 'en'
     ? `Respond in the language with ISO code "${outputLanguage}".`
@@ -535,7 +547,13 @@ export async function generateProposalFallback(
   profession?: string,
 ): Promise<string | null> {
   const key = getApiKey();
-  if (!key) return null;
+  if (!key) {
+    toast.error(
+      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
+      { id: 'sovereign-no-api-key', duration: 8000 },
+    );
+    return null;
+  }
 
   const skillsList = (profile?.skills ?? []).slice(0, 12).join(', ') || 'Not specified';
   const experience = (profile?.experience ?? '').slice(0, 500) || 'Not specified';
