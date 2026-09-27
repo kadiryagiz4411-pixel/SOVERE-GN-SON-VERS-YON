@@ -335,6 +335,188 @@ export interface SovereignGenerateResult {
   error?: string;
 }
 
+// ─── Client-side CV Generation Fallback ─────────────────────────────────────
+
+export interface CVFallbackInput {
+  /** Generation mode — controls which system prompt and content structure to use. */
+  mode: 'generate' | 'generate-from-text' | 'optimize';
+  /** Free-text CV input (used by generate-from-text and optimize modes). */
+  existingCvText?: string;
+  /** Structured form data for full-form mode. */
+  formData?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    summary?: string;
+    experience?: string;
+    education?: string;
+    skills?: string;
+    certifications?: string;
+  };
+  targetRole?: string;
+  targetCompany?: string;
+  jobDescription?: string;
+  outputLanguage?: string;
+}
+
+/**
+ * Client-side CV generation fallback — triggered when the Supabase Edge Function
+ * returns 401, 402, 500, or a network error AND the user has a BYOK key or
+ * VITE_OPENAI_API_KEY is configured.
+ *
+ * Generates a professional CV directly in the browser via OpenAI API.
+ * Returns null when no API key is available.
+ */
+export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
+  const key = getApiKey();
+  if (!key) return null;
+
+  const langNote = input.outputLanguage && input.outputLanguage !== 'en'
+    ? `Write the ENTIRE CV in the language with ISO code "${input.outputLanguage}". Do NOT use English.`
+    : 'Write in professional English.';
+
+  let systemPrompt: string;
+  let userPrompt: string;
+
+  if (input.mode === 'optimize' && input.existingCvText) {
+    systemPrompt =
+      'You are a world-class CV coach and ATS optimization specialist. ' +
+      'Rewrite and enhance the provided CV to maximise ATS pass rates and recruiter appeal. ' +
+      'Inject relevant keywords, quantify achievements, remove filler phrases, and tighten language. ' +
+      'Return ONLY the improved CV text — no commentary, no markdown headers, no preamble. ' +
+      langNote;
+
+    userPrompt = `EXISTING CV:\n${input.existingCvText.slice(0, 4000)}` +
+      (input.targetRole ? `\n\nTARGET ROLE: ${input.targetRole}` : '') +
+      (input.jobDescription ? `\n\nJOB DESCRIPTION:\n${input.jobDescription.slice(0, 1500)}` : '');
+
+  } else if (input.mode === 'generate-from-text' && input.existingCvText) {
+    systemPrompt =
+      'You are a professional CV writer. Transform the provided background description into a ' +
+      'polished, ATS-friendly CV. Use clear sections (Summary, Experience, Skills, Education). ' +
+      'Return ONLY the CV text — no commentary. ' +
+      langNote;
+
+    userPrompt = `BACKGROUND DESCRIPTION:\n${input.existingCvText.slice(0, 4000)}` +
+      (input.targetRole ? `\n\nTARGET ROLE: ${input.targetRole}` : '') +
+      (input.targetCompany ? `\nTARGET COMPANY: ${input.targetCompany}` : '') +
+      (input.jobDescription ? `\n\nJOB DESCRIPTION:\n${input.jobDescription.slice(0, 1500)}` : '');
+
+  } else if (input.mode === 'generate' && input.formData) {
+    const fd = input.formData;
+    systemPrompt =
+      'You are a professional CV writer. Generate a polished, ATS-friendly CV from the provided details. ' +
+      'Use clear sections (Professional Summary, Work Experience, Skills, Education, Certifications). ' +
+      'Return ONLY the CV text — no commentary, no markdown code fences. ' +
+      langNote;
+
+    userPrompt = [
+      fd.fullName   ? `NAME: ${fd.fullName}` : '',
+      fd.email      ? `EMAIL: ${fd.email}` : '',
+      fd.phone      ? `PHONE: ${fd.phone}` : '',
+      fd.location   ? `LOCATION: ${fd.location}` : '',
+      input.targetRole    ? `TARGET ROLE: ${input.targetRole}` : '',
+      input.targetCompany ? `TARGET COMPANY: ${input.targetCompany}` : '',
+      fd.summary    ? `\nSUMMARY:\n${fd.summary}` : '',
+      fd.experience ? `\nEXPERIENCE:\n${fd.experience.slice(0, 2000)}` : '',
+      fd.education  ? `\nEDUCATION:\n${fd.education}` : '',
+      fd.skills     ? `\nSKILLS: ${fd.skills}` : '',
+      fd.certifications ? `\nCERTIFICATIONS: ${fd.certifications}` : '',
+      input.jobDescription ? `\n\nTARGET JOB DESCRIPTION:\n${input.jobDescription.slice(0, 1500)}` : '',
+    ].filter(Boolean).join('\n');
+
+  } else {
+    // Fallback-of-fallback: generate from whatever text is available.
+    const anyText = input.existingCvText || Object.values(input.formData ?? {}).join(' ');
+    if (!anyText.trim()) return null;
+    systemPrompt = 'You are a professional CV writer. Generate a polished CV. Return only CV text. ' + langNote;
+    userPrompt = anyText.slice(0, 4000);
+  }
+
+  try {
+    const result = await callOpenAI(
+      'gpt-4o-mini',
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt },
+      ],
+      1200,
+    );
+    return result || null;
+  } catch (err) {
+    console.error('[SOVEREIGN_ERR] generateCVFallback failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+// ─── Client-side ATS Score Fallback ─────────────────────────────────────────
+
+export interface ATSFallbackResult {
+  ats_score: number;
+  visible_flaws: string[];
+  hidden_flaws_count: number;
+  total_flaws: number;
+  top_strength: string;
+}
+
+/**
+ * Client-side ATS analysis fallback — used when the ats-teaser / optimize-cv
+ * edge functions are unavailable.
+ * Returns null when no API key is available.
+ */
+export async function generateATSFallback(
+  cvText: string,
+  jobDescription?: string,
+  outputLanguage?: string,
+): Promise<ATSFallbackResult | null> {
+  const key = getApiKey();
+  if (!key) return null;
+
+  const langNote = outputLanguage && outputLanguage !== 'en'
+    ? `Respond in the language with ISO code "${outputLanguage}".`
+    : 'Respond in English.';
+
+  const systemPrompt =
+    'You are an expert ATS (Applicant Tracking System) analyst. ' +
+    'Analyse the provided CV and return a JSON object with ATS score and improvement areas. ' +
+    'Return ONLY valid JSON. No markdown fences. ' +
+    langNote;
+
+  const userPrompt = `Analyse this CV for ATS compatibility and return JSON with these exact keys:
+{
+  "ats_score": 72,
+  "visible_flaws": ["flaw 1", "flaw 2", "flaw 3"],
+  "hidden_flaws_count": 4,
+  "total_flaws": 7,
+  "top_strength": "one sentence about the strongest section"
+}
+
+CV TEXT:
+${cvText.slice(0, 3000)}
+${jobDescription ? `\nTARGET JOB DESCRIPTION:\n${jobDescription.slice(0, 1000)}` : ''}`;
+
+  try {
+    const raw = await callOpenAI(
+      'gpt-4o-mini',
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt },
+      ],
+      600,
+    );
+    try {
+      const parsed = JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
+      return parsed as ATSFallbackResult;
+    } catch {
+      return null;
+    }
+  } catch (err) {
+    console.error('[SOVEREIGN_ERR] generateATSFallback failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 /**
  * Client-side proposal fallback — used when the Supabase Edge Function is
  * unreachable (network error, CORS, cold start timeout, misconfiguration).
@@ -420,8 +602,35 @@ export async function generateSovereignContent(
         existingCvText: prompt,
         ...rest,
       });
-      if (result.error || !result.data) {
-        console.error('[generateSovereignContent:cv] failed', result.error, result.status);
+
+      // ── CV client-side fallback ──────────────────────────────────────────────
+      // If the edge function fails for ANY reason (401/402/network/500), try to
+      // generate the CV directly via OpenAI using the BYOK/admin API key.
+      if (result.error || !result.data || !(result.data as any)?.cv) {
+        const shouldFallback = result.status === 401
+          || result.status === 402
+          || result.status === 500
+          || result.status === 0       // network error
+          || result.status === 404;    // function not deployed
+
+        if (shouldFallback) {
+          console.warn(`[generateSovereignContent:cv] edge failed (${result.status}) — trying client-side CV fallback.`);
+          const fallbackCV = await generateCVFallback({
+            mode: (rest as any).mode ?? 'generate-from-text',
+            existingCvText: prompt,
+            targetRole:   (rest as any).targetRole,
+            targetCompany: (rest as any).targetCompany,
+            jobDescription: (rest as any).jobDescription,
+            outputLanguage: (rest as any).outputLanguage,
+            formData:     (rest as any).formData,
+          });
+          if (fallbackCV) {
+            console.info('[generateSovereignContent:cv] client-side CV fallback succeeded.');
+            return { success: true, fallback: true, data: { cv: fallbackCV } };
+          }
+        }
+
+        console.error('[generateSovereignContent:cv] both edge and fallback failed', result.error, result.status);
         return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
       }
       return { success: true, fallback: false, data: result.data };

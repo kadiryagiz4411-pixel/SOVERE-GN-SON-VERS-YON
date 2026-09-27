@@ -16,6 +16,7 @@ import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
+import { generateCVFallback } from '@/services/aiService';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
@@ -268,23 +269,62 @@ const CVBuilder = () => {
 
       if (error || !result) {
         console.error('[sovereign] CV invoke failed', { status, error });
-        if (status === 429) {
-          toast.error('Rate limit — please wait and retry.');
-        } else if (status === 402) {
-          // Unlimited / BYOK users should never be blocked by a backend 402.
-          if (should402BypassForUnlimited(user?.email, undefined, isCVSuperAdmin)) {
-            console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user on CV — no client fallback available for CV, showing credit prompt.');
+
+        // ── Client-side CV fallback ──────────────────────────────────────────
+        // For 401 (auth), 402 (credits), 500 (server), 0/404 (network/missing),
+        // attempt direct browser-side OpenAI generation when a key is available.
+        const fallbackStatuses = [0, 401, 402, 404, 500];
+        const shouldTryFallback =
+          fallbackStatuses.includes(status) ||
+          (error && /fetch|network|CORS|unreachable/i.test(error));
+
+        if (shouldTryFallback) {
+          if (status === 401) {
+            console.warn('[CV_FALLBACK] Edge function returned 401 — auth may have expired. Trying client-side fallback.');
+          } else if (status === 402) {
+            if (should402BypassForUnlimited(user?.email, undefined, isCVSuperAdmin)) {
+              console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user — trying client-side CV generation.');
+            }
           }
-          toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
-        } else if (status === 404 || status === 0) {
-          toast.error('CV service is unavailable. Please try again in a moment.');
+
+          toast.loading('Edge service unavailable — generating via direct connection…', { id: 'cv-fallback-toast' });
+          try {
+            const fallbackCV = await generateCVFallback({
+              mode,
+              existingCvText,
+              targetRole,
+              targetCompany,
+              jobDescription: isPro ? jobDescription : '',
+              outputLanguage,
+              formData: activeTab === 'form' ? {
+                fullName, email, phone, location, summary, experience, education, skills, certifications,
+              } : undefined,
+            });
+            toast.dismiss('cv-fallback-toast');
+            if (fallbackCV) {
+              setGeneratedCV(fallbackCV);
+              try { localStorage.setItem('sovereign_last_cv', fallbackCV); } catch {}
+              toast.success('✅ CV generated via direct connection.');
+              return; // success — skip error handling below
+            }
+          } catch (fbErr) {
+            console.error('[SOVEREIGN_ERR] CV client fallback also failed:', fbErr);
+          }
+          toast.dismiss('cv-fallback-toast');
+        }
+
+        // All paths failed — show structured error toast.
+        if (status === 429) {
+          toast.error('Rate Limit — please wait a moment and retry.');
+        } else if (status === 402) {
+          toast.error(`Insufficient Credits: ${error || INSUFFICIENT_CREDITS_MESSAGE}. Add your BYOK key in Profile → Settings to generate without credits.`);
+        } else if (status === 401) {
+          toast.error('Authentication Error (401) — please sign out and sign back in, then retry.');
         } else {
-          const isNetworkErr = status === 0 || (error && /fetch|network|CORS/i.test(error));
-          toast.error(
-            isNetworkErr
-              ? 'Service is currently experiencing high load. Please try again in a few moments.'
-              : (error || 'Failed to generate CV'),
-          );
+          const isNetworkErr = status === 0 || status === 404 || (error && /fetch|network|CORS/i.test(error));
+          toast.error(isNetworkErr
+            ? `CV Generation Failed: ${error || 'Service is unavailable'}. API Key Missing — add your key in Profile → BYOK Settings to generate without the server.`
+            : `CV Generation Failed: ${error || 'Unknown error. Please retry.'}`);
         }
         return;
       }

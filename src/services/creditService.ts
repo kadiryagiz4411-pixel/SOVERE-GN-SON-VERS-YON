@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { COST_PER_ACTION, creditUsagePercentage } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
 import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { hasByokKey } from '@/services/aiService';
 
 export { COST_PER_ACTION };
 
@@ -121,10 +122,25 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
 /**
  * Returns true when the user has at least `amount` credits available.
  * Triggers a lazy reset before checking.
+ *
+ * Short-circuits to `true` for:
+ *   • Owner email (kadiryagiz4411@gmail.com)
+ *   • Users with a BYOK key stored in localStorage
+ *   • Users whose fetchCreditStatus marks them as BYOK unlimited
  */
 export async function hasEnoughCredits(userId: string, amount = COST_PER_ACTION): Promise<boolean> {
+  // ── Instant bypasses (no DB needed) ─────────────────────────────────────────
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    if (isOwnerEmail(auth.user?.email)) return true;
+  } catch {}
+  // BYOK localStorage key → unlimited
+  if (hasByokKey()) return true;
+
   const status = await fetchCreditStatus(userId);
   if (!status) return false;
+  // isByokUnlimited is also set for AppSumo Tier 3 + encrypted DB key
+  if (status.isByokUnlimited) return true;
   return status.remainingCredits >= amount;
 }
 

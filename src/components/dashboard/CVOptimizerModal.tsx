@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/contexts/SessionContext';
 import { OWNER_EMAIL } from '@/lib/superadmin';
+import { generateATSFallback, generateCVFallback } from '@/services/aiService';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { exportCVAsPDF } from '@/lib/cvExport';
 import { CVDiffViewer } from '@/components/dashboard/CVDiffViewer';
@@ -147,11 +148,16 @@ export const CVOptimizerModal = ({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Please log in'); return; }
 
+      const outputLanguage = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ats-teaser`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''),
+          },
           body: JSON.stringify({
             cvText: cvText.trim(),
             jobDescription: jobDescription.trim() || undefined,
@@ -159,18 +165,47 @@ export const CVOptimizerModal = ({
           }),
         }
       );
-      const result = await response.json();
+
+      // ── ATS client-side fallback ───────────────────────────────────────────
       if (!response.ok) {
-        const msg = result.error || 'Analysis failed. Please retry.';
-        setAnalyzeError(msg);
-        toast.error(msg);
+        const errBody = await response.json().catch(() => ({}));
+        const errMsg = (errBody as any)?.error || `HTTP ${response.status}`;
+        console.warn(`[CVOptimizer] ats-teaser failed (${response.status}) — trying client-side fallback.`);
+
+        if ([0, 401, 402, 404, 500].includes(response.status)) {
+          const fallback = await generateATSFallback(
+            cvText.trim(),
+            jobDescription.trim() || undefined,
+            outputLanguage,
+          );
+          if (fallback) {
+            setTeaserResult(fallback);
+            setStep('teaser');
+            toast.success('ATS analysis via direct connection ✅');
+            return;
+          }
+        }
+
+        setAnalyzeError(errMsg);
+        toast.error(`ATS Analysis Failed: ${errMsg}`);
         return;
       }
+
+      const result = await response.json();
       setTeaserResult(result);
       setStep('teaser');
     } catch (err: any) {
       const msg = err?.message || err?.toString() || 'ATS Analysis failed — unexpected error.';
       console.error('[SOVEREIGN_ERR] CVOptimizerModal handleAnalyze:', msg, err);
+      // Last-chance: try client-side ATS fallback
+      const outputLanguage = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
+      const fallback = await generateATSFallback(cvText.trim(), jobDescription.trim() || undefined, outputLanguage).catch(() => null);
+      if (fallback) {
+        setTeaserResult(fallback);
+        setStep('teaser');
+        toast.success('ATS analysis via direct connection ✅');
+        return;
+      }
       setAnalyzeError(msg);
       toast.error('ATS Analysis Failed: ' + msg);
     } finally {
@@ -193,28 +228,60 @@ export const CVOptimizerModal = ({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Please log in'); return; }
 
+      const optLang = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/optimize-cv`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''),
+          },
           body: JSON.stringify({
             cvText: cvText.trim(),
             outputLanguage: language === 'tr' ? 'Turkish' : language === 'de' ? 'German' : language === 'fr' ? 'French' : 'English',
             targetRole: targetRole.trim() || undefined,
             jobDescription: jobDescription.trim() || undefined,
-            consumeCredit: !isPaid,
+            consumeCredit: !isPaid && !isModalUnlimited,
           }),
         }
       );
-      const result = await response.json();
+
+      // ── CV optimize client-side fallback ────────────────────────────────────
       if (!response.ok) {
-        console.error('[optimize-cv] HTTP error', response.status, result);
-        const msg = result.error || INSUFFICIENT_CREDITS_MESSAGE;
-        setOptimizeError(msg);
-        toast.error(msg);
+        const errBody = await response.json().catch(() => ({}));
+        const errMsg = (errBody as any)?.error || `HTTP ${response.status}`;
+        console.warn(`[CVOptimizer] optimize-cv failed (${response.status}) — trying client-side fallback.`);
+
+        if ([0, 401, 402, 404, 500].includes(response.status)) {
+          toast.loading('Optimizing via direct connection…', { id: 'opt-fallback' });
+          const fallbackCV = await generateCVFallback({
+            mode: 'optimize',
+            existingCvText: cvText.trim(),
+            targetRole: targetRole.trim() || undefined,
+            jobDescription: jobDescription.trim() || undefined,
+            outputLanguage: optLang,
+          }).catch(() => null);
+          toast.dismiss('opt-fallback');
+          if (fallbackCV) {
+            setOptimizedCV(fallbackCV);
+            setStep('diff');
+            toast.success('CV optimized via direct connection ✅');
+            return;
+          }
+        }
+
+        console.error('[optimize-cv] HTTP error', response.status, errMsg);
+        const displayMsg = response.status === 402
+          ? `${errMsg} — Add your BYOK key in Profile → Settings to optimize without credits.`
+          : errMsg;
+        setOptimizeError(displayMsg);
+        toast.error(`CV Optimization Failed: ${displayMsg}`);
         return;
       }
+
+      const result = await response.json();
       if (!result.optimizedCV) {
         console.error('[optimize-cv] empty payload', result);
         const msg = 'Optimization failed — empty response. Please retry.';
@@ -233,6 +300,21 @@ export const CVOptimizerModal = ({
     } catch (err: any) {
       const msg = err?.message || err?.toString() || 'CV Optimization failed — unexpected error.';
       console.error('[SOVEREIGN_ERR] CVOptimizerModal handleUnlockFull:', msg, err);
+      // Last-chance client fallback
+      const optLang = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
+      const fallbackCV = await generateCVFallback({
+        mode: 'optimize',
+        existingCvText: cvText.trim(),
+        targetRole: targetRole.trim() || undefined,
+        jobDescription: jobDescription.trim() || undefined,
+        outputLanguage: optLang,
+      }).catch(() => null);
+      if (fallbackCV) {
+        setOptimizedCV(fallbackCV);
+        setStep('diff');
+        toast.success('CV optimized via direct connection ✅');
+        return;
+      }
       setOptimizeError(msg);
       toast.error('CV Optimization Failed: ' + msg);
     } finally {
