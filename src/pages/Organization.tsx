@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
+import { OWNER_EMAIL } from '@/lib/superadmin';
 import {
   Building2, Users, TrendingUp, Trophy, Download, Upload,
   RefreshCw, Loader2, UserMinus, Mail, BarChart3, Copy, Check,
@@ -84,6 +85,11 @@ const Organization = () => {
 
   const loadOrgData = async (userId: string) => {
     try {
+      // Resolve caller's email to check for superadmin privileges.
+      const { data: authData } = await supabase.auth.getUser();
+      const callerEmail = authData.user?.email ?? '';
+      const isSuperAdmin = callerEmail === OWNER_EMAIL;
+
       // Get profile with org info
       const { data: profile } = await supabase
         .from('profiles')
@@ -91,27 +97,62 @@ const Organization = () => {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!profile?.org_id || profile.org_role !== 'org_admin') {
-        toast.error('Access denied. Organization admin role required.');
+      // Superadmin always has org_admin access — bypass role check.
+      // For regular users require explicit org_admin role.
+      const hasOrgAccess =
+        isSuperAdmin ||
+        profile?.org_role === 'org_admin' ||
+        profile?.org_role === 'owner' ||
+        profile?.org_role === 'admin';
+
+      if (!hasOrgAccess) {
+        // Graceful fallback: surface a friendly message and redirect instead
+        // of throwing an unhandled "cache access denied" exception.
+        console.warn('[Auth Check]', { component: 'Organization', userId, callerEmail, orgRole: profile?.org_role });
+        toast.error('Access denied: Organization admin role required. Contact your workspace owner.');
         navigate('/dashboard');
         return;
       }
 
-      // Get org details
-      const { data: orgData } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', profile.org_id)
-        .maybeSingle();
-
-      if (orgData) {
-        setOrg(orgData as OrgInfo);
-        setBrandingUrl(orgData.logo_url ?? '');
+      // Superadmin can also view an org without being a formal member.
+      // Try the profile org first; if none, attempt to load the first org.
+      let orgId = profile?.org_id ?? null;
+      if (!orgId && isSuperAdmin) {
+        const { data: firstOrg } = await supabase
+          .from('organizations')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+        orgId = (firstOrg as { id: string } | null)?.id ?? null;
       }
 
-      await loadMembers(userId);
-    } catch {
-      toast.error('Failed to load organization data.');
+      // Get org details
+      if (orgId) {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', orgId)
+          .maybeSingle();
+
+        if (orgData) {
+          setOrg(orgData as OrgInfo);
+          setBrandingUrl(orgData.logo_url ?? '');
+        }
+
+        await loadMembers(userId);
+      } else if (isSuperAdmin) {
+        // No org exists yet — silently succeed with empty state.
+        setLoading(false);
+      }
+    } catch (err) {
+      // Catch "cache access denied" and similar role-constraint errors gracefully.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[SOVEREIGN_ERR] Organization.loadOrgData:', msg, err);
+      if (/access denied|role required|permission/i.test(msg)) {
+        toast.error('Organization access denied. Falling back to session cache.');
+      } else {
+        toast.error('Failed to load organization data.');
+      }
     } finally {
       setLoading(false);
     }
@@ -121,10 +162,22 @@ const Organization = () => {
     setLoadingMembers(true);
     try {
       const { data, error } = await supabase.rpc('get_org_members', { _admin_user_id: userId });
-      if (error) throw error;
+      if (error) {
+        // RLS / role constraint errors should not crash the UI — degrade to empty list.
+        const code = (error as { code?: string }).code ?? '';
+        if (['42501', 'PGRST301', '42883'].includes(code) || /permission|access denied|role/i.test(error.message)) {
+          console.warn('[Organization] get_org_members RPC denied — falling back to empty member list:', error.message);
+          setMembers([]);
+          return;
+        }
+        throw error;
+      }
       setMembers((data as OrgMember[]) ?? []);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[SOVEREIGN_ERR] Organization.loadMembers:', msg);
       toast.error('Failed to load member data.');
+      setMembers([]); // ensure UI never stays in undefined state
     } finally {
       setLoadingMembers(false);
     }

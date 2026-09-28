@@ -42,6 +42,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { PauseSubscriptionModal } from '@/components/subscription/PauseSubscriptionModal';
 import { SubscriptionPausedBanner } from '@/components/subscription/SubscriptionPausedBanner';
 import { AccountEnginePanel } from '@/components/settings/AccountEnginePanel';
+import { InvoiceRequestModal } from '@/components/InvoiceRequestModal';
 
 const ProfileSettings = () => {
   const { t, language } = useLanguage();

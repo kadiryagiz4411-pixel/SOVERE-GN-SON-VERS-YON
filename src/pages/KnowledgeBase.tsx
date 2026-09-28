@@ -129,8 +129,12 @@ export default function KnowledgeBase() {
                       variant="ghost"
                       size="icon"
                       onClick={async () => {
-                        await deleteKnowledge(e.id);
-                        setEntries((prev) => prev.filter((x) => x.id !== e.id));
+                        try {
+                          await deleteKnowledge(e.id);
+                          setEntries((prev) => prev.filter((x) => x.id !== e.id));
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Could not delete entry');
+                        }
                       }}
                     >
                       <Trash2 className="w-4 h-4 text-red-400" />
