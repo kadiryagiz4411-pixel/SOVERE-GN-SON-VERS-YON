@@ -232,13 +232,34 @@ export async function triggerAIEvaluation(params: {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  // Diagnostic — surfaces auth state in the console for debugging.
+  const userEmail = sessionData.session?.user?.email;
+  console.log('[Auth Check]', { component: 'triggerAIEvaluation', userId: sessionData.session?.user?.id, email: userEmail, hasSession: !!token });
+
+  if (!token) {
+    throw new Error('Lütfen devam etmek için giriş yapın. (Auth token missing — please sign in again.)');
+  }
+
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  if (!supabaseUrl) {
+    throw new Error('Configuration error: VITE_SUPABASE_URL is not set.');
+  }
+
+  // Resolve the anon key — accept both naming conventions.
+  const anonKey = String(
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+    ?? '',
+  );
+
+  console.log('[AI Engine Request]', { functionName: 'b2b-evaluate-cv', hasKey: !!anonKey, orgId: params.orgId });
+
   const response = await fetch(`${supabaseUrl}/functions/v1/b2b-evaluate-cv`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
-      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      ...(anonKey ? { "apikey": anonKey } : {}),
     },
     body: JSON.stringify({
       evaluation_id: params.evaluationId,
@@ -252,8 +273,11 @@ export async function triggerAIEvaluation(params: {
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(err);
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    if (response.status === 401) {
+      throw new Error('Authentication failed (401) — please sign out and sign back in, then retry.');
+    }
+    throw new Error(errText);
   }
 }
 

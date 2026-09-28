@@ -158,12 +158,26 @@ const CVBuilder = () => {
   }, [navigate]);
 
   const handleGenerate = async () => {
+    // ── Auth guard — must come first ────────────────────────────────────────────
+    // Re-read from both React state and live session so stale-closure edge cases
+    // are covered.  If neither resolves, show Turkish login toast and bail.
+    const liveSession = (await supabase.auth.getSession()).data.session;
+    const effectiveUser = user ?? liveSession?.user ?? null;
+    console.log('[Auth Check]', { userId: effectiveUser?.id, email: effectiveUser?.email, hasSession: !!liveSession });
+    if (!effectiveUser) {
+      toast.error('Lütfen devam etmek için giriş yapın.', {
+        action: { label: 'Giriş Yap', onClick: () => window.location.href = '/auth' },
+        duration: 6000,
+      });
+      return;
+    }
+
     // ── Bypass-aware credit gate ────────────────────────────────────────────────
     // Use session context values (not raw DB creditsBalance) so the 999999
     // superadmin override is always respected. isByokUnlimited / hasBYOKAccess
     // also grant unlimited access without touching local state.
     const isCVSuperAdmin =
-      user?.email === OWNER_EMAIL ||
+      effectiveUser.email === OWNER_EMAIL ||
       session.user?.email === OWNER_EMAIL ||
       session.isByokUnlimited ||
       session.hasBYOKAccess;
@@ -172,6 +186,7 @@ const CVBuilder = () => {
       setShowCreditsModal(true);
       return;
     }
+    console.log('[AI Engine Request]', { component: 'CVBuilder', mode: activeTab, userId: effectiveUser.id });
 
     // Check CV generation limit
     if (!canGenerateCV(plan)) {
@@ -281,8 +296,8 @@ const CVBuilder = () => {
         if (shouldTryFallback) {
           if (status === 401) {
             console.warn('[CV_FALLBACK] Edge function returned 401 — auth may have expired. Trying client-side fallback.');
-          } else if (status === 402) {
-            if (should402BypassForUnlimited(user?.email, undefined, isCVSuperAdmin)) {
+          } else           if (status === 402) {
+            if (should402BypassForUnlimited(effectiveUser?.email, undefined, isCVSuperAdmin)) {
               console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user — trying client-side CV generation.');
             }
           }

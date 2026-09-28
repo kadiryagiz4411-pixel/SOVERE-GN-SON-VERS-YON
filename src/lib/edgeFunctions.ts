@@ -52,6 +52,9 @@ export async function invokeEdgeJson<T>(
         return { data: null, error: msg, status: 0, functionName: name };
       }
 
+      // Diagnostic — surfaces auth state and key availability in console.
+      console.log('[Auth Check]', { component: 'edgeFunctions', functionName: name, userId: sessionData.session?.user?.id, email: sessionData.session?.user?.email, hasSession: !!token });
+
       // Attach the client-side OpenAI key so the edge function can use it
       // as a fallback when the OPENAI_API_KEY Supabase secret is not set.
       const clientApiKey = resolveOpenAIKey();
@@ -59,6 +62,8 @@ export async function invokeEdgeJson<T>(
         clientApiKey && typeof body === 'object' && body !== null
           ? { ...(body as Record<string, unknown>), customApiKey: clientApiKey }
           : body;
+
+      console.log('[AI Engine Request]', { functionName: name, hasKey: !!clientApiKey, hasSession: !!token });
 
       const response = await fetch(`${base}/functions/v1/${name}`, {
         method: 'POST',

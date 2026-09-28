@@ -93,6 +93,8 @@ async function callOpenAI(
     throw new Error(msg);
   }
 
+  console.log('[AI Engine Request]', { model, hasKey: !!key, maxTokens });
+
   const res = await fetch(OPENAI_BASE, {
     method: 'POST',
     headers: {

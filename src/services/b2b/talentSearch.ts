@@ -52,7 +52,24 @@ export async function searchTalentPool(params: {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+
+  console.log('[Auth Check]', { component: 'searchTalentPool', userId: sessionData.session?.user?.id, email: sessionData.session?.user?.email, hasSession: !!token });
+
+  if (!token) {
+    throw new Error('Lütfen devam etmek için giriş yapın. (Auth token missing for talent search)');
+  }
+  if (!supabaseUrl) {
+    throw new Error('Configuration error: VITE_SUPABASE_URL is not set.');
+  }
+
+  const anonKey = String(
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+    ?? '',
+  );
+
+  console.log('[AI Engine Request]', { functionName: 'b2b-talent-search', hasKey: !!anonKey, orgId });
 
   const t0 = performance.now();
 
@@ -61,7 +78,7 @@ export async function searchTalentPool(params: {
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
-      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      ...(anonKey ? { "apikey": anonKey } : {}),
     },
     body: JSON.stringify({
       query,

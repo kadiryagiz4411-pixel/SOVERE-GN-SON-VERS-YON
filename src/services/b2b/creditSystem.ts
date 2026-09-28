@@ -145,20 +145,33 @@ export function estimateEvaluationsRemaining(balance: number): number {
 export async function triggerEmbedding(evaluationId: string): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+
+  if (!token || !supabaseUrl) {
+    console.warn('[Auth Check] triggerEmbedding: missing token or supabaseUrl — skipping embedding.');
+    return; // Non-blocking: don't break the evaluation UX
+  }
+
+  const anonKey = String(
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+    ?? '',
+  );
+
+  console.log('[AI Engine Request]', { functionName: 'b2b-embed-candidate', hasKey: !!anonKey });
 
   const response = await fetch(`${supabaseUrl}/functions/v1/b2b-embed-candidate`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
-      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      ...(anonKey ? { "apikey": anonKey } : {}),
     },
     body: JSON.stringify({ evaluation_id: evaluationId }),
   });
 
   if (!response.ok) {
     // Non-blocking: embedding failure should not fail the evaluation UX
-    console.warn("Embedding generation failed:", await response.text());
+    console.warn('[SOVEREIGN_ERR] Embedding generation failed:', response.status, await response.text().catch(() => ''));
   }
 }

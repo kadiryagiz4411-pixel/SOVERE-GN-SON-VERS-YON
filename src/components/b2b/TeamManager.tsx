@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/contexts/SessionContext';
 import { toast } from 'sonner';
 import { FeatureGuard } from '@/components/auth/FeatureGuard';
+import { OWNER_EMAIL } from '@/lib/superadmin';
 
 const HR_SEATS = 5;
 
@@ -17,7 +18,10 @@ export interface TeamSeat {
 }
 
 export function TeamManager() {
-  const { user } = useSession();
+  const { user, session, isByokUnlimited, hasBYOKAccess } = useSession();
+  // SuperAdmin is always recognized as the workspace owner with full permissions.
+  const isSuperAdmin = user?.email === OWNER_EMAIL || isByokUnlimited || hasBYOKAccess;
+  console.log('[Auth Check]', { component: 'TeamManager', userId: user?.id, email: user?.email, isSuperAdmin, hasSession: !!session });
   const [orgName, setOrgName] = useState('Your organization');
   const [orgId, setOrgId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -62,6 +66,10 @@ export function TeamManager() {
   };
 
   const invite = async () => {
+    if (!user) {
+      toast.error('Lütfen devam etmek için giriş yapın.');
+      return;
+    }
     const email = inviteEmail.trim().toLowerCase();
     if (!email.includes('@')) {
       toast.error('Enter a valid email');

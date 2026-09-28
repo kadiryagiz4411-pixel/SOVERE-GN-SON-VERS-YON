@@ -13,6 +13,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Upload, Play, Download, Copy, X, CheckCircle2, Loader2,
   AlertCircle, Zap, Key, Building2, FileText, ClipboardList,
@@ -233,7 +234,17 @@ export default function BatchProposal() {
   // ── Run batch ───────────────────────────────────────────────────────────────
 
   const handleRun = async () => {
-    if (!user) { toast.error('You must be logged in.'); return; }
+    // Auth guard — re-confirm session is live before hitting the edge function.
+    const { data: { session: liveSession } } = await supabase.auth.getSession();
+    const effectiveBatchUser = user ?? liveSession?.user ?? null;
+    console.log('[Auth Check]', { component: 'BatchProposal.handleRun', userId: effectiveBatchUser?.id, email: effectiveBatchUser?.email, hasSession: !!liveSession });
+    if (!effectiveBatchUser) {
+      toast.error('Lütfen devam etmek için giriş yapın.', {
+        action: { label: 'Giriş Yap', onClick: () => window.location.href = '/auth' },
+        duration: 6000,
+      });
+      return;
+    }
     const jds = parseJds(rawInput);
     if (!jds.length) { toast.error('Please enter at least one job description.'); return; }
 
@@ -242,9 +253,10 @@ export default function BatchProposal() {
     setJobs([]);
     setCreditsUsed(0);
 
+    console.log('[AI Engine Request]', { component: 'BatchProposal', jobCount: jds.length, userId: effectiveBatchUser.id });
     try {
       const result = await runBatchProposals({
-        userId: user.id,
+        userId: effectiveBatchUser.id,
         jobDescriptions: jds,
         agencyProfile: agency,
         onProgress: (updated) => setJobs([...updated]),
@@ -276,7 +288,13 @@ export default function BatchProposal() {
   // ── Retry a single failed job ───────────────────────────────────────────────
 
   const handleRetryJob = useCallback(async (failedJob: BatchJob) => {
-    if (!user) { toast.error('You must be logged in.'); return; }
+    const { data: { session: retrySession } } = await supabase.auth.getSession();
+    const retryUser = user ?? retrySession?.user ?? null;
+    console.log('[Auth Check]', { component: 'BatchProposal.handleRetryJob', userId: retryUser?.id, hasSession: !!retrySession });
+    if (!retryUser) {
+      toast.error('Lütfen devam etmek için giriş yapın.');
+      return;
+    }
     setRunning(true);
     setError(null);
 
@@ -285,7 +303,7 @@ export default function BatchProposal() {
 
     try {
       const result = await runBatchProposals({
-        userId: user.id,
+        userId: retryUser.id,
         jobDescriptions: [failedJob.jobDescription],
         agencyProfile: agency,
         onProgress: (updated) => {
@@ -314,7 +332,10 @@ export default function BatchProposal() {
   // ── Retry all failed jobs ───────────────────────────────────────────────────
 
   const handleRetryAllFailed = useCallback(async () => {
-    if (!user) { toast.error('You must be logged in.'); return; }
+    const { data: { session: retryAllSession } } = await supabase.auth.getSession();
+    const retryAllUser = user ?? retryAllSession?.user ?? null;
+    console.log('[Auth Check]', { component: 'BatchProposal.handleRetryAllFailed', userId: retryAllUser?.id, hasSession: !!retryAllSession });
+    if (!retryAllUser) { toast.error('Lütfen devam etmek için giriş yapın.'); return; }
     const failedJobs = jobs.filter((j) => j.status === 'error');
     if (!failedJobs.length) return;
     setRunning(true);
@@ -324,7 +345,7 @@ export default function BatchProposal() {
 
     try {
       const result = await runBatchProposals({
-        userId: user.id,
+        userId: retryAllUser.id,
         jobDescriptions: failedJobs.map((j) => j.jobDescription),
         agencyProfile: agency,
         onProgress: (updated) => {
