@@ -106,7 +106,15 @@ export function resolveB2BAccess(input: {
       ? trialDaysRemaining(input.profile?.trial_ends_at)
       : 0;
 
-  const hasEnterpriseAccess = isSuperAdmin || paid || liveTrial;
+  // Also grant enterprise access when the DB plan_type is explicitly B2B_ENTERPRISE
+  // (e.g., manually provisioned accounts or AppSumo B2B code redemptions).
+  const planTypeIsEnterprise =
+    input.profile?.plan_type === 'B2B_ENTERPRISE' ||
+    input.profile?.plan_type === 'appsumo_b2b' ||
+    input.profile?.subscription_plan === 'B2B_ENTERPRISE' ||
+    input.profile?.subscription_plan === 'appsumo_b2b';
+
+  const hasEnterpriseAccess = isSuperAdmin || paid || liveTrial || planTypeIsEnterprise;
   const trialExpiredUnpaid =
     !isSuperAdmin &&
     !paid &&

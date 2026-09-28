@@ -25,6 +25,7 @@ import CandidateScoreCard from "@/components/b2b/CandidateScoreCard";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 import { resolveOrgProfile, SUPERADMIN_ORG } from "@/lib/superadminOrg";
+import { useSession } from "@/contexts/SessionContext";
 
 const VERDICT_COLORS: Record<string, string> = {
   STRONG_HIRE: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -35,6 +36,7 @@ const VERDICT_COLORS: Record<string, string> = {
 
 export default function TalentPool() {
   const navigate = useNavigate();
+  const { hasB2BAccess } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -78,16 +80,22 @@ export default function TalentPool() {
       const profile = resolveOrgProfile(rawProfile, user.email);
 
       if (!profile.isSuperAdmin) {
-        if (!profile.org_id || profile.plan_type !== "B2B_ENTERPRISE") {
+        const sessionB2B = hasB2BAccess;
+        // Only redirect if they truly lack both DB org AND session B2B access.
+        if (!profile.org_id && !sessionB2B) {
+          navigate("/b2b");
+          return;
+        }
+        if (profile.plan_type && profile.plan_type !== "B2B_ENTERPRISE" && !sessionB2B) {
           navigate("/b2b");
           return;
         }
       }
 
-      // For the sentinel org, try to resolve a real org id first so vector
-      // search can actually query the candidate_evaluations table.
-      let effectiveOrgId = profile.org_id!;
-      if (profile.isSuperAdmin && profile.org_id === SUPERADMIN_ORG.id) {
+      // For the sentinel org (or B2B-session user with no DB org), try to resolve
+      // a real org id first so vector search can actually query candidate data.
+      let effectiveOrgId = profile.org_id ?? SUPERADMIN_ORG.id;
+      if ((profile.isSuperAdmin || hasB2BAccess) && effectiveOrgId === SUPERADMIN_ORG.id) {
         const { data: firstOrg } = await supabase
           .from("organizations")
           .select("id, name")

@@ -10,10 +10,11 @@ import { User } from '@supabase/supabase-js';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
 import { OWNER_EMAIL } from '@/lib/superadmin';
 import { resolveOrgProfile, SUPERADMIN_ORG } from '@/lib/superadminOrg';
+import { useSession } from '@/contexts/SessionContext';
 import {
   Building2, Users, TrendingUp, Trophy, Download, Upload,
   RefreshCw, Loader2, UserMinus, Mail, BarChart3, Copy, Check,
-  Shield, Crown, ChevronDown, ChevronUp, ArrowLeft,
+  Shield, Crown, ChevronDown, ChevronUp, ArrowLeft, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -56,6 +57,11 @@ function downloadCSV(filename: string, rows: string[][]) {
 const Organization = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect B2B access for the smart empty state (superadmin + B2B users never
+  // see "Upgrade to B2B" — only truly non-B2B users do).
+  const { hasB2BAccess, isByokUnlimited, user: sessionUser } = useSession();
+  const sessionUserEmail = sessionUser?.email ?? '';
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,8 +131,9 @@ const Organization = () => {
         orgId = (firstOrg as { id: string } | null)?.id ?? SUPERADMIN_ORG.id;
       }
 
-      // Get org details — skip DB query for pure sentinel org.
+      // Get org details.
       if (orgId && orgId !== SUPERADMIN_ORG.id) {
+        // ── Real org row exists — fetch from DB ─────────────────────────────
         const { data: orgData } = await supabase
           .from('organizations')
           .select('*')
@@ -139,9 +146,24 @@ const Organization = () => {
         }
 
         await loadMembers(userId);
+      } else if (profile.isSuperAdmin) {
+        // ── Superadmin sentinel org — populate from constants ───────────────
+        // This ensures the superadmin always sees the full Organization
+        // dashboard, never the "No Organization Yet" empty state.
+        setOrg({
+          id: SUPERADMIN_ORG.id,
+          name: SUPERADMIN_ORG.name,
+          license_key: SUPERADMIN_ORG.license_key,
+          max_seats: SUPERADMIN_ORG.max_seats,
+          used_seats: SUPERADMIN_ORG.used_seats,
+          expires_at: null,
+          logo_url: SUPERADMIN_ORG.logo_url,
+          default_cv_template: 'sovereign_default',
+        });
       } else {
-        // No real org exists yet (superadmin sentinel OR regular admin with no org assigned).
-        // Show an empty state UI — do NOT redirect — loading finishes normally.
+        // ── Regular user with org_admin role but no org assigned ────────────
+        // Graceful empty state — do NOT redirect. Loading finishes normally
+        // so the UI can render a helpful message.
         setLoading(false);
       }
     } catch (err) {
@@ -305,35 +327,80 @@ const Organization = () => {
     );
   }
 
-  // ── No org provisioned yet — show friendly empty state instead of crashing ──
+  // ── No org provisioned yet — show smart empty state ──────────────────────────
+  // Distinguish between users who need to upgrade and users who already have
+  // B2B access but whose org row hasn't been linked yet.
   if (!org) {
+    const alreadyHasB2B =
+      sessionUserEmail === OWNER_EMAIL ||
+      hasB2BAccess ||
+      isByokUnlimited;
+
     return (
       <AppShell user={user} plan={user ? 'elite' : 'free'}>
         <div className="container mx-auto px-4 py-24 max-w-lg text-center space-y-6">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
             <Building2 className="w-8 h-8 text-primary" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">No Organization Yet</h1>
-            <p className="text-sm text-muted-foreground">
-              Your account is not linked to an organization workspace yet.
-              Upgrade to <strong>B2B / Enterprise</strong> to unlock team management,
-              seat control, and candidate screening dashboards.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={() => navigate('/settings/billing')} className="gap-2">
-              <Crown className="w-4 h-4" />
-              Upgrade to B2B
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/dashboard')} className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Already purchased? Contact <a href="mailto:support@sovereignai.io" className="text-primary hover:underline">support@sovereignai.io</a> to get your organization linked.
-          </p>
+
+          {alreadyHasB2B ? (
+            // ── User already has B2B — org link is missing, not the plan ──────
+            <>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground mb-2">Organization Not Linked</h1>
+                <p className="text-sm text-muted-foreground">
+                  Your B2B plan is active, but no organization workspace has been assigned
+                  to your account yet. This is usually resolved within a few minutes after
+                  purchase. If it persists, contact support.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => window.location.reload()} className="gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/dashboard')} className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Dashboard
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Need help?{' '}
+                <a href="mailto:support@sovereignai.io" className="text-primary hover:underline">
+                  support@sovereignai.io
+                </a>
+              </p>
+            </>
+          ) : (
+            // ── User genuinely needs to upgrade ───────────────────────────────
+            <>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground mb-2">No Organization Yet</h1>
+                <p className="text-sm text-muted-foreground">
+                  Your account is not linked to an organization workspace.
+                  Upgrade to <strong>B2B / Enterprise</strong> to unlock team management,
+                  seat control, and candidate screening dashboards.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => navigate('/settings/billing')} className="gap-2">
+                  <Crown className="w-4 h-4" />
+                  Upgrade to B2B
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/dashboard')} className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Dashboard
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Already purchased?{' '}
+                <a href="mailto:support@sovereignai.io" className="text-primary hover:underline">
+                  Contact support
+                </a>{' '}
+                to get your organization linked.
+              </p>
+            </>
+          )}
         </div>
       </AppShell>
     );

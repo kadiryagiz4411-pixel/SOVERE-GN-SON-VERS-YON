@@ -23,6 +23,7 @@ import { BulkApplicantRanker } from "@/components/b2b/BulkApplicantRanker";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 import { resolveOrgProfile, SUPERADMIN_ORG, isSuperadminEmail } from "@/lib/superadminOrg";
+import { useSession } from "@/contexts/SessionContext";
 
 interface OrgInfo {
   id: string;
@@ -38,6 +39,9 @@ type Tab = "leaderboard" | "upload" | "analytics" | "screening";
 
 export default function B2BDashboard() {
   const navigate = useNavigate();
+  // hasB2BAccess covers active trial, paid B2B, and superadmin via SessionContext.
+  // We use it to fall back to the sentinel org when the DB has no org row yet.
+  const { hasB2BAccess } = useSession();
   const [org, setOrg] = useState<OrgInfo | null>(null);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [candidates, setCandidates] = useState<CandidateEvaluation[]>([]);
@@ -80,14 +84,20 @@ export default function B2BDashboard() {
       // kadiryagiz4411@gmail.com always gets owner access without an org row.
       const profile = resolveOrgProfile(rawProfile, user.email);
 
+      // ── Access gate ───────────────────────────────────────────────────────────
+      // Skip for superadmin. For regular users, hasB2BAccess (from SessionContext)
+      // covers active trials + paid subscriptions; if they have access but no org
+      // row yet (just purchased), fall through to the sentinel org rather than
+      // redirecting with an error toast.
       if (!profile.isSuperAdmin) {
-        // Regular user — enforce org membership and B2B plan.
-        if (!profile.org_id) {
-          toast.error("You are not part of an enterprise organization.");
+        const sessionHasB2BAccess = hasB2BAccess; // captured from hook
+        if (!profile.org_id && !sessionHasB2BAccess) {
+          // Genuinely not a B2B user.
+          toast.error("This dashboard requires a B2B / Enterprise subscription.");
           navigate("/dashboard");
           return;
         }
-        if (profile.plan_type !== "B2B_ENTERPRISE") {
+        if (profile.plan_type && profile.plan_type !== "B2B_ENTERPRISE" && !sessionHasB2BAccess) {
           toast.error("This dashboard requires an Enterprise B2B subscription.");
           navigate("/dashboard");
           return;
@@ -97,8 +107,12 @@ export default function B2BDashboard() {
       setUserRole(profile.org_role ?? "recruiter");
 
       // ── Load org details ─────────────────────────────────────────────────────
-      // For the superadmin sentinel org id, skip the DB query and use defaults.
-      if (profile.isSuperAdmin && profile.org_id === SUPERADMIN_ORG.id) {
+      // Sentinel path: superadmin with no real org, OR B2B user whose org hasn't
+      // been provisioned yet — populate from constants and try to find a real org.
+      const useSentinel = profile.org_id === SUPERADMIN_ORG.id ||
+        (!profile.org_id && (profile.isSuperAdmin || hasB2BAccess));
+
+      if (useSentinel) {
         setOrg({
           id: SUPERADMIN_ORG.id,
           name: SUPERADMIN_ORG.name,
@@ -117,7 +131,7 @@ export default function B2BDashboard() {
             setJobs(jobList);
             if (jobList.length > 0) setSelectedJobId(jobList[0].id);
           }
-        } catch { /* no real org — fine, superadmin sees empty state */ }
+        } catch { /* no real org yet — sentinel state is fine */ }
         return;
       }
 
