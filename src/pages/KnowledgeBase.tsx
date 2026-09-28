@@ -120,10 +120,10 @@ export default function KnowledgeBase() {
               {entries.map((e) => (
                 <div key={e.id} className="rounded-xl border border-border bg-card/60 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">{e.category.replace('_', ' ')}</p>
-                      <h3 className="font-semibold">{e.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{e.content}</p>
+                      <h3 className="font-semibold break-words">{e.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap break-words">{e.content}</p>
                     </div>
                     <Button
                       variant="ghost"

@@ -150,7 +150,7 @@ function JobCard({ job, index, onRetry }: { job: BatchJob; index: number; onRetr
                   Copy
                 </button>
               </div>
-              <p className="text-foreground whitespace-pre-line leading-relaxed">{job.proposal}</p>
+              <p className="text-foreground whitespace-pre-line leading-relaxed break-words">{job.proposal}</p>
             </div>
           )}
           {job.errorMessage && (

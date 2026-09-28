@@ -359,9 +359,9 @@ export default function CandidateLeaderboard({ candidates, isLoading, onRefresh,
                             : <span className="text-xs text-slate-500 font-mono">{originalRank}</span>
                           }
                         </td>
-                        <td className="p-3">
-                          <p className="font-medium text-slate-200">{c.candidate_name}</p>
-                          {c.candidate_email && <p className="text-xs text-slate-500 truncate max-w-36">{c.candidate_email}</p>}
+                        <td className="p-3 max-w-[200px]">
+                          <p className="font-medium text-slate-200 truncate" title={c.candidate_name}>{c.candidate_name}</p>
+                          {c.candidate_email && <p className="text-xs text-slate-500 truncate" title={c.candidate_email}>{c.candidate_email}</p>}
                         </td>
                         <td className="p-3">
                           {score != null ? (

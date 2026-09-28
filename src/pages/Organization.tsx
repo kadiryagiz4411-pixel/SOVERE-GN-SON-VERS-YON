@@ -13,7 +13,7 @@ import { resolveOrgProfile, SUPERADMIN_ORG } from '@/lib/superadminOrg';
 import {
   Building2, Users, TrendingUp, Trophy, Download, Upload,
   RefreshCw, Loader2, UserMinus, Mail, BarChart3, Copy, Check,
-  Shield, Crown, ChevronDown, ChevronUp,
+  Shield, Crown, ChevronDown, ChevronUp, ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -139,8 +139,9 @@ const Organization = () => {
         }
 
         await loadMembers(userId);
-      } else if (profile.isSuperAdmin) {
-        // No real org exists yet — show empty state without redirecting.
+      } else {
+        // No real org exists yet (superadmin sentinel OR regular admin with no org assigned).
+        // Show an empty state UI — do NOT redirect — loading finishes normally.
         setLoading(false);
       }
     } catch (err) {
@@ -301,6 +302,40 @@ const Organization = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // ── No org provisioned yet — show friendly empty state instead of crashing ──
+  if (!org) {
+    return (
+      <AppShell user={user} plan={user ? 'elite' : 'free'}>
+        <div className="container mx-auto px-4 py-24 max-w-lg text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Building2 className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground mb-2">No Organization Yet</h1>
+            <p className="text-sm text-muted-foreground">
+              Your account is not linked to an organization workspace yet.
+              Upgrade to <strong>B2B / Enterprise</strong> to unlock team management,
+              seat control, and candidate screening dashboards.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => navigate('/settings/billing')} className="gap-2">
+              <Crown className="w-4 h-4" />
+              Upgrade to B2B
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/dashboard')} className="gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Already purchased? Contact <a href="mailto:support@sovereignai.io" className="text-primary hover:underline">support@sovereignai.io</a> to get your organization linked.
+          </p>
+        </div>
+      </AppShell>
     );
   }
 
