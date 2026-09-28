@@ -22,6 +22,7 @@ import CreditMeter from "@/components/b2b/CreditMeter";
 import { BulkApplicantRanker } from "@/components/b2b/BulkApplicantRanker";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
+import { resolveOrgProfile, SUPERADMIN_ORG, isSuperadminEmail } from "@/lib/superadminOrg";
 
 interface OrgInfo {
   id: string;
@@ -66,32 +67,64 @@ export default function B2BDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
 
+      console.log('[Auth Check]', { component: 'B2BDashboard', userId: user.id, email: user.email });
+
       // Get profile with org info
-      const { data: profile, error: profileError } = await supabase
+      const { data: rawProfile } = await supabase
         .from("profiles")
         .select("org_id, org_role, plan_type")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile?.org_id) {
-        toast.error("You are not part of an enterprise organization.");
-        navigate("/dashboard");
-        return;
-      }
+      // ── Superadmin bypass ────────────────────────────────────────────────────
+      // kadiryagiz4411@gmail.com always gets owner access without an org row.
+      const profile = resolveOrgProfile(rawProfile, user.email);
 
-      if (profile.plan_type !== "B2B_ENTERPRISE") {
-        toast.error("This dashboard requires an Enterprise B2B subscription.");
-        navigate("/dashboard");
-        return;
+      if (!profile.isSuperAdmin) {
+        // Regular user — enforce org membership and B2B plan.
+        if (!profile.org_id) {
+          toast.error("You are not part of an enterprise organization.");
+          navigate("/dashboard");
+          return;
+        }
+        if (profile.plan_type !== "B2B_ENTERPRISE") {
+          toast.error("This dashboard requires an Enterprise B2B subscription.");
+          navigate("/dashboard");
+          return;
+        }
       }
 
       setUserRole(profile.org_role ?? "recruiter");
 
-      // Get org details
+      // ── Load org details ─────────────────────────────────────────────────────
+      // For the superadmin sentinel org id, skip the DB query and use defaults.
+      if (profile.isSuperAdmin && profile.org_id === SUPERADMIN_ORG.id) {
+        setOrg({
+          id: SUPERADMIN_ORG.id,
+          name: SUPERADMIN_ORG.name,
+          subscription_tier: SUPERADMIN_ORG.subscription_tier,
+          max_seats: SUPERADMIN_ORG.max_seats,
+          used_seats: SUPERADMIN_ORG.used_seats,
+          cv_evaluations_used: SUPERADMIN_ORG.cv_evaluations_used,
+          cv_evaluations_limit: SUPERADMIN_ORG.cv_evaluations_limit,
+        });
+        // Still attempt to load real job postings if any org rows exist.
+        try {
+          const { data: firstOrg } = await supabase.from("organizations").select("id").limit(1).maybeSingle();
+          const realOrgId = (firstOrg as { id?: string } | null)?.id;
+          if (realOrgId) {
+            const jobList = await fetchJobPostings(realOrgId);
+            setJobs(jobList);
+            if (jobList.length > 0) setSelectedJobId(jobList[0].id);
+          }
+        } catch { /* no real org — fine, superadmin sees empty state */ }
+        return;
+      }
+
       const { data: orgData, error: orgError } = await supabase
         .from("organizations")
         .select("id, name, plan_type, max_seats, used_seats, cv_evaluations_used, cv_evaluations_limit, subscription_tier")
-        .eq("id", profile.org_id)
+        .eq("id", profile.org_id!)
         .single();
 
       if (orgError || !orgData) throw orgError ?? new Error("Org not found");
@@ -107,12 +140,13 @@ export default function B2BDashboard() {
       });
 
       // Load jobs
-      const jobList = await fetchJobPostings(profile.org_id);
+      const jobList = await fetchJobPostings(profile.org_id!);
       setJobs(jobList);
       if (jobList.length > 0) setSelectedJobId(jobList[0].id);
 
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[SOVEREIGN_ERR] B2BDashboard.loadOrgData:', msg);
       toast.error("Failed to load organization data");
     } finally {
       setIsLoadingOrg(false);

@@ -24,6 +24,7 @@ import {
 import CandidateScoreCard from "@/components/b2b/CandidateScoreCard";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
+import { resolveOrgProfile, SUPERADMIN_ORG } from "@/lib/superadminOrg";
 
 const VERDICT_COLORS: Record<string, string> = {
   STRONG_HIRE: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -65,30 +66,56 @@ export default function TalentPool() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id, plan_type")
-        .eq("user_id", user.id)
-        .single();
+      console.log('[Auth Check]', { component: 'TalentPool', userId: user.id, email: user.email });
 
-      if (!profile?.org_id || profile.plan_type !== "B2B_ENTERPRISE") {
-        navigate("/b2b");
-        return;
+      const { data: rawProfile } = await supabase
+        .from("profiles")
+        .select("org_id, org_role, plan_type")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // ── Superadmin bypass ────────────────────────────────────────────────────
+      const profile = resolveOrgProfile(rawProfile, user.email);
+
+      if (!profile.isSuperAdmin) {
+        if (!profile.org_id || profile.plan_type !== "B2B_ENTERPRISE") {
+          navigate("/b2b");
+          return;
+        }
       }
 
-      setOrgId(profile.org_id);
+      // For the sentinel org, try to resolve a real org id first so vector
+      // search can actually query the candidate_evaluations table.
+      let effectiveOrgId = profile.org_id!;
+      if (profile.isSuperAdmin && profile.org_id === SUPERADMIN_ORG.id) {
+        const { data: firstOrg } = await supabase
+          .from("organizations")
+          .select("id, name")
+          .limit(1)
+          .maybeSingle();
+        if (firstOrg) {
+          effectiveOrgId = (firstOrg as { id: string }).id;
+          setOrgName((firstOrg as { name: string }).name);
+        } else {
+          setOrgName(SUPERADMIN_ORG.name);
+        }
+      }
 
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("name")
-        .eq("id", profile.org_id)
-        .single();
+      setOrgId(effectiveOrgId);
 
-      if (org) setOrgName(org.name);
+      // Only fetch org name if we didn't already set it in the bypass block.
+      if (!profile.isSuperAdmin || effectiveOrgId !== SUPERADMIN_ORG.id) {
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("name")
+          .eq("id", effectiveOrgId)
+          .maybeSingle();
+        if (org) setOrgName((org as { name: string }).name);
+      }
 
       // Load stats
       setIsLoadingStats(true);
-      const poolStats = await fetchTalentPoolStats(profile.org_id);
+      const poolStats = await fetchTalentPoolStats(effectiveOrgId);
       setStats(poolStats);
     } catch (err) {
       toast.error("Failed to load talent pool");

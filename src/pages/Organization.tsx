@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
 import { OWNER_EMAIL } from '@/lib/superadmin';
+import { resolveOrgProfile, SUPERADMIN_ORG } from '@/lib/superadminOrg';
 import {
   Building2, Users, TrendingUp, Trophy, Download, Upload,
   RefreshCw, Loader2, UserMinus, Mail, BarChart3, Copy, Check,
@@ -85,49 +86,47 @@ const Organization = () => {
 
   const loadOrgData = async (userId: string) => {
     try {
-      // Resolve caller's email to check for superadmin privileges.
+      // Resolve caller's email for superadmin privileges.
       const { data: authData } = await supabase.auth.getUser();
       const callerEmail = authData.user?.email ?? '';
-      const isSuperAdmin = callerEmail === OWNER_EMAIL;
 
       // Get profile with org info
-      const { data: profile } = await supabase
+      const { data: rawProfile } = await supabase
         .from('profiles')
-        .select('org_id, org_role')
+        .select('org_id, org_role, plan_type')
         .eq('user_id', userId)
         .maybeSingle();
 
-      // Superadmin always has org_admin access — bypass role check.
-      // For regular users require explicit org_admin role.
+      // Use the shared helper — injects sentinel org for superadmin if needed.
+      const profile = resolveOrgProfile(rawProfile, callerEmail);
+
+      // Role access check: superadmin always passes; regular users need org_admin/owner/admin.
       const hasOrgAccess =
-        isSuperAdmin ||
-        profile?.org_role === 'org_admin' ||
-        profile?.org_role === 'owner' ||
-        profile?.org_role === 'admin';
+        profile.isSuperAdmin ||
+        profile.org_role === 'org_admin' ||
+        profile.org_role === 'owner' ||
+        profile.org_role === 'admin';
 
       if (!hasOrgAccess) {
-        // Graceful fallback: surface a friendly message and redirect instead
-        // of throwing an unhandled "cache access denied" exception.
-        console.warn('[Auth Check]', { component: 'Organization', userId, callerEmail, orgRole: profile?.org_role });
+        console.warn('[Auth Check]', { component: 'Organization', userId, callerEmail, orgRole: profile.org_role });
         toast.error('Access denied: Organization admin role required. Contact your workspace owner.');
         navigate('/dashboard');
         return;
       }
 
-      // Superadmin can also view an org without being a formal member.
-      // Try the profile org first; if none, attempt to load the first org.
-      let orgId = profile?.org_id ?? null;
-      if (!orgId && isSuperAdmin) {
+      // Resolve the real org id — for sentinel fallback, try the first real org.
+      let orgId = profile.org_id;
+      if (profile.isSuperAdmin && orgId === SUPERADMIN_ORG.id) {
         const { data: firstOrg } = await supabase
           .from('organizations')
           .select('id')
           .limit(1)
           .maybeSingle();
-        orgId = (firstOrg as { id: string } | null)?.id ?? null;
+        orgId = (firstOrg as { id: string } | null)?.id ?? SUPERADMIN_ORG.id;
       }
 
-      // Get org details
-      if (orgId) {
+      // Get org details — skip DB query for pure sentinel org.
+      if (orgId && orgId !== SUPERADMIN_ORG.id) {
         const { data: orgData } = await supabase
           .from('organizations')
           .select('*')
@@ -140,8 +139,8 @@ const Organization = () => {
         }
 
         await loadMembers(userId);
-      } else if (isSuperAdmin) {
-        // No org exists yet — silently succeed with empty state.
+      } else if (profile.isSuperAdmin) {
+        // No real org exists yet — show empty state without redirecting.
         setLoading(false);
       }
     } catch (err) {
