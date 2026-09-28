@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isPaidPlan } from '@/lib/plans';
+import { isOwnerEmail } from '@/lib/superadmin';
 import {
   Target, Loader2, ChevronDown, ChevronUp,
   Copy, Check, Zap, AlertTriangle, Sparkles,
@@ -231,7 +233,16 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
   });
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const isPaid = plan === 'pro' || plan === 'elite';
+  // Use the canonical isPaidPlan() — correctly covers 'pro', 'elite', 'standard', 'B2B_ENTERPRISE'.
+  // Also fall through for any plan string that could be a superadmin/enterprise override.
+  const isPaid =
+    isPaidPlan(plan) ||
+    plan === 'appsumo_tier2' ||
+    plan === 'appsumo_tier3' ||
+    plan === 'appsumo_b2b' ||
+    plan === 'enterprise' ||
+    plan === 'enterprise_b2b' ||
+    plan === 'unlimited';
   const isFreePlan = !isPaid;
 
   const toggleSection = (key: string) => {

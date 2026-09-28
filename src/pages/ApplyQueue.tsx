@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { CREDIT_COSTS } from '@/lib/plans';
+import { useSession } from '@/contexts/SessionContext';
+import { isOwnerEmail } from '@/lib/superadmin';
 import {
   Loader2, RefreshCw, Zap, Crown, ExternalLink, Check, X,
   ChevronDown, ChevronUp, Target, TrendingUp, AlertTriangle,
@@ -52,6 +54,20 @@ const ApplyQueue = () => {
   const { language } = useLanguage();
   const plan = profile?.subscription_plan || 'basic';
   const credits = profile?.credits_balance || 0;
+
+  // ── Bypass matrix (mirrors tierPermissions.ts) ───────────────────────────
+  // Grant full access when ANY of:
+  //   1. Email is kadiryagiz4411@gmail.com (superadmin override)
+  //   2. SessionContext reports hasB2BAccess or isByokUnlimited (trial/paid B2B, BYOK)
+  //   3. profile.appsumo_tier >= 2 (AppSumo Tier 2 & 3)
+  //   4. profile.is_superadmin === true
+  //   5. profile.tier is 'unlimited' | 'agency' | etc.
+  //   6. plan is any paid variant (pro, elite, B2B_ENTERPRISE, appsumo_*)
+  const { hasB2BAccess, isByokUnlimited } = useSession();
+  const PAID_PLANS = new Set([
+    'pro', 'elite', 'standard', 'B2B_ENTERPRISE', 'enterprise', 'enterprise_b2b',
+    'appsumo_tier2', 'appsumo_tier3', 'appsumo_b2b', 'unlimited', 'agency',
+  ]);
 
   const [items, setItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +117,8 @@ const ApplyQueue = () => {
   useEffect(() => { fetchQueue(); }, [user]);
 
   const handleScan = async () => {
-    if (credits < 30) {
+    // Unlimited users (superadmin, BYOK, hasB2BAccess, AppSumo Tier 2+) bypass the credit check.
+    if (!isUnlimitedUser && credits < 30) {
       toast.error(language === 'tr' ? 'Yetersiz kredi (30 kredi gerekli)' : 'Insufficient credits (30 credits required)');
       return;
     }
@@ -197,7 +214,16 @@ const ApplyQueue = () => {
   const getScoreColor = (s: number) => s >= 70 ? 'text-green-400' : s >= 45 ? 'text-amber-400' : 'text-red-400';
   const getScoreBg = (s: number) => s >= 70 ? 'from-green-500/20 to-green-500/5' : s >= 45 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
 
-  const isPaid = plan === 'pro' || plan === 'elite';
+  const isUnlimitedUser =
+    isOwnerEmail(user?.email) ||
+    hasB2BAccess ||
+    isByokUnlimited ||
+    Number(profile?.appsumo_tier ?? 0) >= 2 ||
+    Boolean((profile as any)?.is_superadmin) ||
+    ['unlimited', 'agency'].includes((profile as any)?.tier ?? '') ||
+    PAID_PLANS.has(plan);
+
+  const isPaid = isUnlimitedUser;
 
   return (
     <AppShell user={user} plan={plan} creditsBalance={credits}>
