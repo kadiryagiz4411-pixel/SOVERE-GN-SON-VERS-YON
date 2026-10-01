@@ -21,6 +21,7 @@ import { prepareAiExecution, CreditLimitError, FeatureForbiddenError } from '@/l
 import { isOwnerEmail } from '@/lib/superadmin';
 import { hasByokKey } from '@/services/aiService';
 import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
+import { getOpenAIApiKey } from '@/lib/apiKeyResolver';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -87,16 +88,16 @@ async function resolveApiKey(userId: string): Promise<{ key: string; isByok: boo
       || (data as { custom_openai_key?: string } | null)?.custom_openai_key
       || '',
     ).trim();
-    if (byokKey) return { key: byokKey, isByok: true };
+    if (byokKey.startsWith('sk-')) return { key: byokKey, isByok: true };
   } catch {
     // fall through to platform key
   }
 
-  const platformKey =
-    (typeof import.meta !== 'undefined'
-      ? (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY
-      : '') || '';
-  return { key: platformKey, isByok: false };
+    try {
+      return { key: getOpenAIApiKey(), isByok: false };
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('AI_NOT_CONFIGURED');
+    }
 }
 
 function buildPrompt(jd: string, agency: AgencyProfile): string {

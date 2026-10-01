@@ -17,7 +17,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { trimForLLM, contentHash } from '@/utils/tokenTrimmer';
 import { parseLLMJson } from '@/utils/llmJson';
 import { toast } from 'sonner';
-import { resolveOpenAIKey, hasByokKeyStored, BYOK_STORAGE_KEY } from '@/lib/apiKeyResolver';
+import {
+  resolveOpenAIKey,
+  getOpenAIApiKey,
+  hasByokKeyStored,
+  BYOK_STORAGE_KEY,
+  AI_NOT_CONFIGURED_MESSAGE,
+} from '@/lib/apiKeyResolver';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -27,14 +33,8 @@ const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 export { BYOK_STORAGE_KEY };
 
 /**
- * Resolve the OpenAI API key to use for client-side calls.
- *
- * Priority order (a → b):
- *   a) VITE_OPENAI_API_KEY  — admin-configured Vercel / .env key.
- *   b) sovereign_byok_key   — user's personal BYOK key from localStorage.
- *
- * Returns '' when neither is configured.
- * Exported so callers can check availability without triggering a toast.
+ * Resolve the OpenAI API key (BYOK → Vercel VITE_OPENAI_API_KEY).
+ * Returns '' when neither is configured (does not throw).
  */
 export const getApiKey = (): string => resolveOpenAIKey();
 
@@ -83,17 +83,17 @@ async function callOpenAI(
   messages: { role: string; content: string }[],
   maxTokens = 800,
 ): Promise<string> {
-  const key = getApiKey();
-  if (!key) {
-    const msg =
-      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.';
-    console.error('[SOVEREIGN_ERR] callOpenAI: No API key configured (VITE_OPENAI_API_KEY not set and no BYOK key in localStorage).');
-    // Show once — use a stable toast id so multiple rapid calls don't stack.
+  let key = '';
+  try {
+    key = getOpenAIApiKey();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE;
+    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
     toast.error(msg, { id: 'sovereign-no-api-key', duration: 8000 });
     throw new Error(msg);
   }
 
-  console.log('[AI Engine Request]', { model, hasKey: !!key, maxTokens });
+  console.log('[AI Engine Request]', { model, hasKey: true, maxTokens });
 
   const res = await fetch(OPENAI_BASE, {
     method: 'POST',
@@ -371,12 +371,14 @@ export interface CVFallbackInput {
  * Returns null when no API key is available.
  */
 export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
-  const key = getApiKey();
-  if (!key) {
-    toast.error(
-      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
-      { id: 'sovereign-no-api-key', duration: 8000 },
-    );
+  let key = '';
+  try {
+    key = getOpenAIApiKey();
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+      id: 'sovereign-no-api-key',
+      duration: 8000,
+    });
     return null;
   }
 
@@ -478,12 +480,14 @@ export async function generateATSFallback(
   jobDescription?: string,
   outputLanguage?: string,
 ): Promise<ATSFallbackResult | null> {
-  const key = getApiKey();
-  if (!key) {
-    toast.error(
-      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
-      { id: 'sovereign-no-api-key', duration: 8000 },
-    );
+  let key = '';
+  try {
+    key = getOpenAIApiKey();
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+      id: 'sovereign-no-api-key',
+      duration: 8000,
+    });
     return null;
   }
 
@@ -548,12 +552,14 @@ export async function generateProposalFallback(
   } | null,
   profession?: string,
 ): Promise<string | null> {
-  const key = getApiKey();
-  if (!key) {
-    toast.error(
-      'OpenAI API Anahtarı Bulunamadı. Lütfen Ayarlar sayfasından API anahtarınızı ekleyin veya sistem yöneticisiyle iletişime geçin.',
-      { id: 'sovereign-no-api-key', duration: 8000 },
-    );
+  let key = '';
+  try {
+    key = getOpenAIApiKey();
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+      id: 'sovereign-no-api-key',
+      duration: 8000,
+    });
     return null;
   }
 

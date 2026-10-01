@@ -8,6 +8,7 @@ import {
 } from "../_shared/actionCredits.ts";
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
+import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
 
 function sanitizeText(input: unknown, maxLength: number = 10000): string {
   if (!input || typeof input !== 'string') return '';
@@ -356,18 +357,9 @@ Deno.serve(async (req) => {
 
     const model = "gpt-4o-mini";
 
-    // Resolve the OpenAI key: prefer the Supabase secret, fall back to the
-    // client-provided key (BYOK / VITE_OPENAI_API_KEY forwarded in the body).
-    const clientKey = typeof body.customApiKey === 'string' ? body.customApiKey.trim() : '';
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || (clientKey.startsWith('sk-') ? clientKey : '');
-    if (!OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({
-          error: "AI service not configured: OpenAI API key missing. Add OPENAI_API_KEY to Supabase secrets, or configure your personal key in Profile → BYOK Settings.",
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const keyResult = tryResolveEdgeOpenAIKey(body, corsHeaders);
+    if ('response' in keyResult) return keyResult.response;
+    const OPENAI_API_KEY = keyResult.key;
 
     const toneDirectives: Record<string, string> = {
       professional: 'Write in a warm yet professional tone. Sound like a real person who is genuinely interested—not a template. Be articulate but conversational.',

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Crown, Shield, Users, Loader2, Search, X, ChevronLeft, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, RefreshCw, Activity, Key, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { OWNER_EMAIL, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 // ─── System Health Types ──────────────────────────────────────────────────────
 type HealthStatus = 'checking' | 'ok' | 'warn' | 'error';
@@ -73,7 +74,7 @@ const Admin = () => {
     }
 
     // 2. OpenAI API Key
-    const apiKey = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ?? '';
+    const apiKey = resolveOpenAIKey();
     results.push({
       label: 'OpenAI API Key',
       status: apiKey ? 'ok' : 'warn',

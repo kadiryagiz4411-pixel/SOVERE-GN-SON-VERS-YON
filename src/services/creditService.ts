@@ -18,6 +18,7 @@ import { COST_PER_ACTION, creditUsagePercentage } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
 import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
 import { hasByokKey } from '@/services/aiService';
+import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 export { COST_PER_ACTION };
 
@@ -200,7 +201,7 @@ export interface ByokStatus {
  */
 export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
   const { data: auth } = await supabase.auth.getUser();
-  const platformKey = (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY ?? '';
+  const platformKey = resolveOpenAIKey();
   if (isOwnerEmail(auth.user?.email)) {
     return { isByokActive: true, apiKey: platformKey, source: 'byok_unlocked' };
   }
@@ -223,7 +224,7 @@ export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
     const byokFlag  = (data as { byok_unlocked?: boolean } | null)?.byok_unlocked ?? false;
 
     if (customKey) {
-      return { isByokActive: true, apiKey: customKey, source: 'custom_key' };
+      return { isByokActive: true, apiKey: resolveOpenAIKey(customKey), source: 'custom_key' };
     }
     if (byokFlag) {
       // byok_unlocked but no custom key yet — still bypass credits, use platform key

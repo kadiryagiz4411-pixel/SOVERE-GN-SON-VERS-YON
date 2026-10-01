@@ -1,52 +1,76 @@
 /**
- * apiKeyResolver.ts
- * ──────────────────────────────────────────────────────────────────────────────
- * Single source-of-truth for OpenAI API key resolution.
- * Kept in its own tiny module so both aiService.ts AND edgeFunctions.ts can
- * import it without creating a circular dependency.
+ * AI Servis Başlatıcı — tek kaynak OpenAI anahtar çözümlemesi.
+ * Vite/Vercel istemcisi ve (forward edilen) Supabase Edge Function gövdesi
+ * aynı öncelik sırasını kullanır.
  *
- * Priority order (as specified):
- *   a) VITE_OPENAI_API_KEY  — admin-configured env var (Vercel / .env)
- *   b) sovereign_byok_key   — user's personal BYOK key from localStorage
+ * 1) Kullanıcı BYOK (Bring Your Own Key)
+ * 2) Vercel / Vite VITE_OPENAI_API_KEY
+ * 3) Yoksa sessiz çökme yok — net AI_NOT_CONFIGURED hatası
  */
 
 export const BYOK_STORAGE_KEY = 'sovereign_byok_key';
 
 const SK_PREFIX = 'sk-';
 
-/**
- * Returns the best available OpenAI API key, or an empty string when none
- * is configured.  Never throws.
- */
-export function resolveOpenAIKey(): string {
-  // a) Vercel / .env admin key (takes precedence so the shared key always works)
-  try {
-    const envKey = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ?? '';
-    if (envKey && envKey.startsWith(SK_PREFIX)) return envKey.trim();
-  } catch {
-    // import.meta may not be available in non-Vite contexts
-  }
+export const AI_NOT_CONFIGURED_MESSAGE =
+  "AI_NOT_CONFIGURED: Lütfen sistem VITE_OPENAI_API_KEY değişkenini kontrol edin veya Ayarlar'dan kendi OpenAI API anahtarınızı girin.";
 
-  // b) User's BYOK key stored in localStorage
+function isSkKey(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().startsWith(SK_PREFIX);
+}
+
+function readStoredByok(): string {
   try {
     const byok = localStorage.getItem(BYOK_STORAGE_KEY);
-    if (byok && byok.startsWith(SK_PREFIX)) return byok.trim();
+    return isSkKey(byok) ? byok.trim() : '';
   } catch {
-    // localStorage unavailable (SSR / private-mode edge cases)
+    return '';
   }
+}
 
-  return '';
+function readViteSystemKey(): string {
+  try {
+    const systemKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
+    return isSkKey(systemKey) ? String(systemKey).trim() : '';
+  } catch {
+    return '';
+  }
 }
 
 /**
- * Returns true when the user has stored a personal BYOK key in localStorage.
- * Used to show/hide the "BYOK ACTIVE" badge in the UI.
+ * Kök çözümleyici. Geçerli bir anahtar yoksa throw eder.
  */
-export function hasByokKeyStored(): boolean {
-  try {
-    const k = localStorage.getItem(BYOK_STORAGE_KEY);
-    return !!(k && k.startsWith(SK_PREFIX));
-  } catch {
-    return false;
+export const getOpenAIApiKey = (userCustomKey?: string | null): string => {
+  // 1. Öncelik: Kullanıcının BYOK ile girdiği kendi anahtarı
+  if (isSkKey(userCustomKey)) {
+    return userCustomKey.trim();
   }
+  const storedByok = readStoredByok();
+  if (storedByok) return storedByok;
+
+  // 2. Öncelik: Vercel ortam değişkenlerindeki sistem anahtarı
+  const systemKey = readViteSystemKey();
+  if (systemKey) return systemKey;
+
+  // 3. Hiçbiri yoksa sessiz çökme yerine net hata
+  throw new Error(AI_NOT_CONFIGURED_MESSAGE);
+};
+
+/**
+ * Throw etmeyen sarmalayıcı — UI “anahtar var mı?” kontrolleri için.
+ */
+export function resolveOpenAIKey(userCustomKey?: string | null): string {
+  try {
+    return getOpenAIApiKey(userCustomKey);
+  } catch {
+    return '';
+  }
+}
+
+export function hasByokKeyStored(): boolean {
+  return !!readStoredByok();
+}
+
+export function isAiNotConfiguredError(err: unknown): boolean {
+  return err instanceof Error && err.message.startsWith('AI_NOT_CONFIGURED');
 }

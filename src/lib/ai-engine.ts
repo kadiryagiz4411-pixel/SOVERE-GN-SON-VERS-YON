@@ -10,6 +10,7 @@ import {
   type AppSumoFeature,
 } from '@/lib/appsumoGating';
 import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 export class CreditLimitError extends Error {
   status = 402;
@@ -102,11 +103,7 @@ export async function runAiAction<T>(options: {
   const owner = isOwnerEmail(auth.user?.email);
   const profile = await prepareAiExecution(options.userId, options.feature ?? 'ats_optimize');
   const byok = owner || isByokActive(profile);
-  const platformKey =
-    (typeof import.meta !== 'undefined'
-      ? (import.meta.env as Record<string, string>).VITE_OPENAI_API_KEY
-      : '') || '';
-  const apiKey = byok ? (profile.openaiKey || platformKey) : (profile.openaiKey || platformKey);
+  const apiKey = resolveOpenAIKey(profile.openaiKey);
 
   const result = await options.execute({ apiKey, byok, profile });
 

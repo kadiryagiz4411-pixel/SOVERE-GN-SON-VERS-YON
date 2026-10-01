@@ -10,16 +10,14 @@
  */
 
 import OpenAI from 'openai';
-import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
+import { getOpenAIApiKey, resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
-/** Resolve API key for both Vite (browser) and Edge-Function (Node/Deno) runtimes. */
+/** Resolve API key for Vite (BYOK → VITE) then Node/Deno OPENAI_API_KEY. */
 const resolveApiKey = (): string => {
-  // a) Shared resolver (VITE_OPENAI_API_KEY → BYOK localStorage)
   const resolved = resolveOpenAIKey();
   if (resolved) return resolved;
-  // b) Node / Supabase Edge Function environment
-  if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY) {
-    return process.env.OPENAI_API_KEY;
+  if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY?.startsWith('sk-')) {
+    return process.env.OPENAI_API_KEY.trim();
   }
   return '';
 };
@@ -69,10 +67,7 @@ export async function testOpenAIConnection(): Promise<
 // ─── Proposal generation ──────────────────────────────────────────────────────
 
 export async function generateProposal(userData: unknown): Promise<Record<string, unknown>> {
-  const key = resolveApiKey();
-  if (!key) {
-    throw new Error('OPENAI_API_KEY / VITE_OPENAI_API_KEY ortam değişkeni bulunamadı.');
-  }
+  const key = resolveApiKey() || getOpenAIApiKey();
 
   try {
     const response = await openai.chat.completions.create({

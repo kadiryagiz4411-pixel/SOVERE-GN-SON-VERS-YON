@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -169,14 +170,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-
-    if (!openaiKey) {
-      return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } },
@@ -191,6 +184,9 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    const keyResult = tryResolveEdgeOpenAIKey(body, corsHeaders);
+    if ('response' in keyResult) return keyResult.response;
+    const openaiKey = keyResult.key;
     const jobDescription = sanitizeText(body.jobDescription, 10000);
     const outputLanguage = body.outputLanguage || 'en';
 

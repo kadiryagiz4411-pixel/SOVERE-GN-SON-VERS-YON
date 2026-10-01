@@ -17,6 +17,7 @@
 
 import { trimForLLM } from "@/utils/tokenTrimmer";
 import { parseLLMJson } from "@/utils/llmJson";
+import { getOpenAIApiKey } from "@/lib/apiKeyResolver";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,8 +187,7 @@ async function callOpenAI(
   messages: { role: string; content: string }[],
   maxTokens = 700,
 ): Promise<string> {
-  const key = (import.meta as any).env?.VITE_OPENAI_API_KEY as string | undefined;
-  if (!key) throw new Error("VITE_OPENAI_API_KEY is not set.");
+  const key = getOpenAIApiKey();
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

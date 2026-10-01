@@ -8,6 +8,7 @@ import {
 } from "../_shared/actionCredits.ts";
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
+import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { cvText, outputLanguage, targetRole, jobDescription } = await req.json();
+    const body = await req.json();
+    const { cvText, outputLanguage, targetRole, jobDescription } = body;
 
     if (!cvText || typeof cvText !== "string" || cvText.trim().length < 50) {
       return new Response(
@@ -98,13 +100,9 @@ Deno.serve(async (req) => {
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI service not configured. OPENAI_API_KEY missing." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const keyResult = tryResolveEdgeOpenAIKey(body, corsHeaders);
+    if ('response' in keyResult) return keyResult.response;
+    const OPENAI_API_KEY = keyResult.key;
 
     const langName = outputLanguage || "English";
     const jdText = jobDescription?.trim() ?? "";

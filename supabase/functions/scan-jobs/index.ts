@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +21,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const openaiKey = Deno.env.get("OPENAI_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -88,6 +88,9 @@ Deno.serve(async (req) => {
     const batchId = crypto.randomUUID();
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const keyResult = tryResolveEdgeOpenAIKey(body, corsHeaders);
+    if ('response' in keyResult) return keyResult.response;
+    const openaiKey = keyResult.key;
     const preferredPlatforms = body.platforms || ["Upwork", "Fiverr", "LinkedIn", "Toptal"];
 
     const systemPrompt = `You are Sovereign's Job Scanner AI. You find the BEST freelance opportunities for a specific user.

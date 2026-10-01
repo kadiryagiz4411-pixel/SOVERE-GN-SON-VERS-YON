@@ -55,8 +55,7 @@ export async function invokeEdgeJson<T>(
       // Diagnostic — surfaces auth state and key availability in console.
       console.log('[Auth Check]', { component: 'edgeFunctions', functionName: name, userId: sessionData.session?.user?.id, email: sessionData.session?.user?.email, hasSession: !!token });
 
-      // Attach the client-side OpenAI key so the edge function can use it
-      // as a fallback when the OPENAI_API_KEY Supabase secret is not set.
+      // Forward BYOK first, then Vercel VITE_OPENAI_API_KEY, as customApiKey.
       const clientApiKey = resolveOpenAIKey();
       const enrichedBody =
         clientApiKey && typeof body === 'object' && body !== null
