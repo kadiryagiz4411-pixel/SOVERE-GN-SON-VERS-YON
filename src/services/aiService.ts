@@ -85,7 +85,7 @@ async function callOpenAI(
 ): Promise<string> {
   let key = getActiveApiKey();
   if (!key) {
-    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", { id: 'sovereign-no-api-key', duration: 8000 });
+    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", { id: 'sovereign-no-api-key', duration: 8000 });
     throw new Error(AI_NOT_CONFIGURED_MESSAGE);
   }
 
@@ -112,6 +112,7 @@ async function callOpenAI(
       userMsg = `OpenAI API Hatası (HTTP ${res.status}): ${errText.slice(0, 200)}`;
     }
     console.error('[SOVEREIGN_ERR] callOpenAI:', userMsg);
+    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", { id: 'sovereign-ai-down', duration: 8000 });
     throw new Error(userMsg);
   }
 
@@ -369,7 +370,7 @@ export interface CVFallbackInput {
 export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
   const key = getActiveApiKey();
   if (!key) {
-    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
+    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });
@@ -476,7 +477,7 @@ export async function generateATSFallback(
 ): Promise<ATSFallbackResult | null> {
   const key = getActiveApiKey();
   if (!key) {
-    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
+    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });
@@ -546,7 +547,7 @@ export async function generateProposalFallback(
 ): Promise<string | null> {
   const key = getActiveApiKey();
   if (!key) {
-    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
+    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });

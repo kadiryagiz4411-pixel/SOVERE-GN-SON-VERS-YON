@@ -30,8 +30,12 @@ function readViteSystemKey(): string {
     if (isUsableKey(vite)) return String(vite).trim();
   } catch { /* ignore */ }
   try {
-    const nodeKey = typeof process !== 'undefined' ? process.env?.VITE_OPENAI_API_KEY : undefined;
-    if (isUsableKey(nodeKey)) return String(nodeKey).trim();
+    const nodeVite = typeof process !== 'undefined' ? process.env?.VITE_OPENAI_API_KEY : undefined;
+    if (isUsableKey(nodeVite)) return String(nodeVite).trim();
+  } catch { /* ignore */ }
+  try {
+    const nodeOpenAi = typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : undefined;
+    if (isUsableKey(nodeOpenAi)) return String(nodeOpenAi).trim();
   } catch { /* ignore */ }
   return '';
 }

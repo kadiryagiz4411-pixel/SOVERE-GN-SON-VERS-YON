@@ -23,7 +23,7 @@ import { TrialCountdownBadge } from '@/components/dashboard/TrialCountdownBadge'
 import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequiredModal';
 import { useB2BTrial } from '@/hooks/useB2BTrial';
 import { isB2BEnterprisePath } from '@/lib/b2bTrial';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TierBadge } from '@/components/ui/TierBadge';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -138,18 +138,6 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     navigate('/');
   };
 
-  const planLabel = isSuperAdmin
-    ? SUPERADMIN_PLAN_LABEL
-    : isEnterprise
-      ? 'Enterprise B2B'
-      : isElite
-        ? 'Elite'
-        : isPro
-          ? 'Pro'
-          : plan === 'standard'
-            ? 'Standard'
-            : 'Free';
-
   const handleLockedNav = (item: TierNavItem) => {
     if (isSuperAdmin || hasB2BAccess || access.canAccess(item.required)) {
       navigate(item.to);
@@ -220,7 +208,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
       <div className="flex flex-1 min-h-0">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-card fixed h-full z-30">
+      <aside className="hidden lg:flex w-64 flex-col border-r border-white/10 bg-slate-900/70 backdrop-blur-md fixed h-full z-30">
         {/* Brand */}
         <div className="p-5 border-b border-border">
           <Link to="/dashboard" className="flex items-center gap-3">
@@ -228,11 +216,9 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               <span className="text-primary-foreground font-bold text-lg">S</span>
             </div>
             <div>
-              <span className="text-lg font-bold text-foreground tracking-tight">Sovereign</span>
-              <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                isElite ? 'bg-amber-500/20 text-amber-500' : isPro ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-              }`}>
-                {planLabel}
+              <span className="text-lg font-semibold tracking-tight text-white/90">Sovereign</span>
+              <span className="ml-2 align-middle">
+                <TierBadge tier={session.displayTier} />
               </span>
             </div>
           </Link>
@@ -315,12 +301,12 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">S</span>
               </div>
-              <span className="font-bold text-foreground">Sovereign</span>
+              <span className="font-semibold tracking-tight text-white/90">Sovereign</span>
+              <TierBadge tier={session.displayTier} />
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
-            {/* Monthly AppSumo credits badge */}
             <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
           </div>

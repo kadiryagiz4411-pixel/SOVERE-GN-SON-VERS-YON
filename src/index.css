@@ -37,7 +37,7 @@
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 70%;
+    --muted-foreground: 215 16% 65%;
 
     --accent: 43 50% 15%;
     --accent-foreground: 43 96% 70%;
@@ -83,7 +83,7 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 20%;
     --sidebar-ring: 43 96% 56%;
-    --font-sans: 'Lato', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
     --font-serif: 'EB Garamond', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.15);
@@ -113,7 +113,7 @@
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 70%;
+    --muted-foreground: 215 16% 65%;
 
     --accent: 43 50% 15%;
     --accent-foreground: 43 96% 70%;
@@ -159,7 +159,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-slate-200 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
@@ -168,6 +168,10 @@
   /* Safe area for notched phones */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  h1, h2, h3 {
+    @apply tracking-tight font-semibold text-white/90;
   }
 
   /* Better tap targets on mobile */

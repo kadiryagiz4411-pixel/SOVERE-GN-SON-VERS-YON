@@ -13,11 +13,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
 import { hasFullWorkspaceAccess, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { SUBSCRIPTION_PLANS, numericTierFromPlanType, type CatalogPlan } from '@/data/plans';
-import {
-  fallbackPlanAfterTrial,
-  resolveB2BAccess,
-  type TrialProfileSlice,
-} from '@/lib/b2bTrial';
+import { resolveDisplayTier } from '@/lib/displayTier';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -79,7 +75,7 @@ function resolveActivePlan(planType: string, expiresAt: string | null): string {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function PlanProvider({ children }: { children: ReactNode }) {
-  const { user, sessionReady } = useSession();
+  const { user, sessionReady, appsumoPlan, appsumoTier, hasB2BAccess: sessionB2B } = useSession();
   const ownerInit = hasFullWorkspaceAccess(user);
   const [tier, setTier] = useState<PlanTier>(ownerInit ? 'enterprise' : 'free');
   const [planType, setPlanType] = useState<string>(ownerInit ? SUPERADMIN_PLAN_TYPE : 'free');
@@ -193,17 +189,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const owner = hasFullWorkspaceAccess(user);
   const resolvedPlanType = owner ? SUPERADMIN_PLAN_TYPE : (planType || 'free');
   const resolvedTier = owner ? 'enterprise' : (tier || 'free');
-  const resolvedLabel = owner
-    ? SUPERADMIN_PLAN_LABEL
-    : resolvedTier === 'enterprise'
-      ? 'Enterprise B2B'
-      : resolvedTier === 'elite'
-        ? 'Elite'
-        : resolvedTier === 'pro'
-          ? 'Pro'
-          : resolvedTier === 'standard'
-            ? 'Standard'
-            : 'Free';
+  const display = resolveDisplayTier({
+    isSuperAdmin: owner,
+    hasB2BAccess: owner || hasEnterpriseAccess || sessionB2B,
+    appsumoPlan,
+    appsumoTier,
+    planType: resolvedPlanType,
+  });
+  const resolvedLabel = display.label;
 
   return (
     <PlanContext.Provider

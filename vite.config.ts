@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_SUPABASE_URL':         JSON.stringify(process.env.VITE_SUPABASE_URL         ?? ''),
     'import.meta.env.VITE_SUPABASE_ANON_KEY':    JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY    ?? ''),
     'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''),
-    'import.meta.env.VITE_OPENAI_API_KEY':        JSON.stringify(process.env.VITE_OPENAI_API_KEY       ?? ''),
+    'import.meta.env.VITE_OPENAI_API_KEY':        JSON.stringify(process.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY || ''),
     'import.meta.env.VITE_LEMONSQUEEZY_STORE_URL': JSON.stringify(process.env.VITE_LEMONSQUEEZY_STORE_URL ?? ''),
     'import.meta.env.VITE_LEMONSQUEEZY_TIER1_URL': JSON.stringify(process.env.VITE_LEMONSQUEEZY_TIER1_URL ?? ''),
     'import.meta.env.VITE_LEMONSQUEEZY_TIER2_URL': JSON.stringify(process.env.VITE_LEMONSQUEEZY_TIER2_URL ?? ''),

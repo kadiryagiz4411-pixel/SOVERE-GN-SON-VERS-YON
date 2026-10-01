@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
+import { resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -35,6 +36,7 @@ interface SessionState {
   hasUsedTrial: boolean;
   b2bSubscriptionStatus: string;
   appsumoPlan: string;
+  displayTier: DisplayTier;
   trialEndsAt: string | null;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
@@ -60,6 +62,7 @@ const SessionContext = createContext<SessionState>({
   hasUsedTrial: false,
   b2bSubscriptionStatus: 'none',
   appsumoPlan: 'none',
+  displayTier: resolveDisplayTier({}),
   trialEndsAt: null,
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
@@ -301,6 +304,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const liveTrial = owner || isTrialWindowOpen(isTrialActive, trialEndsAt);
   const paidB2B = owner || b2bSubscriptionStatus === 'active';
+  const hasB2BAccessValue = owner || paidB2B || liveTrial || b2bAccessFlag;
+  const displayTier = resolveDisplayTier({
+    isSuperAdmin: owner,
+    hasB2BAccess: hasB2BAccessValue,
+    appsumoPlan: owner ? 'tier_3' : appsumoPlan,
+    appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
+    planType: owner || paidB2B || liveTrial ? SUPERADMIN_PLAN_TYPE : planType,
+    subscriptionPlan,
+    subscriptionTier,
+  });
 
   return (
     <SessionContext.Provider
@@ -317,13 +330,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         planType: owner || paidB2B || liveTrial ? SUPERADMIN_PLAN_TYPE : planType,
         appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
         isByokUnlimited: owner || isByokUnlimited,
-        hasB2BAccess: owner || paidB2B || liveTrial || b2bAccessFlag,
+        hasB2BAccess: hasB2BAccessValue,
         hasApplyQueueAccess: owner || applyQueueAccess || appsumoTier >= 2 || paidB2B || liveTrial || b2bAccessFlag,
         hasBYOKAccess: owner || appsumoTier >= 3 || isByokUnlimited,
         isTrialActive: liveTrial,
         hasUsedTrial: owner ? false : hasUsedTrial,
         b2bSubscriptionStatus: owner ? 'active' : b2bSubscriptionStatus,
         appsumoPlan: owner ? 'tier_3' : appsumoPlan,
+        displayTier,
         trialEndsAt,
         refreshCredits,
         setCreditsBalance,

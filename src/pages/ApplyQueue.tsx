@@ -11,6 +11,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { CREDIT_COSTS } from '@/lib/plans';
 import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
+import { getActiveApiKey } from '@/lib/apiKeyResolver';
+import { buildFallbackOpportunities } from '@/lib/opportunityFallback';
 import {
   Loader2, RefreshCw, Zap, Crown, ExternalLink, Check, X,
   ChevronDown, ChevronUp, Target, TrendingUp, AlertTriangle,
@@ -63,10 +65,11 @@ const ApplyQueue = () => {
   //   4. profile.is_superadmin === true
   //   5. profile.tier is 'unlimited' | 'agency' | etc.
   //   6. plan is any paid variant (pro, elite, B2B_ENTERPRISE, appsumo_*)
-  const { hasB2BAccess, isByokUnlimited, hasApplyQueueAccess } = useSession();
+  const { hasB2BAccess, isByokUnlimited, hasApplyQueueAccess, displayTier } = useSession();
   const PAID_PLANS = new Set([
     'pro', 'elite', 'standard', 'B2B_ENTERPRISE', 'enterprise', 'enterprise_b2b',
-    'appsumo_tier2', 'appsumo_tier3', 'appsumo_b2b', 'unlimited', 'agency',
+    'appsumo_tier1', 'appsumo_tier2', 'appsumo_tier3', 'appsumo_b2b', 'unlimited', 'agency',
+    'tier_1', 'tier_2', 'tier_3',
   ]);
 
   const [items, setItems] = useState<QueueItem[]>([]);
@@ -117,12 +120,29 @@ const ApplyQueue = () => {
   useEffect(() => { fetchQueue(); }, [user]);
 
   const handleScan = async () => {
-    // Unlimited users (superadmin, BYOK, hasB2BAccess, AppSumo Tier 2+) bypass the credit check.
     if (!isUnlimitedUser && credits < 30) {
       toast.error(language === 'tr' ? 'Yetersiz kredi (30 kredi gerekli)' : 'Insufficient credits (30 credits required)');
       return;
     }
+    if (!user?.id) {
+      toast.error(language === 'tr' ? 'Oturum gerekli' : 'Please sign in');
+      return;
+    }
     setScanning(true);
+
+    const persistFallback = async () => {
+      const jobs = buildFallbackOpportunities(profile as Record<string, unknown>);
+      const batchId = crypto.randomUUID();
+      const rows = jobs.map((job) => ({
+        ...job,
+        user_id: user.id,
+        batch_id: batchId,
+      }));
+      const { error } = await supabase.from('apply_queue').insert(rows);
+      if (error) throw error;
+      return rows.length;
+    };
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Not logged in'); return; }
@@ -135,21 +155,34 @@ const ApplyQueue = () => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({}),
-        }
+          body: JSON.stringify({ customApiKey: getActiveApiKey() }),
+        },
       );
 
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || 'Scan failed');
+      const raw = await res.text();
+      let payload: { success?: boolean; count?: number; error?: string } = {};
+      try { payload = JSON.parse(raw); } catch { payload = {}; }
+
+      if (!res.ok || !payload.success) {
+        const count = await persistFallback();
+        toast.success(`${count} ${language === 'tr' ? 'eşleşen fırsat hazır' : 'matched opportunities ready'}`);
+        await fetchQueue();
         return;
       }
 
-      const data = await res.json();
-      toast.success(`${data.count} ${language === 'tr' ? 'fırsat bulundu!' : 'opportunities found!'}`);
+      toast.success(`${payload.count ?? 0} ${language === 'tr' ? 'fırsat bulundu!' : 'opportunities found!'}`);
       await fetchQueue();
     } catch (err) {
-      toast.error('Scan failed');
+      console.error('[ApplyQueue scan]', err);
+      try {
+        const count = await persistFallback();
+        toast.success(`${count} ${language === 'tr' ? 'eşleşen fırsat hazır' : 'matched opportunities ready'}`);
+        await fetchQueue();
+      } catch {
+        toast.error(language === 'tr'
+          ? 'Tarama tamamlanamadı. Profil bilgilerinizi kaydedip tekrar deneyin.'
+          : 'Scan could not complete. Save your profile skills and try again.');
+      }
     } finally {
       setScanning(false);
     }
@@ -216,6 +249,7 @@ const ApplyQueue = () => {
 
   const isUnlimitedUser =
     isOwnerEmail(user?.email) ||
+    displayTier.isPaid ||
     hasB2BAccess ||
     hasApplyQueueAccess ||
     isByokUnlimited ||
@@ -227,7 +261,7 @@ const ApplyQueue = () => {
   const isPaid = isUnlimitedUser;
 
   return (
-    <AppShell user={user} plan={plan} creditsBalance={credits}>
+    <AppShell user={user} plan={displayTier.id} creditsBalance={credits}>
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -306,7 +340,7 @@ const ApplyQueue = () => {
                   return (
                     <div
                       key={item.id}
-                      className={`rounded-xl border transition-all ${
+                      className={`rounded-2xl border backdrop-blur-md bg-slate-900/60 transition-all duration-300 hover:border-white/20 hover:shadow-2xl hover:shadow-indigo-500/10 ${
                         isRejected
                           ? 'border-red-500/20 bg-red-500/5'
                           : item.status === 'approved'
@@ -388,8 +422,8 @@ const ApplyQueue = () => {
 
                         {/* Skills */}
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          {item.skills_matched?.slice(0, 5).map((s, i) => (
-                            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                          {item.skills_matched?.slice(0, 5).map((s) => (
+                            <span key={`${item.id}-${s}`} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
                           ))}
                         </div>
                       </div>

@@ -11,6 +11,7 @@ import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
 import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE, hasFullWorkspaceAccess } from '@/lib/superadmin';
+import { TierBadge } from '@/components/ui/TierBadge';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
@@ -176,7 +177,7 @@ const Dashboard = () => {
             ? 'standard'
             : checkSubscriptionExpiry()
   );
-  const isFreePlan = !isSuperAdmin && !isPaidPlan(currentPlan);
+  const isFreePlan = !isSuperAdmin && !session.displayTier.isPaid;
   const dailyLimit = getDailyLimit(currentPlan);
   const proposalsUsed = profile?.daily_proposals_used || 0;
   const bonusCredits = profile?.bonus_credits || 0;
@@ -1037,18 +1038,7 @@ const Dashboard = () => {
     );
   }
 
-  const getPlanLabel = () => {
-    if (isSuperAdmin) return SUPERADMIN_PLAN_LABEL;
-    if (contextPlanLabel && currentPlan === SUPERADMIN_PLAN_TYPE) return contextPlanLabel;
-    switch (currentPlan) {
-      case 'elite': return 'Elite';
-      case 'pro': return 'Pro';
-      case 'standard': return 'Standard';
-      case SUPERADMIN_PLAN_TYPE:
-      case 'enterprise': return 'Enterprise B2B';
-      default: return t.pricing.basic.name;
-    }
-  };
+  const getPlanLabel = () => session.displayTier.label;
 
   const isFreelancer = userSegment === 'freelancer';
   const creditsBalance = remainingCredits || profile?.credits_balance || 0;
@@ -1142,8 +1132,9 @@ const Dashboard = () => {
                   </span>
                 </div>
 
-                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
-                  {dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name}` : ''}
+                <h1 className="text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl lg:text-4xl flex flex-wrap items-center gap-3">
+                  <span>{dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name}` : ''}</span>
+                  <TierBadge tier={session.displayTier} className="text-[11px] px-3 py-1" />
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
                   {dashboardUiText.memberWorkspace}
@@ -1169,7 +1160,7 @@ const Dashboard = () => {
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.currentPlan}</p>
-                    <p className="mt-2 text-2xl font-bold text-foreground">{getPlanLabel()}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white/90">{session.displayTier.label}</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.proposalQuota}</p>
@@ -1213,8 +1204,8 @@ const Dashboard = () => {
                     <Badge variant="default" className="gap-1 px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
                       <span>{dashboardUiText.statusActive}</span>
                     </Badge>
-                    <Badge variant="outline" className="px-3 py-1 text-xs font-medium">
-                      {planLabel}
+                    <Badge variant="outline" className="px-3 py-1 text-xs font-medium border-0">
+                      <TierBadge tier={session.displayTier} />
                     </Badge>
                     <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
                       {billingLabel}
