@@ -7,8 +7,16 @@
  *   VITE_STANDARD_YEARLY_VARIANT_ID  / VITE_LEMONSQUEEZY_STANDARD_ANNUAL_VARIANT_ID
  *   …same pattern for PRO, ELITE, ENTERPRISE
  *   VITE_LEMONSQUEEZY_*_MONTHLY_URL / *_ANNUAL_URL
+ *   VITE_LEMONSQUEEZY_TIER1_URL / TIER2 / TIER3 / VITE_APPSUMO_*_URL
  *   VITE_LEMONSQUEEZY_STORE_URL (default https://sovereignapp.lemonsqueezy.com)
  */
+
+import {
+  checkoutUrlFromVariant,
+  getLemonStoreUrl,
+  isBrokenCheckoutUrl,
+  sanitizeCheckoutUrl,
+} from '@/lib/lemonsqueezy';
 
 export type BillingCycle = 'monthly' | 'yearly';
 export type CheckoutPlanId = 'standard' | 'pro' | 'elite' | 'enterprise' | 'single_pass';
@@ -28,8 +36,7 @@ const firstEnv = (...keys: string[]): string => {
   return '';
 };
 
-export const LEMON_SQUEEZY_STORE_URL =
-  firstEnv('VITE_LEMONSQUEEZY_STORE_URL') || 'https://sovereignapp.lemonsqueezy.com';
+export const LEMON_SQUEEZY_STORE_URL = getLemonStoreUrl();
 
 /**
  * Canonical Lemon Squeezy variant IDs.
@@ -120,19 +127,33 @@ export const LEMON_SQUEEZY_VARIANT_IDS = {
 export const LEMON_SQUEEZY_CHECKOUT_URLS = {
   single_pass: firstEnv('VITE_LEMONSQUEEZY_ONETIME_PASS_URL'),
   standard: {
-    monthly: firstEnv('VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL'),
+    monthly: firstEnv(
+      'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL',
+      'VITE_LEMONSQUEEZY_TIER1_URL',
+      'VITE_APPSUMO_TIER1_URL',
+    ),
     yearly: firstEnv('VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL', 'VITE_LEMONSQUEEZY_STANDARD_YEARLY_URL'),
   },
   pro: {
-    monthly: firstEnv('VITE_LEMONSQUEEZY_PRO_MONTHLY_URL'),
+    monthly: firstEnv(
+      'VITE_LEMONSQUEEZY_PRO_MONTHLY_URL',
+      'VITE_LEMONSQUEEZY_TIER2_URL',
+      'VITE_APPSUMO_TIER2_URL',
+    ),
     yearly: firstEnv('VITE_LEMONSQUEEZY_PRO_ANNUAL_URL', 'VITE_LEMONSQUEEZY_PRO_YEARLY_URL'),
   },
   elite: {
-    monthly: firstEnv('VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL'),
+    monthly: firstEnv(
+      'VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL',
+      'VITE_LEMONSQUEEZY_TIER3_URL',
+    ),
     yearly: firstEnv('VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL', 'VITE_LEMONSQUEEZY_ELITE_YEARLY_URL'),
   },
   enterprise: {
-    monthly: firstEnv('VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL'),
+    monthly: firstEnv(
+      'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL',
+      'VITE_APPSUMO_B2B_URL',
+    ),
     yearly: firstEnv('VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL', 'VITE_LEMONSQUEEZY_ENTERPRISE_YEARLY_URL'),
   },
 };
@@ -180,10 +201,16 @@ export function getVariantId(
 }
 
 function urlFromVariantId(variantId: string): string {
-  if (!variantId) return '';
-  if (variantId.startsWith('http')) return variantId;
-  const store = LEMON_SQUEEZY_STORE_URL.replace(/\/$/, '');
-  return `${store}/checkout/buy/${variantId}`;
+  return checkoutUrlFromVariant(variantId);
+}
+
+function firstValidCheckout(...candidates: Array<string | undefined | null>): string {
+  for (const candidate of candidates) {
+    if (candidate && !isBrokenCheckoutUrl(candidate)) {
+      return sanitizeCheckoutUrl(candidate);
+    }
+  }
+  return getLemonStoreUrl();
 }
 
 export function resolveCheckoutUrl(
@@ -191,35 +218,18 @@ export function resolveCheckoutUrl(
   cycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
   if (planId === 'single_pass') {
-    const direct = LEMON_SQUEEZY_CHECKOUT_URLS.single_pass;
-    if (direct) return direct;
-    const fromVariant = urlFromVariantId(getVariantId('single_pass'));
-    if (fromVariant) return fromVariant;
-    console.error('[LemonSqueezy] Missing checkout URL and variant ID', {
-      planId: 'single_pass',
-      billingCycle: 'one_time',
-      expectedVariantKey: 'SINGLE_PASS_VARIANT_ID',
-    });
-    return '#';
+    return firstValidCheckout(
+      LEMON_SQUEEZY_CHECKOUT_URLS.single_pass,
+      urlFromVariantId(getVariantId('single_pass')),
+    );
   }
 
   const billing = normalizeBillingCycle(cycle);
   const configured = LEMON_SQUEEZY_CHECKOUT_URLS[planId]?.[billing] ?? '';
-  if (configured) return configured;
-
+  const uuidFallback = FALLBACK_CHECKOUT_URLS[planId]?.[billing];
   const variantId = getVariantId(planId, billing);
-  const built = urlFromVariantId(variantId);
-  if (built) return built;
 
-  const fallback = FALLBACK_CHECKOUT_URLS[planId]?.[billing];
-  if (fallback) return fallback;
-
-  console.error('[LemonSqueezy] Missing checkout URL and variant ID', {
-    planId,
-    billingCycle: billing,
-    expectedVariantKey: `${planId.toUpperCase()}_${billing === 'yearly' ? 'YEARLY' : 'MONTHLY'}_VARIANT_ID`,
-  });
-  return '#';
+  return firstValidCheckout(configured, uuidFallback, urlFromVariantId(variantId));
 }
 
 export function describeCheckoutTarget(
@@ -245,15 +255,9 @@ export function createCheckout(
 ): string {
   if (planId !== 'single_pass' && !LEMON_SQUEEZY_VARIANTS[planId as keyof typeof LEMON_SQUEEZY_VARIANTS]) {
     console.error('[LemonSqueezy] createCheckout failed — unknown plan', { planId });
-    return '#';
+    return getLemonStoreUrl();
   }
   const cycle = normalizeBillingCycle(billingCycle);
-  const variantId = planId === 'single_pass'
-    ? getVariantId(planId)
-    : (LEMON_SQUEEZY_VARIANTS[planId as keyof typeof LEMON_SQUEEZY_VARIANTS]?.[cycle] ?? getVariantId(planId, cycle));
   const target = describeCheckoutTarget(planId, cycle);
-  if (!target.checkoutUrl || target.checkoutUrl === '#') {
-    console.error('[LemonSqueezy] createCheckout failed — missing variant ID or URL', { ...target, variantId });
-  }
-  return target.checkoutUrl;
+  return sanitizeCheckoutUrl(target.checkoutUrl);
 }

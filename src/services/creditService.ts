@@ -267,37 +267,56 @@ const REDEEM_MESSAGES: Record<string, string> = {
 
 export async function redeemAppSumoCode(
   code: string,
-  userId: string,
+  _userId?: string,
 ): Promise<RedeemResult> {
   try {
+    const normalized = code.trim().toUpperCase();
     const { data, error } = await supabase.rpc('redeem_appsumo_code', {
-      code_input:      code.trim().toUpperCase(),
-      user_id_input:   userId,
+      code_input: normalized,
     });
 
     if (error) {
-      return { success: false, message: 'Something went wrong. Please try again.' };
+      const raw = error.message || '';
+      if (/geçersiz|kullanılmış|invalid|already/i.test(raw)) {
+        return { success: false, message: raw.includes('Geçersiz') ? raw : 'Geçersiz veya kullanılmış kod.' };
+      }
+      return { success: false, message: raw || 'Kod kullanılamadı. Lütfen tekrar deneyin.' };
     }
 
-    const status = (data as string) ?? 'invalid_code';
-    const success = status === 'ok';
+    const payload = (typeof data === 'object' && data !== null ? data : {}) as {
+      success?: boolean;
+      tier?: string;
+      tier_label?: string;
+      monthly_limit?: number;
+      message?: string;
+    };
 
-    if (success) {
-      const creditStatus = await fetchCreditStatus(userId);
-      return {
-        success: true,
-        message: REDEEM_MESSAGES.ok,
-        newTier:     creditStatus?.subscriptionTier,
-        monthlyLimit: creditStatus?.monthlyLimit,
-      };
+    if (payload.success === false) {
+      return { success: false, message: payload.message || 'Geçersiz veya kullanılmış kod.' };
     }
+
+    const tier = payload.tier || 'tier_1';
+    const uiTier =
+      tier === 'tier_3' ? 'appsumo_b2b'
+      : tier === 'tier_2' ? 'appsumo_tier2'
+      : 'appsumo_tier1';
+    const label = payload.tier_label || (tier === 'tier_3' ? 'Tier 3' : tier === 'tier_2' ? 'Tier 2' : 'Tier 1');
+    const message = payload.message || `Tebrikler! ${label} paketiniz başarıyla tanımlandı.`;
+
+    try {
+      window.dispatchEvent(new CustomEvent('sovereign:profile-updated'));
+    } catch { /* ignore */ }
 
     return {
-      success: false,
-      message: REDEEM_MESSAGES[status] ?? 'Unexpected error. Please contact support.',
+      success: true,
+      message,
+      newTier: uiTier,
+      monthlyLimit: Number(payload.monthly_limit ?? 50),
+      codeTier: tier,
     };
-  } catch {
-    return { success: false, message: 'Network error. Please check your connection.' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error. Please check your connection.';
+    return { success: false, message: msg };
   }
 }
 

@@ -4,6 +4,7 @@ import { GatedFeature } from '@/components/auth/TierGate';
 import { useSession } from '@/contexts/SessionContext';
 import type { AccessTier } from '@/hooks/useTierAccess';
 import { useTierAccess } from '@/hooks/useTierAccess';
+import { hasFullWorkspaceAccess } from '@/lib/superadmin';
 
 interface GatedAppPageProps {
   required: AccessTier;
@@ -15,7 +16,7 @@ interface GatedAppPageProps {
 export function GatedAppPage({ required, featureName, description, children }: GatedAppPageProps) {
   const { user, creditsBalance, hasB2BAccess } = useSession();
   const { currentTier, planType } = useTierAccess();
-  const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
+  const isSuperAdmin = hasFullWorkspaceAccess(user);
   const plan = isSuperAdmin || hasB2BAccess
     ? 'B2B_ENTERPRISE'
     : (currentTier === 'free' ? planType : currentTier);

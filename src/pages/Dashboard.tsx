@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
-import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
+import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE, hasFullWorkspaceAccess } from '@/lib/superadmin';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
@@ -128,6 +128,7 @@ const Dashboard = () => {
   const [platformType, setPlatformType] = useState<PlatformType | ''>('');
   const [professionCluster, setProfessionCluster] = useState<ClusterCategory | ''>('');
   const [selectedProfession, setSelectedProfession] = useState<string>('');
+  const [fieldErrors, setFieldErrors] = useState<{ category?: string; profession?: string }>({});
   const [freelanceScore, setFreelanceScore] = useState<FreelanceScoreBreakdown | null>(null);
   const [competitiveScoreResult, setCompetitiveScoreResult] = useState<CompetitiveScoreResult | null>(null);
 
@@ -160,9 +161,9 @@ const Dashboard = () => {
   };
 
   const isSuperAdmin =
-    user?.email === OWNER_EMAIL ||
-    sessionUser?.email === OWNER_EMAIL ||
-    session.user?.email === OWNER_EMAIL ||
+    hasFullWorkspaceAccess(user) ||
+    hasFullWorkspaceAccess(sessionUser) ||
+    hasFullWorkspaceAccess(session.user) ||
     contextSuperAdmin;
   const currentPlan = (
     isSuperAdmin || hasB2BAccess
@@ -673,7 +674,7 @@ const Dashboard = () => {
       return;
     }
 
-    if (!hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0) {
+    if (!isUnlimited && !hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0) {
       setUpgradeFeature('Unlimited Proposals');
       setShowUpgradeModal(true);
       return;
@@ -1483,14 +1484,31 @@ const Dashboard = () => {
                     platformType={platformType}
                     professionCluster={professionCluster}
                     selectedProfession={selectedProfession}
-                    onPlatformChange={(v) => { setPlatformType(v); if (user) supabase.from('profiles').update({ platform_type: v }).eq('user_id', user.id); }}
-                    onClusterChange={(v) => { setProfessionCluster(v); if (user) supabase.from('profiles').update({ profession_cluster: v }).eq('user_id', user.id); }}
-                    onProfessionChange={setSelectedProfession}
+                    errors={{
+                      category: professionCluster ? undefined : fieldErrors.category,
+                      profession: selectedProfession ? undefined : fieldErrors.profession,
+                    }}
+                    onPlatformChange={(v) => {
+                      setPlatformType(v);
+                      if (user) void supabase.from('profiles').update({ platform_type: v }).eq('user_id', user.id);
+                    }}
+                    onClusterChange={(v) => {
+                      setProfessionCluster(v);
+                      setSelectedProfession('');
+                      setFieldErrors((prev) => ({ ...prev, category: undefined, profession: undefined }));
+                      if (user) void supabase.from('profiles').update({ profession_cluster: v }).eq('user_id', user.id);
+                    }}
+                    onProfessionChange={(id, label) => {
+                      setSelectedProfession(id);
+                      if (label) setCustomProfession(label);
+                      setFieldErrors((prev) => ({ ...prev, profession: undefined }));
+                    }}
                   />
                 </div>
               )}
 
-              {/* ── Profession / Specialty Input ───────────────────────── */}
+              {/* Profession / specialty — corporate only (freelancer uses FreelanceInputs chips) */}
+              {!isFreelancer && (
               <div className="mb-4 pb-4 border-b border-border">
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1.5">
                   <Wand2 className="w-3 h-3" />
@@ -1526,6 +1544,7 @@ const Dashboard = () => {
                   ))}
                 </div>
               </div>
+              )}
 
               <label className="text-sm font-medium text-foreground mb-3 flex items-center justify-between">
                 <span>{isFreelancer ? txt.clientBrief : txt.inputLabel}</span>
@@ -1603,7 +1622,7 @@ const Dashboard = () => {
                 variant="gold"
                 className="w-full mt-4"
                 onClick={handleGenerate}
-                disabled={isGenerating || (!hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0)}
+                disabled={isGenerating}
                 size="lg"
               >
                 {isGenerating ? (

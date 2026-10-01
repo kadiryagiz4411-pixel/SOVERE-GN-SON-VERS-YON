@@ -10,7 +10,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
-import { isOwnerEmail, isSuperAdminUser, OWNER_EMAIL, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
+import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
 
 const LOG = '[Sovereign Load Error]:';
@@ -29,6 +29,7 @@ interface SessionState {
   appsumoTier: number;
   isByokUnlimited: boolean;
   hasB2BAccess: boolean;
+  hasApplyQueueAccess: boolean;
   hasBYOKAccess: boolean;
   isTrialActive: boolean;
   hasUsedTrial: boolean;
@@ -53,6 +54,7 @@ const SessionContext = createContext<SessionState>({
   appsumoTier: 0,
   isByokUnlimited: false,
   hasB2BAccess: false,
+  hasApplyQueueAccess: false,
   hasBYOKAccess: false,
   isTrialActive: false,
   hasUsedTrial: false,
@@ -79,13 +81,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [b2bSubscriptionStatus, setB2bSubscriptionStatus] = useState('none');
   const [appsumoPlan, setAppsumoPlan] = useState('none');
-  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
+  const [applyQueueAccess, setApplyQueueAccess] = useState(false);
   const mounted = useRef(true);
   const hydrated = useRef(false);
 
   const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
-    const superAdmin = email === OWNER_EMAIL || isOwnerEmail(email);
+    const superAdmin = hasFullWorkspaceAccess({ email });
     try {
       const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
         userId,
@@ -131,6 +134,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setB2bSubscriptionStatus(access.b2bStatus);
         setAppsumoPlan(toAppsumoPlanEnum(slice?.appsumo_plan, numericTier));
         setTrialEndsAt(slice?.trial_ends_at ?? null);
+        setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
+        setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
       }
 
       console.log('[Sovereign Auth]', {
@@ -151,7 +156,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setAppsumoTier(OWNER_PRIVILEGES.appsumo_tier);
         setIsByokUnlimited(true);
         setIsTrialActive(true);
-        setB2bSubscriptionStatus('active');
+        setB2bAccessFlag(true);
+        setApplyQueueAccess(true);
       }
     }
   }, []);
@@ -164,21 +170,57 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mounted.current = true;
 
+    const recoverCachedSession = (): Session | null => {
+      try {
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i);
+          if (!key || !key.startsWith('sb-') || !key.includes('auth-token')) continue;
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw) as { currentSession?: Session } & Session;
+          const cached = (parsed as { currentSession?: Session }).currentSession ?? parsed;
+          if (cached?.access_token && cached?.user) return cached as Session;
+        }
+      } catch {
+        /* ignore corrupt cache */
+      }
+      return null;
+    };
+
+    const cached = recoverCachedSession();
+    if (cached) {
+      setSession(cached);
+      setUser(cached.user ?? null);
+      hydrated.current = true;
+      setSessionReady(true);
+      if (cached.user?.id) {
+        void loadProfileCredits(cached.user.id, cached.user.email);
+      }
+    }
+
+    const sessionTimeout = window.setTimeout(() => {
+      if (!mounted.current || hydrated.current) return;
+      hydrated.current = true;
+      setSessionReady(true);
+    }, 4000);
+
     supabase.auth.getSession()
       .then(async ({ data: { session: next }, error }) => {
         if (!mounted.current) return;
         if (error) {
           console.error(LOG, 'getSession failed', error.message);
         }
-        let authedUser = next?.user ?? null;
+        let authedUser = next?.user ?? cached?.user ?? null;
         if (authedUser?.id && !authedUser.email) {
-          const { data } = await supabase.auth.getUser();
-          authedUser = data.user ?? authedUser;
+          try {
+            const { data } = await supabase.auth.getUser();
+            authedUser = data.user ?? authedUser;
+          } catch { /* keep cached user */ }
         }
-        setSession(next ?? null);
+        setSession(next ?? cached ?? null);
         setUser(authedUser);
         if (authedUser?.id) {
-          await loadProfileCredits(authedUser.id, authedUser.email);
+          void loadProfileCredits(authedUser.id, authedUser.email);
         }
         if (!mounted.current) return;
         hydrated.current = true;
@@ -194,8 +236,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
       if (!mounted.current) return;
-      // Ignore the first INITIAL_SESSION until getSession() finishes to avoid a double fetch race.
-      if (!hydrated.current && event === 'INITIAL_SESSION') return;
+      if (!hydrated.current && event === 'INITIAL_SESSION') {
+        if (next?.user) {
+          setSession(next);
+          setUser(next.user);
+        }
+        hydrated.current = true;
+        setSessionReady(true);
+        if (next?.user?.id) void loadProfileCredits(next.user.id, next.user.email);
+        return;
+      }
 
       setSession(next);
       setUser(next?.user ?? null);
@@ -233,6 +283,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted.current = false;
+      window.clearTimeout(sessionTimeout);
       subscription.unsubscribe();
       window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
@@ -246,7 +297,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  const owner = user?.email === OWNER_EMAIL || isSuperAdminUser(user);
+  const owner = hasFullWorkspaceAccess(user);
 
   const liveTrial = owner || isTrialWindowOpen(isTrialActive, trialEndsAt);
   const paidB2B = owner || b2bSubscriptionStatus === 'active';
@@ -266,7 +317,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         planType: owner || paidB2B || liveTrial ? SUPERADMIN_PLAN_TYPE : planType,
         appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
         isByokUnlimited: owner || isByokUnlimited,
-        hasB2BAccess: owner || paidB2B || liveTrial,
+        hasB2BAccess: owner || paidB2B || liveTrial || b2bAccessFlag,
+        hasApplyQueueAccess: owner || applyQueueAccess || appsumoTier >= 2 || paidB2B || liveTrial || b2bAccessFlag,
         hasBYOKAccess: owner || appsumoTier >= 3 || isByokUnlimited,
         isTrialActive: liveTrial,
         hasUsedTrial: owner ? false : hasUsedTrial,

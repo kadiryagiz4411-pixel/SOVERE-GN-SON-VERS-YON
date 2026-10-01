@@ -63,7 +63,7 @@ const ApplyQueue = () => {
   //   4. profile.is_superadmin === true
   //   5. profile.tier is 'unlimited' | 'agency' | etc.
   //   6. plan is any paid variant (pro, elite, B2B_ENTERPRISE, appsumo_*)
-  const { hasB2BAccess, isByokUnlimited } = useSession();
+  const { hasB2BAccess, isByokUnlimited, hasApplyQueueAccess } = useSession();
   const PAID_PLANS = new Set([
     'pro', 'elite', 'standard', 'B2B_ENTERPRISE', 'enterprise', 'enterprise_b2b',
     'appsumo_tier2', 'appsumo_tier3', 'appsumo_b2b', 'unlimited', 'agency',
@@ -217,6 +217,7 @@ const ApplyQueue = () => {
   const isUnlimitedUser =
     isOwnerEmail(user?.email) ||
     hasB2BAccess ||
+    hasApplyQueueAccess ||
     isByokUnlimited ||
     Number(profile?.appsumo_tier ?? 0) >= 2 ||
     Boolean((profile as any)?.is_superadmin) ||

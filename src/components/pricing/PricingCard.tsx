@@ -111,7 +111,7 @@ export function PricingCard({
   const isCurrent = !isSuperAdmin && planType === currentPlanType;
   const billingCycle: BillingCycle = isAnnual ? "yearly" : "monthly";
   let variantId = "";
-  let checkoutUrl = "#";
+  let checkoutUrl = createCheckout(tier.isOneTime ? "single_pass" : (tier.id as CheckoutPlanId), billingCycle);
   try {
     variantId = tier.isOneTime ? "" : getVariantId(tier.id as CheckoutPlanId, billingCycle);
     checkoutUrl = tier.isOneTime

@@ -4,6 +4,7 @@
 // This file retains feature-gate logic used throughout the app.
 
 import { createCheckout } from '@/config/plans';
+import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
 
 export type PlanType = 'free' | 'standard' | 'pro' | 'elite' | 'B2B_ENTERPRISE';
 
@@ -149,7 +150,7 @@ export const getCheckoutUrl = (
   plan: 'standard' | 'pro' | 'elite' | 'enterprise',
   isAnnual: boolean = false,
 ): string => {
-  return createCheckout(plan, isAnnual ? 'yearly' : 'monthly');
+  return sanitizeCheckoutUrl(createCheckout(plan, isAnnual ? 'yearly' : 'monthly'));
 };
 
 

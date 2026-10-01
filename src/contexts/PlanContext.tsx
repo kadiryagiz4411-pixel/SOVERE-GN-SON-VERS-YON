@@ -11,7 +11,7 @@ import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
-import { isOwnerEmail, isSuperAdminUser, OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
+import { hasFullWorkspaceAccess, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { SUBSCRIPTION_PLANS, numericTierFromPlanType, type CatalogPlan } from '@/data/plans';
 import {
   fallbackPlanAfterTrial,
@@ -80,7 +80,7 @@ function resolveActivePlan(planType: string, expiresAt: string | null): string {
 
 export function PlanProvider({ children }: { children: ReactNode }) {
   const { user, sessionReady } = useSession();
-  const ownerInit = user?.email === OWNER_EMAIL || isSuperAdminUser(user);
+  const ownerInit = hasFullWorkspaceAccess(user);
   const [tier, setTier] = useState<PlanTier>(ownerInit ? 'enterprise' : 'free');
   const [planType, setPlanType] = useState<string>(ownerInit ? SUPERADMIN_PLAN_TYPE : 'free');
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
-    if (email === OWNER_EMAIL || isOwnerEmail(email)) {
+    if (hasFullWorkspaceAccess({ email })) {
       if (mounted.current) {
         setPlanType(SUPERADMIN_PLAN_TYPE);
         setTier('enterprise');
@@ -180,15 +180,17 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     mounted.current = true;
     if (!sessionReady) return;
     void loadPlan(user?.id, user?.email);
+    const onProfileUpdated = () => {
+      if (user?.id) void loadPlan(user.id, user.email);
+    };
+    window.addEventListener('sovereign:profile-updated', onProfileUpdated);
     return () => {
       mounted.current = false;
+      window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
   }, [sessionReady, user?.id, user?.email, loadPlan]);
 
-  const owner =
-    user?.email === OWNER_EMAIL ||
-    isSuperAdminUser(user) ||
-    isOwnerEmail(user?.email);
+  const owner = hasFullWorkspaceAccess(user);
   const resolvedPlanType = owner ? SUPERADMIN_PLAN_TYPE : (planType || 'free');
   const resolvedTier = owner ? 'enterprise' : (tier || 'free');
   const resolvedLabel = owner

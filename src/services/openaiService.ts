@@ -10,7 +10,7 @@
  */
 
 import OpenAI from 'openai';
-import { getOpenAIApiKey, resolveOpenAIKey } from '@/lib/apiKeyResolver';
+import { getActiveApiKey, resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 /** Resolve API key for Vite (BYOK → VITE) then Node/Deno OPENAI_API_KEY. */
 const resolveApiKey = (): string => {
@@ -67,7 +67,10 @@ export async function testOpenAIConnection(): Promise<
 // ─── Proposal generation ──────────────────────────────────────────────────────
 
 export async function generateProposal(userData: unknown): Promise<Record<string, unknown>> {
-  const key = resolveApiKey() || getOpenAIApiKey();
+  const key = resolveApiKey() || getActiveApiKey();
+  if (!key) {
+    throw new Error("Lütfen Ayarlar'dan API Anahtarınızı girin");
+  }
 
   try {
     const response = await openai.chat.completions.create({

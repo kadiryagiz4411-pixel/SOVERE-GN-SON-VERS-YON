@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/contexts/SessionContext';
+import { usePlan } from '@/contexts/PlanContext';
 
 type RedeemState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -112,7 +114,9 @@ function TierSuccessPanel({ msg, creditLimit, tier, onNavigate }: TierSuccessPan
 
 export default function Redeem() {
   const navigate = useNavigate();
-  const [userId, setUserId]           = useState<string | null>(null);
+  const { user, refreshCredits } = useSession();
+  const { refresh: refreshPlan } = usePlan();
+  const userId = user?.id ?? null;
   const [code, setCode]               = useState('');
   const [state, setState]             = useState<RedeemState>('idle');
   const [errorMsg, setErrorMsg]       = useState('');
@@ -122,12 +126,12 @@ export default function Redeem() {
 
   // Load current user — redirect to auth if not signed in
   useEffect(() => {
+    if (userId) return;
     supabase.auth.getSession().then(({ data }) => {
       const uid = data.session?.user?.id ?? null;
-      setUserId(uid);
       if (!uid) navigate('/auth?redirect=/redeem');
     });
-  }, [navigate]);
+  }, [navigate, userId]);
 
   const handleRedeem = async () => {
     if (!code.trim()) {
@@ -142,20 +146,27 @@ export default function Redeem() {
     setState('loading');
     setErrorMsg('');
 
-    const result = await redeemAppSumoCode(code.trim(), userId);
+    const result = await redeemAppSumoCode(code.trim(), userId ?? undefined);
 
     if (result.success) {
       const tier = result.newTier ?? 'appsumo_tier1';
       const msg  = TIER_ACTIVATION_MESSAGES[tier] ?? DEFAULT_ACTIVATION_MESSAGE;
+      const toastLabel =
+        result.codeTier === 'tier_3' ? 'Tier 3'
+        : result.codeTier === 'tier_2' ? 'Tier 2'
+        : result.codeTier === 'tier_1' ? 'Tier 1'
+        : (msg.badge || 'Tier 1');
 
       setActivatedTier(tier);
       setActivationMsg(msg);
       setCreditLimit(result.monthlyLimit ?? 50);
       setState('success');
-      toast.success(`${msg.headline} — ${msg.creditsLine}`);
+      toast.success(result.message || `Tebrikler! ${toastLabel} paketiniz başarıyla tanımlandı.`);
 
-      // Auto-redirect
-      setTimeout(() => navigate(tier === 'appsumo_b2b' ? '/b2b' : '/dashboard'), 4_000);
+      await refreshCredits();
+      await refreshPlan();
+
+      setTimeout(() => navigate(tier === 'appsumo_b2b' ? '/b2b' : '/dashboard'), 2_000);
     } else {
       setState('error');
       setErrorMsg(result.message);
@@ -232,7 +243,7 @@ export default function Redeem() {
                   {state === 'loading' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>Activate <ChevronRight className="w-4 h-4 ml-1" /></>
+                    <>Kodu Kullan <ChevronRight className="w-4 h-4 ml-1" /></>
                   )}
                 </Button>
               </div>

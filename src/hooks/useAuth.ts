@@ -10,18 +10,27 @@ export const useAuth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    let cancelled = false;
+    const finish = (next: Session | null) => {
+      if (cancelled) return;
+      setSession(next);
+      setUser(next?.user ?? null);
+      setLoading(false);
+    };
 
-        // Sync new registrations to email provider
-        if (event === 'SIGNED_IN' && session?.user?.email) {
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 4000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, nextSession) => {
+        finish(nextSession);
+
+        if (event === 'SIGNED_IN' && nextSession?.user?.email) {
           supabase.functions.invoke('user-sync', {
             body: {
               event: 'user_registered',
-              email: session.user.email,
+              email: nextSession.user.email,
               tags: ['registered_user'],
             },
           }).catch(() => {});
@@ -29,19 +38,20 @@ export const useAuth = () => {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: next } }) => finish(next))
+      .catch(() => finish(null));
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
-    
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -52,7 +62,7 @@ export const useAuth = () => {
         },
       },
     });
-    
+
     return { data, error };
   };
 
@@ -61,7 +71,7 @@ export const useAuth = () => {
       email,
       password,
     });
-    
+
     return { data, error };
   };
 

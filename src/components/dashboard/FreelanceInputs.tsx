@@ -5,8 +5,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PLATFORMS, CLUSTERS, type PlatformType, type ClusterCategory, type Profession } from '@/lib/freelanceClusters';
+import { PLATFORMS, CLUSTERS, type PlatformType, type ClusterCategory } from '@/lib/freelanceClusters';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
 
 interface FreelanceInputsProps {
   platformType: PlatformType | '';
@@ -14,41 +15,42 @@ interface FreelanceInputsProps {
   selectedProfession: string;
   onPlatformChange: (val: PlatformType) => void;
   onClusterChange: (val: ClusterCategory) => void;
-  onProfessionChange: (val: string) => void;
+  onProfessionChange: (val: string, label?: string) => void;
+  errors?: { category?: string; profession?: string };
 }
 
 const translations = {
   en: {
     platform: 'Platform',
-    platformPlaceholder: 'Select platform...',
-    category: 'Profession Category',
-    categoryPlaceholder: 'Select category...',
+    platformPlaceholder: 'Select platform',
+    category: 'Profession category',
+    categoryPlaceholder: 'Select a category',
     profession: 'Profession',
-    professionPlaceholder: 'Select profession...',
+    pickProfession: 'Choose one profession',
   },
   tr: {
     platform: 'Platform',
-    platformPlaceholder: 'Platform seçin...',
-    category: 'Meslek Kategorisi',
-    categoryPlaceholder: 'Kategori seçin...',
+    platformPlaceholder: 'Platform seçin',
+    category: 'Meslek kategorisi',
+    categoryPlaceholder: 'Kategori seçin',
     profession: 'Meslek',
-    professionPlaceholder: 'Meslek seçin...',
+    pickProfession: 'Bir meslek seçin',
   },
   de: {
     platform: 'Plattform',
-    platformPlaceholder: 'Plattform wählen...',
+    platformPlaceholder: 'Plattform wählen',
     category: 'Berufskategorie',
-    categoryPlaceholder: 'Kategorie wählen...',
+    categoryPlaceholder: 'Kategorie wählen',
     profession: 'Beruf',
-    professionPlaceholder: 'Beruf wählen...',
+    pickProfession: 'Einen Beruf wählen',
   },
   fr: {
     platform: 'Plateforme',
-    platformPlaceholder: 'Sélectionner la plateforme...',
+    platformPlaceholder: 'Sélectionner la plateforme',
     category: 'Catégorie professionnelle',
-    categoryPlaceholder: 'Sélectionner la catégorie...',
+    categoryPlaceholder: 'Sélectionner la catégorie',
     profession: 'Profession',
-    professionPlaceholder: 'Sélectionner la profession...',
+    pickProfession: 'Choisir une profession',
   },
 };
 
@@ -59,6 +61,7 @@ export const FreelanceInputs = ({
   onPlatformChange,
   onClusterChange,
   onProfessionChange,
+  errors,
 }: FreelanceInputsProps) => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
@@ -68,17 +71,17 @@ export const FreelanceInputs = ({
     <div className="space-y-3">
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t.platform}</label>
-        <Select value={platformType} onValueChange={(v) => onPlatformChange(v as PlatformType)}>
+        <Select
+          value={platformType || undefined}
+          onValueChange={(v) => onPlatformChange(v as PlatformType)}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder={t.platformPlaceholder} />
           </SelectTrigger>
           <SelectContent>
             {PLATFORMS.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                <span className="flex flex-col">
-                  <span>{p.label}</span>
-                  <span className="text-xs text-muted-foreground">{p.description}</span>
-                </span>
+                {p.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -87,38 +90,52 @@ export const FreelanceInputs = ({
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t.category}</label>
-        <Select value={professionCluster} onValueChange={(v) => { onClusterChange(v as ClusterCategory); onProfessionChange(''); }}>
-          <SelectTrigger className="w-full">
+        <Select
+          value={professionCluster || undefined}
+          onValueChange={(v) => {
+            onClusterChange(v as ClusterCategory);
+            onProfessionChange('');
+          }}
+        >
+          <SelectTrigger className={cn('w-full', errors?.category && 'border-red-500/60')}>
             <SelectValue placeholder={t.categoryPlaceholder} />
           </SelectTrigger>
           <SelectContent>
             {CLUSTERS.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                <span className="flex items-center gap-2">
-                  <span>{c.icon}</span>
-                  <span>{c.label}</span>
-                </span>
+                {`${c.icon} ${c.label}`}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {errors?.category && !professionCluster && (
+          <p className="mt-1 text-[11px] text-red-400">{errors.category}</p>
+        )}
       </div>
 
       {selectedCluster && (
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t.profession}</label>
-          <Select value={selectedProfession} onValueChange={onProfessionChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t.professionPlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {selectedCluster.professions.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedCluster.professions.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onProfessionChange(p.id, p.label)}
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  selectedProfession === p.id
+                    ? 'border-primary/60 bg-primary/15 text-primary'
+                    : 'border-border bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {errors?.profession && !selectedProfession && (
+            <p className="mt-1 text-[11px] text-red-400">{errors.profession}</p>
+          )}
         </div>
       )}
     </div>

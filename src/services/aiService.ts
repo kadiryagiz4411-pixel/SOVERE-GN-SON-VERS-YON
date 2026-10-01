@@ -19,7 +19,7 @@ import { parseLLMJson } from '@/utils/llmJson';
 import { toast } from 'sonner';
 import {
   resolveOpenAIKey,
-  getOpenAIApiKey,
+  getActiveApiKey,
   hasByokKeyStored,
   BYOK_STORAGE_KEY,
   AI_NOT_CONFIGURED_MESSAGE,
@@ -83,14 +83,10 @@ async function callOpenAI(
   messages: { role: string; content: string }[],
   maxTokens = 800,
 ): Promise<string> {
-  let key = '';
-  try {
-    key = getOpenAIApiKey();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE;
-    console.error('[SOVEREIGN_ERR] callOpenAI:', msg);
-    toast.error(msg, { id: 'sovereign-no-api-key', duration: 8000 });
-    throw new Error(msg);
+  let key = getActiveApiKey();
+  if (!key) {
+    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", { id: 'sovereign-no-api-key', duration: 8000 });
+    throw new Error(AI_NOT_CONFIGURED_MESSAGE);
   }
 
   console.log('[AI Engine Request]', { model, hasKey: true, maxTokens });
@@ -371,11 +367,9 @@ export interface CVFallbackInput {
  * Returns null when no API key is available.
  */
 export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
-  let key = '';
-  try {
-    key = getOpenAIApiKey();
-  } catch (err) {
-    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+  const key = getActiveApiKey();
+  if (!key) {
+    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });
@@ -480,11 +474,9 @@ export async function generateATSFallback(
   jobDescription?: string,
   outputLanguage?: string,
 ): Promise<ATSFallbackResult | null> {
-  let key = '';
-  try {
-    key = getOpenAIApiKey();
-  } catch (err) {
-    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+  const key = getActiveApiKey();
+  if (!key) {
+    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });
@@ -552,11 +544,9 @@ export async function generateProposalFallback(
   } | null,
   profession?: string,
 ): Promise<string | null> {
-  let key = '';
-  try {
-    key = getOpenAIApiKey();
-  } catch (err) {
-    toast.error(err instanceof Error ? err.message : AI_NOT_CONFIGURED_MESSAGE, {
+  const key = getActiveApiKey();
+  if (!key) {
+    toast.error("Lütfen Ayarlar'dan API Anahtarınızı girin", {
       id: 'sovereign-no-api-key',
       duration: 8000,
     });

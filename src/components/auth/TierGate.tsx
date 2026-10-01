@@ -7,6 +7,7 @@ import { StartB2BTrialButton } from '@/components/trial/StartB2BTrialButton';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { enterpriseCheckoutUrl, isAppsumoLtdUser, toAppsumoPlanEnum } from '@/lib/b2bTrial';
 import { useSession } from '@/contexts/SessionContext';
+import { hasFullWorkspaceAccess } from '@/lib/superadmin';
 
 interface TierGateProps {
   open?: boolean;
@@ -176,13 +177,13 @@ interface GatedPageProps {
 
 /** Page wrapper: shows children when allowed, otherwise banner + lock modal. */
 export function GatedFeature({ required, featureName, description, children }: GatedPageProps) {
-  const { user, appsumoTier, appsumoPlan } = useSession();
+  const { user, appsumoTier, appsumoPlan, hasB2BAccess } = useSession();
   const access = useTierAccess(required);
   const [modalOpen, setModalOpen] = useState(true);
-  const isSuperAdmin = user?.email === 'kadiryagiz4411@gmail.com';
+  const unlocked = hasFullWorkspaceAccess(user) || hasB2BAccess;
   const appsumoLtd = isAppsumoLtdUser(toAppsumoPlanEnum(appsumoPlan, appsumoTier));
 
-  if (isSuperAdmin || access.isLoading) {
+  if (unlocked || access.isLoading) {
     return <>{children}</>;
   }
 

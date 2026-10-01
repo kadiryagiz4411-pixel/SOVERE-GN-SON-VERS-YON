@@ -10,9 +10,11 @@ import { numericAppSumoTier, canUseFeature } from '@/lib/appsumoGating';
 import { saveEncryptedOpenAiKey, setAccountPaused } from '@/lib/ai-engine';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts/SessionContext';
+import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { getCheckoutUrl } from '@/lib/lemonsqueezy';
 
 export function AccountEnginePanel({ userId }: { userId: string }) {
-  const { hasBYOKAccess } = useSession();
+  const { hasBYOKAccess, user } = useSession();
   const [codes, setCodes] = useState(0);
   const [tier, setTier] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -35,6 +37,8 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
   useEffect(() => { void load(); }, [userId]);
 
   const showByok = hasBYOKAccess || canUseFeature(tier, 'byok_setup');
+  const upgradeTier = tier >= 3 ? 'enterprise' : tier >= 2 ? 'tier_3' : tier >= 1 ? 'tier_2' : 'tier_1';
+  const upgradeHref = getCheckoutUrl(upgradeTier, user?.email, user?.id ?? userId);
 
   return (
     <div id="byok" className="mt-6 space-y-6">
@@ -44,6 +48,18 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         byokUnlocked={tier >= 3}
         onSuccess={() => { void load(); }}
       />
+
+      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Upgrade plan</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Open a Lemon Squeezy checkout with your account email prefilled for webhook matching.
+          </p>
+        </div>
+        <CheckoutButton href={upgradeHref} overlay className="w-full">
+          {tier >= 3 ? 'Upgrade to Enterprise B2B' : 'Upgrade subscription'}
+        </CheckoutButton>
+      </div>
 
       {showByok ? (
         <div className="rounded-xl border border-amber-500/30 bg-card p-5 space-y-3">

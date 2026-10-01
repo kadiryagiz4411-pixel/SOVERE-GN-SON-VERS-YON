@@ -15,13 +15,18 @@
  */
 
 import { createCheckout, type CheckoutPlanId } from "./plans";
+import { getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
 
 // ─── URL helper (safe env read) ───────────────────────────────────────────────
 
-const url = (key: string): string =>
-  (typeof import.meta !== "undefined"
-    ? (import.meta.env as Record<string, string>)[key]
-    : "") || "#";
+const url = (key: string): string => {
+  const raw =
+    typeof import.meta !== "undefined"
+      ? String((import.meta.env as Record<string, string | undefined>)[key] ?? "")
+      : "";
+  if (raw && !isBrokenCheckoutUrl(raw)) return sanitizeCheckoutUrl(raw);
+  return getLemonStoreUrl();
+};
 
 // ─── Core interface (v4 canonical schema) ─────────────────────────────────────
 
@@ -194,7 +199,7 @@ const FALLBACK_ONE_TIME: PricingTier = {
     "1-Time Job Match & ATS Score Report",
     "Instant PDF Export",
   ],
-  checkoutUrls: { oneTime: "#" },
+  checkoutUrls: { oneTime: getLemonStoreUrl() },
 };
 
 /** The one-time pass product */
@@ -239,13 +244,13 @@ export function getTierByPlanType(planType: string): PricingTier | undefined {
 
 /** Active checkout URL for the given tier and billing period */
 export function getCheckoutUrlFor(tier: PricingTier | undefined | null, isAnnual: boolean): string {
-  if (!tier?.id) return "#";
+  if (!tier?.id) return getLemonStoreUrl();
   try {
-    if (tier.isOneTime) return createCheckout("single_pass");
-    return createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly");
+    if (tier.isOneTime) return sanitizeCheckoutUrl(createCheckout("single_pass"));
+    return sanitizeCheckoutUrl(createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly"));
   } catch (err) {
     console.error("[Pricing Diagnostic] checkout URL failed", err);
-    return "#";
+    return getLemonStoreUrl();
   }
 }
 
@@ -308,7 +313,7 @@ export const SINGLE_PASS = {
   price: 4.99,
   features: getOneTimeTier().features,
   badge: "One-Time Purchase · No Subscription",
-  checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? "#",
+  checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? getLemonStoreUrl(),
 };
 
 /** @deprecated Use getTierById(). */
@@ -324,5 +329,5 @@ export function getPlanByType(planType: string): PricingTier | undefined {
 /** @deprecated Use getCheckoutUrlFor() or createCheckout() from src/config/plans.ts. */
 export function getCheckoutUrl(planId: PlanId, isAnnual = false): string {
   const tier = getTierById(planId);
-  return tier ? getCheckoutUrlFor(tier, isAnnual) : "#";
+  return tier ? getCheckoutUrlFor(tier, isAnnual) : getLemonStoreUrl();
 }

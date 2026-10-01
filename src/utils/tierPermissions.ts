@@ -11,6 +11,8 @@
  *   - B2B_ENTERPRISE maps to appsumo_b2b
  */
 
+import { getCheckoutUrl } from '@/lib/lemonsqueezy';
+
 // ─── Core AppSumo tier type ───────────────────────────────────────────────────
 
 export type AppSumoTier =
@@ -154,7 +156,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
       'Credits auto-reset every 30 days',
     ],
     highlighted: ['ATS Gap Analysis & Match Score', '1-Click ATS Tailoring (bullet rewrite)'],
-    checkoutUrl: import.meta.env.VITE_APPSUMO_TIER1_URL ?? '#',
+    checkoutUrl: getCheckoutUrl('tier_1'),
   },
   {
     tier:       'appsumo_tier2',
@@ -176,7 +178,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
       'ATS Score trend history',
     ],
     highlighted: ['Company DNA Decoder', '6-Second Recruiter Hook Generator', 'Red-Flag Neutralizer'],
-    checkoutUrl: import.meta.env.VITE_APPSUMO_TIER2_URL ?? '#',
+    checkoutUrl: getCheckoutUrl('tier_2'),
   },
   {
     tier:       'appsumo_b2b',
@@ -202,7 +204,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
       'Ranked Applicant Table with ATS scores',
       'Bulk Rejection Email Generator',
     ],
-    checkoutUrl: import.meta.env.VITE_APPSUMO_B2B_URL ?? '#',
+    checkoutUrl: getCheckoutUrl('tier_3'),
   },
 ];
 

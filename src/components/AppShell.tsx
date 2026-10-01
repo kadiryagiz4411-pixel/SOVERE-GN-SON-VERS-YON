@@ -8,7 +8,7 @@ import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
-  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket,
+  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket, Ticket,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
@@ -112,6 +112,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
     { to: '/proposals', label: txt.history, icon: FileText },
     { to: '/cv-builder', label: txt.cvBuilder, icon: FileText },
     { to: '/pricing', label: txt.pricing, icon: Zap },
+    { to: '/redeem', label: language === 'tr' ? 'AppSumo Kod Kullan' : 'Redeem AppSumo Code', icon: Ticket },
     { to: '/profile', label: txt.profile, icon: Settings },
   ] as Array<{ to: string; label: string; icon: typeof Settings }>;
 

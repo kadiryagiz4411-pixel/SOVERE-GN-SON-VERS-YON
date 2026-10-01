@@ -1,5 +1,6 @@
 import { OWNER_EMAIL, isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
 import { createCheckout } from '@/config/plans';
+import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
 
 export type B2BSubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled';
 export type AppsumoPlanEnum = 'none' | 'tier_1' | 'tier_2' | 'tier_3';
@@ -17,8 +18,8 @@ export const APPSUMO_UPSELL_DISMISS_KEY = 'sovereign.appsumo.upsell.hiddenUntil'
 
 export function enterpriseCheckoutUrl(): string {
   const yearly = createCheckout('enterprise', 'yearly');
-  if (yearly && yearly !== '#') return yearly;
-  return createCheckout('enterprise', 'monthly');
+  if (yearly && yearly !== '#') return sanitizeCheckoutUrl(yearly);
+  return sanitizeCheckoutUrl(createCheckout('enterprise', 'monthly'));
 }
 
 export function toAppsumoPlanEnum(
@@ -66,6 +67,8 @@ export type TrialProfileSlice = {
   appsumo_tier?: number | null;
   plan_type?: string | null;
   subscription_plan?: string | null;
+  b2b_access?: boolean | null;
+  apply_queue_access?: boolean | null;
 };
 
 export function resolveB2BAccess(input: {
@@ -112,7 +115,8 @@ export function resolveB2BAccess(input: {
     input.profile?.plan_type === 'B2B_ENTERPRISE' ||
     input.profile?.plan_type === 'appsumo_b2b' ||
     input.profile?.subscription_plan === 'B2B_ENTERPRISE' ||
-    input.profile?.subscription_plan === 'appsumo_b2b';
+    input.profile?.subscription_plan === 'appsumo_b2b' ||
+    input.profile?.b2b_access === true;
 
   const hasEnterpriseAccess = isSuperAdmin || paid || liveTrial || planTypeIsEnterprise;
   const trialExpiredUnpaid =

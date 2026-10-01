@@ -857,6 +857,7 @@ export type Database = {
         Returns: number
       }
       can_claim_trial: { Args: { _user_id: string }; Returns: boolean }
+      redeem_appsumo_code: { Args: { code_input: string }; Returns: Json }
       start_b2b_cardless_trial: { Args: Record<PropertyKey, never>; Returns: Json }
       expire_stale_b2b_trials: { Args: Record<PropertyKey, never>; Returns: undefined }
       get_trial_claims_count: { Args: never; Returns: number }

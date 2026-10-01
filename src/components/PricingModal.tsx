@@ -18,6 +18,8 @@ import { useNavigate } from 'react-router-dom';
 import { X, Check, Zap, Users, Sparkles, Star, ExternalLink, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APPSUMO_TIER_CONFIGS, type AppSumoTierConfig } from '@/utils/tierPermissions';
+import { redirectToCheckout } from '@/lib/lemonsqueezy';
+import { useSession } from '@/contexts/SessionContext';
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
 
@@ -30,18 +32,19 @@ function TierCard({
   isHighlighted: boolean;
   currentTier?: string;
 }) {
+  const { user } = useSession();
   const isCurrent = currentTier === cfg.tier;
   const Icon = cfg.tier === 'appsumo_b2b' ? Users
              : cfg.tier === 'appsumo_tier2' ? Sparkles
              : Zap;
 
+  const lemonTier =
+    cfg.tier === 'appsumo_b2b' ? 'tier_3'
+    : cfg.tier === 'appsumo_tier2' ? 'tier_2'
+    : 'tier_1';
+
   const openCheckout = () => {
-    if (!cfg.checkoutUrl || cfg.checkoutUrl === '#') return;
-    if ((window as any).LemonSqueezy?.Url?.Open) {
-      (window as any).LemonSqueezy.Url.Open(cfg.checkoutUrl);
-    } else {
-      window.open(cfg.checkoutUrl, '_blank', 'noopener');
-    }
+    redirectToCheckout(lemonTier, user?.email, user?.id);
   };
 
   return (
@@ -111,7 +114,7 @@ function TierCard({
       ) : (
         <button
           onClick={openCheckout}
-          disabled={!cfg.checkoutUrl || cfg.checkoutUrl === '#'}
+          disabled={false}
           className={cn(
             'w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
             'disabled:opacity-40 disabled:cursor-not-allowed',

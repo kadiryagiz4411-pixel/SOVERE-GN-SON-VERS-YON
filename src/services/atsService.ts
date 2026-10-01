@@ -17,7 +17,7 @@
 
 import { trimForLLM } from "@/utils/tokenTrimmer";
 import { parseLLMJson } from "@/utils/llmJson";
-import { getOpenAIApiKey } from "@/lib/apiKeyResolver";
+import { getActiveApiKey } from "@/lib/apiKeyResolver";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,7 +187,8 @@ async function callOpenAI(
   messages: { role: string; content: string }[],
   maxTokens = 700,
 ): Promise<string> {
-  const key = getOpenAIApiKey();
+  const key = getActiveApiKey();
+  if (!key) throw new Error("Lütfen Ayarlar'dan API Anahtarınızı girin");
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

@@ -21,7 +21,7 @@ import { prepareAiExecution, CreditLimitError, FeatureForbiddenError } from '@/l
 import { isOwnerEmail } from '@/lib/superadmin';
 import { hasByokKey } from '@/services/aiService';
 import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
-import { getOpenAIApiKey } from '@/lib/apiKeyResolver';
+import { getActiveApiKey } from '@/lib/apiKeyResolver';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ async function resolveApiKey(userId: string): Promise<{ key: string; isByok: boo
   }
 
     try {
-      return { key: getOpenAIApiKey(), isByok: false };
+      return { key: getActiveApiKey(), isByok: false };
     } catch (err) {
       throw err instanceof Error ? err : new Error('AI_NOT_CONFIGURED');
     }

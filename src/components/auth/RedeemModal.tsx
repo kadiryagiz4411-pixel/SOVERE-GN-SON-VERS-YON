@@ -4,12 +4,12 @@
  * Inline modal for AppSumo code redemption.
  * Can be embedded in ProfileSettings or triggered from anywhere in the app.
  *
- * Calls the NEW `redeem_stacking_code` RPC (appsumo_codes table).
+ * Calls `redeem_appsumo_code` (auth.uid()-bound SECURITY DEFINER RPC).
  * Shows stacking progress: which tier is active and how many more codes needed.
  */
 
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { redeemAppSumoCode } from '@/services/creditService';
 import { Button } from '@/components/ui/button';
 import { X, Ticket, ChevronRight, Loader2, CheckCircle2, XCircle, Zap, Key, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -137,31 +137,19 @@ export function RedeemModal({
     setSuccessMsg('');
 
     try {
-      const { data, error: rpcError } = await supabase.rpc('redeem_stacking_code', {
-        input_code:     trimmed,
-        target_user_id: userId,
-      });
+      const result = await redeemAppSumoCode(trimmed, userId);
 
-      if (rpcError) throw rpcError;
-
-      const result = String(data);
-
-      if (result === 'ok') {
+      if (result.success) {
         const newCount = codesRedeemed + 1;
         setCodesRedeemed(newCount);
         const newStatus = resolveStackingStatus(newCount, newCount >= 3);
-        setSuccessMsg(`✓ Code activated! You are now on ${newStatus.tierLabel} · ${newStatus.monthlyCredits} credits/mo`);
+        setSuccessMsg(result.message || `✓ Code activated! You are now on ${newStatus.tierLabel}`);
         setCode('');
-        toast.success(newStatus.tierLabel + ' activated!');
+        toast.success(result.message);
+        try { window.dispatchEvent(new CustomEvent('sovereign:profile-updated')); } catch { /* ignore */ }
         onSuccess?.(newCount);
-      } else if (result === 'already_redeemed') {
-        setError('This code has already been used.');
-      } else if (result === 'max_stack') {
-        setError('Maximum of 3 AppSumo codes per account.');
-      } else if (result === 'invalid_code') {
-        setError('Code not found. Check for typos and try again.');
       } else {
-        setError('Unexpected error. Please contact support.');
+        setError(result.message);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong.';
