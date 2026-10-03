@@ -3,6 +3,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { Crown, Sparkles, BarChart3, ArrowRight, Target, Zap } from 'lucide-react';
 import { getCheckoutUrl } from '@/lib/plans';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { asIcon } from '@/lib/safeIcon';
 
 const tabs = [
   {
@@ -252,7 +253,7 @@ export const AppScreenshotsSection = () => {
         <div className="flex justify-center gap-2 mb-10">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
+            const Icon = asIcon(tab.icon, Sparkles);
             return (
               <button
                 key={tab.id}

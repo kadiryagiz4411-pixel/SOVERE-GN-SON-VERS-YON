@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { isElitePlan } from '@/lib/plans';
+import { asIcon } from '@/lib/safeIcon';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 type OutcomeStatus = 'pending' | 'viewed' | 'replied' | 'interview-invited' | 'offer-received' | 'rejected';
@@ -244,7 +245,7 @@ export const ApplicationTracker = ({ currentPlan, userId, onScoreIncrease }: App
                     <div className="flex flex-wrap gap-1 max-w-[130px] justify-end">
                       {QUICK_STATUSES.map((status) => {
                         const config = STATUS_CONFIG[status];
-                        const Icon = config.icon;
+                        const Icon = asIcon(config.icon);
                         const isActive = app.status === status;
                         return (
                           <button

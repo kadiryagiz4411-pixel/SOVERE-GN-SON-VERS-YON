@@ -18,7 +18,11 @@ export function resolveEdgeOpenAIKey(body: unknown): string {
   const clientKey = typeof rec.customApiKey === 'string' ? rec.customApiKey.trim() : '';
   if (isSkKey(clientKey)) return clientKey;
 
-  const systemKey = (Deno.env.get('OPENAI_API_KEY') ?? '').trim();
+  const systemKey = (
+    Deno.env.get('OPENAI_API_KEY')
+    ?? Deno.env.get('VITE_OPENAI_API_KEY')
+    ?? ''
+  ).trim();
   if (isSkKey(systemKey)) return systemKey;
 
   throw new Error(AI_NOT_CONFIGURED_MESSAGE);

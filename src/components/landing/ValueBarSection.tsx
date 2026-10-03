@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { Zap, Users, TrendingUp, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { asIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -47,7 +48,7 @@ export const ValueBarSection = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
           {t.items.map((item, i) => {
-            const Icon = item.icon;
+            const Icon = asIcon(item.icon, Zap);
             return (
               <motion.div
                 key={i}

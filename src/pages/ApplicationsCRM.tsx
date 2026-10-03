@@ -17,6 +17,7 @@ import { GatedAppPage } from '@/components/auth/GatedAppPage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { asIcon } from '@/lib/safeIcon';
 import {
   Send, Users, Trophy, XCircle, Plus, Trash2, Bell,
   ChevronRight, ChevronLeft, Clock, Briefcase, Zap,
@@ -393,7 +394,7 @@ export default function ApplicationsCRM() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {COLUMNS.map((col) => {
               const colProposals = proposals.filter((p) => p.column === col.id);
-              const Icon = col.icon;
+              const Icon = asIcon(col.icon);
 
               return (
                 <div key={col.id} className="flex flex-col gap-3">

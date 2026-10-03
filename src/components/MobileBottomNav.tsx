@@ -3,6 +3,7 @@ import { Home, User, History, Settings, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { asIcon } from '@/lib/safeIcon';
 
 const triggerHaptic = () => {
   if ('vibrate' in navigator) {
@@ -45,7 +46,7 @@ export const MobileBottomNav = () => {
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
-          const Icon = item.icon;
+          const Icon = asIcon(item.icon, Home);
           
           return (
             <Link

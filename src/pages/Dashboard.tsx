@@ -42,6 +42,7 @@ import { ATSAnalyzer } from '@/components/ATSAnalyzer';
 import { SegmentSelector, type UserSegment } from '@/components/dashboard/SegmentSelector';
 import { FreelanceInputs } from '@/components/dashboard/FreelanceInputs';
 import { FreelanceScoreDisplay } from '@/components/dashboard/FreelanceScoreDisplay';
+import { asIcon } from '@/lib/safeIcon';
 import { OutputLanguageSelector, type CulturalTone } from '@/components/dashboard/OutputLanguageSelector';
 import { ToneSelector } from '@/components/dashboard/ToneSelector';
 import { FollowUpKit } from '@/components/dashboard/FollowUpKit';
@@ -1323,7 +1324,7 @@ const Dashboard = () => {
 
                 <div className="mt-5 grid gap-3">
                   {quickActions.map((action) => {
-                    const Icon = action.icon;
+                    const Icon = asIcon(action.icon);
 
                     if (action.isAnchor) {
                       return (

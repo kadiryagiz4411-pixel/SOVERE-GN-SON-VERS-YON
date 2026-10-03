@@ -7,6 +7,11 @@ export function isRenderableComponent(candidate: unknown): candidate is Componen
   return typeof candidate === 'function';
 }
 
+/** Safe dynamic Lucide/component lookup — never returns undefined. */
+export function asIcon(candidate: unknown, fallback: ComponentType<IconProps> = Circle): ComponentType<IconProps> {
+  return isRenderableComponent(candidate) ? candidate : fallback;
+}
+
 /** Never render an undefined Lucide/dynamic tag (invalidtagname / element-type runtime crash). */
 export function SafeIcon({
   icon: Icon,

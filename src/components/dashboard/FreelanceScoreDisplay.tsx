@@ -3,6 +3,7 @@ import { Lock, TrendingUp, Target, Zap, Shield, FileText, Ruler, BarChart3, Sett
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { type CompetitiveScoreResult, FREELANCE_FACTOR_LABELS } from '@/lib/competitiveScoring';
+import { asIcon } from '@/lib/safeIcon';
 
 // Legacy type support
 interface LegacyFreelanceScoreBreakdown {
@@ -95,7 +96,7 @@ export const FreelanceScoreDisplay = ({ score, competitiveScore, plan, onUpgrade
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Factor Breakdown</h4>
           {Object.entries(factors).map(([key, value]) => {
             const label = FREELANCE_FACTOR_LABELS[key] || key;
-            const Icon = factorIcons[key] || BarChart3;
+            const Icon = asIcon(factorIcons[key], BarChart3);
             return (
               <div key={key}>
                 <div className="flex items-center justify-between text-xs mb-1">

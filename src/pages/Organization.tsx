@@ -17,6 +17,7 @@ import {
   Shield, Crown, ChevronDown, ChevronUp, ArrowLeft, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { asIcon } from '@/lib/safeIcon';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrgMember {
@@ -494,7 +495,7 @@ const Organization = () => {
               color: 'text-primary',
             },
           ].map((stat, i) => {
-            const Icon = stat.icon;
+            const Icon = asIcon(stat.icon);
             return (
               <div key={i} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-2 mb-2">

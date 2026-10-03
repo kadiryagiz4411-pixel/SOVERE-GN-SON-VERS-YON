@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Crown, Sparkles, Wand2, BarChart3, Target, MessageCircle, UserSearch, Zap, TrendingUp, Check, ArrowRight } from 'lucide-react';
 import { getCheckoutUrl, PLAN_PRICES } from '@/lib/plans';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { asIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -355,7 +356,7 @@ export const PlanShowcaseSection = () => {
               {/* Feature list */}
               <ul className="space-y-3 mb-6 flex-1">
                 {plan.features.map((feat, i) => {
-                  const Icon = iconMap[feat.icon] || Check;
+                  const Icon = asIcon(iconMap[feat.icon], Check);
                   return (
                     <li key={i} className="flex items-start gap-3">
                       <div className={`w-8 h-8 rounded-lg ${plan.badgeBg} flex items-center justify-center shrink-0`}>

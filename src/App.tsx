@@ -105,6 +105,28 @@ const AffiliateTracker = () => {
   return null;
 };
 
+const LemonSqueezyInit = () => {
+  useEffect(() => {
+    const init = () => {
+      try {
+        if (typeof window.createLemonSqueezy === 'function') {
+          window.createLemonSqueezy();
+        }
+      } catch (err) {
+        console.error('[LemonSqueezy] createLemonSqueezy() failed', err);
+      }
+    };
+    init();
+    window.addEventListener('load', init);
+    const retry = window.setTimeout(init, 600);
+    return () => {
+      window.removeEventListener('load', init);
+      window.clearTimeout(retry);
+    };
+  }, []);
+  return null;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -207,6 +229,7 @@ const App = () => {
                 <BrowserRouter>
                   <ErrorBoundary>
                     <AffiliateTracker />
+                    <LemonSqueezyInit />
                     <AppRoutes />
                     <DevSandbox />
                   </ErrorBoundary>

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { motion, useInView } from 'framer-motion';
 import { Users, FileText, TrendingUp, Globe } from 'lucide-react';
+import { asIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -77,7 +78,7 @@ export const StatsCounterSection = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 max-w-5xl mx-auto">
           {t.stats.map((stat, i) => {
-            const Icon = stat.icon;
+            const Icon = asIcon(stat.icon, FileText);
             return (
               <motion.div
                 key={i}

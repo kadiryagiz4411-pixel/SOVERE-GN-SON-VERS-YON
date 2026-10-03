@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Briefcase, Star, TrendingUp, Search, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { motion } from 'framer-motion';
+import { asIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -268,7 +269,7 @@ export const FreelancePlatformSection = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {t.jobDiscoveryItems.map((item, i) => {
-              const Icon = item.icon;
+              const Icon = asIcon(item.icon, Search);
               return (
                 <div key={i} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">

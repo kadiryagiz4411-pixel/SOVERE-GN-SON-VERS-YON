@@ -106,7 +106,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
         href={safeHref}
         target={!overlay ? '_blank' : undefined}
         rel="noopener noreferrer"
-        className={cn(buttonVariants({ variant, size }), className)}
+        className={cn('lemonsqueezy-button', buttonVariants({ variant, size }), className)}
         onClick={handleClick}
         {...props}
       >
