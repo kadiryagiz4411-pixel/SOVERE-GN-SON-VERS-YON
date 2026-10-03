@@ -24,6 +24,8 @@ import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequi
 import { useB2BTrial } from '@/hooks/useB2BTrial';
 import { isB2BEnterprisePath } from '@/lib/b2bTrial';
 import { TierBadge } from '@/components/ui/TierBadge';
+import { SafeIcon } from '@/lib/safeIcon';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -148,7 +150,6 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   };
 
   const renderTierNav = (items: TierNavItem[]) => items.map((item) => {
-    const Icon = item.icon;
     const active = location.pathname === item.to;
   const unlocked = isSuperAdmin || planState.hasEnterpriseAccess || access.canAccess(item.required);
     if (unlocked) {
@@ -163,7 +164,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
           }`}
         >
-          <Icon className="w-4 h-4 shrink-0" />
+          <SafeIcon icon={item.icon} className="w-4 h-4 shrink-0" />
           <span className="truncate">{item.label}</span>
         </Link>
       );
@@ -179,7 +180,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
         }`}
       >
-        <Icon className="w-4 h-4 shrink-0" />
+        <SafeIcon icon={item.icon} className="w-4 h-4 shrink-0" />
         <span className="truncate">{item.label}</span>
         <TierLockBadge required={item.required} />
       </button>
@@ -254,7 +255,6 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
-            const Icon = item.icon;
             const active = location.pathname === item.to;
             return (
               <Link
@@ -266,7 +266,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <SafeIcon icon={item.icon} className="w-4 h-4" />
                 {item.label}
               </Link>
             );
@@ -331,7 +331,6 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
             </div>
             <nav className="flex-1 py-4 px-3 space-y-1">
               {navItems.map((item) => {
-                const Icon = item.icon;
                 const active = location.pathname === item.to;
                 return (
                   <Link
@@ -344,7 +343,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <SafeIcon icon={item.icon} className="w-4 h-4" />
                     {item.label}
                   </Link>
                 );

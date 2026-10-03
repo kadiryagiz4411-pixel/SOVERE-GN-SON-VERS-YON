@@ -6,6 +6,7 @@ import {
   isHighlightedFeature, TIER_ID_TO_PLAN_TYPE,
 } from "@/config/pricing";
 import { createCheckout, getVariantId, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
+import { sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
 
 interface PricingCardProps {
   tier: PricingTier;
@@ -234,7 +235,7 @@ export function PricingCard({
         </button>
       ) : (
         <CheckoutButton
-          href={checkoutUrl}
+          href={sanitizeCheckoutUrl(checkoutUrl)}
           className={CTA_CLASS[style]}
           overlay
           data-plan={tier.id}

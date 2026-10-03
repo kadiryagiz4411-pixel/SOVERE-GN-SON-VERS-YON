@@ -5,6 +5,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowRight, ArrowLeft, Crown, Briefcase, TrendingUp, Target, Clock, Users, DollarSign, Globe, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { SafeIcon } from '@/lib/safeIcon';
 
 interface Answer {
   questionId: string;
@@ -319,7 +320,7 @@ const Onboarding = () => {
             {/* Question header */}
             <div className="flex items-center justify-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <Icon className="w-6 h-6 text-primary" />
+                <SafeIcon icon={Icon} fallback={Crown} className="w-6 h-6 text-primary" />
               </div>
             </div>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">

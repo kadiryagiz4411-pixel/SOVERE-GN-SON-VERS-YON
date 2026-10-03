@@ -24,6 +24,7 @@ import {
   BYOK_STORAGE_KEY,
   AI_NOT_CONFIGURED_MESSAGE,
 } from '@/lib/apiKeyResolver';
+import { messageForOpenAIStatus, toastOpenAIFailure } from '@/lib/openaiErrors';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ async function callOpenAI(
 ): Promise<string> {
   let key = getActiveApiKey();
   if (!key) {
-    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", { id: 'sovereign-no-api-key', duration: 8000 });
+    toastOpenAIFailure();
     throw new Error(AI_NOT_CONFIGURED_MESSAGE);
   }
 
@@ -102,17 +103,9 @@ async function callOpenAI(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '(no body)');
-    // Surface a friendly Turkish message for common HTTP errors.
-    let userMsg: string;
-    if (res.status === 401) {
-      userMsg = 'OpenAI API Anahtarı Geçersiz (401). Lütfen Ayarlar sayfasından anahtarınızı kontrol edin.';
-    } else if (res.status === 429) {
-      userMsg = 'OpenAI API kota sınırına ulaşıldı (429). Lütfen bir süre bekleyin veya farklı bir anahtar deneyin.';
-    } else {
-      userMsg = `OpenAI API Hatası (HTTP ${res.status}): ${errText.slice(0, 200)}`;
-    }
+    const userMsg = messageForOpenAIStatus(res.status, errText);
     console.error('[SOVEREIGN_ERR] callOpenAI:', userMsg);
-    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", { id: 'sovereign-ai-down', duration: 8000 });
+    toastOpenAIFailure(res.status);
     throw new Error(userMsg);
   }
 

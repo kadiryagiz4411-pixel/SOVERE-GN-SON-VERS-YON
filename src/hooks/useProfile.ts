@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
+import { fetchProfileByAuthId, profileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 
 interface Profile {
   id: string;
@@ -14,6 +14,10 @@ interface Profile {
   avatar_url: string | null;
   subscription_plan: string;
   appsumo_tier?: number | null;
+  appsumo_plan?: string | null;
+  plan_type?: string | null;
+  subscription_tier?: string | null;
+  [key: string]: unknown;
   daily_proposals_used: number;
   last_usage_reset: string;
   trial_started_at: string | null;
@@ -48,6 +52,24 @@ export const useProfile = (user: User | null) => {
     };
 
     fetchProfile();
+
+    const channel = supabase
+      .channel(`use-profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        () => { void fetchProfile(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
+        () => { void fetchProfile(); },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const updateProfile = async (updates: Partial<Profile>) => {

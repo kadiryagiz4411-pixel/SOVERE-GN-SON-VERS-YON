@@ -101,7 +101,7 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, hasB2BAccess, user: sessionUser } = useSession();
+  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, hasB2BAccess, user: sessionUser, displayTier } = useSession();
   const { planLabel: contextPlanLabel, isSuperAdmin: contextSuperAdmin } = usePlan();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -177,7 +177,7 @@ const Dashboard = () => {
             ? 'standard'
             : checkSubscriptionExpiry()
   );
-  const isFreePlan = !isSuperAdmin && !session.displayTier.isPaid;
+  const isFreePlan = !isSuperAdmin && !displayTier.isPaid;
   const dailyLimit = getDailyLimit(currentPlan);
   const proposalsUsed = profile?.daily_proposals_used || 0;
   const bonusCredits = profile?.bonus_credits || 0;
@@ -1038,7 +1038,7 @@ const Dashboard = () => {
     );
   }
 
-  const getPlanLabel = () => session.displayTier.label;
+  const getPlanLabel = () => displayTier.label;
 
   const isFreelancer = userSegment === 'freelancer';
   const creditsBalance = remainingCredits || profile?.credits_balance || 0;
@@ -1134,7 +1134,7 @@ const Dashboard = () => {
 
                 <h1 className="text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl lg:text-4xl flex flex-wrap items-center gap-3">
                   <span>{dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name}` : ''}</span>
-                  <TierBadge tier={session.displayTier} className="text-[11px] px-3 py-1" />
+                  <TierBadge tier={displayTier} className="text-[11px] px-3 py-1" />
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
                   {dashboardUiText.memberWorkspace}
@@ -1160,7 +1160,7 @@ const Dashboard = () => {
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.currentPlan}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white/90">{session.displayTier.label}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white/90">{displayTier.label}</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.proposalQuota}</p>
@@ -1205,7 +1205,7 @@ const Dashboard = () => {
                       <span>{dashboardUiText.statusActive}</span>
                     </Badge>
                     <Badge variant="outline" className="px-3 py-1 text-xs font-medium border-0">
-                      <TierBadge tier={session.displayTier} />
+                      <TierBadge tier={displayTier} />
                     </Badge>
                     <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
                       {billingLabel}

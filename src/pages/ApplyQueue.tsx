@@ -131,7 +131,7 @@ const ApplyQueue = () => {
     setScanning(true);
 
     const persistFallback = async () => {
-      const jobs = buildFallbackOpportunities(profile as Record<string, unknown>);
+      const jobs = buildFallbackOpportunities(profile as unknown as Record<string, unknown>);
       const batchId = crypto.randomUUID();
       const rows = jobs.map((job) => ({
         ...job,
@@ -164,6 +164,13 @@ const ApplyQueue = () => {
       try { payload = JSON.parse(raw); } catch { payload = {}; }
 
       if (!res.ok || !payload.success) {
+        if (res.status === 401 || res.status === 429) {
+          toast.error(
+            res.status === 429
+              ? (language === 'tr' ? 'Kota aşıldı (429). Yedek tarama kullanılıyor.' : 'Rate limited (429). Using fallback scan.')
+              : (language === 'tr' ? 'AI kimlik doğrulaması başarısız (401). Yedek tarama kullanılıyor.' : 'AI authentication failed (401). Using fallback scan.'),
+          );
+        }
         const count = await persistFallback();
         toast.success(`${count} ${language === 'tr' ? 'eşleşen fırsat hazır' : 'matched opportunities ready'}`);
         await fetchQueue();

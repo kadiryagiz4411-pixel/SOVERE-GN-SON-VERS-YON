@@ -59,12 +59,19 @@ function unwrapMarkdownUrl(raw: string): string {
   return trimmed.replace(/^\[|]$/g, '').trim();
 }
 
+export function getSupportUrl(): string {
+  const support = unwrapMarkdownUrl(
+    firstEnv('VITE_SUPPORT_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL') || 'https://sovereignapp.pro/pricing',
+  );
+  return isHttpUrl(support) ? support : 'https://sovereignapp.pro/pricing';
+}
+
 export function getLemonStoreUrl(): string {
   const store = unwrapMarkdownUrl(
     firstEnv('VITE_LEMONSQUEEZY_STORE_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL') || DEFAULT_STORE,
   ).replace(/\/$/, '');
   if (isHttpUrl(store)) return store;
-  return firstEnv('VITE_LEMONSQUEEZY_CONTACT_URL') || 'https://sovereignapp.pro/pricing';
+  return getSupportUrl();
 }
 
 function isHttpUrl(value: string): boolean {

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 
-import { 
-  Lock, 
-  Sparkles, 
-  Crown, 
+import {
+  Lock,
+  Sparkles,
+  Crown,
   Flame,
   Target,
   BarChart3,
   Wand2,
   Users,
   MessageSquare,
-  Map,
   Loader2,
 } from 'lucide-react';
+import { SafeIcon } from '@/lib/safeIcon';
 import { canAccessFeature, PlanLimits, isElitePlan, isProPlan } from '@/lib/plans';
 import { FeatureUpgradeModal } from '@/components/FeatureUpgradeModal';
 import { AcceptanceScoreModal } from '@/components/dashboard/AcceptanceScoreModal';
@@ -179,7 +179,6 @@ export const FeaturePanel = ({
 
   const renderFeatureButton = (feature: FeatureItem) => {
     const hasAccess = canAccessFeature(currentPlan, feature.id);
-    const Icon = feature.icon;
     const isElite = feature.tier === 'elite';
     const isLoading = isOptimizing && currentOptimization === feature.optimizationType;
     const isDisabled = (!generatedProposal && hasAccess) || isOptimizing;
@@ -213,7 +212,7 @@ export const FeaturePanel = ({
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : hasAccess ? (
-              <Icon className="w-4 h-4" />
+              <SafeIcon icon={feature.icon} fallback={Sparkles} className="w-4 h-4" />
             ) : (
               <Lock className="w-4 h-4" />
             )}

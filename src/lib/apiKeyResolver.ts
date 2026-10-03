@@ -30,6 +30,10 @@ function readViteSystemKey(): string {
     if (isUsableKey(vite)) return String(vite).trim();
   } catch { /* ignore */ }
   try {
+    const metaOpenAi = (import.meta.env as Record<string, string | undefined>).OPENAI_API_KEY;
+    if (isUsableKey(metaOpenAi)) return String(metaOpenAi).trim();
+  } catch { /* ignore */ }
+  try {
     const nodeVite = typeof process !== 'undefined' ? process.env?.VITE_OPENAI_API_KEY : undefined;
     if (isUsableKey(nodeVite)) return String(nodeVite).trim();
   } catch { /* ignore */ }

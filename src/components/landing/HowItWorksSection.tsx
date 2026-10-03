@@ -1,5 +1,6 @@
 import { FileText, Cpu, BarChart3 } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { SafeIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -60,11 +61,10 @@ export const HowItWorksSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {t.steps.map((s, i) => {
-            const Icon = stepIcons[i];
             return (
               <div key={i} className="text-center group">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5 group-hover:bg-primary/20 transition-colors">
-                  <Icon className="w-7 h-7 text-primary" />
+                  <SafeIcon icon={stepIcons[i]} fallback={FileText} className="w-7 h-7 text-primary" />
                 </div>
                 <div className="text-xs font-bold text-primary mb-2 tracking-widest">{s.step}</div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">{s.title}</h3>

@@ -88,6 +88,12 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
       onClick?.(event);
       if (event.defaultPrevented) return;
+      if (isBrokenCheckoutUrl(href)) {
+        toast.warning(
+          'Checkout URL is missing or invalid. Opening the store / support page instead of a 404.',
+          { id: 'ls-checkout-fallback' },
+        );
+      }
       if (overlay) {
         event.preventDefault();
         openLemonSqueezyCheckout(href, user?.email, user?.id);

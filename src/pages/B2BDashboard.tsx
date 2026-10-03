@@ -501,7 +501,7 @@ function AnalyticsPanel({ candidates, jobTitle }: { candidates: CandidateEvaluat
     { label: "70–79", count: scores.filter(s => s >= 70 && s < 80).length, color: "bg-lime-500" },
     { label: "60–69", count: scores.filter(s => s >= 60 && s < 70).length, color: "bg-amber-500" },
     { label: "50–59", count: scores.filter(s => s >= 50 && s < 60).length, color: "bg-orange-500" },
-    { label: "<50", count: scores.filter(s => s < 50).length, color: "bg-red-500" },
+    { label: "Under 50", count: scores.filter(s => s < 50).length, color: "bg-red-500" },
   ];
   const maxBucket = Math.max(...buckets.map(b => b.count), 1);
 
@@ -518,7 +518,7 @@ function AnalyticsPanel({ candidates, jobTitle }: { candidates: CandidateEvaluat
           { label: "Average Score", value: avg.toFixed(1), suffix: "/100", color: "text-violet-400" },
           { label: "Highest Score", value: max.toFixed(0), suffix: "/100", color: "text-emerald-400" },
           { label: "Lowest Score", value: min.toFixed(0), suffix: "/100", color: "text-red-400" },
-          { label: "Pass Rate (≥70)", value: ((scores.filter(s => s >= 70).length / scores.length) * 100).toFixed(0), suffix: "%", color: "text-amber-400" },
+          { label: "Pass Rate (70+)", value: ((scores.filter(s => s >= 70).length / scores.length) * 100).toFixed(0), suffix: "%", color: "text-amber-400" },
         ].map(k => (
           <div key={k.label} className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">{k.label}</p>

@@ -11,6 +11,7 @@
 
 import OpenAI from 'openai';
 import { getActiveApiKey, resolveOpenAIKey } from '@/lib/apiKeyResolver';
+import { toastOpenAIFailure } from '@/lib/openaiErrors';
 
 /** Resolve API key for Vite (BYOK → VITE) then Node/Deno OPENAI_API_KEY. */
 const resolveApiKey = (): string => {
@@ -69,7 +70,8 @@ export async function testOpenAIConnection(): Promise<
 export async function generateProposal(userData: unknown): Promise<Record<string, unknown>> {
   const key = resolveApiKey() || getActiveApiKey();
   if (!key) {
-    throw new Error("Lütfen Ayarlar'dan API Anahtarınızı girin");
+    toastOpenAIFailure();
+    return {};
   }
 
   try {
@@ -87,6 +89,7 @@ export async function generateProposal(userData: unknown): Promise<Record<string
       status: err.status,
       code: err.code,
     });
-    throw new Error(`Üretim Başarısız: ${err.message}`);
+    toastOpenAIFailure(err.status);
+    return {};
   }
 }

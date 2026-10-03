@@ -217,7 +217,23 @@ export const getPlanLimits = (plan: string): PlanLimits => {
 };
 
 export const isPaidPlan = (plan: string): boolean => {
-  return plan === 'standard' || plan === 'pro' || plan === 'elite' || plan === 'B2B_ENTERPRISE';
+  const p = String(plan ?? '').toLowerCase();
+  if (!p || p === 'free' || p === 'basic' || p === 'none') return false;
+  return (
+    p === 'standard' ||
+    p === 'pro' ||
+    p === 'elite' ||
+    p === 'b2b_enterprise' ||
+    p.includes('enterprise') ||
+    p.includes('b2b') ||
+    p.includes('appsumo') ||
+    p.includes('tier_1') ||
+    p.includes('tier_2') ||
+    p.includes('tier_3') ||
+    p.includes('tier1') ||
+    p.includes('tier2') ||
+    p.includes('tier3')
+  );
 };
 
 export const isElitePlan = (plan: string): boolean => {

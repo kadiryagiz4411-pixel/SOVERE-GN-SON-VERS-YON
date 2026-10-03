@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
-import { resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
+import { firstPaidPlanLabel, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -86,6 +86,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [appsumoPlan, setAppsumoPlan] = useState('none');
   const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
   const [applyQueueAccess, setApplyQueueAccess] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const mounted = useRef(true);
   const hydrated = useRef(false);
 
@@ -127,9 +128,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setCreditsBalance(balance);
         setRemainingCredits(remaining);
         setMonthlyCreditLimit(limit || 400);
-        setSubscriptionPlan(String(data?.subscription_plan ?? 'free'));
-        setSubscriptionTier(String(data?.subscription_tier ?? data?.plan_type ?? data?.subscription_plan ?? 'free'));
-        setPlanType(access.hasEnterpriseAccess ? SUPERADMIN_PLAN_TYPE : String(data?.plan_type ?? data?.subscription_plan ?? 'free'));
+        const paidLabel = firstPaidPlanLabel(
+          data?.plan_type,
+          data?.subscription_plan,
+          data?.subscription_tier,
+          data?.appsumo_plan,
+        );
+        setSubscriptionPlan(paidLabel);
+        setSubscriptionTier(paidLabel);
+        setPlanType(access.hasEnterpriseAccess ? SUPERADMIN_PLAN_TYPE : paidLabel);
         setAppsumoTier(numericTier);
         setIsByokUnlimited(numericTier >= 3 && (Boolean(data?.byok_unlocked) || hasKey));
         setIsTrialActive(access.isTrialActive);
@@ -272,6 +279,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setB2bSubscriptionStatus('none');
         setAppsumoPlan('none');
         setTrialEndsAt(null);
+        setB2bAccessFlag(false);
+        setApplyQueueAccess(false);
       }
     });
 
@@ -291,6 +300,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
   }, [loadProfileCredits]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const uid = user.id;
+    const email = user.email;
+    const channel = supabase
+      .channel(`profiles-tier-${uid}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+        () => { void loadProfileCredits(uid, email); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `user_id=eq.${uid}` },
+        () => { void loadProfileCredits(uid, email); },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email, loadProfileCredits]);
 
   if (!sessionReady) {
     return (

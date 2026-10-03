@@ -4,6 +4,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { ArrowRight, Sparkles, Shield, Target, Download, FileText, Briefcase, Building2 } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 import { motion } from 'framer-motion';
+import { SafeIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
@@ -212,7 +213,6 @@ export const HeroSection = () => {
             className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-12 pt-8 border-t border-border"
           >
             {t.signals.map((text, i) => {
-              const Icon = signalIcons[i];
               return (
                 <motion.div 
                   key={i} 
@@ -221,7 +221,7 @@ export const HeroSection = () => {
                   transition={{ duration: 0.4, delay: 0.7 + i * 0.1 }}
                   className="flex items-center gap-2 text-sm text-muted-foreground"
                 >
-                  <Icon className="w-4 h-4 text-primary" />
+                  <SafeIcon icon={signalIcons[i]} fallback={Sparkles} className="w-4 h-4 text-primary" />
                   <span>{text}</span>
                 </motion.div>
               );

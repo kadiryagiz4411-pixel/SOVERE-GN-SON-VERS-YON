@@ -26,9 +26,15 @@ export function toAppsumoPlanEnum(
   rawPlan: string | null | undefined,
   numericTier: number | null | undefined,
 ): AppsumoPlanEnum {
-  const label = (rawPlan ?? '').trim();
-  if (label === 'tier_1' || label === 'tier_2' || label === 'tier_3' || label === 'none') {
-    return label;
+  const label = (rawPlan ?? '').trim().toLowerCase().replace(/[\s-]/g, '_');
+  if (label === 'tier_3' || label.includes('appsumo_tier3') || label.includes('tier3') || label === 'elite') {
+    return 'tier_3';
+  }
+  if (label === 'tier_2' || label.includes('appsumo_tier2') || label.includes('tier2') || label === 'pro') {
+    return 'tier_2';
+  }
+  if (label === 'tier_1' || label.includes('appsumo_tier1') || label.includes('tier1') || label === 'standard') {
+    return 'tier_1';
   }
   const n = Number(numericTier ?? 0);
   if (n >= 3) return 'tier_3';

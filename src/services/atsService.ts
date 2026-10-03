@@ -18,6 +18,7 @@
 import { trimForLLM } from "@/utils/tokenTrimmer";
 import { parseLLMJson } from "@/utils/llmJson";
 import { getActiveApiKey } from "@/lib/apiKeyResolver";
+import { messageForOpenAIStatus, toastOpenAIFailure } from "@/lib/openaiErrors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,7 +189,10 @@ async function callOpenAI(
   maxTokens = 700,
 ): Promise<string> {
   const key = getActiveApiKey();
-  if (!key) throw new Error("Lütfen Ayarlar'dan API Anahtarınızı girin");
+  if (!key) {
+    toastOpenAIFailure();
+    return "";
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -199,7 +203,11 @@ async function callOpenAI(
     body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.25 }),
   });
 
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    toastOpenAIFailure(res.status);
+    throw new Error(messageForOpenAIStatus(res.status, body));
+  }
   const json = await res.json();
   return json.choices?.[0]?.message?.content ?? "";
 }

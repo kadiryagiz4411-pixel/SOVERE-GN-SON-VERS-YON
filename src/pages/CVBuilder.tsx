@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { OWNER_EMAIL } from '@/lib/superadmin';
 import { invokeCvFunction } from '@/lib/edgeFunctions';
@@ -88,7 +88,7 @@ const CVBuilder = () => {
   const { t, language } = useLanguage();
   const cv = (t as any).cvBuilder || {} as any;
   const navigate = useNavigate();
-  const session = useSession();
+  const appSession = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [plan, setPlan] = useState('free');
   const [creditsBalance, setCreditsBalance] = useState(0);
@@ -124,8 +124,13 @@ const CVBuilder = () => {
   // Upload mode
   const [uploadedText, setUploadedText] = useState('');
 
-  const isPro = isPaidPlan(plan);
-  const isElite = isElitePlan(plan);
+  const isPro = appSession.displayTier.isPaid || isPaidPlan(plan);
+  const isElite =
+    appSession.displayTier.id === 'elite' ||
+    appSession.displayTier.id === 'tier_3' ||
+    appSession.displayTier.id === 'superadmin' ||
+    appSession.displayTier.id === 'enterprise' ||
+    isElitePlan(plan);
 
   useEffect(() => {
     const init = async () => {
@@ -136,12 +141,18 @@ const CVBuilder = () => {
 
         const { data: profile } = await fetchProfileByAuthId<{
           subscription_plan?: string;
+          subscription_tier?: string;
+          plan_type?: string;
+          appsumo_plan?: string;
+          appsumo_tier?: number;
           subscription_expires_at?: string | null;
           full_name?: string | null;
           credits_balance?: number;
-        }>(session.user.id, 'subscription_plan, subscription_expires_at, full_name, credits_balance');
+        }>(session.user.id, PROFILE_SELECT_WITH_TIER);
 
-        let userPlan = profile?.subscription_plan || 'free';
+        let userPlan = appSession.displayTier.isPaid
+          ? appSession.displayTier.id
+          : (profile?.subscription_plan || profile?.plan_type || 'free');
         if ((userPlan === 'pro' || userPlan === 'elite') && profile?.subscription_expires_at) {
           if (new Date() > new Date(profile.subscription_expires_at)) userPlan = 'free';
         }
@@ -178,10 +189,10 @@ const CVBuilder = () => {
     // also grant unlimited access without touching local state.
     const isCVSuperAdmin =
       effectiveUser.email === OWNER_EMAIL ||
-      session.user?.email === OWNER_EMAIL ||
-      session.isByokUnlimited ||
-      session.hasBYOKAccess;
-    const effectiveCVBalance = isCVSuperAdmin ? 999999 : (session.remainingCredits > 0 ? session.remainingCredits : creditsBalance);
+      appSession.user?.email === OWNER_EMAIL ||
+      appSession.isByokUnlimited ||
+      appSession.hasBYOKAccess;
+    const effectiveCVBalance = isCVSuperAdmin ? 999999 : (appSession.remainingCredits > 0 ? appSession.remainingCredits : creditsBalance);
     if (!hasCreditsOrUnlimited(effectiveCVBalance, isCVSuperAdmin)) {
       setShowCreditsModal(true);
       return;
@@ -521,7 +532,7 @@ const CVBuilder = () => {
                 : isPro ? 'bg-primary/20 text-primary'
                 : 'bg-muted text-muted-foreground'
               }`}>
-                {isElite ? 'Elite' : isPro ? 'Pro' : 'Free'}
+                {appSession.displayTier.label}
               </span>
             </div>
             <CreditBadge balance={creditsBalance} />

@@ -3,6 +3,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { getCheckoutUrl } from '@/lib/plans';
 import { ArrowRight, Briefcase, Target, Clock, TrendingUp } from 'lucide-react';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { SafeIcon } from '@/lib/safeIcon';
 
 interface Question {
   id: string;
@@ -86,12 +87,11 @@ export const OnboardingSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
           {t.questions.map((q, i) => {
-            const Icon = content.en.questions[i].icon;
             return (
               <div key={q.id} className="p-6 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-primary" />
+                    <SafeIcon icon={content.en.questions[i]?.icon} fallback={Briefcase} className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground text-sm">{q.question}</h3>
                 </div>
