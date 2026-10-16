@@ -2,24 +2,112 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Sovereign Panel</title>
+    <title>Sovereign Side Panel</title>
     <style>
       :root { color-scheme: dark; }
-      body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #0b0f19; color: #e7e5e4; }
-      h1 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #d4af37; margin: 0 0 12px; }
-      button { background: linear-gradient(90deg, #d4af37, #b8860b); border: 0; color: #111; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer; width: 100%; }
-      pre { white-space: pre-wrap; font-size: 11px; background: #111827; padding: 10px; border-radius: 8px; max-height: 360px; overflow: auto; }
-      p { font-size: 12px; color: #a8a29e; }
-      input { width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 8px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e7e5e4; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: #0b0f19;
+        color: #e7e5e4;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 11px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: #d4af37;
+        margin: 0 0 14px;
+      }
+      label { display: block; font-size: 11px; color: #a8a29e; margin-bottom: 6px; }
+      input {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e7e5e4;
+        margin-bottom: 12px;
+      }
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .primary {
+        background: linear-gradient(90deg, #d4af37, #b8860b);
+        color: #111;
+      }
+      .fill {
+        background: #059669;
+        color: #fff;
+        margin-top: 10px;
+      }
+      .fill:disabled, .primary:disabled { opacity: .55; cursor: default; }
+      #status { font-size: 12px; color: #a8a29e; min-height: 18px; margin: 10px 0; }
+      .spinner {
+        display: none;
+        width: 22px; height: 22px;
+        border: 2px solid #334155;
+        border-top-color: #d4af37;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+        margin: 8px auto;
+      }
+      .spinner.on { display: block; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .card {
+        display: none;
+        border: 1px solid #334155;
+        background: #111827;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 8px;
+      }
+      .card.on { display: block; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #064e3b;
+        color: #6ee7b7;
+        margin-bottom: 8px;
+      }
+      .title { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+      .pain, .proposal {
+        font-size: 12px;
+        line-height: 1.45;
+        color: #d6d3d1;
+        white-space: pre-wrap;
+      }
+      .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #d4af37; margin: 10px 0 4px; }
+      .err { color: #fca5a5; font-size: 12px; }
     </style>
   </head>
   <body>
-    <h1>Sovereign Side Panel</h1>
-    <p>API base (your deployed app)</p>
+    <h1>Sovereign Intelligence</h1>
+    <label for="api">API base (deployed Sovereign app)</label>
     <input id="api" placeholder="https://your-app.vercel.app" />
-    <button id="parse">Parse this tab</button>
-    <p id="status">Idle</p>
-    <pre id="out">{}</pre>
+    <button id="analyze" class="primary">Analyze Active Page</button>
+    <div id="spinner" class="spinner"></div>
+    <p id="status">Idle — click Analyze. Nothing runs in the background.</p>
+    <div id="card" class="card">
+      <div id="badge" class="badge">Match</div>
+      <p id="title" class="title"></p>
+      <div class="k">Technical pain point</div>
+      <p id="pain" class="pain"></p>
+      <div class="k">Sanitized proposal</div>
+      <p id="proposal" class="proposal"></p>
+      <button id="autofill" class="fill">Auto-Fill Proposal</button>
+    </div>
     <script src="sidepanel.js"></script>
   </body>
 </html>

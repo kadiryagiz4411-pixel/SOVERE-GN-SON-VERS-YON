@@ -1,43 +1,58 @@
 /**
  * POST /api/extension/parse-dom
- * Self-contained (no Vite @ aliases) so Vercel Edge can bundle it.
+ * On-demand DOM analysis for the Sovereign Chrome side panel.
  */
 import { preflight, json } from '../_lib/cors';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
+import { sanitizeAiText } from '../_lib/sanitize';
 
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'edge', maxDuration: 30 };
 
 const RESUME_PATTERN =
   /curriculum vitae|\bcv\b|work experience|professional experience|education|skills|languages|summary|references|certifications|linkedin\.com\/in/gi;
 const JOB_PATTERN =
   /job description|responsibilities|qualifications|requirements|budget|hourly rate|fixed[- ]price|project scope|we are (?:looking|seeking|hiring)|apply now|must have|nice to have/gi;
 
-function stripTags(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
-function detectIntent(text: string): { intent: 'CANDIDATE_POOL' | 'JOB_POSTINGS'; resumeHits: number; jobHits: number } {
+function detectFileIntent(text: string): 'CANDIDATE_POOL' | 'JOB_POSTINGS' {
   const sample = text.slice(0, 20_000);
   const resumeHits = (sample.match(RESUME_PATTERN) || []).length;
   const jobHits = (sample.match(JOB_PATTERN) || []).length;
-  return {
-    intent: resumeHits >= jobHits ? 'CANDIDATE_POOL' : 'JOB_POSTINGS',
-    resumeHits,
-    jobHits,
-  };
+  return resumeHits >= jobHits ? 'CANDIDATE_POOL' : 'JOB_POSTINGS';
 }
 
-function splitBlocks(text: string): string[] {
-  const delims = [/^={3,}$/m, /^-{3,}$/m, /^(?:candidate|cv|job|posting|role)\s*#?\s*\d+/im];
-  for (const pat of delims) {
-    const parts = text.split(pat).map(p => p.trim()).filter(p => p.length >= 60);
-    if (parts.length > 1) return parts;
+function parseJsonObject(raw: string): Record<string, unknown> {
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) as Record<string, unknown> : {};
+  } catch {
+    return {};
   }
-  return text.trim().length >= 60 ? [text.trim()] : [];
+}
+
+async function completeJson(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.35,
+      max_tokens: 700,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`OpenAI ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return parseJsonObject(data.choices?.[0]?.message?.content || '{}');
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -45,40 +60,89 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const body = await req.json() as { text?: string; html?: string; sourceUrl?: string };
-    const extracted = (body.text || (body.html ? stripTags(body.html) : '')).slice(0, 80_000);
-    if (!extracted) return json({ error: 'text or html is required' }, 400);
+    const body = await req.json() as {
+      pageText?: string;
+      pageTitle?: string;
+      pageUrl?: string;
+      userId?: string;
+      text?: string;
+      html?: string;
+      sourceUrl?: string;
+    };
 
-    const { intent, resumeHits, jobHits } = detectIntent(extracted);
-    const blocks = splitBlocks(extracted);
-    const confidence = Math.min(0.99, 0.5 + Math.max(resumeHits, jobHits) / (resumeHits + jobHits + 2));
+    const pageText = String(body.pageText || body.text || '').trim();
+    const pageTitle = String(body.pageTitle || '').trim();
+    const pageUrl = String(body.pageUrl || body.sourceUrl || '').trim();
 
-    if (intent === 'JOB_POSTINGS') {
-      const jobs = blocks.map((raw, i) => {
-        const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-        return {
-          title: lines[0]?.slice(0, 90) || `Job #${i + 1}`,
-          summary: lines.slice(0, 6).join(' '),
-          rawContent: raw.slice(0, 2000),
-        };
-      });
-      return json({ intent, confidence, sourceUrl: body.sourceUrl, candidates: [], jobs });
+    if (!pageText || pageText.length < 50) {
+      return json({ error: 'Page content is too short to analyze.' }, 400);
     }
 
-    const candidates = blocks.map((raw, i) => {
-      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      const email = raw.match(/[\w.+-]+@[\w.-]+\.\w+/)?.[0] || '';
-      return {
-        fullName: lines[0]?.slice(0, 60) || `Candidate #${i + 1}`,
-        title: lines[1]?.slice(0, 80) || '',
-        email,
-        summary: lines.slice(0, 5).join(' '),
-        rawContent: raw.slice(0, 2000),
-      };
-    });
+    const intent = detectFileIntent(pageText);
+    const apiKey = getOpenAIApiKey();
 
-    return json({ intent, confidence, sourceUrl: body.sourceUrl, candidates, jobs: [] });
-  } catch (err) {
-    return json({ error: (err as Error).message || 'parse failed' }, 500);
+    if (intent === 'JOB_POSTINGS') {
+      if (!isOpenAIApiKeyConfigured(apiKey)) {
+        return json(OPENAI_KEY_MISSING_PAYLOAD, 500);
+      }
+
+      const parsed = await completeJson(
+        apiKey,
+        `You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and generate a 3-sentence direct, human-toned cover letter. Do NOT use generic AI filler. Return JSON with keys: proposal, painPoint, score (0-100), title.`,
+        `Job Title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`,
+      );
+
+      const proposalText = sanitizeAiText(String(parsed.proposal || parsed.coverLetter || ''));
+      const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
+      const compatibilityScore = Math.max(0, Math.min(100, Number(parsed.score ?? 88)));
+      const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
+
+      return json({
+        type: 'JOB_PROPOSAL',
+        intent: 'JOB_POSTINGS',
+        title,
+        url: pageUrl,
+        painPoint,
+        compatibilityScore,
+        proposalText,
+      });
+    }
+
+    let summary = 'Candidate parsed from DOM';
+    let overallScore = 70;
+    let whyThisCandidate = '';
+    if (isOpenAIApiKeyConfigured(apiKey)) {
+      const parsed = await completeJson(
+        apiKey,
+        `You are a blunt hiring manager. Evaluate this candidate profile from a public page. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences, no AI filler).`,
+        `Page title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`,
+      );
+      summary = sanitizeAiText(String(parsed.summary || summary));
+      whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
+      overallScore = Math.max(0, Math.min(100, Number(parsed.overallScore ?? 70)));
+      return json({
+        type: 'CANDIDATE_PROFILE',
+        intent: 'CANDIDATE_POOL',
+        title: sanitizeAiText(String(parsed.fullName || pageTitle || 'Candidate')),
+        role: sanitizeAiText(String(parsed.title || '')),
+        url: pageUrl,
+        summary,
+        overallScore,
+        whyThisCandidate,
+      });
+    }
+
+    return json({
+      type: 'CANDIDATE_PROFILE',
+      intent: 'CANDIDATE_POOL',
+      title: pageTitle,
+      url: pageUrl,
+      summary,
+      overallScore,
+      whyThisCandidate,
+    });
+  } catch (err: unknown) {
+    console.error('Extension Parse DOM Error:', err);
+    return json({ error: err instanceof Error ? err.message : 'DOM analysis failed' }, 500);
   }
 }
