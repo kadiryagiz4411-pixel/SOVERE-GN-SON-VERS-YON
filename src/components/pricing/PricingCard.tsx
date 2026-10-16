@@ -194,12 +194,16 @@ export function PricingCard({
           const hl = isHighlightedFeature(f);
           return (
             <li key={i} className="flex items-start gap-2.5">
-              <Check className={cn(
-                "w-4 h-4 mt-0.5 shrink-0",
-                CHECK_HL[style]
-              )} />
+              <Check
+                aria-hidden
+                className={cn(
+                  "w-4 h-4 mt-0.5 shrink-0",
+                  CHECK_HL[style],
+                  "text-emerald-400",
+                )}
+              />
               <span className={cn(
-                "text-sm leading-snug text-slate-200",
+                "text-sm leading-snug text-slate-100",
                 hl && "font-medium"
               )}>
                 {f}

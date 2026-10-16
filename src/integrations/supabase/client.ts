@@ -4,46 +4,57 @@ import type { Database } from './types';
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
+// or: import { supabase } from "@/lib/supabase/client";
 
-const SUPABASE_URL: string =
-  import.meta.env.VITE_SUPABASE_URL ?? '';
-const SUPABASE_PUBLISHABLE_KEY: string =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  '';
+function readPublicEnv(...keys: string[]): string {
+  const meta = (typeof import.meta !== 'undefined'
+    ? (import.meta.env as Record<string, string | undefined>)
+    : {}) as Record<string, string | undefined>;
+  let proc: Record<string, string | undefined> = {};
+  try {
+    proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+  } catch {
+    proc = {};
+  }
+  for (const key of keys) {
+    const value = String(meta[key] ?? proc[key] ?? '').trim();
+    if (value) return value;
+  }
+  return '';
+}
 
-// ── Environment validation ────────────────────────────────────────────────────
-// `isMisconfigured` is consumed by <EnvConfigBanner> in App.tsx to render a
-// high-visibility UI alert when variables are absent (not just a console warning).
+const SUPABASE_URL = readPublicEnv(
+  'VITE_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_URL',
+);
+
+const SUPABASE_PUBLISHABLE_KEY = readPublicEnv(
+  'VITE_SUPABASE_ANON_KEY',
+  'VITE_SUPABASE_PUBLISHABLE_KEY',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+);
+
 export const isMisconfigured = !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY;
 export const missingVars: string[] = [
   ...(!SUPABASE_URL ? ['VITE_SUPABASE_URL'] : []),
   ...(!SUPABASE_PUBLISHABLE_KEY ? ['VITE_SUPABASE_ANON_KEY'] : []),
 ];
 
-if (!SUPABASE_URL) {
-  console.error(
-    '%c[SOVEREIGN_ERR] VITE_SUPABASE_URL is not set.\n' +
-    'All Supabase / Edge-Function calls will fail.\n' +
-    'Add it to your Vercel Environment Variables and redeploy.',
-    'color:#ef4444;font-weight:bold;font-size:14px',
-  );
-}
-if (!SUPABASE_PUBLISHABLE_KEY) {
-  console.error(
-    '%c[SOVEREIGN_ERR] VITE_SUPABASE_ANON_KEY is not set.\n' +
-    'Auth and anonymous requests will fail.\n' +
-    'Add it to your Vercel Environment Variables and redeploy.',
-    'color:#ef4444;font-weight:bold;font-size:14px',
+if (isMisconfigured) {
+  console.warn(
+    'Sovereign Warning: Supabase environment variables are missing. AI & DB features are operating in fallback mode.',
   );
 }
 
+const authStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
+
 export const supabase = createClient<Database>(
   SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_PUBLISHABLE_KEY || 'placeholder-anon-key',
+  SUPABASE_PUBLISHABLE_KEY || 'placeholder-key',
   {
     auth: {
-      storage: localStorage,
+      storage: authStorage,
       persistSession: true,
       autoRefreshToken: true,
     },

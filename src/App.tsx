@@ -25,14 +25,13 @@ const EnvConfigBanner = () => {
   return (
     <div
       role="alert"
-      className="fixed top-0 left-0 right-0 z-[9999] flex items-center gap-3 bg-red-600 text-white px-4 py-2.5 text-sm font-medium shadow-lg"
+      className="fixed top-0 left-0 right-0 z-[9999] flex items-center gap-3 bg-amber-600 text-white px-4 py-2.5 text-sm font-medium shadow-lg"
     >
       <AlertTriangle className="w-4 h-4 flex-shrink-0" />
       <span className="flex-1">
-        <strong>Configuration Error:</strong>{' '}
-        {missingVars.join(', ')} {missingVars.length === 1 ? 'is' : 'are'} missing from your environment variables.
-        {' '}Add {missingVars.length === 1 ? 'it' : 'them'} in your Vercel project settings and redeploy.
-        All AI features will fail until this is fixed.
+        <strong>Sovereign Warning:</strong>{' '}
+        {missingVars.join(', ')} {missingVars.length === 1 ? 'is' : 'are'} missing.
+        {' '}AI &amp; DB features are operating in fallback mode.
       </span>
       <button
         onClick={() => setDismissed(true)}

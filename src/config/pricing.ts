@@ -138,6 +138,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Includes ALL Pro Plan capabilities",
       "Multi-Job Proposal Engine & Pitch Generator",
       "Interactive AI Voice/Text Interview Simulator",
+      "Single-File Multi-CV Evaluator",
       "Single-File Multi-CV & Multi-Job Ingestion Engine",
       "Priority High-Speed LLM Execution Queue",
     ],
@@ -162,6 +163,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Includes ALL Elite Plan capabilities",
       "Batch Upload & Rank up to 3,000 CVs/month",
       "B2B Command Center & Persistent Sovereign Memory Bank",
+      "Live Client Sharing Link",
       "Live Client Sharing Portal (/share/[id]) with Instant Approvals",
       "Organization Team Workspace (1 Owner + 5 HR Seats)",
       "AI Fraud, Fluff & Contradiction Detector",
@@ -274,6 +276,8 @@ export function isHighlightedFeature(text: string | undefined | null): boolean {
     text.startsWith("Batch Upload") ||
     text.startsWith("Organization Team") ||
     text.includes("Live Client Sharing") ||
+    text.includes("Multi-CV Evaluator") ||
+    text.includes("Proposal Engine") ||
     text.includes("Command Center") ||
     text.includes("Credits Rollover") ||
     text.startsWith("Pause Anytime")

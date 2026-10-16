@@ -98,6 +98,17 @@ async function upsertSubscription(base: string, key: string, row: Record<string,
   });
 }
 
+async function upsertCanonicalSubscription(base: string, key: string, row: Record<string, unknown>) {
+  await fetch(`${base}/rest/v1/subscriptions?on_conflict=lemon_squeezy_id`, {
+    method: 'POST',
+    headers: {
+      ...supabaseHeaders(key),
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(row),
+  });
+}
+
 async function updateProfile(base: string, key: string, userId: string, patch: Record<string, unknown>) {
   await fetch(`${base}/rest/v1/profiles?user_id=eq.${userId}`, {
     method: 'PATCH',
@@ -171,7 +182,30 @@ export default async function handler(req: Request): Promise<Response> {
     updated_at: new Date().toISOString(),
   };
 
-  if (lsId) await upsertSubscription(supabaseUrl, serviceKey, ledger);
+  const storeId = String(attrs.store_id ?? env('LEMONSQUEEZY_STORE_ID') ?? 'unknown');
+  const orderId = String(
+    attrs.order_id
+      ?? (attrs.first_subscription_item as Record<string, unknown> | undefined)?.subscription_id
+      ?? lsId
+      ?? 'unknown',
+  );
+
+  if (lsId) {
+    await upsertSubscription(supabaseUrl, serviceKey, ledger);
+    await upsertCanonicalSubscription(supabaseUrl, serviceKey, {
+      user_id: userId,
+      lemon_squeezy_id: lsId,
+      order_id: orderId,
+      store_id: storeId,
+      customer_id: customerId || 'unknown',
+      variant_id: variantId || '0',
+      product_name: productName || planTier || 'Sovereign',
+      status: eventName === 'subscription_cancelled' ? 'cancelled' : status,
+      renews_at: renewsAt,
+      ends_at: endsAt,
+      updated_at: new Date().toISOString(),
+    });
+  }
 
   if (!userId) {
     return json({ success: true, queued: true, event: eventName });
