@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { BrandLogo } from '@/components/common/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -28,8 +29,7 @@ export const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <img src="/pwa-192x192.png" alt="Sovereign" className="w-9 h-9 rounded-lg shadow-gold group-hover:shadow-gold-lg transition-shadow" />
-            <span className="text-xl font-bold text-foreground">Sovereign</span>
+            <BrandLogo size="sm" />
           </Link>
 
           {/* Desktop Navigation */}

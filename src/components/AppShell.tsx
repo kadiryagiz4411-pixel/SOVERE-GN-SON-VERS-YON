@@ -26,6 +26,7 @@ import { isB2BEnterprisePath } from '@/lib/b2bTrial';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { SafeIcon } from '@/lib/safeIcon';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { BrandLogo } from '@/components/common/BrandLogo';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -213,9 +214,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
         {/* Brand */}
         <div className="p-5 border-b border-border">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">S</span>
-            </div>
+            <BrandLogo size="sm" showWordmark={false} />
             <div>
               <span className="text-lg font-semibold tracking-tight text-white/90">Sovereign</span>
               <span className="ml-2 align-middle">
@@ -298,9 +297,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">S</span>
-              </div>
+              <BrandLogo size="xs" showWordmark={false} />
               <span className="font-semibold tracking-tight text-white/90">Sovereign</span>
               <TierBadge tier={session.displayTier} />
             </Link>
@@ -320,10 +317,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border flex flex-col">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <Link to="/dashboard" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold">S</span>
-                </div>
-                <span className="font-bold text-foreground">Sovereign</span>
+                <BrandLogo size="sm" />
               </Link>
               <button onClick={() => setSidebarOpen(false)}>
                 <X className="w-5 h-5 text-muted-foreground" />

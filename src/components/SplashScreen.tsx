@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BrandLogo } from "@/components/common/BrandLogo";
 
 const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
   const [visible, setVisible] = useState(true);
@@ -32,9 +33,7 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 flex flex-col items-center gap-4"
           >
-            <div className="w-20 h-20 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shadow-[0_0_40px_hsl(43_96%_56%/0.2)]">
-              <span className="text-4xl font-bold text-primary font-serif tracking-tight">S</span>
-            </div>
+            <BrandLogo size="xl" showWordmark={false} />
 
             <motion.h1
               initial={{ opacity: 0, y: 10 }}

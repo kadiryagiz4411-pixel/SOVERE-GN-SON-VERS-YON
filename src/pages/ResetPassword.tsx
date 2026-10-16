@@ -19,9 +19,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
-  Crown, Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck,
+  Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck,
   AlertTriangle, ArrowLeft,
 } from 'lucide-react';
+import { BrandLogo } from '@/components/common/BrandLogo';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -82,11 +83,8 @@ function Shell({ onBack, children }: ShellProps) {
           <ArrowLeft className="w-4 h-4" />
           Back to sign in
         </button>
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold">
-            <Crown className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold text-foreground">Sovereign</span>
+        <div className="mb-8">
+          <BrandLogo size="lg" />
         </div>
         {children}
       </div>

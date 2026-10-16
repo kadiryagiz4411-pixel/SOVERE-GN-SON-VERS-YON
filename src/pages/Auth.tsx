@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { Crown, Eye, EyeOff, ArrowLeft, Loader2, Mail, KeyRound, UserPlus, LogIn, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, Mail, KeyRound, UserPlus, LogIn, RefreshCw } from 'lucide-react';
+import { BrandLogo } from '@/components/common/BrandLogo';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -473,11 +474,8 @@ const Auth = () => {
           </Link>
 
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold">
-              <Crown className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">Sovereign</span>
+          <div className="mb-8">
+            <BrandLogo size="lg" />
           </div>
 
           {/* Mode Tabs */}
@@ -644,8 +642,8 @@ const Auth = () => {
         <div className="hero-glow top-1/4 left-1/4" />
         <div className="hero-glow bottom-1/4 right-1/4 opacity-50" />
         <div className="relative z-10 text-center max-w-md">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold-lg mx-auto mb-8 float">
-            <Crown className="w-10 h-10 text-primary-foreground" />
+          <div className="flex justify-center mb-8">
+            <BrandLogo size="xl" showWordmark={false} className="float" />
           </div>
           <h2 className="text-3xl font-bold text-foreground mb-4">
             {t.hero.title} <span className="text-gradient-gold">{t.hero.titleHighlight}</span>
