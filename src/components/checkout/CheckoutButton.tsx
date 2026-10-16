@@ -9,6 +9,7 @@ import {
   isBrokenCheckoutUrl,
   sanitizeCheckoutUrl,
 } from '@/lib/lemonsqueezy';
+import { createHostedCheckout } from '@/lib/billing/startCheckout';
 
 export function ensureLemonSqueezyReady(): boolean {
   try {
@@ -73,6 +74,9 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
   size?: ButtonProps['size'];
   /** Set to false to open in a new tab instead of the LS overlay */
   overlay?: boolean;
+  lsVariantId?: string;
+  planId?: string;
+  billingCycle?: string;
 }
 
 /**
@@ -81,23 +85,48 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
  * never a first-render overlay bind that can stick to the yearly variant.
  */
 export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButtonProps>(
-  ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, ...props }, ref) => {
-    const { user } = useSession();
+  ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, lsVariantId, planId, billingCycle, ...props }, ref) => {
+    const { user, session } = useSession();
+    const [busy, setBusy] = React.useState(false);
     const safeHref = buildLemonSqueezyUrl(href, user?.email, user?.id);
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
       onClick?.(event);
       if (event.defaultPrevented) return;
+      if (!overlay) return;
+      event.preventDefault();
+
+      const open = (url: string) => openLemonSqueezyCheckout(url, user?.email, user?.id);
+
+      if (lsVariantId && /^\d+$/.test(lsVariantId)) {
+        setBusy(true);
+        void createHostedCheckout({
+          variantId: lsVariantId,
+          userId: user?.id,
+          email: user?.email,
+          planId,
+          billingCycle,
+          accessToken: session?.access_token,
+        })
+          .then(open)
+          .catch((err) => {
+            console.warn('[LemonSqueezy] Hosted checkout API failed, using store URL', err);
+            if (isBrokenCheckoutUrl(href)) {
+              toast.warning('Opening the Lemon Squeezy store. Set LEMONSQUEEZY_API_KEY on the server for linked checkouts.');
+            }
+            open(href);
+          })
+          .finally(() => setBusy(false));
+        return;
+      }
+
       if (isBrokenCheckoutUrl(href)) {
         toast.warning(
           'Checkout URL is missing or invalid. Opening the store / support page instead of a 404.',
           { id: 'ls-checkout-fallback' },
         );
       }
-      if (overlay) {
-        event.preventDefault();
-        openLemonSqueezyCheckout(href, user?.email, user?.id);
-      }
+      open(href);
     };
 
     return (
@@ -106,7 +135,8 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
         href={safeHref}
         target={!overlay ? '_blank' : undefined}
         rel="noopener noreferrer"
-        className={cn('lemonsqueezy-button', buttonVariants({ variant, size }), className)}
+        className={cn('lemonsqueezy-button', buttonVariants({ variant, size }), className, busy && 'opacity-70 pointer-events-none')}
+        aria-busy={busy}
         onClick={handleClick}
         {...props}
       >

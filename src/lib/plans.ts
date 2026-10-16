@@ -95,9 +95,9 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 };
 
 export const PLAN_PRICES = {
-  standard: { monthly: 12, annual: 108 },
+  standard: { monthly: 15, annual: 144 },
   pro: { monthly: 29, annual: 264 },
-  elite: { monthly: 59, annual: 540 },
+  elite: { monthly: 79, annual: 708 },
   enterprise: { monthly: 299, annual: 2868 },
 };
 

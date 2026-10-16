@@ -87,10 +87,10 @@ const CTA_CLASS: Record<CardStyle, string> = {
 function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean, isSuperAdmin: boolean): string {
   if (isSuperAdmin) return "Unlocked (SuperAdmin)";
   if (isCurrent) return "✓ Current Plan";
-  if (tier.isEnterprise) return "Contact Sales";
-  if (tier.isPopular) return "Go Pro";
-  if (tier.id === "elite") return "Go Elite";
-  return "Get Started";
+  if (tier.isEnterprise) return "Subscribe — Enterprise";
+  if (tier.isPopular) return "Subscribe — Pro";
+  if (tier.id === "elite") return "Subscribe — Elite";
+  return "Subscribe";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -231,6 +231,9 @@ export function PricingCard({
           href={sanitizeCheckoutUrl(checkoutUrl)}
           className={CTA_CLASS[style]}
           overlay
+          lsVariantId={variantId}
+          planId={tier.id}
+          billingCycle={billingCycle}
           data-plan={tier.id}
           data-billing-cycle={billingCycle}
           data-variant-id={variantId}
