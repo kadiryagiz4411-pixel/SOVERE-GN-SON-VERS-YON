@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Zap, Ticket, Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  getSubscriptionTiers, getOneTimeTier, getCheckoutUrlFor,
+  getSubscriptionTiers, getOneTimeTier, getCheckoutUrlFor, resolveInheritedFeatures,
 } from "@/config/pricing";
 import { type BillingCycle, createCheckout } from "@/config/plans";
 import { CheckoutButton } from "@/components/checkout/CheckoutButton";
@@ -95,7 +95,7 @@ export function PricingTable({
         {subscriptionTiers.map(tier => (
           <PricingCard
             key={tier.id}
-            tier={tier}
+            tier={{ ...tier, features: resolveInheritedFeatures(tier) }}
             isAnnual={isAnnual}
             currentPlanType={resolvedPlanType}
             userTier={userTier}

@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppShellLayout } from "@/components/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DevSandbox } from "@/components/dev/DevSandbox";
 import SplashScreen from "@/components/SplashScreen";
@@ -158,7 +159,6 @@ const AppRoutes = () => (
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
       <Route path="/proposals" element={<ProtectedRoute><ProposalsHistory /></ProtectedRoute>} />
       <Route path="/pricing" element={<Pricing />} />
@@ -173,27 +173,30 @@ const AppRoutes = () => (
       <Route path="/cv-builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
       <Route path="/dashboard/builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
       <Route path="/pipeline" element={<ProtectedRoute><ApplicationPipeline /></ProtectedRoute>} />
-      <Route path="/apply-queue" element={<ProtectedRoute><ApplyQueue /></ProtectedRoute>} />
-      <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
       <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
       <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />
-      <Route path="/interview-simulator" element={<ProtectedRoute><InterviewSimulator /></ProtectedRoute>} />
-      <Route path="/portfolio-builder" element={<ProtectedRoute><PortfolioBuilder /></ProtectedRoute>} />
-      <Route path="/cv-analyzer" element={<ProtectedRoute><CVAnalyzer /></ProtectedRoute>} />
-      <Route path="/batch-upload" element={<ProtectedRoute><BatchUpload /></ProtectedRoute>} />
-      <Route path="/cv-batch-analyzer" element={<ProtectedRoute><SingleFileBatchAnalyzer /></ProtectedRoute>} />
-      <Route path="/dashboard/evaluator" element={<ProtectedRoute><EvaluatorModule /></ProtectedRoute>} />
-      <Route path="/dashboard/analyzer" element={<ProtectedRoute><AnalyzerModule /></ProtectedRoute>} />
-      <Route path="/dashboard/candidates" element={<ProtectedRoute><CandidatePoolPage /></ProtectedRoute>} />
-      <Route path="/dashboard/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
-      <Route path="/dashboard/proposals" element={<ProtectedRoute><ProposalEngineModule /></ProtectedRoute>} />
-      <Route path="/dashboard/intelligence" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
+      <Route element={<ProtectedRoute><AppShellLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/apply-queue" element={<ApplyQueue />} />
+        <Route path="/organization" element={<Organization />} />
+        <Route path="/interview-simulator" element={<InterviewSimulator />} />
+        <Route path="/portfolio-builder" element={<PortfolioBuilder />} />
+        <Route path="/cv-analyzer" element={<CVAnalyzer />} />
+        <Route path="/batch-upload" element={<BatchUpload />} />
+        <Route path="/cv-batch-analyzer" element={<SingleFileBatchAnalyzer />} />
+        <Route path="/dashboard/evaluator" element={<EvaluatorModule />} />
+        <Route path="/dashboard/analyzer" element={<AnalyzerModule />} />
+        <Route path="/dashboard/candidates" element={<CandidatePoolPage />} />
+        <Route path="/dashboard/command-center" element={<CommandCenter />} />
+        <Route path="/dashboard/proposals" element={<ProposalEngineModule />} />
+        <Route path="/dashboard/intelligence" element={<IntelligenceHub />} />
+        <Route path="/team" element={<TeamWorkspace />} />
+        <Route path="/talent-pool" element={<TalentPoolHub />} />
+        <Route path="/batch-proposal" element={<BatchProposal />} />
+        <Route path="/knowledge-base" element={<KnowledgeBase />} />
+        <Route path="/crm" element={<ApplicationsCRM />} />
+      </Route>
       <Route path="/share/:shareCode" element={<SharePortal />} />
-      <Route path="/team" element={<ProtectedRoute><TeamWorkspace /></ProtectedRoute>} />
-      <Route path="/talent-pool" element={<ProtectedRoute><TalentPoolHub /></ProtectedRoute>} />
-      <Route path="/batch-proposal" element={<ProtectedRoute><BatchProposal /></ProtectedRoute>} />
-      <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
-      <Route path="/crm" element={<ProtectedRoute><ApplicationsCRM /></ProtectedRoute>} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />
       <Route path="/get-hired-at/:company" element={<GetHiredAtPage />} />

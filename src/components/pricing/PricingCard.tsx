@@ -66,13 +66,6 @@ const CHECK_HL: Record<CardStyle, string> = {
   enterprise: "text-yellow-400",
 };
 
-const CHECK_DIM: Record<CardStyle, string> = {
-  standard:   "text-slate-600",
-  popular:    "text-slate-600",
-  elite:      "text-slate-600",
-  enterprise: "text-slate-600",
-};
-
 const ANNUAL_VALUE_FEATURES = [
   "Unused Credits Rollover to Next Month",
   "Pause Anytime (Job-Found / Low-Workload Guarantee)",
@@ -203,11 +196,11 @@ export function PricingCard({
             <li key={i} className="flex items-start gap-2.5">
               <Check className={cn(
                 "w-4 h-4 mt-0.5 shrink-0",
-                hl ? CHECK_HL[style] : CHECK_DIM[style]
+                CHECK_HL[style]
               )} />
               <span className={cn(
-                "text-sm leading-snug",
-                hl ? "text-slate-200 font-medium" : "text-slate-500"
+                "text-sm leading-snug text-slate-200",
+                hl && "font-medium"
               )}>
                 {f}
               </span>

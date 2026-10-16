@@ -89,10 +89,10 @@ export const PRICING_TIERS: PricingTier[] = [
     annualTotal: 108,
     discountPercentage: 25,
     features: [
-      "Up to 5 AI CV Optimizations per month",
-      "Up to 3 Automated Cover Letters per month",
-      "Standard Resume Templates Catalog",
-      "ATS Score & Match Analysis",
+      "Up to 5 AI CV Optimizations/month",
+      "Up to 3 Automated Cover Letters/month",
+      "Standard Resume Templates",
+      "Basic ATS Match Analysis",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL"),
@@ -115,8 +115,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Includes ALL Standard Plan capabilities",
       "UNLIMITED AI CV Optimizations",
       "UNLIMITED Automated Cover Letters",
-      "Full Access to Premium Resume Templates",
-      "ATS Keyword Injector & Keyword Density Tool",
+      "Full Premium Templates Access",
       "Multi-Language Support (EN, DE, TR, ES, FR)",
     ],
     checkoutUrls: {
@@ -137,10 +136,10 @@ export const PRICING_TIERS: PricingTier[] = [
     badge: "Strategy Mode",
     features: [
       "Includes ALL Pro Plan capabilities",
-      "Interactive AI Voice/Text Interview Practice Simulator",
-      "Freelance Pitch & Client Proposal Generator",
-      "Priority High-Speed LLM Execution Queue",
-      "Personal Portfolio Website Builder & HTML Export",
+      "Interactive AI Voice/Text Interview Simulator (ACTIVE)",
+      "Freelance Pitch & Multi-Job Proposal Engine (ACTIVE)",
+      "Priority High-Speed LLM Execution Queue (ACTIVE)",
+      "Single-File Multi-CV & Multi-Job Ingestion Engine (ACTIVE)",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL"),
@@ -163,10 +162,9 @@ export const PRICING_TIERS: PricingTier[] = [
       "Includes ALL Elite Plan capabilities",
       "Batch Upload & Rank up to 3,000 CVs/month",
       "Organization Team Workspace (1 Owner + 5 HR Seats)",
-      "AI Fraud, Fluff & Resume Contradiction Detector",
-      "Explainable AI Audit & GDPR/KVKK Compliance Exports",
-      "Sub-3-second Vector Search Candidate Talent Pool",
-      "Single-click Leaderboard CSV/Excel Export",
+      "AI Fraud, Fluff & Contradiction Detector",
+      "Live Client Sharing Portal (/share/[id]) with Instant Approvals",
+      "B2B Command Center & Persistent Sovereign Memory Bank",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL"),
@@ -272,11 +270,71 @@ export function isHighlightedFeature(text: string | undefined | null): boolean {
   return (
     text.startsWith("Includes ALL") ||
     /\bUNLIMITED\b/.test(text) ||
+    /\(ACTIVE\)/i.test(text) ||
     text.startsWith("Batch Upload") ||
     text.startsWith("Organization Team") ||
+    text.includes("Live Client Sharing") ||
+    text.includes("Command Center") ||
     text.includes("Credits Rollover") ||
     text.startsWith("Pause Anytime")
   );
+}
+
+const SUBSCRIPTION_ORDER = ["standard", "pro", "elite", "enterprise"] as const;
+
+function isIncludesAllLine(text: string): boolean {
+  return /^includes all\b/i.test(text.trim());
+}
+
+function featureKey(text: string): string {
+  return text.replace(/\s*\(ACTIVE\)\s*/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isQuotaSuperseded(feature: string, pool: string[]): boolean {
+  if (!/^up to \d+/i.test(feature.trim())) return false;
+  if (/cv optim/i.test(feature) && pool.some((f) => /unlimited ai cv/i.test(f))) return true;
+  if (/cover letter/i.test(feature) && pool.some((f) => /unlimited automated cover/i.test(f))) return true;
+  return false;
+}
+
+function isTemplateSuperseded(feature: string, pool: string[]): boolean {
+  return /standard resume templates/i.test(feature)
+    && pool.some((f) => /premium templates/i.test(f));
+}
+
+/**
+ * Linear inheritance: each paid tier lists every active feature from the
+ * tiers below it, with actual checkmark rows (not only a passthrough claim).
+ * Limited quotas are dropped when a higher tier grants UNLIMITED of the same capability.
+ */
+export function resolveInheritedFeatures(tier: PricingTier): string[] {
+  const idx = SUBSCRIPTION_ORDER.indexOf(tier.id as (typeof SUBSCRIPTION_ORDER)[number]);
+  if (idx < 0) return [...(tier.features ?? [])];
+
+  const collected: string[] = [];
+  for (let i = 0; i <= idx; i++) {
+    const source = PRICING_TIERS.find((t) => t.id === SUBSCRIPTION_ORDER[i]);
+    if (!source) continue;
+    for (const feature of source.features) {
+      if (isIncludesAllLine(feature)) continue;
+      collected.push(feature);
+    }
+  }
+
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const feature of collected) {
+    const key = featureKey(feature);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(feature);
+  }
+
+  const inherited = unique.filter(
+    (feature) => !isQuotaSuperseded(feature, unique) && !isTemplateSuperseded(feature, unique),
+  );
+  const includeLine = tier.features.find(isIncludesAllLine);
+  return includeLine ? [includeLine, ...inherited] : inherited;
 }
 
 // ─── Upgrade rank (for gate checks) ──────────────────────────────────────────
