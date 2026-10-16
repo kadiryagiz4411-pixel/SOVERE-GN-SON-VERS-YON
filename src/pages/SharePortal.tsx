@@ -63,9 +63,10 @@ export default function SharePortal() {
   }, [shareCode]);
 
   const decide = async (candidate: SharedCandidate, status: DecisionStatus) => {
+    const previous = candidate.decision;
+    setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, decision: status } : c));
     try {
       await upsertDecision({ shareId, candidateId: candidate.id, status });
-      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, decision: status } : c));
       if (status === 'APPROVED' || status === 'REJECTED') {
         void notifyClientDecision({
           shareId,
@@ -77,6 +78,7 @@ export default function SharePortal() {
       }
       toast.success(status === 'APPROVED' ? `Approved ${candidate.fullName}` : `Rejected ${candidate.fullName}`);
     } catch (err) {
+      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, decision: previous } : c));
       toast.error((err as Error).message);
     }
   };

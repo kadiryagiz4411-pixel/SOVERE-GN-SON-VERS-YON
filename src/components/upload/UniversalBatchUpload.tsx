@@ -14,24 +14,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { parseSingleFileToCandidates } from '@/lib/parsers/multiCvParser';
 import { evaluateCandidatesBatch, persistBatchResults } from '@/lib/ai/evaluator';
-import type { RankedCandidate } from '@/lib/schemas/candidate';
+import type { CandidateProfile, RankedCandidate } from '@/lib/schemas/candidate';
 import { useSession } from '@/contexts/SessionContext';
 import { analyzeFileIntent } from '@/lib/router/smartIntent';
+import { logActivity } from '@/lib/memory/activityLogger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface BatchCompleteData {
   batchId:         string;
   rankedCandidates: RankedCandidate[];
+  parsedCandidates: CandidateProfile[];
   totalCandidates: number;
   fileName:        string;
   jobContext:      string;
+  mode: 'evaluate' | 'parse';
 }
 
 interface Props {
   onBatchComplete: (data: BatchCompleteData) => void;
   onItem?:         (candidate: RankedCandidate) => void;
   className?:      string;
+  /** evaluate = rank #1–#N. parse = extract only (Analyzer, Builder, Pool). */
+  mode?:           'evaluate' | 'parse';
+  hideJobContext?: boolean;
+  ctaLabel?:       string;
 }
 
 // ─── Step types ───────────────────────────────────────────────────────────────
@@ -54,7 +61,14 @@ const ACCEPTED = '.pdf,.html,.htm,.txt,text/plain,application/pdf,text/html';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function UniversalBatchUpload({ onBatchComplete, onItem, className }: Props) {
+export default function UniversalBatchUpload({
+  onBatchComplete,
+  onItem,
+  className,
+  mode = 'evaluate',
+  hideJobContext = false,
+  ctaLabel,
+}: Props) {
   const { user } = useSession();
   const [isDragging,   setIsDragging]   = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -122,28 +136,41 @@ export default function UniversalBatchUpload({ onBatchComplete, onItem, classNam
         detail: `Detected ${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`,
       });
 
-      // ── Step 3: AI Evaluate ────────────────────────────────────────────────
-      updateStep(2, { status: 'active', detail: `Evaluating ${candidates.length} candidates…` });
-      setEvalCount({ done: 0, total: candidates.length });
+      let rankedCandidates: RankedCandidate[] = [];
+      if (mode === 'evaluate') {
+        updateStep(2, { status: 'active', detail: `Evaluating ${candidates.length} candidates…` });
+        setEvalCount({ done: 0, total: candidates.length });
+        const result = await evaluateCandidatesBatch({
+          candidates,
+          jobContext,
+          userId: user?.id,
+          onProgress: (progress, done, total) => {
+            setEvalProgress(Math.round(progress * 100));
+            setEvalCount({ done, total });
+            updateStep(2, {
+              status: 'active',
+              detail: `Evaluated ${done}/${total} candidates…`,
+            });
+          },
+          onItem,
+        });
+        rankedCandidates = result.rankedCandidates;
+        updateStep(2, { status: 'done', detail: `Ranked ${rankedCandidates.length} candidates #1–#${rankedCandidates.length}` });
+      } else {
+        updateStep(2, { status: 'done', detail: 'Parse complete — no ranking (Analyzer / intake mode)' });
+        rankedCandidates = candidates.map((c, i) => ({
+          ...c,
+          id: crypto.randomUUID(),
+          batchId: '',
+          rankPosition: i + 1,
+          overallScore: 0,
+          whyThisCandidate: '',
+          keyStrengths: c.skills.slice(0, 3),
+          missingSkills: [],
+          recommendation: 'Moderate Fit' as const,
+        }));
+      }
 
-      const { rankedCandidates } = await evaluateCandidatesBatch({
-        candidates,
-        jobContext,
-        userId: user?.id,
-        onProgress: (progress, done, total) => {
-          setEvalProgress(Math.round(progress * 100));
-          setEvalCount({ done, total });
-          updateStep(2, {
-            status: 'active',
-            detail: `Evaluated ${done}/${total} candidates…`,
-          });
-        },
-        onItem,
-      });
-
-      updateStep(2, { status: 'done', detail: `Ranked ${rankedCandidates.length} candidates #1–#${rankedCandidates.length}` });
-
-      // ── Persist to Supabase (non-blocking) ────────────────────────────────
       let batchId = crypto.randomUUID();
       if (user?.id) {
         try {
@@ -158,10 +185,30 @@ export default function UniversalBatchUpload({ onBatchComplete, onItem, classNam
         } catch (err) {
           console.warn('[BatchUpload] Persist failed (non-fatal):', err);
         }
+        void logActivity({
+          userId: user.id,
+          activityType: mode === 'evaluate' ? 'CANDIDATE_EVALUATED' : 'CV_PARSED',
+          entityName: selectedFile.name,
+          entityId: batchId,
+          summary: `${candidates.length} profiles from ${selectedFile.name}`,
+          metadata: { mode, count: candidates.length },
+        });
       }
 
-      toast.success(`Batch complete! ${rankedCandidates.length} candidates ranked.`);
-      onBatchComplete({ batchId, rankedCandidates, totalCandidates: rankedCandidates.length, fileName: selectedFile.name, jobContext });
+      toast.success(
+        mode === 'evaluate'
+          ? `Batch complete! ${rankedCandidates.length} candidates ranked.`
+          : `Parsed ${candidates.length} profile${candidates.length === 1 ? '' : 's'}.`,
+      );
+      onBatchComplete({
+        batchId,
+        rankedCandidates,
+        parsedCandidates: candidates,
+        totalCandidates: candidates.length,
+        fileName: selectedFile.name,
+        jobContext,
+        mode,
+      });
 
     } catch (err) {
       console.error('[UniversalBatchUpload] pipeline error:', err);
@@ -228,19 +275,20 @@ export default function UniversalBatchUpload({ onBatchComplete, onItem, classNam
         )}
       </div>
 
-      {/* Job Context */}
-      <div>
-        <label className="text-sm font-medium text-foreground block mb-2">
-          Job Description <span className="text-muted-foreground font-normal">(optional — improves evaluation accuracy)</span>
-        </label>
-        <Textarea
-          value={jobContext}
-          onChange={e => setJobContext(e.target.value)}
-          placeholder="Paste the job description or role requirements here. The AI will evaluate each candidate against these criteria…"
-          className="min-h-[100px] resize-none text-sm"
-          disabled={isRunning}
-        />
-      </div>
+      {mode === 'evaluate' && !hideJobContext && (
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-2">
+            Job Description <span className="text-muted-foreground font-normal">(optional — improves evaluation accuracy)</span>
+          </label>
+          <Textarea
+            value={jobContext}
+            onChange={e => setJobContext(e.target.value)}
+            placeholder="Paste the job description or role requirements here. The AI will evaluate each candidate against these criteria…"
+            className="min-h-[100px] resize-none text-sm"
+            disabled={isRunning}
+          />
+        </div>
+      )}
 
       {/* Run Button */}
       <Button
@@ -252,7 +300,7 @@ export default function UniversalBatchUpload({ onBatchComplete, onItem, classNam
         {isRunning ? (
           <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
         ) : (
-          <><Sparkles className="w-4 h-4" /> Parse, Evaluate & Rank Candidates</>
+          <><Sparkles className="w-4 h-4" /> {ctaLabel || (mode === 'parse' ? 'Parse CVs (no ranking)' : 'Parse, Evaluate & Rank Candidates')}</>
         )}
       </Button>
 

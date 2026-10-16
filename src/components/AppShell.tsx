@@ -27,6 +27,7 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { SafeIcon } from '@/lib/safeIcon';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BrandLogo } from '@/components/common/BrandLogo';
+import { QuickNavUpload } from '@/components/upload/QuickNavUpload';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -253,6 +254,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          <QuickNavUpload />
           {navItems.map((item) => {
             const active = location.pathname === item.to;
             return (

@@ -85,6 +85,7 @@ export default function ProposalEngineModule() {
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-6">
+              <h2 className="text-sm font-semibold mb-1">Upload Job Postings / RFPs</h2>
               <p className="text-xs text-muted-foreground mb-4">
                 Scoring against {skillProfile.name} · {(skillProfile.skills.length || 0)} saved skills
                 {!skillProfile.skills.length && ' — add skills in Profile for sharper ranking'}

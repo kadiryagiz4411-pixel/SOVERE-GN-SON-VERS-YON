@@ -1,2 +1,2 @@
-/** Legacy route /cv-batch-analyzer — same as Module A evaluator. */
-export { default } from './EvaluatorModule';
+/** Legacy /cv-batch-analyzer → Module B Analyzer (no ranking). */
+export { default } from './AnalyzerModule';

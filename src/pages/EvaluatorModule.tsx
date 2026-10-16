@@ -129,7 +129,8 @@ export default function EvaluatorModule() {
                 Multi-CV Candidate Evaluator
               </h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                One file in. Ranked shortlist out. No copy-paste. Schedule interviews and send a live client portal in one click.
+                Comparative ranking only (#1–#N, fit score, “Why this candidate?”).
+                Technical skill audits live in <strong>Analyzer</strong> — the two modules never share ranking UI.
               </p>
             </div>
 

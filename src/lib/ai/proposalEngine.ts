@@ -12,6 +12,7 @@ import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText, sanitizeList } from '@/lib/ai/sanitizer';
 import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchMemoryBank, logActivity, memoryBankToPrompt } from '@/lib/memory/activityLogger';
 
 const BATCH_SIZE = 10;
 const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
@@ -39,6 +40,9 @@ export async function evaluateJobsBatch(opts: RankJobsOptions): Promise<{ ranked
 
   const key = getActiveApiKey();
   if (!key) throw new Error('No OpenAI API key configured.');
+  const bankLine = opts.userId
+    ? memoryBankToPrompt(await fetchMemoryBank(opts.userId).catch(() => []))
+    : '';
 
   const chunks: JobPosting[][] = [];
   for (let i = 0; i < jobs.length; i += BATCH_SIZE) chunks.push(jobs.slice(i, i + BATCH_SIZE));
@@ -52,7 +56,7 @@ export async function evaluateJobsBatch(opts: RankJobsOptions): Promise<{ ranked
     const chunk = chunks[c];
     const offset = c * BATCH_SIZE;
     try {
-      const evals = await evaluateJobChunk(chunk, offset, profile, memory, key);
+      const evals = await evaluateJobChunk(chunk, offset, profile, memory, key, bankLine);
       for (const ev of evals) {
         scoreMap.set(ev.jobIndex, {
           score: ev.compatibilityScore,
@@ -118,6 +122,7 @@ async function evaluateJobChunk(
   profile: SkillProfile,
   memory: SovereignMemory | null | undefined,
   key: string,
+  bankLine = '',
 ) {
   const listings = chunk.map((j, i) =>
     `Job ${offset + i} (index ${offset + i}):
@@ -141,7 +146,7 @@ async function evaluateJobChunk(
           role: 'system',
           content: `You rank freelance/agency job postings against one skill profile. JSON only.
 Return { "evaluations": [{ "jobIndex": number, "compatibilityScore": 0-100, "whyApply": "2-3 sentences", "keyFits": [], "gaps": [], "recommendation": "Must Apply|Strong Match|Worth a Look|Skip" }] }
-Write like a blunt senior freelancer. No filler.${memoryToPrompt(memory)}
+Write like a blunt senior freelancer. No filler.${memoryToPrompt(memory)}${bankLine}
 
 Profile: ${profile.name || 'Freelancer'}
 Skills: ${profile.skills.join(', ')}
@@ -199,6 +204,15 @@ export async function persistJobBatch(opts: {
       raw_data: { skills: j.skills, painPoint: j.painPoint, summary: j.summary },
     })),
   );
+
+  void logActivity({
+    userId: opts.userId,
+    activityType: 'PROPOSAL_GENERATED',
+    entityName: opts.fileName,
+    entityId: batchId,
+    summary: `${opts.rankedJobs.length} jobs ranked from ${opts.fileName}`,
+    metadata: { count: opts.rankedJobs.length },
+  });
 
   return batchId;
 }

@@ -17,6 +17,7 @@ import { getActiveApiKey } from '@/lib/apiKeyResolver';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText, sanitizeList } from '@/lib/ai/sanitizer';
 import { loadMemory, memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
+import { fetchMemoryBank, memoryBankToPrompt } from '@/lib/memory/activityLogger';
 import { supabase } from '@/integrations/supabase/client';
 
 const BATCH_SIZE = 10;
@@ -44,6 +45,9 @@ export interface EvaluatorResult {
 export async function evaluateCandidatesBatch(opts: BatchEvaluateOptions): Promise<EvaluatorResult> {
   const { candidates, jobContext = '', onProgress } = opts;
   const memory = opts.userId ? await loadMemory(opts.userId).catch(() => null) : null;
+  const bankLine = opts.userId
+    ? memoryBankToPrompt(await fetchMemoryBank(opts.userId).catch(() => []))
+    : '';
 
   if (candidates.length === 0) return { rankedCandidates: [] };
 
@@ -66,7 +70,7 @@ export async function evaluateCandidatesBatch(opts: BatchEvaluateOptions): Promi
     const offset = chunkIdx * BATCH_SIZE;
 
     try {
-      const evaluations = await evaluateChunk(chunk, offset, jobContext, key, memory);
+      const evaluations = await evaluateChunk(chunk, offset, jobContext, key, memory, bankLine);
       for (const ev of evaluations) {
         scoreMap.set(ev.candidateIndex, {
           score:     ev.overallScore,
@@ -152,11 +156,12 @@ async function evaluateChunk(
   jobContext: string,
   key: string,
   memory?: SovereignMemory | null,
+  bankLine = '',
 ) {
   const contextLine = jobContext
     ? `\nJob/Role Context: ${jobContext.slice(0, 500)}`
     : '\nEvaluate each candidate on general professional excellence, technical depth, and career progression.';
-  const memoryLine = memoryToPrompt(memory);
+  const memoryLine = `${memoryToPrompt(memory)}${bankLine}`;
 
   const candidateSummaries = chunk.map((c, i) => {
     const work = c.workHistory?.map(w => `${w.role} @ ${w.company} (${w.period})`).join('; ') || 'Not specified';

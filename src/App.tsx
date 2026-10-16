@@ -85,6 +85,9 @@ const EvaluatorModule = lazy(() => import("./pages/EvaluatorModule"));
 const ProposalEngineModule = lazy(() => import("./pages/ProposalEngineModule"));
 const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
 const SharePortal = lazy(() => import("./pages/SharePortal"));
+const AnalyzerModule = lazy(() => import("./pages/AnalyzerModule"));
+const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const CandidatePoolPage = lazy(() => import("./pages/CandidatePoolPage"));
 
 const GetHiredAtPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.GetHiredAtPage })));
 const HowToGetJobPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.HowToGetJobPage })));
@@ -168,6 +171,7 @@ const AppRoutes = () => (
       <Route path="/install" element={<Install />} />
       <Route path="/reviews" element={<Reviews />} />
       <Route path="/cv-builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
+      <Route path="/dashboard/builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
       <Route path="/pipeline" element={<ProtectedRoute><ApplicationPipeline /></ProtectedRoute>} />
       <Route path="/apply-queue" element={<ProtectedRoute><ApplyQueue /></ProtectedRoute>} />
       <Route path="/organization" element={<ProtectedRoute><Organization /></ProtectedRoute>} />
@@ -179,6 +183,9 @@ const AppRoutes = () => (
       <Route path="/batch-upload" element={<ProtectedRoute><BatchUpload /></ProtectedRoute>} />
       <Route path="/cv-batch-analyzer" element={<ProtectedRoute><SingleFileBatchAnalyzer /></ProtectedRoute>} />
       <Route path="/dashboard/evaluator" element={<ProtectedRoute><EvaluatorModule /></ProtectedRoute>} />
+      <Route path="/dashboard/analyzer" element={<ProtectedRoute><AnalyzerModule /></ProtectedRoute>} />
+      <Route path="/dashboard/candidates" element={<ProtectedRoute><CandidatePoolPage /></ProtectedRoute>} />
+      <Route path="/dashboard/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
       <Route path="/dashboard/proposals" element={<ProtectedRoute><ProposalEngineModule /></ProtectedRoute>} />
       <Route path="/dashboard/intelligence" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
       <Route path="/share/:shareCode" element={<SharePortal />} />

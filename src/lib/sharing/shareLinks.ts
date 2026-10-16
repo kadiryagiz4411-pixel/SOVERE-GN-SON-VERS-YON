@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { logActivity } from '@/lib/memory/activityLogger';
 import type { RankedCandidate, Recommendation } from '@/lib/schemas/candidate';
 
 export type DecisionStatus = 'APPROVED' | 'REJECTED' | 'PENDING';
@@ -48,6 +49,13 @@ export async function createShareLink(opts: {
     .single();
 
   if (error || !data) throw new Error(error?.message || 'Could not create share link');
+  void logActivity({
+    userId: opts.userId,
+    activityType: 'SHARE_LINK_CREATED',
+    entityName: opts.title || 'Candidate Shortlist',
+    entityId: data.id as string,
+    summary: `Live portal ${shareCode}`,
+  });
   return {
     id: data.id as string,
     batchId: data.batch_id as string,

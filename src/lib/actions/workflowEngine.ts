@@ -5,6 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { generateOutreachEmail, generateRejectionNote } from '@/lib/actions/ghostActions';
 import { loadMemory, type SovereignMemory } from '@/lib/memory/contextEngine';
+import { logActivity } from '@/lib/memory/activityLogger';
 import { sanitizeAiText } from '@/lib/ai/sanitizer';
 import type { RankedCandidate } from '@/lib/schemas/candidate';
 
@@ -75,6 +76,13 @@ export async function draftInterviewInvites(
       candidateId: c.id,
       eventType: 'OUTREACH_DRAFTED',
       payload: { name: c.fullName, rank: c.rankPosition },
+    });
+    void logActivity({
+      userId: opts.userId,
+      activityType: 'OUTREACH_SENT',
+      entityName: c.fullName,
+      entityId: c.id,
+      summary: email.subject,
     });
   }
   return drafts;

@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen, Building2, LayoutDashboard, Layers, Sparkles,
+  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen, Building2, LayoutDashboard, Layers, Sparkles, ScanSearch, FileText,
 } from 'lucide-react';
 import type { AccessTier } from '@/hooks/useTierAccess';
 
@@ -23,11 +23,15 @@ export const ELITE_NAV_ITEMS: TierNavItem[] = [
 ];
 
 export const ENTERPRISE_NAV_ITEMS: TierNavItem[] = [
+  { to: '/dashboard/command-center', label: 'Command Center', icon: LayoutDashboard, required: 'enterprise' },
   { to: '/dashboard/evaluator', label: 'Multi-CV Evaluator', icon: Layers, required: 'enterprise' },
-  { to: '/cv-batch-analyzer', label: 'Multi-CV Batch Analyzer', icon: Layers, required: 'enterprise' },
+  { to: '/dashboard/analyzer', label: 'Multi-CV Analyzer', icon: ScanSearch, required: 'enterprise' },
+  { to: '/dashboard/candidates', label: 'Candidate Pool', icon: Users, required: 'enterprise' },
+  { to: '/dashboard/builder', label: 'CV Builder', icon: FileText, required: 'enterprise' },
+  { to: '/cv-batch-analyzer', label: 'Legacy Batch Analyzer', icon: ScanSearch, required: 'enterprise' },
   { to: '/batch-upload', label: 'Batch Upload & Rank', icon: Upload, required: 'enterprise' },
   { to: '/team', label: 'Team Workspace', icon: Users, required: 'enterprise' },
   { to: '/talent-pool', label: 'Talent Pool', icon: Database, required: 'enterprise' },
   { to: '/organization', label: 'Org Dashboard', icon: Building2, required: 'enterprise' },
-  { to: '/b2b', label: 'B2B Command Center', icon: LayoutDashboard, required: 'enterprise' },
+  { to: '/b2b', label: 'B2B HR Engine', icon: LayoutDashboard, required: 'enterprise' },
 ];

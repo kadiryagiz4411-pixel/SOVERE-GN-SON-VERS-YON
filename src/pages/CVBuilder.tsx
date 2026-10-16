@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
+import UniversalBatchUpload, { type BatchCompleteData } from '@/components/upload/UniversalBatchUpload';
 
 const OUTPUT_LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -741,6 +742,25 @@ const CVBuilder = () => {
                 </div>
               ) : (
                 <>
+                  <UniversalBatchUpload
+                    mode="parse"
+                    hideJobContext
+                    ctaLabel="Upload existing CV"
+                    onBatchComplete={(data: BatchCompleteData) => {
+                      const first = data.parsedCandidates[0];
+                      if (!first) return;
+                      setFullName(first.fullName);
+                      setEmail(first.email || '');
+                      setLocation(first.location || '');
+                      setSummary(first.summary);
+                      setSkills(first.skills.join(', '));
+                      setEducation(first.education || '');
+                      setExperience(first.workHistory.map(w => `${w.role} @ ${w.company} (${w.period})`).join('\n'));
+                      setUploadedText(first.rawContent || first.summary);
+                      setActiveTab('form');
+                      toast.success(`Parsed ${first.fullName} into the builder`);
+                    }}
+                  />
                   <div className="border border-dashed border-border rounded-xl p-6 text-center">
                     <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-3">{language === 'tr' ? 'PDF, DOCX veya TXT dosyası yükleyin' : 'Upload a PDF, DOCX, or TXT file'}</p>
