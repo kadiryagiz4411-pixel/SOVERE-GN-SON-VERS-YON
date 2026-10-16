@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen, Building2, LayoutDashboard,
+  Mic, Globe, ShieldAlert, Upload, Users, Database, ClipboardList, Trophy, BookOpen, Building2, LayoutDashboard, Layers, Sparkles,
 } from 'lucide-react';
 import type { AccessTier } from '@/hooks/useTierAccess';
 
@@ -15,12 +15,16 @@ export const ELITE_NAV_ITEMS: TierNavItem[] = [
   { to: '/interview-simulator', label: 'Interview Simulator', icon: Mic, required: 'elite' },
   { to: '/portfolio-builder', label: 'Portfolio Builder', icon: Globe, required: 'elite' },
   { to: '/cv-analyzer', label: 'CV Analyzer', icon: ShieldAlert, required: 'elite' },
+  { to: '/dashboard/intelligence', label: 'Intelligence Hub', icon: Sparkles, required: 'pro' },
+  { to: '/dashboard/proposals', label: 'Multi-Job Proposals', icon: ClipboardList, required: 'pro' },
   { to: '/batch-proposal', label: 'B2B Batch Generator', icon: ClipboardList, required: 'pro' },
   { to: '/knowledge-base', label: 'Agency Knowledge Base', icon: BookOpen, required: 'pro' },
   { to: '/crm', label: 'Proposals CRM', icon: Trophy, required: 'elite' },
 ];
 
 export const ENTERPRISE_NAV_ITEMS: TierNavItem[] = [
+  { to: '/dashboard/evaluator', label: 'Multi-CV Evaluator', icon: Layers, required: 'enterprise' },
+  { to: '/cv-batch-analyzer', label: 'Multi-CV Batch Analyzer', icon: Layers, required: 'enterprise' },
   { to: '/batch-upload', label: 'Batch Upload & Rank', icon: Upload, required: 'enterprise' },
   { to: '/team', label: 'Team Workspace', icon: Users, required: 'enterprise' },
   { to: '/talent-pool', label: 'Talent Pool', icon: Database, required: 'enterprise' },

@@ -80,6 +80,11 @@ const TalentPoolHub = lazy(() => import("./pages/TalentPoolHub"));
 const BatchProposal = lazy(() => import("./pages/BatchProposal"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const ApplicationsCRM = lazy(() => import("./pages/ApplicationsCRM"));
+const SingleFileBatchAnalyzer = lazy(() => import("./pages/SingleFileBatchAnalyzer"));
+const EvaluatorModule = lazy(() => import("./pages/EvaluatorModule"));
+const ProposalEngineModule = lazy(() => import("./pages/ProposalEngineModule"));
+const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
+const SharePortal = lazy(() => import("./pages/SharePortal"));
 
 const GetHiredAtPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.GetHiredAtPage })));
 const HowToGetJobPage = lazy(() => import("./pages/seo/SEOPages").then(m => ({ default: m.HowToGetJobPage })));
@@ -172,6 +177,11 @@ const AppRoutes = () => (
       <Route path="/portfolio-builder" element={<ProtectedRoute><PortfolioBuilder /></ProtectedRoute>} />
       <Route path="/cv-analyzer" element={<ProtectedRoute><CVAnalyzer /></ProtectedRoute>} />
       <Route path="/batch-upload" element={<ProtectedRoute><BatchUpload /></ProtectedRoute>} />
+      <Route path="/cv-batch-analyzer" element={<ProtectedRoute><SingleFileBatchAnalyzer /></ProtectedRoute>} />
+      <Route path="/dashboard/evaluator" element={<ProtectedRoute><EvaluatorModule /></ProtectedRoute>} />
+      <Route path="/dashboard/proposals" element={<ProtectedRoute><ProposalEngineModule /></ProtectedRoute>} />
+      <Route path="/dashboard/intelligence" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
+      <Route path="/share/:shareCode" element={<SharePortal />} />
       <Route path="/team" element={<ProtectedRoute><TeamWorkspace /></ProtectedRoute>} />
       <Route path="/talent-pool" element={<ProtectedRoute><TalentPoolHub /></ProtectedRoute>} />
       <Route path="/batch-proposal" element={<ProtectedRoute><BatchProposal /></ProtectedRoute>} />

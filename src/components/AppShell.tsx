@@ -87,7 +87,7 @@ export const AppShell = memo(({ children, user, plan = 'free', creditsBalance = 
   const eliteNav = isSuperAdmin
     ? ELITE_NAV_ITEMS
     : ELITE_NAV_ITEMS.filter((item) => {
-      if (item.to === '/batch-proposal' || item.to === '/knowledge-base') return showAgencyTools;
+      if (item.to === '/batch-proposal' || item.to === '/knowledge-base' || item.to === '/dashboard/proposals' || item.to === '/dashboard/intelligence') return showAgencyTools;
       return true;
     });
   const enterpriseNav = ENTERPRISE_NAV_ITEMS;
