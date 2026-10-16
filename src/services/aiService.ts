@@ -85,7 +85,7 @@ async function callOpenAI(
   maxTokens = 800,
 ): Promise<string> {
   let key = getActiveApiKey();
-  if (!key) {
+  if (!key || key === 'dummy-key-to-prevent-crash') {
     toastOpenAIFailure();
     throw new Error(AI_NOT_CONFIGURED_MESSAGE);
   }

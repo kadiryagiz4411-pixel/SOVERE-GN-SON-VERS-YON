@@ -2,7 +2,7 @@
  * AI Servis Başlatıcı — tek kaynak OpenAI anahtar çözümlemesi.
  *
  * 1) Kullanıcı BYOK
- * 2) Vercel / Vite VITE_OPENAI_API_KEY
+ * 2) Env aliases (OPENAI_API_KEY, VITE_OPENAI_API_KEY, NEXT_PUBLIC_OPENAI_API_KEY)
  * 3) Yoksa throw yok — boş string + uyarı (UI toast çağıran tarafta)
  */
 
@@ -24,24 +24,25 @@ function readStoredByok(): string {
   }
 }
 
-function readViteSystemKey(): string {
+function readEnvAlias(key: string): string {
   try {
-    const vite = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-    if (isUsableKey(vite)) return String(vite).trim();
+    const meta = (import.meta.env as Record<string, string | undefined>)[key];
+    if (isUsableKey(meta)) return String(meta).trim();
   } catch { /* ignore */ }
   try {
-    const metaOpenAi = (import.meta.env as Record<string, string | undefined>).OPENAI_API_KEY;
-    if (isUsableKey(metaOpenAi)) return String(metaOpenAi).trim();
-  } catch { /* ignore */ }
-  try {
-    const nodeVite = typeof process !== 'undefined' ? process.env?.VITE_OPENAI_API_KEY : undefined;
-    if (isUsableKey(nodeVite)) return String(nodeVite).trim();
-  } catch { /* ignore */ }
-  try {
-    const nodeOpenAi = typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : undefined;
-    if (isUsableKey(nodeOpenAi)) return String(nodeOpenAi).trim();
+    const node = typeof process !== 'undefined' ? process.env?.[key] : undefined;
+    if (isUsableKey(node)) return String(node).trim();
   } catch { /* ignore */ }
   return '';
+}
+
+function readViteSystemKey(): string {
+  return (
+    readEnvAlias('OPENAI_API_KEY') ||
+    readEnvAlias('VITE_OPENAI_API_KEY') ||
+    readEnvAlias('NEXT_PUBLIC_OPENAI_API_KEY') ||
+    ''
+  );
 }
 
 export const getActiveApiKey = (userCustomKey?: string | null): string => {
@@ -68,6 +69,7 @@ export function hasByokKeyStored(): boolean {
 export function isAiNotConfiguredError(err: unknown): boolean {
   return err instanceof Error && (
     err.message.startsWith('AI_NOT_CONFIGURED') ||
+    err.message.startsWith('OPENAI_KEY_MISSING') ||
     err.message.includes("API Anahtarınızı")
   );
 }

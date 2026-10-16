@@ -8,6 +8,7 @@ import {
   type RankedJob,
 } from '@/lib/schemas/job';
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured } from '@/lib/ai/openai';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText, sanitizeList } from '@/lib/ai/sanitizer';
 import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
@@ -38,8 +39,8 @@ export async function evaluateJobsBatch(opts: RankJobsOptions): Promise<{ ranked
   const { jobs, profile, memory, onProgress, onItem } = opts;
   if (jobs.length === 0) return { rankedJobs: [] };
 
-  const key = getActiveApiKey();
-  if (!key) throw new Error('No OpenAI API key configured.');
+  const key = getActiveApiKey() || getOpenAIApiKey();
+  if (!isOpenAIApiKeyConfigured(key)) throw new Error('OPENAI_KEY_MISSING: OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.');
   const bankLine = opts.userId
     ? memoryBankToPrompt(await fetchMemoryBank(opts.userId).catch(() => []))
     : '';

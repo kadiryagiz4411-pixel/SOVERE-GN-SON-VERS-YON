@@ -14,6 +14,7 @@ import {
   type RankedCandidate,
 } from '@/lib/schemas/candidate';
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '@/lib/ai/openai';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText, sanitizeList } from '@/lib/ai/sanitizer';
 import { loadMemory, memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
@@ -51,8 +52,12 @@ export async function evaluateCandidatesBatch(opts: BatchEvaluateOptions): Promi
 
   if (candidates.length === 0) return { rankedCandidates: [] };
 
-  const key = getActiveApiKey();
-  if (!key) throw new Error('No OpenAI API key configured. Add your BYOK key or set VITE_OPENAI_API_KEY.');
+  const key = getActiveApiKey() || getOpenAIApiKey();
+  if (!isOpenAIApiKeyConfigured(key)) {
+    const remote = await evaluateViaApi(opts);
+    if (remote) return remote;
+    throw new Error(`${OPENAI_KEY_MISSING_PAYLOAD.error}: ${OPENAI_KEY_MISSING_PAYLOAD.message}`);
+  }
 
   // Split into chunks of BATCH_SIZE
   const chunks: CandidateProfile[][] = [];
@@ -146,6 +151,32 @@ export async function evaluateCandidatesBatch(opts: BatchEvaluateOptions): Promi
   }));
 
   return { rankedCandidates };
+}
+
+async function evaluateViaApi(opts: BatchEvaluateOptions): Promise<EvaluatorResult | null> {
+  try {
+    const res = await fetch('/api/batch/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidates: opts.candidates,
+        jobContext: opts.jobContext ?? '',
+        batchId: opts.batchId ?? '',
+      }),
+    });
+    const payload = await res.json().catch(() => ({})) as {
+      error?: string;
+      message?: string;
+      rankedCandidates?: RankedCandidate[];
+    };
+    if (payload.error === 'OPENAI_KEY_MISSING' || !res.ok) return null;
+    if (!Array.isArray(payload.rankedCandidates) || payload.rankedCandidates.length === 0) return null;
+    opts.onProgress?.(1, payload.rankedCandidates.length, opts.candidates.length);
+    payload.rankedCandidates.forEach((c) => opts.onItem?.(c));
+    return { rankedCandidates: payload.rankedCandidates };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Chunk evaluator ──────────────────────────────────────────────────────────

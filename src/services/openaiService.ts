@@ -2,37 +2,42 @@
  * openaiService.ts
  * ──────────────────────────────────────────────────────────────────────────────
  * Thin OpenAI wrapper used by:
- *   • Browser context  → reads VITE_OPENAI_API_KEY via import.meta.env
- *   • Supabase Edge Fn → reads OPENAI_API_KEY via process.env (Deno compat)
+ *   • Browser context  → reads VITE_ / NEXT_PUBLIC_ keys via getOpenAIApiKey()
+ *   • Server / Vercel  → reads OPENAI_API_KEY
  *
- * Never expose a raw API key in client bundles in production.
- * Prefer routing calls through a Supabase Edge Function instead.
+ * Never instantiate the OpenAI SDK with an empty key — that crashes the app.
  */
 
-import OpenAI from 'openai';
+import {
+  createOpenAIClient,
+  getOpenAIApiKey,
+  isOpenAIApiKeyConfigured,
+  OPENAI_DUMMY_KEY,
+  OPENAI_KEY_MISSING_PAYLOAD,
+} from '@/lib/ai/openai';
 import { getActiveApiKey, resolveOpenAIKey } from '@/lib/apiKeyResolver';
 import { toastOpenAIFailure } from '@/lib/openaiErrors';
 
-/** Resolve API key for Vite (BYOK → VITE) then Node/Deno OPENAI_API_KEY. */
+/** Resolve API key for Vite (BYOK → env aliases) then Node OPENAI_API_KEY. */
 const resolveApiKey = (): string => {
   const resolved = resolveOpenAIKey();
-  if (resolved) return resolved;
-  if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY?.startsWith('sk-')) {
-    return process.env.OPENAI_API_KEY.trim();
-  }
-  return '';
+  if (resolved && resolved !== OPENAI_DUMMY_KEY) return resolved;
+  return getOpenAIApiKey();
 };
 
-/**
- * Lazily-resolved OpenAI client.
- * Returns a new instance each call so it always picks up the latest key
- * (e.g. after the user saves a BYOK key in Profile → Settings).
- */
-const getOpenAIClient = () =>
-  new OpenAI({ apiKey: resolveApiKey() || 'sk-placeholder', dangerouslyAllowBrowser: true });
+const getOpenAIClient = () => createOpenAIClient(resolveApiKey() || OPENAI_DUMMY_KEY);
 
-// Backwards-compat alias used by testOpenAIConnection / generateProposal below.
-const openai = { chat: { completions: { create: (...args: Parameters<OpenAI['chat']['completions']['create']>) => getOpenAIClient().chat.completions.create(...args) } }, models: { list: () => getOpenAIClient().models.list() } };
+const openai = {
+  chat: {
+    completions: {
+      create: (...args: Parameters<ReturnType<typeof getOpenAIClient>['chat']['completions']['create']>) =>
+        getOpenAIClient().chat.completions.create(...args),
+    },
+  },
+  models: { list: () => getOpenAIClient().models.list() },
+};
+
+export { getOpenAIApiKey, openai };
 
 // ─── Connection test ──────────────────────────────────────────────────────────
 
@@ -40,6 +45,11 @@ export async function testOpenAIConnection(): Promise<
   | { success: true; status: 200; message: string; modelCount: number }
   | { success: false; error: string }
 > {
+  const apiKey = resolveApiKey();
+  if (!isOpenAIApiKeyConfigured(apiKey)) {
+    return { success: false, error: OPENAI_KEY_MISSING_PAYLOAD.message };
+  }
+
   try {
     const models = await openai.models.list();
     return {
@@ -69,7 +79,7 @@ export async function testOpenAIConnection(): Promise<
 
 export async function generateProposal(userData: unknown): Promise<Record<string, unknown>> {
   const key = resolveApiKey() || getActiveApiKey();
-  if (!key) {
+  if (!isOpenAIApiKeyConfigured(key)) {
     toastOpenAIFailure();
     return {};
   }

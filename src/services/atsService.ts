@@ -189,7 +189,7 @@ async function callOpenAI(
   maxTokens = 700,
 ): Promise<string> {
   const key = getActiveApiKey();
-  if (!key) {
+  if (!key || key === "dummy-key-to-prevent-crash") {
     toastOpenAIFailure();
     return "";
   }

@@ -4,6 +4,7 @@
  */
 
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured } from '@/lib/ai/openai';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText } from '@/lib/ai/sanitizer';
 import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
@@ -14,8 +15,8 @@ import type { SkillProfile } from '@/lib/ai/proposalEngine';
 const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 
 async function chat(system: string, user: string, maxTokens = 400): Promise<string> {
-  const key = getActiveApiKey();
-  if (!key) throw new Error('No OpenAI API key configured.');
+  const key = getActiveApiKey() || getOpenAIApiKey();
+  if (!isOpenAIApiKeyConfigured(key)) throw new Error('OPENAI_KEY_MISSING: OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.');
   const res = await fetch(OPENAI_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },

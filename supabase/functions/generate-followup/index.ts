@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { getOpenAIApiKey, missingOpenAIKeyResponse } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,8 +10,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const OPENAI_API_KEY = getOpenAIApiKey();
+    if (!OPENAI_API_KEY) return missingOpenAIKeyResponse(corsHeaders);
 
     const { type, proposal, jobDescription, language, userProfile } = await req.json();
 

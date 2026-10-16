@@ -6,6 +6,7 @@
  */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getOpenAIApiKey, missingOpenAIKeyResponse } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,8 +64,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
+    const openaiKey = getOpenAIApiKey();
+    if (!openaiKey) return missingOpenAIKeyResponse(corsHeaders);
 
     // Enrich query for better semantic match against candidate profiles
     const enrichedQuery = `Find candidates who: ${query}. Skills, experience, seniority, role alignment.`;

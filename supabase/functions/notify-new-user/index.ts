@@ -22,7 +22,11 @@ Deno.serve(async (req) => {
     }
 
     const ADMIN_EMAIL = "kadiryagiz4411@gmail.com";
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const OPENAI_API_KEY =
+      Deno.env.get("OPENAI_API_KEY")
+      || Deno.env.get("VITE_OPENAI_API_KEY")
+      || Deno.env.get("NEXT_PUBLIC_OPENAI_API_KEY")
+      || "";
 
     console.log(`[NEW USER] Email: ${email}, Name: ${full_name || 'N/A'}`);
 

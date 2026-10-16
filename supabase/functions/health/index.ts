@@ -37,8 +37,12 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── OpenAI key presence check ─────────────────────────────────────────────
-  const openaiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
-  const openaiOk  = openaiKey.startsWith('sk-');
+  const openaiKey =
+    Deno.env.get('OPENAI_API_KEY')
+    ?? Deno.env.get('VITE_OPENAI_API_KEY')
+    ?? Deno.env.get('NEXT_PUBLIC_OPENAI_API_KEY')
+    ?? '';
+  const openaiOk  = openaiKey.startsWith('sk-') && openaiKey !== 'dummy-key-to-prevent-crash';
 
   const allHealthy = dbOk && openaiOk;
 

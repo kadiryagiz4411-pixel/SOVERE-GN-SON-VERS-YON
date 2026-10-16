@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getOpenAIApiKey, missingOpenAIKeyResponse } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,13 +51,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured. OPENAI_API_KEY missing." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const OPENAI_API_KEY = getOpenAIApiKey();
+    if (!OPENAI_API_KEY) return missingOpenAIKeyResponse(corsHeaders);
 
     const prompt = `Based on this professional profile, create a personalized career roadmap.
 

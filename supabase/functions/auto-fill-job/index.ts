@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getOpenAIApiKey, missingOpenAIKeyResponse } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,13 +59,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI service not configured. OPENAI_API_KEY missing." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const OPENAI_API_KEY = getOpenAIApiKey();
+    if (!OPENAI_API_KEY) return missingOpenAIKeyResponse(corsHeaders);
 
     const systemPrompt = `You are a job description analyzer. Analyze the given job description and extract structured metadata. Return ONLY a JSON object with these fields:
 

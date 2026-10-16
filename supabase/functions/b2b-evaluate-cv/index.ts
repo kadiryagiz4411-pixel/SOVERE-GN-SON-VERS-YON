@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getOpenAIApiKey, missingOpenAIKeyResponse } from "../_shared/openaiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -223,8 +224,8 @@ Deno.serve(async (req: Request) => {
       .update({ processing_status: "processing" })
       .eq("id", evaluation_id);
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
+    const openaiKey = getOpenAIApiKey();
+    if (!openaiKey) return missingOpenAIKeyResponse(corsHeaders);
 
     const userPrompt = `Evaluate this candidate's CV against the job description. Apply semantic concept matching — synonyms and domain equivalents count as matches. Return a complete structured JSON assessment.
 
