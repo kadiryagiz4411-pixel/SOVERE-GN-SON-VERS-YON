@@ -3,7 +3,8 @@
  * Creates a Lemon Squeezy hosted checkout and returns { checkoutUrl }.
  */
 import { preflight, json } from '../_lib/cors';
-import { env, firstEnv } from '../_lib/env';
+import { firstEnv } from '../_lib/env';
+import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy';
 
 export const config = { runtime: 'edge' };
 
@@ -38,81 +39,100 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const apiKey = env('LEMONSQUEEZY_API_KEY');
-  const storeId = env('LEMONSQUEEZY_STORE_ID');
-  if (!apiKey || !storeId) {
-    return json({ error: 'Lemon Squeezy is not configured on the server.' }, 500);
-  }
-
-  let body: {
-    variantId?: string;
-    userId?: string;
-    email?: string;
-    planId?: string;
-    billingCycle?: string;
-  };
   try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400);
-  }
+    const apiKey = lemonApiKey();
+    const storeId = lemonStoreId();
+    if (!apiKey || !storeId) {
+      console.error('LemonSqueezy configuration missing: LEMONSQUEEZY_API_KEY or LEMONSQUEEZY_STORE_ID');
+      return json({ error: 'LemonSqueezy billing is not configured in environment variables.' }, 500);
+    }
 
-  const variantId = String(body.variantId ?? '').trim();
-  if (!variantId || !/^\d+$/.test(variantId)) {
-    return json({ error: 'variantId (numeric Lemon Squeezy variant) is required' }, 400);
-  }
+    let body: {
+      variantId?: string;
+      userId?: string;
+      email?: string;
+      userEmail?: string;
+      planId?: string;
+      billingCycle?: string;
+    };
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: 'Invalid JSON' }, 400);
+    }
 
-  const userId = await callerUserId(req, body.userId);
-  const origin = originFrom(req);
-  const redirectUrl = `${origin}/dashboard?payment=success`;
+    const variantId = String(body.variantId ?? '').trim() || resolveVariantId(body.planId, body.billingCycle);
+    if (!variantId || !/^\d+$/.test(variantId)) {
+      return json({ error: 'variantId (numeric Lemon Squeezy variant) is required' }, 400);
+    }
 
-  const payload = {
-    data: {
-      type: 'checkouts',
-      attributes: {
-        checkout_options: { embed: false, media: true, logo: true },
-        checkout_data: {
-          ...(body.email ? { email: body.email } : {}),
-          custom: {
-            ...(userId ? { user_id: userId } : {}),
-            ...(body.planId ? { plan_id: body.planId } : {}),
-            ...(body.billingCycle ? { billing_cycle: body.billingCycle } : {}),
+    const userId = await callerUserId(req, body.userId);
+    const userEmail = body.userEmail || body.email;
+    const origin = originFrom(req);
+    const redirectUrl = `${origin}/dashboard?payment=success`;
+
+    const response = await fetch(LS_API, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_options: { embed: false, media: true, logo: true },
+            checkout_data: {
+              email: userEmail || undefined,
+              custom: {
+                user_id: userId,
+                ...(body.planId ? { plan_id: body.planId } : {}),
+                ...(body.billingCycle ? { billing_cycle: body.billingCycle } : {}),
+              },
+            },
+            product_options: {
+              redirect_url: redirectUrl,
+            },
+          },
+          relationships: {
+            store: {
+              data: {
+                type: 'stores',
+                id: String(storeId),
+              },
+            },
+            variant: {
+              data: {
+                type: 'variants',
+                id: String(variantId),
+              },
+            },
           },
         },
-        product_options: {
-          redirect_url: redirectUrl,
-        },
-      },
-      relationships: {
-        store: { data: { type: 'stores', id: String(storeId) } },
-        variant: { data: { type: 'variants', id: variantId } },
-      },
-    },
-  };
+      }),
+    });
 
-  const lsRes = await fetch(LS_API, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/vnd.api+json',
-      'Content-Type': 'application/vnd.api+json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+    const data = await response.json().catch(() => ({})) as {
+      data?: { attributes?: { url?: string } };
+      errors?: Array<{ detail?: string }>;
+    };
 
-  const lsJson = await lsRes.json().catch(() => ({})) as {
-    data?: { attributes?: { url?: string } };
-    errors?: Array<{ detail?: string }>;
-  };
+    if (!response.ok) {
+      console.error('LemonSqueezy Checkout API Error:', data);
+      return json({ error: data.errors?.[0]?.detail || 'Checkout error' }, response.status || 502);
+    }
 
-  if (!lsRes.ok) {
-    const detail = lsJson.errors?.[0]?.detail || `Lemon Squeezy ${lsRes.status}`;
-    console.error('[billing/checkout]', detail);
-    return json({ error: detail }, 502);
+    const checkoutUrl = data.data?.attributes?.url;
+    if (!checkoutUrl) {
+      console.error('LemonSqueezy Checkout API Error: missing url', data);
+      return json({ error: 'Checkout URL missing from Lemon Squeezy' }, 502);
+    }
+
+    return json({ checkoutUrl });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Internal Server Error';
+    console.error('Checkout handler exception:', err);
+    return json({ error: message }, 500);
   }
-
-  const checkoutUrl = lsJson.data?.attributes?.url;
-  if (!checkoutUrl) return json({ error: 'Checkout URL missing from Lemon Squeezy' }, 502);
-
-  return json({ checkoutUrl });
 }

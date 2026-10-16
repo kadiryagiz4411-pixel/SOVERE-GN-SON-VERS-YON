@@ -2,7 +2,8 @@
  * ProposalCard.tsx — Ranked job opportunity card for Module B.
  */
 
-import { Star, Briefcase, DollarSign, Zap, Copy } from 'lucide-react';
+import { Star, Briefcase, DollarSign, Zap, Copy, ExternalLink } from 'lucide-react';
+import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -134,6 +135,15 @@ export function ProposalCard({ job, onInjectProposal, injecting }: ProposalCardP
       )}
 
       <div className="mt-auto p-4 pt-3 flex gap-2 border-t border-border/60 mt-4">
+        <a
+          href={/https?:\/\//i.test(job.rawContent || '') ? resolveUpworkJobUrl(job.rawContent) : upworkSearchUrl(job.title)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+        >
+          View on Upwork
+          <ExternalLink className="w-3 h-3" />
+        </a>
         <Button
           size="sm"
           variant="gold"

@@ -13,6 +13,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
 import { buildFallbackOpportunities } from '@/lib/opportunityFallback';
+import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
 import {
   Loader2, RefreshCw, Zap, Crown, ExternalLink, Check, X,
   ChevronDown, ChevronUp, Target, TrendingUp, AlertTriangle,
@@ -514,18 +515,16 @@ const ApplyQueue = () => {
                               >
                                 <X className="w-4 h-4 mr-1" /> {txt.reject}
                               </Button>
-                              {item.job_url && (
-                                <a
-                                  href={item.job_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all ml-auto"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  {language === 'tr' ? 'İlanı Gör' : 'View Job'}
-                                </a>
-                              )}
+                              <a
+                                href={item.job_url ? resolveUpworkJobUrl(item.job_url) : upworkSearchUrl(item.job_title)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all ml-auto"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                {language === 'tr' ? 'Upwork’ta Gör' : 'View on Upwork'}
+                              </a>
                             </div>
                           )}
                         </div>

@@ -19,6 +19,7 @@ export async function createHostedCheckout(opts: {
       variantId: opts.variantId,
       userId: opts.userId || undefined,
       email: opts.email || undefined,
+      userEmail: opts.email || undefined,
       planId: opts.planId,
       billingCycle: opts.billingCycle,
     }),

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
 import {
   ExternalLink, Briefcase, Clock, Users, TrendingUp,
   Loader2, RefreshCw, Star, Zap, Crown, ChevronDown, ChevronUp,
@@ -262,7 +263,7 @@ export const JobRecommendations = ({
                       </div>
                     )}
                     <a
-                      href={job.applyUrl}
+                      href={job.applyUrl ? resolveUpworkJobUrl(job.applyUrl) : upworkSearchUrl(job.title)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 mt-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"

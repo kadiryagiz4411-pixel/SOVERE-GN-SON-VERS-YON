@@ -1865,7 +1865,7 @@ const Dashboard = () => {
 
               if (jd.includes('upwork.com') || jd.includes('upwork')) {
                 const upworkMatch = jobDescription.match(/https?:\/\/[^\s]*upwork\.com\/[^\s]*/i);
-                applyUrl = upworkMatch ? upworkMatch[0] : 'https://www.upwork.com/nx/find-work/';
+                applyUrl = upworkMatch ? upworkMatch[0] : 'https://www.upwork.com/nx/search/jobs';
                 platform = 'Upwork';
                 platformLabel = txt.applyUpwork;
                 platformColor = 'border-green-500/30 bg-green-500/5 text-green-500 hover:bg-green-500/10';
