@@ -41,6 +41,11 @@ export const Footer = () => {
                   {t.footer.terms}
                 </Link>
               </li>
+              <li>
+                <Link to="/refund" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {t.footer.refund || 'Refund Policy'}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -70,8 +75,19 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-border mt-12 pt-8 text-center text-sm text-muted-foreground">
-          {t.footer.copyright}
+        <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
+          <div>© {new Date().getFullYear()} Sovereign AI. All rights reserved.</div>
+          <div className="flex items-center gap-6">
+            <Link className="hover:text-foreground transition-colors" to="/privacy">
+              {t.footer.privacy}
+            </Link>
+            <Link className="hover:text-foreground transition-colors" to="/terms">
+              {t.footer.terms}
+            </Link>
+            <Link className="hover:text-foreground transition-colors" to="/refund">
+              {t.footer.refund || 'Refund Policy'}
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -54,6 +54,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Features = lazy(() => import("./pages/Features"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Refund = lazy(() => import("./pages/Refund"));
 const UpgradeSuccess = lazy(() => import("./pages/UpgradeSuccess"));
 const EliteActivated = lazy(() => import("./pages/EliteActivated"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -164,6 +165,7 @@ const AppRoutes = () => (
       <Route path="/features" element={<Features />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/refund" element={<Refund />} />
       <Route path="/upgrade-success" element={<UpgradeSuccess />} />
       <Route path="/elite-activated" element={<EliteActivated />} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

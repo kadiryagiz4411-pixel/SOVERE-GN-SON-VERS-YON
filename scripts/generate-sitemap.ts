@@ -66,6 +66,9 @@ export function generateSitemapXML(): string {
     { loc: `${DOMAIN}/`, priority: '1.0', changefreq: 'weekly' },
     { loc: `${DOMAIN}/pricing`, priority: '0.9', changefreq: 'monthly' },
     { loc: `${DOMAIN}/features`, priority: '0.8', changefreq: 'monthly' },
+    { loc: `${DOMAIN}/privacy`, priority: '0.6', changefreq: 'yearly' },
+    { loc: `${DOMAIN}/terms`, priority: '0.6', changefreq: 'yearly' },
+    { loc: `${DOMAIN}/refund`, priority: '0.6', changefreq: 'yearly' },
   ];
 
   const getHiredUrls = COMPANIES.map((c) => ({

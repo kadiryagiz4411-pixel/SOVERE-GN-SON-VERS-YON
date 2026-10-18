@@ -184,7 +184,7 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
         {/* Trust footer */}
         <div className="px-6 pb-4 text-center">
           <p className="text-xs text-slate-700">
-            7-day money-back guarantee · Secure checkout by Lemon Squeezy
+            14-day money-back guarantee · Secure checkout by Lemon Squeezy
           </p>
         </div>
       </div>

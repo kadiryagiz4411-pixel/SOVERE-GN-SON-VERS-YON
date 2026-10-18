@@ -5,6 +5,9 @@
   <url><loc>https://sovereignapp.pro/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://sovereignapp.pro/pricing</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://sovereignapp.pro/features</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sovereignapp.pro/privacy</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/terms</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://sovereignapp.pro/refund</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
 
   <!-- /get-hired-at/[company] — 25 companies -->
   <url><loc>https://sovereignapp.pro/get-hired-at/google</loc><lastmod>2025-01-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>

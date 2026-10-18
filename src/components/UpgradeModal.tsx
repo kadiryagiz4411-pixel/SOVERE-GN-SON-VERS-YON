@@ -179,7 +179,7 @@ export const UpgradeModal = ({
               <ArrowRight className="w-4 h-4 ml-2" />
             </CheckoutButton>
             <p className="text-center text-xs text-muted-foreground">
-              🔒 Secure checkout • 30-day money-back guarantee
+              🔒 Secure checkout • 14-day money-back guarantee
             </p>
           </div>
 

@@ -1,90 +1,83 @@
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { LegalPage, LegalSection } from '@/components/legal/LegalPage';
 
-const Privacy = () => {
+export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <h1 className="text-4xl font-bold text-foreground mb-8">Privacy Policy</h1>
-          
-          <div className="prose prose-lg prose-invert max-w-none space-y-6 text-muted-foreground">
-            <p className="text-foreground text-lg">
-              Last updated: January 2024
-            </p>
+    <LegalPage title="Privacy Policy">
+      <LegalSection title="1. Information We Collect">
+        <p>
+          Sovereign ("we", "our", "us") collects information necessary to provide AI-driven candidate evaluation, resume parsing, and proposal generation services. This includes user account details, uploaded resume documents, text snippets from job postings, and analytical interaction data.
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Account data: email address, authentication identifiers, and profile settings.</li>
+          <li>Uploaded resumes, CVs, and related career documents you choose to submit.</li>
+          <li>Job posting text, application drafts, and evaluation inputs you provide.</li>
+          <li>Optional Bring-Your-Own-Key (BYOK) settings stored in your browser, not on our servers.</li>
+          <li>Billing identifiers sent to LemonSqueezy (our Merchant of Record) to process payments.</li>
+        </ul>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">1. Introduction</h2>
-              <p>
-                Sovereign ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered freelance assistant application.
-              </p>
-            </section>
+      <LegalSection title="2. Document & Data Processing">
+        <p>
+          Uploaded resumes and scraped job posting texts are processed strictly to calculate compatibility scores and generate rational evaluation metrics. We do not sell, rent, or share candidate documents or proprietary hiring data with third-party data brokers.
+        </p>
+        <p>
+          The optional Chrome extension is click-only: it reads the active tab when you press Analyze and does not continuously scrape or poll pages in the background.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">2. Information We Collect</h2>
-              <p>We collect information that you provide directly to us, including:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Account information (email, password)</li>
-                <li>Profile information (skills, experience, pricing preferences)</li>
-                <li>Content you create using our AI tools (proposals, responses)</li>
-                <li>Payment information (processed securely through Stripe)</li>
-              </ul>
-            </section>
+      <LegalSection title="3. Third-Party Integrations">
+        <p>
+          We integrate with secure service providers including Supabase for encrypted database hosting, OpenAI for structured analytical evaluations, and LemonSqueezy for billing and subscription processing. AppSumo may process lifetime-deal redemptions when you purchase through that marketplace.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">3. How We Use Your Information</h2>
-              <p>We use the information we collect to:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Provide, maintain, and improve our services</li>
-                <li>Generate AI-powered proposals and suggestions</li>
-                <li>Process your transactions</li>
-                <li>Send you technical notices and support messages</li>
-                <li>Respond to your comments and questions</li>
-              </ul>
-            </section>
+      <LegalSection title="4. Storage, Security & Row Level Security">
+        <p>
+          Application data is stored in Supabase Postgres with Row Level Security (RLS) enabled so authenticated users can access only their own records (and authorized organization members where a team workspace exists). Service-role access is limited to server-side billing, webhooks, and administrative operations.
+        </p>
+        <p>
+          We use HTTPS in transit, access-controlled hosting, and least-privilege API keys. No security program can guarantee absolute protection; you should not upload data you are not authorized to process.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">4. AI and Your Data</h2>
-              <p>
-                Our AI features analyze the job descriptions you provide to generate tailored proposals. Your data is processed securely and is not used to train our AI models without your explicit consent. All AI-generated content is suggested to you for review before any action is taken.
-              </p>
-              <p className="font-medium text-foreground">
-                Important: AI assists users; final decisions always belong to the user.
-              </p>
-            </section>
+      <LegalSection title="5. Cookies & Session Management">
+        <p>
+          We use strictly necessary cookies and local storage for session management (Supabase Auth) and billing authentication (returning from LemonSqueezy checkout). We do not use advertising cookies or sell cookie identifiers.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">5. Data Security</h2>
-              <p>
-                We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
-              </p>
-            </section>
+      <LegalSection title="6. GDPR, KVKK & Your Rights">
+        <p>
+          If you are in the EEA/UK or Türkiye, you may request access, correction, deletion, restriction, portability, or objection to processing of personal data, and you may lodge a complaint with a supervisory authority (including KVKK in Türkiye). Legal bases include contract performance, legitimate interests in operating a secure SaaS product, and consent where required.
+        </p>
+        <p>
+          To exercise these rights, email privacy@sovereign.app from your account address. We will respond within a reasonable period required by applicable law.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">6. Your Rights</h2>
-              <p>You have the right to:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Access your personal data</li>
-                <li>Correct inaccurate data</li>
-                <li>Request deletion of your data</li>
-                <li>Export your data</li>
-                <li>Opt out of marketing communications</li>
-              </ul>
-            </section>
+      <LegalSection title="7. Data Retention">
+        <p>
+          We retain account and uploaded content while your subscription or license is active and for a limited period afterward to fulfill legal, billing, and anti-abuse obligations. You may delete documents and close your account; residual backups are purged on a rolling schedule.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">7. Contact Us</h2>
-              <p>
-                If you have any questions about this Privacy Policy, please contact us at privacy@sovereign.app
-              </p>
-            </section>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+      <LegalSection title="8. International Transfers">
+        <p>
+          Processors may store or process data in the United States or other jurisdictions. Where required, we rely on appropriate safeguards such as Standard Contractual Clauses with those processors.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="9. Children">
+        <p>
+          Sovereign is not directed to children under 16. We do not knowingly collect personal data from children.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="10. Contact">
+        <p>
+          Privacy inquiries: <a className="text-primary hover:underline" href="mailto:privacy@sovereign.app">privacy@sovereign.app</a>
+        </p>
+      </LegalSection>
+    </LegalPage>
   );
-};
-
-export default Privacy;
+}

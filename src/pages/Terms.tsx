@@ -1,96 +1,72 @@
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Link } from 'react-router-dom';
+import { LegalPage, LegalSection } from '@/components/legal/LegalPage';
 
-const Terms = () => {
+export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <h1 className="text-4xl font-bold text-foreground mb-8">Terms of Service</h1>
-          
-          <div className="prose prose-lg prose-invert max-w-none space-y-6 text-muted-foreground">
-            <p className="text-foreground text-lg">
-              Last updated: January 2024
-            </p>
+    <LegalPage title="Terms of Service">
+      <LegalSection title="1. Acceptance of Terms">
+        <p>
+          By accessing or using Sovereign, you agree to be bound by these Terms of Service. If you do not agree to these terms, you may not use the platform.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">1. Acceptance of Terms</h2>
-              <p>
-                By accessing and using Sovereign, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to these terms, please do not use our service.
-              </p>
-            </section>
+      <LegalSection title="2. User Responsibilities & Acceptable Use">
+        <p>
+          You agree not to use Sovereign to process unlawful, defamatory, or fraudulent content. Automated operations, candidate rankings, and proposals generated via our software are intended to assist decision-making and must not be used for malicious spamming.
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>You must have a lawful basis to upload resumes and candidate data (including employer instructions and applicable privacy law).</li>
+          <li>You will not run unauthorized mass scraping, credential stuffing, or platform abuse against Upwork, LinkedIn, Indeed, or any third-party site.</li>
+          <li>The Chrome extension may be used only on pages you are permitted to view and only on your explicit click.</li>
+          <li>You remain responsible for every message, proposal, or ranking you send or rely on.</li>
+        </ul>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">2. Description of Service</h2>
-              <p>
-                Sovereign is an AI-powered productivity tool designed to assist freelancers in creating proposals and managing client communications. Our service provides AI-generated suggestions and drafts that you can review, edit, and approve before use.
-              </p>
-              <div className="bg-card border border-primary/30 rounded-lg p-4">
-                <p className="text-foreground font-medium">
-                  Important Disclaimer: Sovereign is an AI-assisted tool. AI assists users in their workflow, but all final decisions and actions belong to the user. We do not guarantee any specific outcomes, income, or success rates.
-                </p>
-              </div>
-            </section>
+      <LegalSection title="3. Subscriptions & Billing">
+        <p>
+          Subscriptions and lifetime access deals are processed securely by LemonSqueezy, our Merchant of Record. Recurring billing plans renew automatically unless cancelled prior to the renewal date.
+        </p>
+        <p>
+          AppSumo lifetime licenses, if purchased, are redeemed through Sovereign’s redeem flow and remain subject to AppSumo’s marketplace terms. Refunds are described in our{' '}
+          <Link to="/refund" className="text-primary hover:underline">Refund Policy</Link>.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">3. User Responsibilities</h2>
-              <p>As a user of Sovereign, you agree to:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Review all AI-generated content before sending or publishing</li>
-                <li>Take full responsibility for any content you send to clients</li>
-                <li>Provide accurate information in your profile</li>
-                <li>Comply with all applicable laws and regulations</li>
-                <li>Not use the service for any unlawful purposes</li>
-              </ul>
-            </section>
+      <LegalSection title="4. Intellectual Property">
+        <p>
+          Sovereign owns the platform, branding, and software. You retain ownership of resumes and job text you upload. Subject to these terms, we grant you a limited license to use generated evaluations and proposals for your own recruiting or job-search workflow. You may not resell the service, scrape our APIs, or reverse engineer the product.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">4. AI-Generated Content</h2>
-              <p>
-                All content generated by our AI is provided as suggestions only. You acknowledge that:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>AI-generated content requires human review and approval</li>
-                <li>You are responsible for the accuracy and appropriateness of content you use</li>
-                <li>AI suggestions are not guaranteed to be error-free</li>
-                <li>Final decisions about what to send to clients are yours alone</li>
-              </ul>
-            </section>
+      <LegalSection title="5. AI Outputs — No Professional Advice">
+        <p>
+          Evaluations, ATS scores, rankings, and cover letters are assistive outputs. They are not legal, hiring, or employment advice and do not guarantee interviews, placements, or income. Final decisions belong to you.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">5. Subscription and Billing</h2>
-              <p>
-                Sovereign offers various subscription plans. By subscribing, you agree to pay the applicable fees. Subscriptions renew automatically unless cancelled. See our pricing page for current rates and plan details.
-              </p>
-            </section>
+      <LegalSection title="6. Limitation of Liability">
+        <p>
+          The service is provided “as is.” To the maximum extent permitted by law, Sovereign and its operators are not liable for indirect, incidental, special, consequential, or lost-profit damages, or for decisions made using AI rankings. Our aggregate liability for a claim is limited to the fees you paid to us for the service in the three months before the claim (or, for AppSumo licenses, the amount AppSumo remitted for your seat, if any).
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">6. Limitation of Liability</h2>
-              <p>
-                Sovereign is provided "as is" without warranties of any kind. We are not liable for any indirect, incidental, special, or consequential damages arising from your use of the service.
-              </p>
-            </section>
+      <LegalSection title="7. Suspension & Termination">
+        <p>
+          We may suspend or terminate accounts that violate these terms, create security risk, or abuse credits, APIs, or third-party platforms. You may stop using the service and request account deletion at any time.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">7. Modifications</h2>
-              <p>
-                We reserve the right to modify these terms at any time. Continued use of the service after changes constitutes acceptance of the new terms.
-              </p>
-            </section>
+      <LegalSection title="8. Changes">
+        <p>
+          We may update these terms. Material changes will be posted on this page with a new “Last Updated” date. Continued use after that date constitutes acceptance.
+        </p>
+      </LegalSection>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-foreground">8. Contact</h2>
-              <p>
-                For questions about these Terms of Service, please contact us at legal@sovereign.app
-              </p>
-            </section>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+      <LegalSection title="9. Contact">
+        <p>
+          Legal questions: <a className="text-primary hover:underline" href="mailto:legal@sovereign.app">legal@sovereign.app</a>
+        </p>
+      </LegalSection>
+    </LegalPage>
   );
-};
-
-export default Terms;
+}

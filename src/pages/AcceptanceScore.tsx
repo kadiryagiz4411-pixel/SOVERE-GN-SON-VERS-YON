@@ -61,7 +61,7 @@ const AcceptanceScorePage = () => {
 
       {/* Minimal footer */}
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Sovereign · <a href="/privacy" className="underline hover:text-foreground">Privacy</a> · <a href="/terms" className="underline hover:text-foreground">Terms</a>
+        © {new Date().getFullYear()} Sovereign · <a href="/privacy" className="underline hover:text-foreground">Privacy</a> · <a href="/terms" className="underline hover:text-foreground">Terms</a> · <a href="/refund" className="underline hover:text-foreground">Refund</a>
       </footer>
     </div>
   );

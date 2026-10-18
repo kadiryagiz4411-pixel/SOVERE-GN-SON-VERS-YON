@@ -268,7 +268,7 @@ export default function Billing() {
               {billing?.planType === "free" ? "Upgrade Your Plan" : "Switch Plan"}
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-              All plans are billed by Lemon Squeezy · 7-day money-back guarantee
+              All plans are billed by Lemon Squeezy · 14-day money-back guarantee
             </p>
           </div>
 

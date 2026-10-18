@@ -109,7 +109,7 @@ export function PricingTable({
 
       {/* ── Trust footer ────────────────────────────────────────────────────── */}
       <p className="text-center text-xs text-slate-600 mt-6">
-        All plans include a 7-day money-back guarantee · Secure checkout by{" "}
+        All plans include a 14-day money-back guarantee · Secure checkout by{" "}
         <span className="text-slate-500">Lemon Squeezy</span>
       </p>
     </div>

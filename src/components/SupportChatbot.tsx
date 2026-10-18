@@ -12,7 +12,7 @@ const FAQ: Record<string, { q: string[]; a: string }[]> = {
   en: [
     { q: ['pricing', 'cost', 'price', 'how much', 'plan'], a: 'We offer 3 plans: Free, Pro ($14 monthly / $99 yearly), and Elite ($39 monthly / $299 yearly). Payments are processed securely via Lemon Squeezy. Visit our Pricing page for details.' },
     { q: ['trial', 'free trial', 'try'], a: 'Yes! We offer a limited free trial for Pro features. Look for the "Claim Free Trial" banner on your dashboard after signing up.' },
-    { q: ['cancel', 'refund', 'money back'], a: 'We use secure payments via Lemon Squeezy. For refund requests, please contact support@sovereign.app within 30 days of purchase.' },
+    { q: ['cancel', 'refund', 'money back'], a: 'Direct SaaS plans have a 14-day money-back guarantee. AppSumo lifetime deals follow AppSumo’s 60-day policy. Email support@sovereign.app or see /refund.' },
     { q: ['how', 'work', 'use', 'start', 'begin'], a: '1. Sign up for free\n2. Paste a job description in the dashboard\n3. Click "Analyze" to get your AI-optimized proposal\n4. Copy, download, or email the result directly!' },
     { q: ['elite', 'strategy', 'analytics'], a: 'Elite includes: visual acceptance graphs, company match recommendations, decision-maker identification, multi-channel outreach messages, and a full application strategy.' },
     { q: ['pro', 'acceptance', 'score', 'probability'], a: 'Pro gives you acceptance probability scoring (%), company-specific optimization, tone selection, unlimited proposals, and proposal history.' },
