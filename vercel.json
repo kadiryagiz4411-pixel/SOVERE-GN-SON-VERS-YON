@@ -11,6 +11,14 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-extension-id, x-sovereign-key" },
         { "key": "Access-Control-Max-Age", "value": "86400" }
       ]
+    },
+    {
+      "source": "/api/opportunities",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
+        { "key": "CDN-Cache-Control", "value": "no-store" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
+      ]
     }
   ]
 }

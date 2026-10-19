@@ -24,8 +24,8 @@ export interface OpportunityItem {
 const PLATFORM_COLORS: Record<string, string> = {
   Upwork: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
   Fiverr: 'bg-green-500/15 text-green-300 border-green-500/30',
-  LinkedIn: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-  Toptal: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  Freelancer: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  LinkedIn: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
 };
 
 function scoreTone(s: number) {

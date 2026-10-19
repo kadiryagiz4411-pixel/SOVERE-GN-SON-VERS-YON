@@ -8,16 +8,16 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { CREDIT_COSTS } from '@/lib/plans';
 import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
-import { getActiveApiKey } from '@/lib/apiKeyResolver';
-import { buildFallbackOpportunities } from '@/lib/opportunityFallback';
+import { opportunityToQueueRow } from '@/lib/opportunityFallback';
+import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
+import { OpportunitiesScanner } from '@/components/apply/OpportunitiesScanner';
 import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
 import {
-  Loader2, RefreshCw, Zap, Crown, ExternalLink, Check, X,
-  ChevronDown, ChevronUp, Target, TrendingUp, AlertTriangle,
-  Shield, Clock, Users, Sparkles, Send, Eye, Ban,
+  Loader2, Crown, ExternalLink, Check, X,
+  ChevronDown, Target, TrendingUp,
+  Shield, Users, Send, Ban,
 } from 'lucide-react';
 
 interface QueueItem {
@@ -47,8 +47,8 @@ interface QueueItem {
 const PLATFORM_COLORS: Record<string, string> = {
   Upwork: 'bg-green-500/15 text-green-500 border-green-500/30',
   Fiverr: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30',
+  Freelancer: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
   LinkedIn: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
-  Toptal: 'bg-purple-500/15 text-purple-500 border-purple-500/30',
 };
 
 const ApplyQueue = () => {
@@ -80,6 +80,7 @@ const ApplyQueue = () => {
   const [editingProposal, setEditingProposal] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [platformFilter, setPlatformFilter] = useState<'All' | OpportunityPlatform>('All');
 
   const txt = {
     title: language === 'tr' ? 'Akıllı Başvuru Kuyruğu' : language === 'de' ? 'Intelligente Bewerbungswarteschlange' : language === 'fr' ? 'File de candidature intelligente' : 'Preloaded Apply Queue',
@@ -103,19 +104,25 @@ const ApplyQueue = () => {
   };
 
   const fetchQueue = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('apply_queue')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (!error && data) {
-      setItems(data as unknown as QueueItem[]);
+    if (!user) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('apply_queue')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!error && data) {
+        setItems(data as unknown as QueueItem[]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchQueue(); }, [user]);
@@ -130,68 +137,61 @@ const ApplyQueue = () => {
       return;
     }
     setScanning(true);
-
-    const persistFallback = async () => {
-      const jobs = buildFallbackOpportunities(profile as unknown as Record<string, unknown>);
-      const batchId = crypto.randomUUID();
-      const rows = jobs.map((job) => ({
-        ...job,
-        user_id: user.id,
-        batch_id: batchId,
-      }));
-      const { error } = await supabase.from('apply_queue').insert(rows);
-      if (error) throw error;
-      return rows.length;
-    };
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 22000);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Not logged in'); return; }
+      const skills = Array.isArray(profile?.skills) ? profile.skills.filter(Boolean).join(',') : '';
+      const query = [skills, profile?.profession_cluster, profile?.onboarding_role].filter(Boolean).join(',');
+      const live = await fetchLiveOpportunities({
+        query,
+        platform: platformFilter,
+        signal: controller.signal,
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-jobs`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ customApiKey: getActiveApiKey() }),
-        },
-      );
+      const existing = new Set(items.map((item) => normalizeOpportunityUrl(item.job_url)));
+      const fresh = live.items.filter((item) => item.url && !existing.has(normalizeOpportunityUrl(item.url)));
+      const batchId = crypto.randomUUID();
+      const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId));
 
-      const raw = await res.text();
-      let payload: { success?: boolean; count?: number; error?: string } = {};
-      try { payload = JSON.parse(raw); } catch { payload = {}; }
-
-      if (!res.ok || !payload.success) {
-        if (res.status === 401 || res.status === 429) {
-          toast.error(
-            res.status === 429
-              ? (language === 'tr' ? 'Kota aşıldı (429). Yedek tarama kullanılıyor.' : 'Rate limited (429). Using fallback scan.')
-              : (language === 'tr' ? 'AI kimlik doğrulaması başarısız (401). Yedek tarama kullanılıyor.' : 'AI authentication failed (401). Using fallback scan.'),
-          );
-        }
-        const count = await persistFallback();
-        toast.success(`${count} ${language === 'tr' ? 'eşleşen fırsat hazır' : 'matched opportunities ready'}`);
-        await fetchQueue();
-        return;
+      if (rows.length) {
+        const { error } = await supabase.from('apply_queue').insert(rows);
+        if (error) throw error;
       }
 
-      toast.success(`${payload.count ?? 0} ${language === 'tr' ? 'fırsat bulundu!' : 'opportunities found!'}`);
+      if (!isUnlimitedUser && live.items.length) {
+        try {
+          await supabase.rpc('apply_credit_change', {
+            _user_id: user.id,
+            _amount: -30,
+            _transaction_type: 'usage',
+            _reference_type: 'scan_jobs',
+            _reference_id: batchId,
+            _description: `Live opportunity scan: ${fresh.length} new listings`,
+          });
+        } catch {
+          // Credits are best-effort; never freeze the scan UI on RPC failure.
+        }
+      }
+
+      if (!live.items.length) {
+        toast.error(language === 'tr'
+          ? 'Canlı ilan bulunamadı. Fiverr/LinkedIn için uzantıdan Analyze kullanın.'
+          : 'No live listings returned. Use the extension Analyze button on Fiverr or LinkedIn briefs.');
+      } else {
+        toast.success(`${fresh.length} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
+      }
       await fetchQueue();
     } catch (err) {
       console.error('[ApplyQueue scan]', err);
-      try {
-        const count = await persistFallback();
-        toast.success(`${count} ${language === 'tr' ? 'eşleşen fırsat hazır' : 'matched opportunities ready'}`);
-        await fetchQueue();
-      } catch {
-        toast.error(language === 'tr'
-          ? 'Tarama tamamlanamadı. Profil bilgilerinizi kaydedip tekrar deneyin.'
-          : 'Scan could not complete. Save your profile skills and try again.');
-      }
+      const aborted = err instanceof DOMException && err.name === 'AbortError';
+      toast.error(aborted
+        ? (language === 'tr' ? 'Tarama zaman aşımına uğradı. Tekrar deneyin.' : 'Scan timed out. Try again.')
+        : (language === 'tr'
+          ? 'Canlı tarama tamamlanamadı. Ağ bağlantınızı kontrol edip tekrar deneyin.'
+          : 'Live scan could not complete. Check your connection and try again.'));
     } finally {
+      window.clearTimeout(timeout);
       setScanning(false);
     }
   };
@@ -250,7 +250,18 @@ const ApplyQueue = () => {
     });
   };
 
-  const filtered = items.filter(i => filter === 'all' || i.status === filter);
+  const filtered = items.filter((i) => {
+    const statusOk = filter === 'all' || i.status === filter;
+    const platformOk = platformFilter === 'All' || i.platform === platformFilter;
+    return statusOk && platformOk;
+  });
+  const platformCounts = {
+    All: items.length,
+    Fiverr: items.filter((i) => i.platform === 'Fiverr').length,
+    Upwork: items.filter((i) => i.platform === 'Upwork').length,
+    Freelancer: items.filter((i) => i.platform === 'Freelancer').length,
+    LinkedIn: items.filter((i) => i.platform === 'LinkedIn').length,
+  };
 
   const getScoreColor = (s: number) => s >= 70 ? 'text-green-400' : s >= 45 ? 'text-amber-400' : 'text-red-400';
   const getScoreBg = (s: number) => s >= 70 ? 'from-green-500/20 to-green-500/5' : s >= 45 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
@@ -295,19 +306,19 @@ const ApplyQueue = () => {
         ) : (
           <>
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <Button
-                onClick={handleScan}
-                disabled={scanning}
-                className="bg-gradient-to-r from-amber-500 to-primary text-primary-foreground"
-              >
-                {scanning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {scanning ? txt.scanning : txt.scan}
-                <Badge variant="outline" className="ml-2 text-[10px]">{txt.credits30}</Badge>
-              </Button>
-
+            <div className="mb-6">
+              <OpportunitiesScanner
+                platform={platformFilter}
+                onPlatformChange={setPlatformFilter}
+                scanning={scanning}
+                onScan={handleScan}
+                scanLabel={txt.scan}
+                scanningLabel={txt.scanning}
+                creditLabel={txt.credits30}
+                counts={platformCounts}
+              />
               {selectedIds.size > 0 && (
-                <Button onClick={handleBatchApply} variant="outline" className="border-green-500/30 text-green-500">
+                <Button onClick={handleBatchApply} variant="outline" className="border-green-500/30 text-green-500 mb-3">
                   <Send className="w-4 h-4 mr-2" />
                   {txt.applyAll} ({selectedIds.size})
                 </Button>
@@ -516,14 +527,14 @@ const ApplyQueue = () => {
                                 <X className="w-4 h-4 mr-1" /> {txt.reject}
                               </Button>
                               <a
-                                href={item.job_url ? resolveUpworkJobUrl(item.job_url) : upworkSearchUrl(item.job_title)}
+                                href={item.job_url || (item.platform === 'Upwork' ? upworkSearchUrl(item.job_title) : resolveUpworkJobUrl(item.job_url))}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all ml-auto"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <ExternalLink className="w-3 h-3" />
-                                {language === 'tr' ? 'Upwork’ta Gör' : 'View on Upwork'}
+                                {language === 'tr' ? `${item.platform} üzerinde gör` : `View on ${item.platform}`}
                               </a>
                             </div>
                           )}

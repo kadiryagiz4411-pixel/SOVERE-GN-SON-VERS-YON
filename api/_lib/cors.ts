@@ -24,6 +24,32 @@ export function preflight(): Response {
   });
 }
 
+export const NO_STORE_HEADERS: Record<string, string> = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'CDN-Cache-Control': 'no-store',
+  'Vercel-CDN-Cache-Control': 'no-store',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
+export function jsonNoStore(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...getCorsHeaders(),
+      ...NO_STORE_HEADERS,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+export function preflightNoStore(): Response {
+  return new Response(null, {
+    status: 200,
+    headers: { ...getCorsHeaders(), ...NO_STORE_HEADERS },
+  });
+}
+
 export async function readJsonBody<T = Record<string, unknown>>(req: Request): Promise<T> {
   return (await req.json().catch(() => ({}))) as T;
 }

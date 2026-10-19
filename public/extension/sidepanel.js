@@ -64,6 +64,44 @@ function showError(message) {
   `;
 }
 
+function detectOpportunityPlatform(url) {
+  const u = String(url || '').toLowerCase();
+  if (u.includes('fiverr.com')) return 'Fiverr';
+  if (u.includes('upwork.com')) return 'Upwork';
+  if (u.includes('freelancer.com')) return 'Freelancer';
+  if (u.includes('linkedin.com')) return 'LinkedIn';
+  return 'Upwork';
+}
+
+function ingestOpportunity(apiBase, pageData, analysis) {
+  const isJob = analysis?.type === 'JOB_PROPOSAL' || analysis?.intent === 'JOB_POSTINGS';
+  if (!isJob) return;
+  const platform = detectOpportunityPlatform(pageData.pageUrl);
+  fetch(`${canonicalizeApiBase(apiBase)}/api/opportunities?t=${Date.now()}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'x-extension-id': chrome.runtime.id || '',
+    },
+    body: JSON.stringify({
+      pageText: pageData.pageText,
+      pageTitle: analysis.title || pageData.pageTitle,
+      pageUrl: pageData.pageUrl,
+      platform,
+      items: [{
+        platform,
+        title: analysis.title || pageData.pageTitle,
+        description: analysis.painPoint || analysis.summary || String(pageData.pageText || '').slice(0, 1200),
+        url: pageData.pageUrl,
+        budget: '',
+        compatibilityScore: analysis.compatibilityScore || analysis.overallScore,
+      }],
+    }),
+  }).catch(() => {});
+}
+
 function renderAnalysisResults(data, pageTitle, pageUrl) {
   const isJob = data.type === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
   const score = Number(data.compatibilityScore ?? data.overallScore ?? 0);
@@ -166,6 +204,7 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     const data = await postParseDom(apiBase, pageData);
+    ingestOpportunity(apiBase, pageData, data);
     renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
