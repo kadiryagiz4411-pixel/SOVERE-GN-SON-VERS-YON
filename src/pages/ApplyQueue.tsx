@@ -14,7 +14,7 @@ import { opportunityToQueueRow } from '@/lib/opportunityFallback';
 import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import {
-  Loader2, Crown, Check, X,
+  Loader2, Crown, Check, X, Copy,
   ChevronDown, Target, TrendingUp,
   Shield, Users, Send, Ban, Sparkles,
 } from 'lucide-react';
@@ -88,7 +88,9 @@ const ApplyQueue = () => {
     scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning...',
     approve: language === 'tr' ? 'Onayla' : language === 'de' ? 'Genehmigen' : language === 'fr' ? 'Approuver' : 'Approve',
     reject: language === 'tr' ? 'Reddet' : language === 'de' ? 'Ablehnen' : language === 'fr' ? 'Rejeter' : 'Reject',
-    applyAll: language === 'tr' ? 'Seçilenleri Uygula' : language === 'de' ? 'Ausgewählte bewerben' : language === 'fr' ? 'Postuler aux sélectionnés' : 'Batch Apply Selected',
+    applyAll: language === 'tr' ? 'Seçilenleri uygulandı işaretle' : language === 'de' ? 'Ausgewählte als beworben markieren' : language === 'fr' ? 'Marquer comme postulé' : 'Mark selected as applied',
+    copyProposal: language === 'tr' ? 'Teklifi kopyala' : language === 'de' ? 'Vorschlag kopieren' : language === 'fr' ? 'Copier la proposition' : 'Copy Proposal',
+    viewOriginal: language === 'tr' ? 'Orijinal ilanı aç ↗' : language === 'de' ? 'Originalanzeige öffnen ↗' : language === 'fr' ? 'Voir l’offre originale ↗' : 'View Original Job Post ↗',
     noItems: language === 'tr' ? 'Henüz fırsat yok. Tarama yaparak başlayın.' : language === 'de' ? 'Noch keine Chancen. Starten Sie einen Scan.' : language === 'fr' ? 'Pas encore d\'opportunités. Lancez une recherche.' : 'No opportunities yet. Start a scan to find matches.',
     acceptance: language === 'tr' ? 'Kabul Olasılığı' : language === 'de' ? 'Annahmequote' : language === 'fr' ? 'Probabilité d\'acceptation' : 'Acceptance Probability',
     whyThis: language === 'tr' ? 'Neden bu iş?' : language === 'de' ? 'Warum dieser Job?' : language === 'fr' ? 'Pourquoi ce poste ?' : 'Why this job?',
@@ -238,7 +240,9 @@ const ApplyQueue = () => {
 
     setItems(prev => prev.map(i => selectedIds.has(i.id) ? { ...i, status: 'applied' } : i));
     setSelectedIds(new Set());
-    toast.success(`${approvedItems.length} ${language === 'tr' ? 'başvuru oluşturuldu' : 'applications created'}`);
+    toast.success(language === 'tr'
+      ? `${approvedItems.length} kayıt güncellendi. Teklifi kopyalayıp orijinal ilanda elle gönderin — otomatik başvuru yok.`
+      : `${approvedItems.length} marked in Sovereign. Copy each proposal and submit it yourself on the original job post.`);
   };
 
   const toggleSelect = (id: string) => {
@@ -415,7 +419,7 @@ const ApplyQueue = () => {
                                 url={item.job_url}
                                 platform={item.platform}
                                 title={item.job_title}
-                                label={language === 'tr' ? 'İlana git' : 'View Job'}
+                                label={txt.viewOriginal}
                               />
                             </div>
                           </div>
@@ -533,11 +537,29 @@ const ApplyQueue = () => {
                               >
                                 <X className="w-4 h-4 mr-1" /> {txt.reject}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  const text = editingProposal[item.id] ?? item.generated_proposal;
+                                  if (!text) return;
+                                  try {
+                                    await navigator.clipboard.writeText(text);
+                                    toast.success(language === 'tr'
+                                      ? 'Teklif kopyalandı. Orijinal ilanda elle yapıştırın.'
+                                      : 'Proposal copied. Paste it yourself on the original job post.');
+                                  } catch {
+                                    toast.error(language === 'tr' ? 'Kopyalanamadı' : 'Could not copy');
+                                  }
+                                }}
+                              >
+                                <Copy className="w-4 h-4 mr-1" /> {txt.copyProposal}
+                              </Button>
                               <OpportunityJobLink
                                 url={item.job_url}
                                 platform={item.platform}
                                 title={item.job_title}
-                                label={language === 'tr' ? 'Şimdi başvur' : 'Apply Now'}
+                                label={txt.viewOriginal}
                                 className="ml-auto"
                               />
                             </div>

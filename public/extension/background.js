@@ -1,5 +1,6 @@
 /**
- * Sovereign extension service worker — click-only. No polling, no background scrape.
+ * Sovereign extension service worker — click-only scrape.
+ * Never injects into forms and never auto-submits proposals.
  */
 importScripts('config.js');
 
@@ -12,13 +13,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === 'SCRAPE_ACTIVE_TAB') {
     scrapeActiveTab()
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
-
-  if (request.type === 'INJECT_PROPOSAL') {
-    injectActiveTab(request.proposalText || '')
-      .then((ok) => sendResponse({ success: ok }))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;
   }
@@ -38,10 +32,13 @@ async function parseDomViaApi(apiBase, payload) {
   let lastError;
   for (const base of bases) {
     try {
-      const res = await fetch(`${base}/api/extension/parse-dom`, {
+      const res = await fetch(`${base}/api/extension/parse-dom?t=${Date.now()}`, {
         method: 'POST',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
           'x-extension-id': chrome.runtime.id || '',
         },
         body: JSON.stringify(payload || {}),
@@ -99,74 +96,4 @@ function extractPageContent() {
   const pageTitle = document.title || '';
   const pageUrl = window.location.href || '';
   return { pageText: pageText.slice(0, 80_000), pageTitle, pageUrl };
-}
-
-async function injectActiveTab(proposalText) {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
-  if (!tab?.id) throw new Error('No active tab found.');
-  if (isRestrictedUrl(tab.url)) {
-    throw new Error('Cannot inject into Chrome system pages.');
-  }
-
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: injectProposalToDOM,
-      args: [proposalText],
-    });
-    return Boolean(results?.[0]?.result);
-  } catch (err) {
-    const msg = err?.message || String(err);
-    if (/permission to access the respective host/i.test(msg)) {
-      throw new Error('Reload this unpacked extension so host permissions take effect, then try Auto-Fill again.');
-    }
-    throw err;
-  }
-}
-
-function injectProposalToDOM(proposalText) {
-  const isVisible = (el) => {
-    const r = el.getBoundingClientRect();
-    const style = window.getComputedStyle(el);
-    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none';
-  };
-
-  const selectors = [
-    'textarea[aria-labelledby*="cover-letter"]',
-    'textarea[aria-label*="cover letter" i]',
-    'textarea[placeholder*="cover" i]',
-    'textarea[name*="cover" i]',
-    'textarea.up-textarea',
-    'textarea[data-test="cover-letter"]',
-    '.msg-form__contenteditable',
-    'div.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][aria-label*="message" i]',
-    'div[contenteditable="true"][role="textbox"]',
-    'textarea',
-  ];
-
-  let field = null;
-  for (const selector of selectors) {
-    const found = [...document.querySelectorAll(selector)].find(isVisible);
-    if (found) {
-      field = found;
-      break;
-    }
-  }
-  if (!field) return false;
-
-  field.focus();
-  if (field.isContentEditable) {
-    field.textContent = proposalText;
-    field.dispatchEvent(new InputEvent('input', { bubbles: true, data: proposalText, inputType: 'insertText' }));
-  } else {
-    const proto = field.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-    if (setter) setter.call(field, proposalText);
-    else field.value = proposalText;
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-    field.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-  return true;
 }

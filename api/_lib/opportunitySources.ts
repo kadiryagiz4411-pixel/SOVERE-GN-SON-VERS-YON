@@ -160,11 +160,21 @@ function toIso(value: string | number | undefined): string {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
 }
 
+function withCacheBust(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('_t', String(Date.now()));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 async function fetchText(url: string, timeoutMs: number, headers: Record<string, string> = {}): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(withCacheBust(url), {
       method: 'GET',
       cache: 'no-store',
       redirect: 'follow',
@@ -172,7 +182,8 @@ async function fetchText(url: string, timeoutMs: number, headers: Record<string,
       headers: {
         'User-Agent': BROWSER_UA,
         Accept: 'application/rss+xml, application/xml, application/json, text/html;q=0.8, */*;q=0.5',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
         ...headers,
       },
     });

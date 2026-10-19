@@ -21,7 +21,7 @@ interface OpportunitiesScannerProps {
   platform: 'All' | OpportunityPlatform;
   onPlatformChange: (platform: 'All' | OpportunityPlatform) => void;
   scanning: boolean;
-  onScan: () => void;
+  onScan: () => void | Promise<void>;
   scanLabel: string;
   scanningLabel: string;
   creditLabel: string;
@@ -41,13 +41,13 @@ export function OpportunityJobLink({
   url,
   platform,
   title,
-  label,
+  label = 'View Original Job Post ↗',
   className,
 }: {
   url?: string | null;
   platform?: string;
   title?: string;
-  label: string;
+  label?: string;
   className?: string;
 }) {
   const href = resolveOpportunityHref(platform || 'Upwork', url, title);
@@ -57,12 +57,12 @@ export function OpportunityJobLink({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all',
+        'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-[0_0_0_1px_rgba(16,185,129,0.35)]',
         className,
       )}
       onClick={(event) => event.stopPropagation()}
     >
-      <ExternalLink className="w-3 h-3" />
+      <ExternalLink className="w-3.5 h-3.5" />
       {label}
     </a>
   );
@@ -82,7 +82,9 @@ export function OpportunitiesScanner({
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <Button
-        onClick={onScan}
+        onClick={() => {
+          void Promise.resolve(onScan()).catch(() => undefined);
+        }}
         disabled={scanning || disabled}
         className="bg-gradient-to-r from-amber-500 to-primary text-primary-foreground"
       >

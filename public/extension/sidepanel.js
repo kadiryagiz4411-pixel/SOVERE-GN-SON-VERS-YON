@@ -13,8 +13,8 @@ const painHeading = document.getElementById('painHeading');
 const bodyHeading = document.getElementById('bodyHeading');
 const proposalEl = document.getElementById('proposal');
 const analyzeBtn = document.getElementById('analyze');
-const autofillBtn = document.getElementById('autofill');
 const copyBtn = document.getElementById('copy');
+const viewJobLink = document.getElementById('viewJob');
 const saveCandidateBtn = document.getElementById('saveCandidate');
 const outreachBtn = document.getElementById('outreach');
 const actionsJob = document.getElementById('actionsJob');
@@ -24,6 +24,7 @@ const actionsB2b = document.getElementById('actionsB2b');
 let lastProposal = '';
 let lastOutreach = '';
 let lastCandidate = null;
+let lastJobUrl = '';
 let analyzing = false;
 
 function apiBase() {
@@ -39,7 +40,6 @@ function setBusy(on, message) {
   analyzing = on;
   analyzeBtn.disabled = on;
   copyBtn.disabled = on;
-  autofillBtn.disabled = on;
   saveCandidateBtn.disabled = on;
   outreachBtn.disabled = on;
   spinner.classList.toggle('on', on);
@@ -52,7 +52,6 @@ function showError(message) {
   analyzing = false;
   analyzeBtn.disabled = false;
   copyBtn.disabled = false;
-  autofillBtn.disabled = false;
   saveCandidateBtn.disabled = false;
   outreachBtn.disabled = false;
   statusEl.classList.add('err');
@@ -139,6 +138,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
     lastProposal = String(data.proposalText || '').trim();
     lastOutreach = '';
     lastCandidate = null;
+    lastJobUrl = String(data.url || pageUrl || '').trim();
     proposalEl.textContent = lastProposal || 'No proposal generated.';
   } else if (isB2b) {
     scoreHeading.textContent = 'Lead score';
@@ -149,6 +149,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
     lastOutreach = String(data.outreach || data.proposalText || '').trim();
     lastProposal = lastOutreach;
     lastCandidate = null;
+    lastJobUrl = '';
     const makers = Array.isArray(data.decisionMakers) && data.decisionMakers.length
       ? `\n\nDecision-makers: ${data.decisionMakers.join(', ')}`
       : '';
@@ -161,6 +162,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
     painEl.textContent = data.whyThisCandidate || data.painPoint || 'No rationale returned.';
     lastProposal = '';
     lastOutreach = '';
+    lastJobUrl = '';
     lastCandidate = {
       title: data.title,
       role: data.role,
@@ -182,7 +184,11 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   actionsCv.classList.toggle('hidden', !isCv);
   actionsB2b.classList.toggle('hidden', !isB2b);
   copyBtn.disabled = !isJob || !lastProposal;
-  autofillBtn.disabled = !isJob || !lastProposal;
+  if (viewJobLink) {
+    const href = /^https?:\/\//i.test(lastJobUrl) ? lastJobUrl : '#';
+    viewJobLink.href = href;
+    viewJobLink.classList.toggle('hidden', href === '#');
+  }
   saveCandidateBtn.disabled = !isCv;
   outreachBtn.disabled = !isB2b || !lastOutreach;
   card.classList.add('on');
@@ -271,10 +277,12 @@ async function postParseDom(pageData) {
 
   if (viaWorker?.success && viaWorker.data) return viaWorker.data;
 
-  const response = await fetch(`https://www.sovereignapp.pro${PARSE_DOM_PATH}`, {
+  const response = await fetch(`https://www.sovereignapp.pro${PARSE_DOM_PATH}?t=${Date.now()}`, {
     method: 'POST',
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
       'x-extension-id': chrome.runtime.id || '',
     },
     body: JSON.stringify(payload),
@@ -293,6 +301,7 @@ async function analyzeActivePage() {
   lastProposal = '';
   lastOutreach = '';
   lastCandidate = null;
+  lastJobUrl = '';
   setBusy(true, 'Reading the active tab…');
 
   try {
@@ -328,22 +337,7 @@ analyzeBtn.addEventListener('click', () => {
 copyBtn.addEventListener('click', async () => {
   if (!lastProposal) return;
   await copyText(lastProposal);
-  setBusy(false, 'Proposal copied to clipboard.');
-});
-
-autofillBtn.addEventListener('click', async () => {
-  if (!lastProposal) return;
-  setBusy(true, 'Injecting proposal into the active page…');
-  try {
-    const result = await chrome.runtime.sendMessage({
-      type: 'INJECT_PROPOSAL',
-      proposalText: lastProposal,
-    });
-    if (!result?.success) throw new Error(result?.error || 'No cover-letter field found on this page.');
-    setBusy(false, 'Proposal injected. Review it before sending.');
-  } catch (err) {
-    showError(err.message || String(err));
-  }
+  setBusy(false, 'Proposal copied. Paste it yourself on the original job post — Sovereign never auto-submits.');
 });
 
 saveCandidateBtn.addEventListener('click', async () => {
