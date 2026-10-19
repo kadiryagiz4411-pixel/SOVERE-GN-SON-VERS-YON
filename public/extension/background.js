@@ -34,30 +34,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   return false;
 });
 
-async function parseDomViaApi(apiBase, payload) {
-  const bases = [...new Set([canonicalizeApiBase(apiBase), API_BASE_URL])];
-  let lastError;
-  for (const base of bases) {
-    try {
-      const res = await fetch(`${base}/api/extension/parse-dom?t=${Date.now()}`, {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache',
-          'x-extension-id': chrome.runtime.id || '',
-        },
-        body: JSON.stringify(payload || {}),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
-      return data;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('Could not connect to Sovereign API.');
+async function parseDomViaApi(_apiBase, payload) {
+  const base = canonicalizeApiBase(API_BASE_URL);
+  const res = await fetch(`${base}/api/extension/parse-dom?t=${Date.now()}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      'x-extension-id': chrome.runtime.id || '',
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
+  return data;
 }
 
 function isRestrictedUrl(href) {

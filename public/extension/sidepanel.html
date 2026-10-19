@@ -13,39 +13,90 @@
         --gold-2: #f5d76e;
         --muted: #a8a29e;
         --text: #f5f5f4;
+        --danger: #fca5a5;
+        --ok: #6ee7b7;
       }
       * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
-        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
         font-family: Inter, system-ui, sans-serif;
-        background: radial-gradient(1200px 400px at 50% -80px, rgba(212, 175, 55, 0.12), transparent 55%), var(--bg);
+        background: radial-gradient(1100px 380px at 50% -90px, rgba(212, 175, 55, 0.14), transparent 55%), var(--bg);
         color: var(--text);
-        padding: 16px;
       }
-      .brand {
+      body[data-theme="oled"] {
+        --bg: #000000;
+        --card: #050505;
+        background: #000000;
+      }
+      .header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #09090B;
+        border-bottom: 1px solid var(--line);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(212, 175, 55, 0.08);
+        flex-shrink: 0;
       }
-      .brand img {
-        width: 28px;
-        height: 28px;
-        border-radius: 7px;
-        border: 1px solid var(--line);
+      body[data-theme="oled"] .header { background: #000; }
+      .logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #000;
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        box-shadow: 0 0 18px rgba(212, 175, 55, 0.45);
       }
-      .brand h1 {
-        font-size: 11px;
-        letter-spacing: .2em;
-        text-transform: uppercase;
-        color: var(--gold);
+      .header h1 {
         margin: 0;
+        font-size: 13px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--gold-2);
+        text-shadow: 0 0 18px rgba(212, 175, 55, 0.35);
       }
-      .brand p {
+      .header p {
         margin: 2px 0 0;
         font-size: 11px;
         color: var(--muted);
+      }
+      .api-badge {
+        margin-left: auto;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .api-badge.live { color: var(--ok); border-color: rgba(16, 185, 129, 0.4); background: rgba(6, 78, 59, 0.4); }
+      .api-badge.down { color: var(--danger); border-color: rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.35); }
+      .error-badge {
+        margin: 10px 16px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        color: var(--danger);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      main {
+        flex: 1;
+        overflow: auto;
+        padding: 14px 16px 18px;
+      }
+      .tab-view { display: none; }
+      .tab-view.on { display: block; }
+      button, select, input, textarea {
+        font-family: inherit;
       }
       button {
         border: 0;
@@ -54,20 +105,24 @@
         font-weight: 700;
         cursor: pointer;
         font-size: 13px;
-        font-family: inherit;
       }
       .primary {
         width: 100%;
         background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
+        box-shadow: 0 0 18px rgba(212, 175, 55, 0.22);
       }
       .primary:disabled, .ghost:disabled, .fill:disabled, .cv:disabled, .b2b:disabled { opacity: .5; cursor: default; }
-      a.fill {
+      a.fill, a.ghost {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         text-decoration: none;
         text-align: center;
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-weight: 700;
+        font-size: 13px;
       }
       .row {
         display: grid;
@@ -95,6 +150,11 @@
         background: #3f2a0a;
         color: #f5d76e;
         border: 1px solid rgba(212, 175, 55, 0.35);
+      }
+      .danger {
+        background: transparent;
+        color: var(--danger);
+        border: 1px solid rgba(239, 68, 68, 0.3);
       }
       #status { font-size: 12px; color: var(--muted); min-height: 18px; margin: 12px 0; }
       .spinner {
@@ -130,12 +190,7 @@
         padding: 5px 10px;
         margin-bottom: 12px;
       }
-      .score-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
+      .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
       .score {
         width: 58px;
         height: 58px;
@@ -179,52 +234,218 @@
         max-height: 220px;
         overflow: auto;
       }
-      .err { color: #fca5a5; }
+      .err { color: var(--danger); }
       .hidden { display: none !important; }
+      .empty {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        padding: 18px 14px;
+        text-align: center;
+      }
+      .list-item {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .list-item h3 {
+        margin: 0 0 4px;
+        font-size: 13px;
+      }
+      .list-item .when {
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .list-item p {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #e7e5e4;
+        white-space: pre-wrap;
+        max-height: 72px;
+        overflow: hidden;
+      }
+      .field { margin-bottom: 12px; }
+      .field label {
+        display: block;
+        font-size: 10px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 6px;
+      }
+      .field input, .field select, .field textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid #27272a;
+        background: #09090B;
+        color: var(--text);
+        padding: 10px 11px;
+        font-size: 13px;
+      }
+      .field textarea { min-height: 72px; resize: vertical; }
+      .hint { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
+      .theme-row, .plan-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .choice {
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--text);
+        text-align: left;
+      }
+      .choice.on {
+        border-color: var(--gold);
+        box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35);
+        color: var(--gold-2);
+      }
+      .choice small { display: block; color: var(--muted); font-weight: 500; margin-top: 4px; }
+      .nav {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+        border-top: 1px solid var(--line);
+        background: #09090B;
+        flex-shrink: 0;
+      }
+      body[data-theme="oled"] .nav { background: #000; }
+      .nav button {
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: .02em;
+        padding: 10px 4px 12px;
+        border-top: 2px solid transparent;
+      }
+      .nav button.on {
+        color: var(--gold-2);
+        border-top-color: var(--gold);
+        text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+      }
+      .nav span { display: block; font-size: 14px; margin-bottom: 2px; }
     </style>
   </head>
-  <body>
-    <div class="brand">
-      <img src="icons/icon48.png" alt="Sovereign" />
+  <body data-theme="obsidian">
+    <header class="header">
+      <img class="logo" src="assets/logo.png" alt="Sovereign" />
       <div>
-        <h1>Sovereign Intelligence</h1>
+        <h1>Sovereign</h1>
         <p>Zero-friction · reads the active tab</p>
       </div>
-    </div>
-    <button id="analyze" class="primary">Generate Proposal</button>
-    <div id="spinner" class="spinner"></div>
-    <p id="status">Opening this panel reads the active tab automatically.</p>
-    <div id="card" class="card">
-      <div id="modeBadge" class="mode-badge">⚡ Detected: Page</div>
-      <div class="score-row">
-        <div id="scoreRing" class="score" style="--p:0">
-          <span id="badge">—</span>
+      <div id="apiBadge" class="api-badge">API…</div>
+    </header>
+    <main>
+      <section id="tab-analyze" class="tab-view on">
+        <div id="errorBadge" class="error-badge hidden"></div>
+        <button id="analyze" class="primary" type="button">Generate Proposal</button>
+        <div id="spinner" class="spinner"></div>
+        <p id="status">Opening this panel reads the active tab automatically.</p>
+        <div id="card" class="card">
+          <div id="modeBadge" class="mode-badge">⚡ Detected: Page</div>
+          <div class="score-row">
+            <div id="scoreRing" class="score" style="--p:0">
+              <span id="badge">—</span>
+            </div>
+            <div>
+              <p id="title" class="title"></p>
+              <p id="meta" class="meta"></p>
+            </div>
+          </div>
+          <div class="k" id="scoreHeading">Score</div>
+          <p id="scoreLabel" class="pain"></p>
+          <div class="k" id="painHeading">Insight</div>
+          <p id="pain" class="pain"></p>
+          <div class="k" id="bodyHeading">Output</div>
+          <p id="proposal" class="proposal"></p>
+          <div id="actionsJob" class="row hidden">
+            <button id="copy" class="ghost" type="button">Copy Proposal</button>
+            <button id="autofill" class="fill" type="button">Auto-Fill</button>
+          </div>
+          <div id="actionsJobLink" class="row single hidden" style="margin-top:8px">
+            <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="#">View / Apply on Platform ↗</a>
+          </div>
+          <div id="actionsCv" class="row single hidden">
+            <button id="saveCandidate" class="cv" type="button">Save Candidate</button>
+          </div>
+          <div id="actionsB2b" class="row single hidden">
+            <button id="outreach" class="b2b" type="button">Copy Cold Outreach</button>
+          </div>
         </div>
-        <div>
-          <p id="title" class="title"></p>
-          <p id="meta" class="meta"></p>
+      </section>
+
+      <section id="tab-proposals" class="tab-view">
+        <p class="hint">Previously generated proposals stay on this device. One click copies them back to the clipboard.</p>
+        <div id="proposalList"></div>
+      </section>
+
+      <section id="tab-cvs" class="tab-view">
+        <p class="hint">Saved candidate evaluations and resume cards for instant matching.</p>
+        <div id="cvList"></div>
+      </section>
+
+      <section id="tab-settings" class="tab-view">
+        <div class="k">Profile Settings</div>
+        <p class="hint">These fields feed the Real Match Score Engine. Add at least two skills.</p>
+        <div class="field">
+          <label for="skills">Primary skills</label>
+          <textarea id="skills" placeholder="React, TypeScript, Supabase, Python"></textarea>
         </div>
-      </div>
-      <div class="k" id="scoreHeading">Score</div>
-      <p id="scoreLabel" class="pain"></p>
-      <div class="k" id="painHeading">Insight</div>
-      <p id="pain" class="pain"></p>
-      <div class="k" id="bodyHeading">Output</div>
-      <p id="proposal" class="proposal"></p>
-      <div id="actionsJob" class="row hidden">
-        <button id="copy" class="ghost" type="button">Copy Proposal</button>
-        <button id="autofill" class="fill" type="button">Auto-Fill</button>
-      </div>
-      <div id="actionsJobLink" class="row single hidden" style="margin-top:8px">
-        <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="#">View / Apply on Platform ↗</a>
-      </div>
-      <div id="actionsCv" class="row single hidden">
-        <button id="saveCandidate" class="cv" type="button">Save Candidate to Sovereign B2B</button>
-      </div>
-      <div id="actionsB2b" class="row single hidden">
-        <button id="outreach" class="b2b" type="button">Generate Cold Outreach</button>
-      </div>
-    </div>
+        <div class="row">
+          <div class="field">
+            <label for="hourlyRate">Hourly rate (USD)</label>
+            <input id="hourlyRate" type="number" min="0" step="1" placeholder="45" />
+          </div>
+          <div class="field">
+            <label for="fixedRate">Target fixed rate</label>
+            <input id="fixedRate" type="number" min="0" step="1" placeholder="2500" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="experience">Experience level</label>
+          <select id="experience">
+            <option value="junior">Junior</option>
+            <option value="mid" selected>Mid-level</option>
+            <option value="senior">Senior</option>
+            <option value="expert">Expert / Lead</option>
+          </select>
+        </div>
+        <button id="saveProfile" class="primary" type="button">Save Profile</button>
+        <p id="profileStatus" class="hint"></p>
+
+        <div class="k">Appearance &amp; Theme</div>
+        <div class="theme-row">
+          <button id="themeOled" class="choice" type="button" data-theme="oled">Pure OLED Dark<small>#000000</small></button>
+          <button id="themeObsidian" class="choice on" type="button" data-theme="obsidian">Sovereign Obsidian<small>#09090B + gold</small></button>
+        </div>
+
+        <div class="k">Billing &amp; Subscription</div>
+        <p class="hint">Membership is billed by LemonSqueezy (Merchant of Record). AppSumo lifetime deals follow AppSumo’s 60-day refund window.</p>
+        <div class="plan-row">
+          <button id="planPro" class="choice" type="button" data-plan="pro">Pro SaaS<small>Active subscription</small></button>
+          <button id="planLtd" class="choice" type="button" data-plan="appsumo">AppSumo LTD<small>Lifetime deal</small></button>
+        </div>
+        <div class="row single" style="margin-top:10px">
+          <a class="fill" href="https://www.sovereignapp.pro/settings/billing" target="_blank" rel="noopener noreferrer">Open Sovereign Billing ↗</a>
+        </div>
+        <p id="planStatus" class="hint">Membership: not set on this device.</p>
+
+        <div class="k">API Connection Status</div>
+        <p id="apiStatusDetail" class="hint">Checking https://www.sovereignapp.pro …</p>
+        <button id="pingApi" class="ghost" type="button">Ping API</button>
+      </section>
+    </main>
+    <nav class="nav" id="nav">
+      <button type="button" data-tab="analyze" class="on"><span>⚡</span>Analyze</button>
+      <button type="button" data-tab="proposals"><span>📝</span>Proposals</button>
+      <button type="button" data-tab="cvs"><span>📄</span>CVs</button>
+      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
+    </nav>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
   </body>
