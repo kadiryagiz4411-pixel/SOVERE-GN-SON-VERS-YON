@@ -2,7 +2,7 @@
  * POST /api/batch/evaluate
  * Server-side multi-CV evaluation. Returns OPENAI_KEY_MISSING instead of crashing.
  */
-import { preflight, json } from '../_lib/cors';
+import { preflight, json, readJsonBody } from '../_lib/cors';
 import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
 
 export const config = { maxDuration: 60 };
@@ -146,7 +146,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const body = await req.json() as { candidates?: Candidate[]; jobContext?: string; batchId?: string };
+    const body = await readJsonBody<{ candidates?: Candidate[]; jobContext?: string; batchId?: string }>(req);
     const candidates = Array.isArray(body.candidates) ? body.candidates : [];
     if (candidates.length === 0) {
       return json({ error: 'candidates array is required' }, 400);

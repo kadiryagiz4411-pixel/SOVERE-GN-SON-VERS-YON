@@ -5,6 +5,7 @@
  * Used inside CandidateGrid ordered from #1 to #N.
  */
 
+import { useState } from 'react';
 import { Star, MapPin, Briefcase, Mail, ExternalLink, Calendar, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -62,10 +63,18 @@ function scoreBg(score: number) {
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function CandidateAvatar({ name, photoUrl, size = 'md' }: { name: string; photoUrl?: string; size?: 'sm' | 'md' }) {
+  const [failed, setFailed] = useState(false);
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const s = size === 'md' ? 'w-12 h-12 text-base' : 'w-9 h-9 text-sm';
-  if (photoUrl) {
-    return <img src={photoUrl} alt={name} className={cn('rounded-full object-cover shrink-0', s)} />;
+  if (photoUrl && !failed) {
+    return (
+      <img
+        src={photoUrl}
+        alt={name}
+        className={cn('rounded-full object-cover shrink-0 bg-primary/10', s)}
+        onError={() => setFailed(true)}
+      />
+    );
   }
   return (
     <div className={cn('rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0', s)}>

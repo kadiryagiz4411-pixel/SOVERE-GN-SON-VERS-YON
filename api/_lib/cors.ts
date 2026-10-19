@@ -23,3 +23,7 @@ export function preflight(): Response {
     headers: getCorsHeaders(),
   });
 }
+
+export async function readJsonBody<T = Record<string, unknown>>(req: Request): Promise<T> {
+  return (await req.json().catch(() => ({}))) as T;
+}

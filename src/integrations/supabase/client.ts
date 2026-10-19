@@ -63,3 +63,11 @@ export const supabase = createClient<Database>(
 
 /** Anon key exposed for use in raw fetch() calls to Edge Functions. */
 export const supabaseAnonKey = SUPABASE_PUBLISHABLE_KEY;
+
+export function getSupabaseUrl(): string {
+  return SUPABASE_URL.replace(/\/$/, '');
+}
+
+export function getSupabaseAnonKey(): string {
+  return SUPABASE_PUBLISHABLE_KEY;
+}

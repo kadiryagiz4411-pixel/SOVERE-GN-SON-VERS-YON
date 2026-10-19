@@ -2,7 +2,7 @@
  * Talent Pool Semantic Vector Search Service
  * Wraps the b2b-talent-search edge function with client-side utilities.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseUrl, getSupabaseAnonKey } from "@/integrations/supabase/client";
 import type { CandidateEvaluation } from "@/services/b2bEvaluationEngine";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export async function searchTalentPool(params: {
 
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const supabaseUrl = getSupabaseUrl();
 
   console.log('[Auth Check]', { component: 'searchTalentPool', userId: sessionData.session?.user?.id, email: sessionData.session?.user?.email, hasSession: !!token });
 
@@ -63,11 +63,7 @@ export async function searchTalentPool(params: {
     throw new Error('Configuration error: VITE_SUPABASE_URL is not set.');
   }
 
-  const anonKey = String(
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-    ?? '',
-  );
+  const anonKey = getSupabaseAnonKey();
 
   console.log('[AI Engine Request]', { functionName: 'b2b-talent-search', hasKey: !!anonKey, orgId });
 

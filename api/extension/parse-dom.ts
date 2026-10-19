@@ -3,7 +3,7 @@
  * On-demand DOM analysis for the Sovereign Chrome side panel.
  * Vite/Vercel equivalent of app/api/extension/parse-dom/route.ts
  */
-import { preflight, json } from '../_lib/cors';
+import { preflight, json, readJsonBody } from '../_lib/cors';
 import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
 import { sanitizeAiText } from '../_lib/sanitize';
 
@@ -61,7 +61,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const body = await req.json() as {
+    const body = await readJsonBody<{
       pageText?: string;
       pageTitle?: string;
       pageUrl?: string;
@@ -69,7 +69,7 @@ export default async function handler(req: Request): Promise<Response> {
       text?: string;
       html?: string;
       sourceUrl?: string;
-    };
+    }>(req);
 
     const pageText = String(body.pageText || body.text || '').trim();
     const pageTitle = String(body.pageTitle || '').trim();

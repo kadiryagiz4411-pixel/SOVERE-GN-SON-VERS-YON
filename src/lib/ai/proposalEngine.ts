@@ -40,7 +40,35 @@ export async function evaluateJobsBatch(opts: RankJobsOptions): Promise<{ ranked
   if (jobs.length === 0) return { rankedJobs: [] };
 
   const key = getActiveApiKey() || getOpenAIApiKey();
-  if (!isOpenAIApiKeyConfigured(key)) throw new Error('OPENAI_KEY_MISSING: OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.');
+  if (!isOpenAIApiKeyConfigured(key)) {
+    const rankedJobs = jobs
+      .map((j) => ({
+        job: j,
+        score: heuristicJobScore(j, profile),
+        why: sanitizeAiText(`${j.title} lines up with ${profile.skills.slice(0, 3).join(', ') || 'your core skills'}.`),
+        fits: j.skills.slice(0, 3),
+        gaps: [] as string[],
+        rec: 'Worth a Look' as const,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((item, rank) => {
+        const ranked: RankedJob = {
+          ...item.job,
+          id: crypto.randomUUID(),
+          batchId: opts.batchId ?? '',
+          rankPosition: rank + 1,
+          compatibilityScore: item.score,
+          whyApply: item.why,
+          keyFits: item.fits,
+          gaps: item.gaps,
+          recommendation: item.rec,
+        };
+        onItem?.(ranked);
+        return ranked;
+      });
+    onProgress?.(1, rankedJobs.length, jobs.length);
+    return { rankedJobs };
+  }
   const bankLine = opts.userId
     ? memoryBankToPrompt(await fetchMemoryBank(opts.userId).catch(() => []))
     : '';
@@ -191,7 +219,7 @@ export async function persistJobBatch(opts: {
   if (error || !batch) throw new Error(error?.message || 'Failed to save job batch');
   const batchId = batch.id as string;
 
-  await supabase.from('job_proposals').insert(
+  const { error: jobErr } = await supabase.from('job_proposals').insert(
     opts.rankedJobs.map(j => ({
       batch_id: batchId,
       user_id: opts.userId,
@@ -205,6 +233,7 @@ export async function persistJobBatch(opts: {
       raw_data: { skills: j.skills, painPoint: j.painPoint, summary: j.summary },
     })),
   );
+  if (jobErr) console.warn('[ProposalEngine] job_proposals insert failed:', jobErr.message);
 
   void logActivity({
     userId: opts.userId,

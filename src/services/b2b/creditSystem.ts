@@ -2,7 +2,7 @@
  * B2B Pay-As-You-Go Credit System
  * Manages org-level credit balances, transactions, and package catalog.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseUrl, getSupabaseAnonKey } from "@/integrations/supabase/client";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -145,18 +145,14 @@ export function estimateEvaluationsRemaining(balance: number): number {
 export async function triggerEmbedding(evaluationId: string): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const supabaseUrl = getSupabaseUrl();
 
   if (!token || !supabaseUrl) {
     console.warn('[Auth Check] triggerEmbedding: missing token or supabaseUrl — skipping embedding.');
     return; // Non-blocking: don't break the evaluation UX
   }
 
-  const anonKey = String(
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-    ?? '',
-  );
+  const anonKey = getSupabaseAnonKey();
 
   console.log('[AI Engine Request]', { functionName: 'b2b-embed-candidate', hasKey: !!anonKey });
 

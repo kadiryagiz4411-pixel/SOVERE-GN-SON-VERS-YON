@@ -318,7 +318,10 @@ export async function persistBatchResults(opts: PersistBatchOptions): Promise<Pe
     recommendation:     c.recommendation,
   }));
 
-  await supabase.from('batch_evaluations').insert(evalRows);
+  const { error: evalErr } = await supabase.from('batch_evaluations').insert(evalRows);
+  if (evalErr) {
+    console.warn('[Evaluator] batch_evaluations insert failed:', evalErr.message);
+  }
 
   return { batchId };
 }

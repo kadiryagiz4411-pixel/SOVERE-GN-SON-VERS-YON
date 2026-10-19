@@ -4,7 +4,7 @@
  * Verifies the raw request body with HMAC-SHA256 (X-Signature).
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { json } from '../_lib/cors';
+import { json, preflight } from '../_lib/cors';
 import { env, firstEnv } from '../_lib/env';
 import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy';
 
@@ -83,6 +83,7 @@ async function updateProfile(base: string, key: string, userId: string, patch: R
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
@@ -99,8 +100,13 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: 'Webhook secret is not configured' }, 500);
     }
 
-    const payload = JSON.parse(rawBody) as Record<string, unknown>;
-    const supabaseUrl = firstEnv('SUPABASE_URL', 'VITE_SUPABASE_URL').replace(/\/$/, '');
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'Invalid JSON' }, 400);
+    }
+    const supabaseUrl = firstEnv('SUPABASE_URL', 'VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
     const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !serviceKey) return json({ error: 'Supabase admin is not configured' }, 500);
 

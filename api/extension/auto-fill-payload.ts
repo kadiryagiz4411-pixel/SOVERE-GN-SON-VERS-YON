@@ -1,7 +1,7 @@
 /**
  * POST /api/extension/auto-fill-payload
  */
-import { preflight, json } from '../_lib/cors';
+import { preflight, json, readJsonBody } from '../_lib/cors';
 
 export const config = { runtime: 'edge' };
 
@@ -35,7 +35,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const body = await req.json() as {
+    const body = await readJsonBody<{
       actionType?: ActionType;
       sourceUrl?: string;
       recipientName?: string;
@@ -44,7 +44,7 @@ export default async function handler(req: Request): Promise<Response> {
       skills?: string[];
       calendlyUrl?: string;
       draft?: string;
-    };
+    }>(req);
 
     const actionType = body.actionType || inferAction(body.sourceUrl);
     const name = body.recipientName || 'there';

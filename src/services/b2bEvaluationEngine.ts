@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseUrl, getSupabaseAnonKey } from "@/integrations/supabase/client";
 
 // ─── Type Definitions ────────────────────────────────────────────────────────
 
@@ -240,17 +240,12 @@ export async function triggerAIEvaluation(params: {
     throw new Error('Lütfen devam etmek için giriş yapın. (Auth token missing — please sign in again.)');
   }
 
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const supabaseUrl = getSupabaseUrl();
   if (!supabaseUrl) {
     throw new Error('Configuration error: VITE_SUPABASE_URL is not set.');
   }
 
-  // Resolve the anon key — accept both naming conventions.
-  const anonKey = String(
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-    ?? '',
-  );
+  const anonKey = getSupabaseAnonKey();
 
   console.log('[AI Engine Request]', { functionName: 'b2b-evaluate-cv', hasKey: !!anonKey, orgId: params.orgId });
 

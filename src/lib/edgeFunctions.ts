@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getSupabaseUrl, getSupabaseAnonKey } from '@/integrations/supabase/client';
 import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 /**
@@ -19,15 +19,11 @@ export interface EdgeInvokeResult<T> {
 }
 
 function functionsBaseUrl(): string {
-  return String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '');
+  return getSupabaseUrl();
 }
 
 function anonKey(): string {
-  return String(
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-    ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-    ?? '',
-  );
+  return getSupabaseAnonKey();
 }
 
 export async function invokeEdgeJson<T>(
