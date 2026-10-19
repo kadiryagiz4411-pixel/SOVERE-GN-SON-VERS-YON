@@ -29,6 +29,11 @@ function canonicalizeApiBase(raw) {
   }
 }
 
+function isRestrictedUrl(href) {
+  return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
+    || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
+}
+
 chrome.storage.sync.get(['sovereign_api'], (stored) => {
   const next = canonicalizeApiBase(
     stored.sovereign_api || localStorage.getItem('sovereign_api') || API_BASE_URL,
@@ -77,6 +82,73 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   setBusy(false, isJob ? 'Job analysis ready.' : 'Candidate profile parsed.');
 }
 
+function extractPageContent() {
+  const pageText = document.body?.innerText || '';
+  const pageTitle = document.title || '';
+  const pageUrl = window.location.href || '';
+  return { pageText: pageText.slice(0, 80_000), pageTitle, pageUrl };
+}
+
+async function getActiveTabDOM() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
+  if (!tab || !tab.id) throw new Error('No active tab found.');
+  if (isRestrictedUrl(tab.url)) {
+    throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
+  }
+
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractPageContent,
+    });
+    if (!results || !results[0] || !results[0].result) {
+      throw new Error('Failed to extract page content.');
+    }
+    return results[0].result;
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/permission to access the respective host|Cannot access contents|Cannot access a chrome/i.test(msg)) {
+      const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
+      if (scraped?.success && scraped.data) return scraped.data;
+    }
+    throw err;
+  }
+}
+
+async function postParseDom(apiBase, pageData) {
+  const payload = {
+    pageText: pageData.pageText,
+    pageTitle: pageData.pageTitle,
+    pageUrl: pageData.pageUrl,
+    text: pageData.pageText,
+    sourceUrl: pageData.pageUrl,
+  };
+
+  const viaWorker = await chrome.runtime.sendMessage({
+    type: 'PARSE_DOM',
+    apiBase,
+    payload,
+  }).catch(() => null);
+
+  if (viaWorker?.success && viaWorker.data) return viaWorker.data;
+
+  const response = await fetch(`${apiBase}${PARSE_DOM_PATH}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-extension-id': chrome.runtime.id || '',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || data.error || viaWorker?.error || `Server returned ${response.status}`);
+  }
+  return data;
+}
+
 analyzeBtn.addEventListener('click', async () => {
   const apiBase = canonicalizeApiBase(apiInput.value || API_BASE_URL);
   apiInput.value = apiBase;
@@ -87,46 +159,23 @@ analyzeBtn.addEventListener('click', async () => {
   setBusy(true, 'Reading active tab and analyzing with Sovereign AI...');
 
   try {
-    const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
-    if (!scraped?.success) throw new Error(scraped?.error || 'Could not scrape this tab.');
-
-    const { pageText, pageTitle, pageUrl } = scraped.data || {};
-    if (!pageText || String(pageText).trim().length < 50) {
+    const pageData = await getActiveTabDOM();
+    const pageText = String(pageData.pageText || '').trim();
+    if (pageText.length < 50) {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
-    const payload = { pageText, pageTitle, pageUrl, text: pageText, sourceUrl: pageUrl };
-    const viaWorker = await chrome.runtime.sendMessage({
-      type: 'PARSE_DOM',
-      apiBase,
-      payload,
-    });
-
-    if (viaWorker?.success && viaWorker.data) {
-      renderAnalysisResults(viaWorker.data, pageTitle, pageUrl);
-      return;
-    }
-
-    const response = await fetch(`${apiBase}${PARSE_DOM_PATH}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-extension-id': chrome.runtime.id || '',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || err.error || viaWorker?.error || `Server Error ${response.status}`);
-    }
-
-    renderAnalysisResults(await response.json(), pageTitle, pageUrl);
+    const data = await postParseDom(apiBase, pageData);
+    renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
-    console.error('Extension Fetch Error:', err);
+    console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
     if (/Failed to fetch|NetworkError|redirect|CORS|preflight/i.test(msg)) {
       showError('Could not connect to Sovereign API. Ensure Vercel production is live and reachable.');
+      return;
+    }
+    if (/permission to access the respective host/i.test(msg)) {
+      showError('Reload this unpacked extension so the new host permissions take effect, then click Analyze again.');
       return;
     }
     showError(msg);

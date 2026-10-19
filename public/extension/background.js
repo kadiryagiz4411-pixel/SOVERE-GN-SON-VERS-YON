@@ -69,19 +69,33 @@ async function parseDomViaApi(apiBase, payload) {
   throw lastError || new Error('Could not connect to Sovereign API.');
 }
 
+function isRestrictedUrl(href) {
+  return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
+    || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
+}
+
 async function scrapeActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) throw new Error('No active tab');
-  const href = tab.url || '';
-  if (/^(chrome|edge|about|chrome-extension):/i.test(href)) {
-    throw new Error('Open an Upwork or LinkedIn tab, then click Analyze.');
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
+  if (!tab?.id) throw new Error('No active tab found.');
+  if (isRestrictedUrl(tab.url)) {
+    throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
   }
 
-  const [{ result }] = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: extractPageContent,
-  });
-  return result;
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractPageContent,
+    });
+    if (!results?.[0]?.result) throw new Error('Failed to extract page content.');
+    return results[0].result;
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/permission to access the respective host/i.test(msg)) {
+      throw new Error('Reload this unpacked extension so host permissions take effect, then click Analyze again.');
+    }
+    throw err;
+  }
 }
 
 function extractPageContent() {
@@ -92,15 +106,27 @@ function extractPageContent() {
 }
 
 async function injectActiveTab(proposalText) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) throw new Error('No active tab');
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
+  if (!tab?.id) throw new Error('No active tab found.');
+  if (isRestrictedUrl(tab.url)) {
+    throw new Error('Cannot inject into Chrome system pages.');
+  }
 
-  const [{ result }] = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: injectProposalToDOM,
-    args: [proposalText],
-  });
-  return Boolean(result);
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: injectProposalToDOM,
+      args: [proposalText],
+    });
+    return Boolean(results?.[0]?.result);
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/permission to access the respective host/i.test(msg)) {
+      throw new Error('Reload this unpacked extension so host permissions take effect, then try Auto-Fill again.');
+    }
+    throw err;
+  }
 }
 
 function injectProposalToDOM(proposalText) {
