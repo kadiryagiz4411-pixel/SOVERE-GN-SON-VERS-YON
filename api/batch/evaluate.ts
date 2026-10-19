@@ -3,7 +3,7 @@
  * Server-side multi-CV evaluation. Returns OPENAI_KEY_MISSING instead of crashing.
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
-import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { getOpenAIClient, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
 
 export const config = { maxDuration: 60 };
 
@@ -140,9 +140,14 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const apiKey = getOpenAIApiKey();
-  if (!isOpenAIApiKeyConfigured(apiKey)) {
-    return json(OPENAI_KEY_MISSING_PAYLOAD, 500);
+  let apiKey = '';
+  try {
+    apiKey = getOpenAIClient().apiKey;
+  } catch (err) {
+    return json({
+      ...OPENAI_KEY_MISSING_PAYLOAD,
+      message: err instanceof Error ? err.message : OPENAI_KEY_MISSING_PAYLOAD.message,
+    }, 500);
   }
 
   try {

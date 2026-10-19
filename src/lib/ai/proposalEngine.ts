@@ -9,6 +9,7 @@ import {
 } from '@/lib/schemas/job';
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
 import { getOpenAIApiKey, isOpenAIApiKeyConfigured } from '@/lib/ai/openai';
+import { scoreOpportunity } from '@/lib/matchScore';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText, sanitizeList } from '@/lib/ai/sanitizer';
 import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
@@ -194,9 +195,13 @@ Bio: ${(profile.bio || '').slice(0, 300)}`,
 }
 
 function heuristicJobScore(job: JobPosting, profile: SkillProfile): number {
-  const profileSet = new Set(profile.skills.map(s => s.toLowerCase()));
-  const hits = job.skills.filter(s => profileSet.has(s.toLowerCase())).length;
-  return Math.min(92, 35 + hits * 12 + (job.budget ? 5 : 0));
+  return scoreOpportunity(
+    { skills: profile.skills, experience: profile.experience, profession: profile.name },
+    job.title,
+    `${job.summary || ''} ${(job.skills || []).join(' ')}`,
+    job.budget,
+    job.skills,
+  ).matchScore;
 }
 
 export async function persistJobBatch(opts: {

@@ -41,7 +41,7 @@ export function OpportunityJobLink({
   url,
   platform,
   title,
-  label = 'View Original Job Post ↗',
+  label = 'View / Apply on Platform ↗',
   className,
 }: {
   url?: string | null;

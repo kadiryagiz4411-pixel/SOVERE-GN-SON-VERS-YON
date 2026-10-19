@@ -1,5 +1,6 @@
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
-import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { getOpenAIClient, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
 
 export const config = { runtime: 'edge', maxDuration: 30 };
@@ -104,6 +105,10 @@ export default async function handler(req: Request): Promise<Response> {
       pageUrl?: string;
       text?: string;
       sourceUrl?: string;
+      skills?: string[];
+      experience?: string;
+      profession?: string;
+      hourlyRate?: number;
     }>(req);
 
     const pageText = String(body.pageText || body.text || '').trim();
@@ -116,13 +121,29 @@ export default async function handler(req: Request): Promise<Response> {
 
     const detectedMode = detectMode(pageUrl, pageTitle, pageText);
     const label = platformLabel(pageUrl, detectedMode);
-    const apiKey = getOpenAIApiKey();
     const context = `Title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`;
+    const match = scoreOpportunity(
+      {
+        skills: Array.isArray(body.skills) ? body.skills : [],
+        experience: body.experience,
+        profession: body.profession,
+        hourlyRate: body.hourlyRate,
+      },
+      pageTitle,
+      pageText,
+    );
+    let apiKey = '';
+    try {
+      apiKey = getOpenAIClient().apiKey;
+    } catch (err) {
+      return json({
+        ...OPENAI_KEY_MISSING_PAYLOAD,
+        detectedMode,
+        message: err instanceof Error ? err.message : OPENAI_KEY_MISSING_PAYLOAD.message,
+      }, 500);
+    }
 
     if (detectedMode === 'JOB_PROPOSAL') {
-      if (!isOpenAIApiKeyConfigured(apiKey)) {
-        return json({ ...OPENAI_KEY_MISSING_PAYLOAD, detectedMode }, 500);
-      }
       const parsed = await completeJson(
         apiKey,
         'You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and write a 3-sentence direct, human-toned cover letter. No generic AI filler. Return JSON: proposal, painPoint, score (0-100), title.',
@@ -130,7 +151,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
       const proposalText = sanitizeAiText(String(parsed.proposal || parsed.coverLetter || ''));
       const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
-      const score = Math.max(0, Math.min(100, Number(parsed.score ?? 88)));
+      const score = match.complete ? match.matchScore : 0;
       const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
       return json({
         success: true,
@@ -142,16 +163,16 @@ export default async function handler(req: Request): Promise<Response> {
         url: pageUrl,
         painPoint,
         compatibilityScore: score,
-        overallScore: score,
+        overallScore: match.complete ? match.acceptanceScore : 0,
+        onboardingRequired: !match.complete,
+        matchMessage: match.message,
+        matchedSkills: match.matchedSkills,
         proposalText,
         summary: painPoint,
       });
     }
 
     if (detectedMode === 'B2B_COMMAND') {
-      if (!isOpenAIApiKeyConfigured(apiKey)) {
-        return json({ ...OPENAI_KEY_MISSING_PAYLOAD, detectedMode }, 500);
-      }
       const parsed = await completeJson(
         apiKey,
         'You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).',
@@ -159,7 +180,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
       const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
       const outreach = sanitizeAiText(String(parsed.outreach || ''));
-      const score = Math.max(0, Math.min(100, Number(parsed.score ?? 72)));
+      const score = match.complete ? match.matchScore : Math.max(0, Math.min(100, Number(parsed.score ?? 0)));
       return json({
         success: true,
         detectedMode,
@@ -181,12 +202,12 @@ export default async function handler(req: Request): Promise<Response> {
 
     let summary = 'Candidate parsed from the active tab.';
     let whyThisCandidate = '';
-    let overallScore = 70;
+    let overallScore = match.complete ? match.matchScore : 0;
     let title = pageTitle || 'Candidate';
     let role = '';
     let pros: string[] = [];
     let cons: string[] = [];
-    if (isOpenAIApiKeyConfigured(apiKey)) {
+    if (apiKey) {
       const parsed = await completeJson(
         apiKey,
         'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',

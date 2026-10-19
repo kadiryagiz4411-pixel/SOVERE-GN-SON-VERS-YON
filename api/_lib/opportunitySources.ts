@@ -29,8 +29,13 @@ export function parseKeywords(raw?: string): string[] {
     .split(/[,|/]+/)
     .map((s) => s.trim())
     .filter((s) => s.length >= 2)
-    .slice(0, 6);
-  return [...new Set([...extra, ...DEFAULT_KEYWORDS])].slice(0, 8);
+    .slice(0, 12);
+  return [...new Set(extra)];
+}
+
+export function searchKeywords(raw?: string): string[] {
+  const parsed = parseKeywords(raw);
+  return parsed.length ? parsed : DEFAULT_KEYWORDS;
 }
 
 export function detectPlatform(url: string, fallback?: string): OpportunityPlatform {
@@ -147,8 +152,10 @@ function extractSkills(text: string, keywords: string[]): string[] {
 
 export function scoreAgainstKeywords(title: string, description: string, keywords: string[]): number {
   const hay = `${title} ${description}`.toLowerCase();
-  const hits = keywords.filter((k) => hay.includes(k.toLowerCase())).length;
-  return Math.max(52, Math.min(96, 54 + hits * 8));
+  const unique = [...new Set(keywords.map((k) => k.trim()).filter((k) => k.length >= 2))];
+  if (!unique.length) return 0;
+  const hits = unique.filter((k) => hay.includes(k.toLowerCase())).length;
+  return Math.max(0, Math.min(100, Math.round((hits / unique.length) * 100)));
 }
 
 function toIso(value: string | number | undefined): string {
@@ -419,9 +426,10 @@ export async function collectLiveOpportunities(
 
   const tasks: Array<Promise<void>> = [];
   const bucket: OpportunityItem[] = [];
+  const query = keywords.length ? keywords : searchKeywords('');
 
   if (want('Upwork')) {
-    tasks.push(fetchUpwork(keywords).then((rows) => {
+    tasks.push(fetchUpwork(query).then((rows) => {
       sources.Upwork = { ok: true, count: rows.length };
       bucket.push(...rows);
     }).catch((err: unknown) => {
@@ -429,7 +437,7 @@ export async function collectLiveOpportunities(
     }));
   }
   if (want('Freelancer')) {
-    tasks.push(fetchFreelancer(keywords).then((rows) => {
+    tasks.push(fetchFreelancer(query).then((rows) => {
       sources.Freelancer = { ok: true, count: rows.length };
       bucket.push(...rows);
     }).catch((err: unknown) => {
@@ -437,7 +445,7 @@ export async function collectLiveOpportunities(
     }));
   }
   if (want('LinkedIn')) {
-    tasks.push(fetchLinkedIn(keywords).then((rows) => {
+    tasks.push(fetchLinkedIn(query).then((rows) => {
       sources.LinkedIn = { ok: true, count: rows.length };
       bucket.push(...rows);
     }).catch((err: unknown) => {

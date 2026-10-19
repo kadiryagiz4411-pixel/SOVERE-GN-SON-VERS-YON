@@ -28,32 +28,50 @@ function readEnvValue(key: string): string {
 
 let missingKeyLogged = false;
 
+function cleanKey(value: string): string {
+  return String(value || '')
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .replace(/^['"]|['"]$/g, '')
+    .trim();
+}
+
 export function getOpenAIApiKey(): string {
-  const key =
+  const key = cleanKey(
     readEnvValue('OPENAI_API_KEY') ||
     readEnvValue('VITE_OPENAI_API_KEY') ||
     readEnvValue('NEXT_PUBLIC_OPENAI_API_KEY') ||
-    '';
+    readEnvValue('OPENAI_SECRET_KEY') ||
+    '',
+  );
 
   if (!key && !missingKeyLogged) {
     missingKeyLogged = true;
-    console.error(
-      'CRITICAL ERROR: OpenAI API Key is missing across all runtime environments (OPENAI_API_KEY, VITE_OPENAI_API_KEY, NEXT_PUBLIC_OPENAI_API_KEY).',
+    console.warn(
+      'OPENAI_API_KEY is missing. Using fallback mock mode or throwing a descriptive server error.',
     );
   }
 
-  return key;
+  return key === OPENAI_DUMMY_KEY ? '' : key;
 }
 
 export function isOpenAIApiKeyConfigured(key = getOpenAIApiKey()): boolean {
-  return Boolean(key) && key !== OPENAI_DUMMY_KEY;
+  return Boolean(key) && key !== OPENAI_DUMMY_KEY && key.length > 10;
 }
 
 export const OPENAI_KEY_MISSING_PAYLOAD = {
   error: 'OPENAI_KEY_MISSING',
   message:
-    'OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.',
+    'OPENAI_API_KEY is not configured in environment variables. Please check Vercel Settings -> Environment Variables.',
 } as const;
+
+export function getOpenAIClient(): OpenAI {
+  const apiKey = getOpenAIApiKey();
+  if (!isOpenAIApiKeyConfigured(apiKey)) {
+    throw new Error(OPENAI_KEY_MISSING_PAYLOAD.message);
+  }
+  return new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+}
 
 export type ChatCompletionParams = {
   model: string;

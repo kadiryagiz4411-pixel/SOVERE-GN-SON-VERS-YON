@@ -1,4 +1,5 @@
 import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors.js';
+import { scoreOpportunity, type MatchProfile } from './_lib/matchScore.js';
 import {
   collectLiveOpportunities,
   dedupeOpportunities,
@@ -35,6 +36,7 @@ export default async function handler(req: Request): Promise<Response> {
     const keywords = parseKeywords(url.searchParams.get('q') || url.searchParams.get('query') || '');
     const platform = platformParam(url.searchParams.get('platform'));
     const ingested: OpportunityItem[] = [];
+    let profile: MatchProfile = { skills: keywords };
 
     if (req.method === 'POST') {
       const body = await readJsonBody<{
@@ -45,16 +47,35 @@ export default async function handler(req: Request): Promise<Response> {
         platform?: string;
         q?: string;
         query?: string;
+        skills?: string[];
+        profile?: MatchProfile;
       }>(req);
       const extra = parseKeywords(body.q || body.query || '');
-      ingested.push(...fromExtensionPayload(body, extra.length ? extra : keywords));
+      const skillList = Array.isArray(body.skills) ? body.skills : extra;
+      profile = {
+        skills: [...(body.profile?.skills || skillList || keywords)],
+        experience: body.profile?.experience,
+        profession: body.profile?.profession,
+        hourlyRate: body.profile?.hourlyRate,
+      };
+      ingested.push(...fromExtensionPayload(body, profile.skills.length ? profile.skills : extra));
     }
 
-    const live = await collectLiveOpportunities(keywords, platform);
+    const live = await collectLiveOpportunities(profile.skills.length ? profile.skills : keywords, platform);
     const items = dedupeOpportunities([...ingested, ...live.items]);
     const filtered = (platform !== 'All'
       ? items.filter((item) => item.platform === platform)
-      : items).map(withValidUrl);
+      : items).map(withValidUrl).map((item) => {
+      const scored = scoreOpportunity(profile, item.title, item.description, item.budget, item.skills);
+      return {
+        ...item,
+        compatibilityScore: scored.complete ? scored.matchScore : 0,
+        acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
+        skills: scored.matchedSkills.length ? scored.matchedSkills : item.skills,
+        onboardingRequired: !scored.complete,
+        matchMessage: scored.message,
+      };
+    });
 
     return jsonNoStore({
       success: true,
@@ -63,6 +84,7 @@ export default async function handler(req: Request): Promise<Response> {
       items: filtered,
       opportunities: filtered,
       sources: live.sources,
+      onboardingRequired: filtered.some((item) => item.onboardingRequired),
     });
   } catch (err: unknown) {
     console.error('Opportunities scan error:', err);
