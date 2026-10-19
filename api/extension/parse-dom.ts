@@ -1,24 +1,55 @@
-/**
- * POST /api/extension/parse-dom
- * On-demand DOM analysis for the Sovereign Chrome side panel.
- * Vite/Vercel equivalent of app/api/extension/parse-dom/route.ts
- */
 import { preflight, json, readJsonBody } from '../_lib/cors';
 import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
 import { sanitizeAiText } from '../_lib/sanitize';
 
 export const config = { runtime: 'edge', maxDuration: 30 };
 
-const RESUME_PATTERN =
-  /curriculum vitae|\bcv\b|work experience|professional experience|education|skills|languages|summary|references|certifications|linkedin\.com\/in/gi;
-const JOB_PATTERN =
-  /job description|responsibilities|qualifications|requirements|budget|hourly rate|fixed[- ]price|project scope|we are (?:looking|seeking|hiring)|apply now|must have|nice to have/gi;
+export type DetectedMode = 'JOB_PROPOSAL' | 'CV_EVALUATION' | 'B2B_COMMAND';
 
-function detectFileIntent(text: string): 'CANDIDATE_POOL' | 'JOB_POSTINGS' {
-  const sample = text.slice(0, 20_000);
-  const resumeHits = (sample.match(RESUME_PATTERN) || []).length;
+const JOB_PATTERN =
+  /job description|responsibilities|qualifications|requirements|budget|hourly rate|fixed[- ]price|project scope|we are (?:looking|seeking|hiring)|apply now|must have|nice to have|cover letter|proposals? bid|buyer request/gi;
+const RESUME_PATTERN =
+  /curriculum vitae|\bcv\b|work experience|professional experience|education|skills|languages|summary|references|certifications|linkedin\.com\/in|i am a |years of experience/gi;
+const B2B_PATTERN =
+  /about (?:us|the company)|our mission|enterprise|b2b|request a demo|book a demo|decision maker|series [a-d]|headquarters|fortune 500|saas platform|for teams|pricing plans|customers include/gi;
+
+function platformLabel(url: string, mode: DetectedMode): string {
+  const u = url.toLowerCase();
+  if (u.includes('upwork.com')) return mode === 'JOB_PROPOSAL' ? 'Upwork Job Post' : 'Upwork Page';
+  if (u.includes('fiverr.com')) return mode === 'JOB_PROPOSAL' ? 'Fiverr Brief' : 'Fiverr Page';
+  if (u.includes('freelancer.com')) return mode === 'JOB_PROPOSAL' ? 'Freelancer Project' : 'Freelancer Page';
+  if (u.includes('linkedin.com/in')) return 'LinkedIn Profile';
+  if (u.includes('linkedin.com/jobs')) return 'LinkedIn Job Post';
+  if (u.includes('linkedin.com/company')) return 'LinkedIn Company';
+  if (mode === 'CV_EVALUATION') return 'Candidate Profile';
+  if (mode === 'B2B_COMMAND') return 'B2B / Company Page';
+  return 'Job Post';
+}
+
+export function detectMode(pageUrl: string, pageTitle: string, pageText: string): DetectedMode {
+  const url = pageUrl.toLowerCase();
+  const title = pageTitle.toLowerCase();
+  const sample = `${title}\n${pageText}`.slice(0, 20_000);
+
+  if (/upwork\.com\/(jobs|nx\/search\/jobs|ab\/proposals)/i.test(url)
+    || /fiverr\.com\/.*(request|brief|buyer)/i.test(url)
+    || /freelancer\.com\/projects/i.test(url)
+    || /linkedin\.com\/jobs/i.test(url)) {
+    return 'JOB_PROPOSAL';
+  }
+  if (/linkedin\.com\/in\//i.test(url) || /\/resume|\/cv\b/i.test(url)) {
+    return 'CV_EVALUATION';
+  }
+  if (/linkedin\.com\/company|crunchbase\.com|\/about(?:-us)?\/?$/i.test(url)) {
+    return 'B2B_COMMAND';
+  }
+
   const jobHits = (sample.match(JOB_PATTERN) || []).length;
-  return resumeHits >= jobHits ? 'CANDIDATE_POOL' : 'JOB_POSTINGS';
+  const resumeHits = (sample.match(RESUME_PATTERN) || []).length;
+  const b2bHits = (sample.match(B2B_PATTERN) || []).length;
+  if (b2bHits > jobHits && b2bHits >= resumeHits && b2bHits >= 2) return 'B2B_COMMAND';
+  if (resumeHits > jobHits) return 'CV_EVALUATION';
+  return 'JOB_PROPOSAL';
 }
 
 function parseJsonObject(raw: string): Record<string, unknown> {
@@ -56,6 +87,12 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
   return parseJsonObject(data.choices?.[0]?.message?.content || '{}');
 }
 
+function listField(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => sanitizeAiText(String(item))).filter(Boolean).slice(0, 6);
+  if (typeof value === 'string' && value.trim()) return [sanitizeAiText(value)];
+  return [];
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -65,9 +102,7 @@ export default async function handler(req: Request): Promise<Response> {
       pageText?: string;
       pageTitle?: string;
       pageUrl?: string;
-      userId?: string;
       text?: string;
-      html?: string;
       sourceUrl?: string;
     }>(req);
 
@@ -79,68 +114,110 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: 'Page content is too short to analyze.' }, 400);
     }
 
-    const intent = detectFileIntent(pageText);
+    const detectedMode = detectMode(pageUrl, pageTitle, pageText);
+    const label = platformLabel(pageUrl, detectedMode);
     const apiKey = getOpenAIApiKey();
+    const context = `Title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`;
 
-    if (intent === 'JOB_POSTINGS') {
+    if (detectedMode === 'JOB_PROPOSAL') {
       if (!isOpenAIApiKeyConfigured(apiKey)) {
-        return json(OPENAI_KEY_MISSING_PAYLOAD, 500);
+        return json({ ...OPENAI_KEY_MISSING_PAYLOAD, detectedMode }, 500);
       }
-
       const parsed = await completeJson(
         apiKey,
-        `You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and generate a 3-sentence direct, human-toned cover letter. Do NOT use generic AI filler. Return JSON with keys: proposal, painPoint, score (0-100), title.`,
-        `Job Title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`,
+        'You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and write a 3-sentence direct, human-toned cover letter. No generic AI filler. Return JSON: proposal, painPoint, score (0-100), title.',
+        context,
       );
-
       const proposalText = sanitizeAiText(String(parsed.proposal || parsed.coverLetter || ''));
       const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
-      const compatibilityScore = Math.max(0, Math.min(100, Number(parsed.score ?? 88)));
+      const score = Math.max(0, Math.min(100, Number(parsed.score ?? 88)));
       const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
-
       return json({
+        success: true,
+        detectedMode,
         type: 'JOB_PROPOSAL',
         intent: 'JOB_POSTINGS',
+        platformLabel: label,
         title,
         url: pageUrl,
         painPoint,
-        compatibilityScore,
+        compatibilityScore: score,
+        overallScore: score,
         proposalText,
+        summary: painPoint,
       });
     }
 
-    let summary = 'Candidate parsed from DOM';
-    let overallScore = 70;
+    if (detectedMode === 'B2B_COMMAND') {
+      if (!isOpenAIApiKeyConfigured(apiKey)) {
+        return json({ ...OPENAI_KEY_MISSING_PAYLOAD, detectedMode }, 500);
+      }
+      const parsed = await completeJson(
+        apiKey,
+        'You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).',
+        context,
+      );
+      const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
+      const outreach = sanitizeAiText(String(parsed.outreach || ''));
+      const score = Math.max(0, Math.min(100, Number(parsed.score ?? 72)));
+      return json({
+        success: true,
+        detectedMode,
+        type: 'B2B_COMMAND',
+        intent: 'B2B_COMMAND',
+        platformLabel: label,
+        title: sanitizeAiText(String(parsed.company || pageTitle || 'Company')),
+        url: pageUrl,
+        executiveSummary,
+        decisionMakers: listField(parsed.decisionMakers),
+        outreach,
+        proposalText: outreach,
+        painPoint: executiveSummary,
+        compatibilityScore: score,
+        overallScore: score,
+        summary: executiveSummary,
+      });
+    }
+
+    let summary = 'Candidate parsed from the active tab.';
     let whyThisCandidate = '';
+    let overallScore = 70;
+    let title = pageTitle || 'Candidate';
+    let role = '';
+    let pros: string[] = [];
+    let cons: string[] = [];
     if (isOpenAIApiKeyConfigured(apiKey)) {
       const parsed = await completeJson(
         apiKey,
-        `You are a blunt hiring manager. Evaluate this candidate profile from a public page. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences, no AI filler).`,
-        `Page title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`,
+        'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',
+        context,
       );
       summary = sanitizeAiText(String(parsed.summary || summary));
       whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
       overallScore = Math.max(0, Math.min(100, Number(parsed.overallScore ?? 70)));
-      return json({
-        type: 'CANDIDATE_PROFILE',
-        intent: 'CANDIDATE_POOL',
-        title: sanitizeAiText(String(parsed.fullName || pageTitle || 'Candidate')),
-        role: sanitizeAiText(String(parsed.title || '')),
-        url: pageUrl,
-        summary,
-        overallScore,
-        whyThisCandidate,
-      });
+      title = sanitizeAiText(String(parsed.fullName || title));
+      role = sanitizeAiText(String(parsed.title || ''));
+      pros = listField(parsed.pros);
+      cons = listField(parsed.cons);
     }
 
     return json({
-      type: 'CANDIDATE_PROFILE',
+      success: true,
+      detectedMode: 'CV_EVALUATION',
+      type: 'CV_EVALUATION',
       intent: 'CANDIDATE_POOL',
-      title: pageTitle,
+      platformLabel: label,
+      title,
+      role,
       url: pageUrl,
       summary,
-      overallScore,
       whyThisCandidate,
+      pros,
+      cons,
+      painPoint: whyThisCandidate || summary,
+      overallScore,
+      compatibilityScore: overallScore,
+      proposalText: [summary, whyThisCandidate, pros.length ? `Pros: ${pros.join('; ')}` : '', cons.length ? `Watch: ${cons.join('; ')}` : ''].filter(Boolean).join('\n\n'),
     });
   } catch (err: unknown) {
     console.error('Extension Parse DOM Error:', err);

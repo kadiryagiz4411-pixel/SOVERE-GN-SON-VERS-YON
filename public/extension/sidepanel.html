@@ -61,13 +61,14 @@
         background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
       }
-      .primary:disabled, .ghost:disabled, .fill:disabled { opacity: .5; cursor: default; }
+      .primary:disabled, .ghost:disabled, .fill:disabled, .cv:disabled, .b2b:disabled { opacity: .5; cursor: default; }
       .row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
         margin-top: 12px;
       }
+      .row.single { grid-template-columns: 1fr; }
       .ghost {
         background: transparent;
         color: var(--gold-2);
@@ -77,6 +78,16 @@
         background: #064e3b;
         color: #6ee7b7;
         border: 1px solid rgba(16, 185, 129, 0.35);
+      }
+      .cv {
+        background: #1e3a5f;
+        color: #93c5fd;
+        border: 1px solid rgba(59, 130, 246, 0.35);
+      }
+      .b2b {
+        background: #3f2a0a;
+        color: #f5d76e;
+        border: 1px solid rgba(212, 175, 55, 0.35);
       }
       #status { font-size: 12px; color: var(--muted); min-height: 18px; margin: 12px 0; }
       .spinner {
@@ -99,6 +110,19 @@
         box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.04), 0 18px 40px rgba(0, 0, 0, 0.35);
       }
       .card.on { display: block; }
+      .mode-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        color: #09090B;
+        background: linear-gradient(90deg, var(--gold-2), var(--gold));
+        border-radius: 999px;
+        padding: 5px 10px;
+        margin-bottom: 12px;
+      }
       .score-row {
         display: flex;
         align-items: center;
@@ -149,20 +173,7 @@
         overflow: auto;
       }
       .err { color: #fca5a5; }
-      details {
-        margin-top: 18px;
-        color: var(--muted);
-        font-size: 11px;
-      }
-      details input {
-        width: 100%;
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid #27272a;
-        background: #111113;
-        color: var(--text);
-      }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
@@ -170,13 +181,14 @@
       <img src="icons/icon48.png" alt="Sovereign" />
       <div>
         <h1>Sovereign Intelligence</h1>
-        <p>Click-only analysis · no background scrape</p>
+        <p>Zero-friction · reads the active tab</p>
       </div>
     </div>
     <button id="analyze" class="primary">Analyze Active Page</button>
     <div id="spinner" class="spinner"></div>
-    <p id="status">Idle — click Analyze on an Upwork or LinkedIn tab.</p>
+    <p id="status">Opening this panel reads the active tab automatically.</p>
     <div id="card" class="card">
+      <div id="modeBadge" class="mode-badge">Detected: Page</div>
       <div class="score-row">
         <div id="scoreRing" class="score" style="--p:0">
           <span id="badge">—</span>
@@ -186,21 +198,23 @@
           <p id="meta" class="meta"></p>
         </div>
       </div>
-      <div class="k">Compatibility score</div>
+      <div class="k" id="scoreHeading">Score</div>
       <p id="scoreLabel" class="pain"></p>
-      <div class="k">Technical pain point</div>
+      <div class="k" id="painHeading">Insight</div>
       <p id="pain" class="pain"></p>
-      <div class="k">Generated proposal</div>
+      <div class="k" id="bodyHeading">Output</div>
       <p id="proposal" class="proposal"></p>
-      <div class="row">
+      <div id="actionsJob" class="row hidden">
         <button id="copy" class="ghost" type="button">Copy Proposal</button>
-        <button id="autofill" class="fill" type="button">Auto-Fill</button>
+        <button id="autofill" class="fill" type="button">Auto-Fill Proposal</button>
+      </div>
+      <div id="actionsCv" class="row single hidden">
+        <button id="saveCandidate" class="cv" type="button">Save Candidate to Sovereign B2B</button>
+      </div>
+      <div id="actionsB2b" class="row single hidden">
+        <button id="outreach" class="b2b" type="button">Generate Cold Outreach</button>
       </div>
     </div>
-    <details>
-      <summary>Advanced API endpoint</summary>
-      <input id="api" placeholder="https://www.sovereignapp.pro" />
-    </details>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
   </body>
