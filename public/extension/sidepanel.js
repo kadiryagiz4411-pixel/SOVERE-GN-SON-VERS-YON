@@ -1,36 +1,47 @@
-const apiInput = document.getElementById('api');
 const statusEl = document.getElementById('status');
 const spinner = document.getElementById('spinner');
 const card = document.getElementById('card');
+const modeBadge = document.getElementById('modeBadge');
 const badge = document.getElementById('badge');
 const scoreRing = document.getElementById('scoreRing');
 const scoreLabel = document.getElementById('scoreLabel');
+const scoreHeading = document.getElementById('scoreHeading');
 const titleEl = document.getElementById('title');
 const metaEl = document.getElementById('meta');
 const painEl = document.getElementById('pain');
+const painHeading = document.getElementById('painHeading');
+const bodyHeading = document.getElementById('bodyHeading');
 const proposalEl = document.getElementById('proposal');
 const analyzeBtn = document.getElementById('analyze');
 const autofillBtn = document.getElementById('autofill');
 const copyBtn = document.getElementById('copy');
+const saveCandidateBtn = document.getElementById('saveCandidate');
+const outreachBtn = document.getElementById('outreach');
+const actionsJob = document.getElementById('actionsJob');
+const actionsCv = document.getElementById('actionsCv');
+const actionsB2b = document.getElementById('actionsB2b');
 
 let lastProposal = '';
+let lastOutreach = '';
+let lastCandidate = null;
+let analyzing = false;
+
+function apiBase() {
+  return canonicalizeApiBase(API_BASE_URL);
+}
 
 function isRestrictedUrl(href) {
   return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
     || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
 }
 
-chrome.storage.sync.get(['sovereign_api'], (stored) => {
-  const next = canonicalizeApiBase(
-    stored.sovereign_api || localStorage.getItem('sovereign_api') || API_BASE_URL,
-  );
-  apiInput.value = next;
-});
-
 function setBusy(on, message) {
+  analyzing = on;
   analyzeBtn.disabled = on;
   copyBtn.disabled = on;
   autofillBtn.disabled = on;
+  saveCandidateBtn.disabled = on;
+  outreachBtn.disabled = on;
   spinner.classList.toggle('on', on);
   statusEl.textContent = message;
   statusEl.classList.remove('err');
@@ -38,14 +49,17 @@ function setBusy(on, message) {
 
 function showError(message) {
   spinner.classList.remove('on');
+  analyzing = false;
   analyzeBtn.disabled = false;
   copyBtn.disabled = false;
   autofillBtn.disabled = false;
+  saveCandidateBtn.disabled = false;
+  outreachBtn.disabled = false;
   statusEl.classList.add('err');
   statusEl.innerHTML = `
     <div style="color:#ef4444;font-size:12px;padding:8px;background:rgba(239,68,68,0.1);border-radius:6px;">
       <strong>Connection Error:</strong> ${message || 'Could not connect to Sovereign API.'}<br/>
-      <span style="font-size:11px;opacity:0.8;">POST ${API_BASE_URL}${PARSE_DOM_PATH}</span>
+      <span style="font-size:11px;opacity:0.8;">POST ${apiBase()}${PARSE_DOM_PATH}</span>
     </div>
   `;
 }
@@ -59,11 +73,11 @@ function detectOpportunityPlatform(url) {
   return 'Upwork';
 }
 
-function ingestOpportunity(apiBase, pageData, analysis) {
-  const isJob = analysis?.type === 'JOB_PROPOSAL' || analysis?.intent === 'JOB_POSTINGS';
-  if (!isJob) return;
+function ingestOpportunity(pageData, analysis) {
+  const mode = analysis?.detectedMode || analysis?.type;
+  if (mode !== 'JOB_PROPOSAL' && analysis?.intent !== 'JOB_POSTINGS') return;
   const platform = detectOpportunityPlatform(pageData.pageUrl);
-  fetch(`${canonicalizeApiBase(apiBase)}/api/opportunities?t=${Date.now()}`, {
+  fetch(`${apiBase()}/api/opportunities?t=${Date.now()}`, {
     method: 'POST',
     cache: 'no-store',
     headers: {
@@ -88,22 +102,91 @@ function ingestOpportunity(apiBase, pageData, analysis) {
   }).catch(() => {});
 }
 
+function copyText(value) {
+  const text = String(value || '').trim();
+  if (!text) return Promise.resolve(false);
+  return navigator.clipboard.writeText(text).then(() => true).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    return true;
+  });
+}
+
 function renderAnalysisResults(data, pageTitle, pageUrl) {
-  const isJob = data.type === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
+  const mode = data.detectedMode || data.type || 'JOB_PROPOSAL';
+  const isJob = mode === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
+  const isCv = mode === 'CV_EVALUATION' || data.intent === 'CANDIDATE_POOL';
+  const isB2b = mode === 'B2B_COMMAND';
   const score = Number(data.compatibilityScore ?? data.overallScore ?? 0);
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+
+  modeBadge.textContent = `⚡ Detected: ${data.platformLabel || (isJob ? 'Job Post' : isCv ? 'Candidate Profile' : 'B2B Lead')}`;
   badge.textContent = `${safeScore}`;
   scoreRing.style.setProperty('--p', String(safeScore));
-  scoreLabel.textContent = `${safeScore}% compatibility with this page`;
-  titleEl.textContent = data.title || pageTitle || (isJob ? 'Job posting' : 'Candidate');
+  titleEl.textContent = data.title || pageTitle || (isJob ? 'Job posting' : isCv ? 'Candidate' : 'Company');
   metaEl.textContent = data.url || pageUrl || '';
-  painEl.textContent = data.painPoint || data.whyThisCandidate || data.summary || 'No summary returned.';
-  lastProposal = String(data.proposalText || '').trim();
-  proposalEl.textContent = lastProposal || data.summary || 'No proposal generated for this page type.';
-  copyBtn.disabled = !lastProposal;
-  autofillBtn.disabled = !lastProposal;
+
+  if (isJob) {
+    scoreHeading.textContent = 'Compatibility score';
+    scoreLabel.textContent = `${safeScore}% fit with this brief`;
+    painHeading.textContent = 'Technical pain point';
+    bodyHeading.textContent = 'Generated proposal';
+    painEl.textContent = data.painPoint || data.summary || 'No pain point returned.';
+    lastProposal = String(data.proposalText || '').trim();
+    lastOutreach = '';
+    lastCandidate = null;
+    proposalEl.textContent = lastProposal || 'No proposal generated.';
+  } else if (isB2b) {
+    scoreHeading.textContent = 'Lead score';
+    scoreLabel.textContent = `${safeScore}% outreach priority`;
+    painHeading.textContent = 'Executive summary';
+    bodyHeading.textContent = 'Cold outreach draft';
+    painEl.textContent = data.executiveSummary || data.summary || 'No summary returned.';
+    lastOutreach = String(data.outreach || data.proposalText || '').trim();
+    lastProposal = lastOutreach;
+    lastCandidate = null;
+    const makers = Array.isArray(data.decisionMakers) && data.decisionMakers.length
+      ? `\n\nDecision-makers: ${data.decisionMakers.join(', ')}`
+      : '';
+    proposalEl.textContent = `${lastOutreach}${makers}`.trim() || 'No outreach generated.';
+  } else {
+    scoreHeading.textContent = 'Fit score';
+    scoreLabel.textContent = `${safeScore}% candidate fit`;
+    painHeading.textContent = 'Why this candidate';
+    bodyHeading.textContent = 'Evaluation';
+    painEl.textContent = data.whyThisCandidate || data.painPoint || 'No rationale returned.';
+    lastProposal = '';
+    lastOutreach = '';
+    lastCandidate = {
+      title: data.title,
+      role: data.role,
+      url: data.url || pageUrl,
+      summary: data.summary,
+      score: safeScore,
+      pros: data.pros || [],
+      cons: data.cons || [],
+    };
+    const extras = [
+      data.summary,
+      Array.isArray(data.pros) && data.pros.length ? `Pros: ${data.pros.join('; ')}` : '',
+      Array.isArray(data.cons) && data.cons.length ? `Watch: ${data.cons.join('; ')}` : '',
+    ].filter(Boolean).join('\n\n');
+    proposalEl.textContent = extras || 'Candidate parsed.';
+  }
+
+  actionsJob.classList.toggle('hidden', !isJob);
+  actionsCv.classList.toggle('hidden', !isCv);
+  actionsB2b.classList.toggle('hidden', !isB2b);
+  copyBtn.disabled = !isJob || !lastProposal;
+  autofillBtn.disabled = !isJob || !lastProposal;
+  saveCandidateBtn.disabled = !isCv;
+  outreachBtn.disabled = !isB2b || !lastOutreach;
   card.classList.add('on');
-  setBusy(false, isJob ? 'Job analysis ready.' : 'Candidate profile parsed.');
+  setBusy(false, isJob ? 'Job analysis ready.' : isCv ? 'Candidate evaluation ready.' : 'B2B brief ready.');
 }
 
 function extractPageContent() {
@@ -116,11 +199,11 @@ function extractPageContent() {
 async function getActiveTabDOM() {
   let tab;
   try {
-    const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    tab = focused?.[0];
+    const current = await chrome.tabs.query({ active: true, currentWindow: true });
+    tab = current?.[0];
     if (!tab?.id) {
-      const current = await chrome.tabs.query({ active: true, currentWindow: true });
-      tab = current?.[0];
+      const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      tab = focused?.[0];
     }
   } catch (err) {
     console.warn('Tab query failed:', err);
@@ -131,7 +214,7 @@ async function getActiveTabDOM() {
     return { pageText: '', pageTitle: '', pageUrl: tab?.url || '' };
   }
   if (isRestrictedUrl(tab.url)) {
-    throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
+    throw new Error('Open a public web page, then click Analyze. Chrome system pages cannot be read.');
   }
 
   const fallback = {
@@ -171,7 +254,7 @@ async function getActiveTabDOM() {
   }
 }
 
-async function postParseDom(apiBase, pageData) {
+async function postParseDom(pageData) {
   const payload = {
     pageText: pageData.pageText,
     pageTitle: pageData.pageTitle,
@@ -182,14 +265,13 @@ async function postParseDom(apiBase, pageData) {
 
   const viaWorker = await chrome.runtime.sendMessage({
     type: 'PARSE_DOM',
-    apiBase,
+    apiBase: apiBase(),
     payload,
   }).catch(() => null);
 
   if (viaWorker?.success && viaWorker.data) return viaWorker.data;
 
-  const endpoint = `${canonicalizeApiBase(apiBase)}${PARSE_DOM_PATH}`;
-  const response = await fetch(endpoint, {
+  const response = await fetch(`https://www.sovereignapp.pro${PARSE_DOM_PATH}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -205,14 +287,13 @@ async function postParseDom(apiBase, pageData) {
   return data;
 }
 
-analyzeBtn.addEventListener('click', async () => {
-  const apiBase = canonicalizeApiBase(apiInput.value || API_BASE_URL);
-  apiInput.value = apiBase;
-  localStorage.setItem('sovereign_api', apiBase);
-  chrome.storage.sync.set({ sovereign_api: apiBase });
+async function analyzeActivePage() {
+  if (analyzing) return;
   card.classList.remove('on');
   lastProposal = '';
-  setBusy(true, 'Reading active tab and analyzing with Sovereign AI...');
+  lastOutreach = '';
+  lastCandidate = null;
+  setBusy(true, 'Reading the active tab…');
 
   try {
     const pageData = await getActiveTabDOM();
@@ -221,8 +302,9 @@ analyzeBtn.addEventListener('click', async () => {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
-    const data = await postParseDom(apiBase, pageData);
-    ingestOpportunity(apiBase, pageData, data);
+    setBusy(true, 'Classifying page and generating Sovereign output…');
+    const data = await postParseDom(pageData);
+    ingestOpportunity(pageData, data);
     renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
@@ -237,20 +319,15 @@ analyzeBtn.addEventListener('click', async () => {
     }
     showError(msg);
   }
+}
+
+analyzeBtn.addEventListener('click', () => {
+  void analyzeActivePage();
 });
 
 copyBtn.addEventListener('click', async () => {
   if (!lastProposal) return;
-  try {
-    await navigator.clipboard.writeText(lastProposal);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = lastProposal;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
+  await copyText(lastProposal);
   setBusy(false, 'Proposal copied to clipboard.');
 });
 
@@ -268,3 +345,25 @@ autofillBtn.addEventListener('click', async () => {
     showError(err.message || String(err));
   }
 });
+
+saveCandidateBtn.addEventListener('click', async () => {
+  if (!lastCandidate) return;
+  const blob = [
+    lastCandidate.title || 'Candidate',
+    lastCandidate.role || '',
+    lastCandidate.url || '',
+    `Fit ${lastCandidate.score}%`,
+    lastCandidate.summary || '',
+  ].filter(Boolean).join('\n');
+  await copyText(blob);
+  chrome.tabs.create({ url: 'https://www.sovereignapp.pro/talent-pool' }).catch(() => {});
+  setBusy(false, 'Candidate summary copied. Opening Sovereign B2B…');
+});
+
+outreachBtn.addEventListener('click', async () => {
+  if (!lastOutreach) return;
+  await copyText(lastOutreach);
+  setBusy(false, 'Cold outreach copied to clipboard.');
+});
+
+void analyzeActivePage();
