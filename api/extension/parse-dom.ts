@@ -1,6 +1,6 @@
-import { preflight, json, readJsonBody } from '../_lib/cors';
-import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
-import { sanitizeAiText } from '../_lib/sanitize';
+import { preflight, json, readJsonBody } from '../_lib/cors.js';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { sanitizeAiText } from '../_lib/sanitize.js';
 
 export const config = { runtime: 'edge', maxDuration: 30 };
 

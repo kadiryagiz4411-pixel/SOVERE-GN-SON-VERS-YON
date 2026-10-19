@@ -1,7 +1,7 @@
 /**
  * POST /api/extension/auto-fill-payload
  */
-import { preflight, json, readJsonBody } from '../_lib/cors';
+import { preflight, json, readJsonBody } from '../_lib/cors.js';
 
 export const config = { runtime: 'edge' };
 

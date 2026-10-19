@@ -1,4 +1,4 @@
-import { firstEnv } from './env';
+import { firstEnv } from './env.js';
 
 export const OPENAI_DUMMY_KEY = 'dummy-key-to-prevent-crash';
 

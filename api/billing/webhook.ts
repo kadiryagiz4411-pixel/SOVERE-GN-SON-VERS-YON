@@ -4,9 +4,9 @@
  * Verifies the raw request body with HMAC-SHA256 (X-Signature).
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { json, preflight } from '../_lib/cors';
-import { env, firstEnv } from '../_lib/env';
-import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy';
+import { json, preflight } from '../_lib/cors.js';
+import { env, firstEnv } from '../_lib/env.js';
+import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy.js';
 
 export const config = { runtime: 'nodejs' };
 

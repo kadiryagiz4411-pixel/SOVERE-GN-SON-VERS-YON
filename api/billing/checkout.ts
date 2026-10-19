@@ -2,9 +2,9 @@
  * POST /api/billing/checkout
  * Creates a Lemon Squeezy hosted checkout and returns { checkoutUrl }.
  */
-import { preflight, json } from '../_lib/cors';
-import { firstEnv } from '../_lib/env';
-import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy';
+import { preflight, json } from '../_lib/cors.js';
+import { firstEnv } from '../_lib/env.js';
+import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy.js';
 
 export const config = { runtime: 'edge' };
 

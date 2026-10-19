@@ -1,4 +1,4 @@
-import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors';
+import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors.js';
 import {
   collectLiveOpportunities,
   dedupeOpportunities,
@@ -7,7 +7,7 @@ import {
   withValidUrl,
   type OpportunityItem,
   type OpportunityPlatform,
-} from './_lib/opportunitySources';
+} from './_lib/opportunitySources.js';
 
 export type { OpportunityItem, OpportunityPlatform };
 

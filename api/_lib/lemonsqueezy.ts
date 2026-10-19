@@ -1,4 +1,4 @@
-import { firstEnv } from './env';
+import { firstEnv } from './env.js';
 
 export type PlanTier = 'single_pass' | 'standard' | 'pro' | 'elite' | 'B2B_ENTERPRISE' | 'free';
 export type BillingPeriod = 'monthly' | 'yearly' | 'once';

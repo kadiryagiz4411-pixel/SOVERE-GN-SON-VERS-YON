@@ -2,8 +2,8 @@
  * POST /api/batch/evaluate
  * Server-side multi-CV evaluation. Returns OPENAI_KEY_MISSING instead of crashing.
  */
-import { preflight, json, readJsonBody } from '../_lib/cors';
-import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai';
+import { preflight, json, readJsonBody } from '../_lib/cors.js';
+import { getOpenAIApiKey, isOpenAIApiKeyConfigured, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
 
 export const config = { maxDuration: 60 };
 

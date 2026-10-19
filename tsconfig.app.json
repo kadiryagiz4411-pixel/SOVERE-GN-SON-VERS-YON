@@ -30,6 +30,12 @@
     "useDefineForClassFields": true
   },
   "include": [
-    "src"
+    "src",
+    "api"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "api/**/route.ts"
   ]
 }
