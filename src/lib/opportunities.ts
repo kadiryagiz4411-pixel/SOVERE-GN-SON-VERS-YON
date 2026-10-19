@@ -54,15 +54,18 @@ export async function fetchLiveOpportunities(opts: {
     },
   });
 
-  const data = await response.json().catch(() => ({ success: false, items: [] })) as OpportunityScanResponse;
+  const data = await response.json().catch(() => ({ success: false, items: [] })) as OpportunityScanResponse & { opportunities?: OpportunityItem[] };
   if (!response.ok) {
     throw new Error(data.error || `Server returned ${response.status}`);
   }
+  const items = Array.isArray(data.items) && data.items.length
+    ? data.items
+    : (Array.isArray(data.opportunities) ? data.opportunities : []);
   return {
     success: Boolean(data.success),
     generatedAt: data.generatedAt,
-    count: Array.isArray(data.items) ? data.items.length : 0,
-    items: Array.isArray(data.items) ? data.items : [],
+    count: items.length,
+    items,
     sources: data.sources || {},
     error: data.error,
   };

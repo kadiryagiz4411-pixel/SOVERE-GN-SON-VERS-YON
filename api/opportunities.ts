@@ -1,8 +1,3 @@
-/**
- * GET/POST /api/opportunities
- * Live multi-platform job feed for the Apply Queue scanner and Chrome extension.
- * Vite/Vercel handler (not Next.js app/api/*/route.ts).
- */
 import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors';
 import {
   collectLiveOpportunities,
@@ -15,7 +10,7 @@ import {
 
 export const config = { runtime: 'edge', maxDuration: 25 };
 
-function platformParam(raw: string | null): OpportunityPlatform | 'All' | undefined {
+function platformParam(raw: string | null): OpportunityPlatform | 'All' {
   const value = String(raw || '').trim();
   if (!value || value.toLowerCase() === 'all') return 'All';
   if (value === 'Fiverr' || value === 'Upwork' || value === 'Freelancer' || value === 'LinkedIn') return value;
@@ -52,7 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const live = await collectLiveOpportunities(keywords, platform);
     const items = dedupeOpportunities([...ingested, ...live.items]);
-    const filtered = platform && platform !== 'All'
+    const filtered = platform !== 'All'
       ? items.filter((item) => item.platform === platform)
       : items;
 
@@ -61,14 +56,16 @@ export default async function handler(req: Request): Promise<Response> {
       generatedAt: new Date().toISOString(),
       count: filtered.length,
       items: filtered,
+      opportunities: filtered,
       sources: live.sources,
     });
   } catch (err: unknown) {
     console.error('Opportunities scan error:', err);
     return jsonNoStore({
       success: false,
-      error: err instanceof Error ? err.message : 'Opportunity scan failed',
+      error: err instanceof Error ? err.message : 'Failed to fetch opportunities',
       items: [],
+      opportunities: [],
       sources: {},
     }, 500);
   }
