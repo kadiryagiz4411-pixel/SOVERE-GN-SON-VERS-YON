@@ -12,10 +12,9 @@ import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
 import { opportunityToQueueRow } from '@/lib/opportunityFallback';
 import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
-import { OpportunitiesScanner } from '@/components/apply/OpportunitiesScanner';
-import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
+import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import {
-  Loader2, Crown, ExternalLink, Check, X,
+  Loader2, Crown, Check, X,
   ChevronDown, Target, TrendingUp,
   Shield, Users, Send, Ban, Sparkles,
 } from 'lucide-react';
@@ -411,6 +410,14 @@ const ApplyQueue = () => {
                             </div>
                             <h3 className="text-sm font-semibold text-foreground truncate">{item.job_title}</h3>
                             <p className="text-xs text-muted-foreground">{item.company} • {item.budget}</p>
+                            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                              <OpportunityJobLink
+                                url={item.job_url}
+                                platform={item.platform}
+                                title={item.job_title}
+                                label={language === 'tr' ? 'İlana git' : 'View Job'}
+                              />
+                            </div>
                           </div>
 
                           {/* Scores */}
@@ -526,16 +533,13 @@ const ApplyQueue = () => {
                               >
                                 <X className="w-4 h-4 mr-1" /> {txt.reject}
                               </Button>
-                              <a
-                                href={item.job_url || (item.platform === 'Upwork' ? upworkSearchUrl(item.job_title) : resolveUpworkJobUrl(item.job_url))}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all ml-auto"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                {language === 'tr' ? `${item.platform} üzerinde gör` : `View on ${item.platform}`}
-                              </a>
+                              <OpportunityJobLink
+                                url={item.job_url}
+                                platform={item.platform}
+                                title={item.job_title}
+                                label={language === 'tr' ? 'Şimdi başvur' : 'Apply Now'}
+                                className="ml-auto"
+                              />
                             </div>
                           )}
                         </div>

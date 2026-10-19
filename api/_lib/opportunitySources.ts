@@ -332,7 +332,7 @@ export async function fetchLinkedIn(keywords: string[]): Promise<OpportunityItem
       clientCountry: location || undefined,
     });
   }
-  return dedupeOpportunities(items);
+  return dedupeOpportunities(items.map(withValidUrl));
 }
 
 export async function fetchFiverr(): Promise<OpportunityItem[]> {
@@ -389,7 +389,7 @@ export function fromExtensionPayload(body: {
     });
   }
 
-  return dedupeOpportunities(items);
+  return dedupeOpportunities(items.map(withValidUrl));
 }
 
 export async function collectLiveOpportunities(

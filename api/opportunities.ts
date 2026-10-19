@@ -4,6 +4,7 @@ import {
   dedupeOpportunities,
   fromExtensionPayload,
   parseKeywords,
+  withValidUrl,
   type OpportunityItem,
   type OpportunityPlatform,
 } from './_lib/opportunitySources';
@@ -47,9 +48,9 @@ export default async function handler(req: Request): Promise<Response> {
 
     const live = await collectLiveOpportunities(keywords, platform);
     const items = dedupeOpportunities([...ingested, ...live.items]);
-    const filtered = platform !== 'All'
+    const filtered = (platform !== 'All'
       ? items.filter((item) => item.platform === platform)
-      : items;
+      : items).map(withValidUrl);
 
     return jsonNoStore({
       success: true,

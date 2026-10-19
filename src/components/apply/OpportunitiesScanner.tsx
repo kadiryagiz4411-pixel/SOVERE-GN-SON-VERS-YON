@@ -1,8 +1,8 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { OPPORTUNITY_PLATFORMS, type OpportunityPlatform } from '@/lib/opportunities';
+import { OPPORTUNITY_PLATFORMS, resolveOpportunityHref, type OpportunityPlatform } from '@/lib/opportunities';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -36,6 +36,37 @@ const PLATFORM_TONE: Record<string, string> = {
   Freelancer: 'border-sky-500/40 text-sky-300',
   LinkedIn: 'border-blue-500/40 text-blue-300',
 };
+
+export function OpportunityJobLink({
+  url,
+  platform,
+  title,
+  label,
+  className,
+}: {
+  url?: string | null;
+  platform?: string;
+  title?: string;
+  label: string;
+  className?: string;
+}) {
+  const href = resolveOpportunityHref(platform || 'Upwork', url, title);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all',
+        className,
+      )}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <ExternalLink className="w-3 h-3" />
+      {label}
+    </a>
+  );
+}
 
 export function OpportunitiesScanner({
   platform,

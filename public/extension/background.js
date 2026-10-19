@@ -1,6 +1,7 @@
 /**
  * Sovereign extension service worker — click-only. No polling, no background scrape.
  */
+importScripts('config.js');
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
@@ -32,22 +33,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   return false;
 });
 
-const CANONICAL_API = 'https://www.sovereignapp.pro';
-
-function canonicalizeApiBase(raw) {
-  const trimmed = String(raw || '').trim().replace(/\/$/, '');
-  if (!trimmed) return CANONICAL_API;
-  try {
-    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
-    if (url.hostname === 'sovereignapp.pro') url.hostname = 'www.sovereignapp.pro';
-    return url.origin;
-  } catch {
-    return CANONICAL_API;
-  }
-}
-
 async function parseDomViaApi(apiBase, payload) {
-  const bases = [...new Set([canonicalizeApiBase(apiBase), CANONICAL_API])];
+  const bases = [...new Set([canonicalizeApiBase(apiBase), API_BASE_URL])];
   let lastError;
   for (const base of bases) {
     try {
@@ -75,9 +62,18 @@ function isRestrictedUrl(href) {
 }
 
 async function scrapeActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
-  if (!tab?.id) throw new Error('No active tab found.');
+  let tab;
+  try {
+    const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    tab = focused?.[0];
+    if (!tab?.id) {
+      const current = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = current?.[0];
+    }
+  } catch (err) {
+    throw new Error(err?.message || 'No active browser tab found.');
+  }
+  if (!tab?.id) throw new Error('No active browser tab found.');
   if (isRestrictedUrl(tab.url)) {
     throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
   }

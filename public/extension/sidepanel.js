@@ -13,21 +13,7 @@ const analyzeBtn = document.getElementById('analyze');
 const autofillBtn = document.getElementById('autofill');
 const copyBtn = document.getElementById('copy');
 
-const API_BASE_URL = 'https://www.sovereignapp.pro';
-const PARSE_DOM_PATH = '/api/extension/parse-dom';
 let lastProposal = '';
-
-function canonicalizeApiBase(raw) {
-  const trimmed = String(raw || '').trim().replace(/\/$/, '');
-  if (!trimmed) return API_BASE_URL;
-  try {
-    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
-    if (url.hostname === 'sovereignapp.pro') url.hostname = 'www.sovereignapp.pro';
-    return url.origin;
-  } catch {
-    return API_BASE_URL;
-  }
-}
 
 function isRestrictedUrl(href) {
   return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
@@ -128,29 +114,60 @@ function extractPageContent() {
 }
 
 async function getActiveTabDOM() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    .then((tabs) => tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true }));
-  if (!tab || !tab.id) throw new Error('No active tab found.');
+  let tab;
+  try {
+    const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    tab = focused?.[0];
+    if (!tab?.id) {
+      const current = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = current?.[0];
+    }
+  } catch (err) {
+    console.warn('Tab query failed:', err);
+    return { pageText: '', pageTitle: '', pageUrl: '' };
+  }
+
+  if (!tab || !tab.id) {
+    return { pageText: '', pageTitle: '', pageUrl: tab?.url || '' };
+  }
   if (isRestrictedUrl(tab.url)) {
     throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
   }
+
+  const fallback = {
+    pageText: '',
+    pageTitle: tab.title || '',
+    pageUrl: tab.url || '',
+  };
 
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: extractPageContent,
     });
-    if (!results || !results[0] || !results[0].result) {
-      throw new Error('Failed to extract page content.');
-    }
-    return results[0].result;
+    const extracted = results?.[0]?.result;
+    return {
+      pageText: String(extracted?.pageText || fallback.pageText),
+      pageTitle: String(extracted?.pageTitle || fallback.pageTitle),
+      pageUrl: String(extracted?.pageUrl || fallback.pageUrl),
+    };
   } catch (err) {
     const msg = err?.message || String(err);
     if (/permission to access the respective host|Cannot access contents|Cannot access a chrome/i.test(msg)) {
-      const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
-      if (scraped?.success && scraped.data) return scraped.data;
+      try {
+        const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
+        if (scraped?.success && scraped.data) {
+          return {
+            pageText: String(scraped.data.pageText || ''),
+            pageTitle: String(scraped.data.pageTitle || fallback.pageTitle),
+            pageUrl: String(scraped.data.pageUrl || fallback.pageUrl),
+          };
+        }
+      } catch (workerErr) {
+        console.warn('Background scrape failed:', workerErr);
+      }
     }
-    throw err;
+    return fallback;
   }
 }
 
@@ -171,7 +188,8 @@ async function postParseDom(apiBase, pageData) {
 
   if (viaWorker?.success && viaWorker.data) return viaWorker.data;
 
-  const response = await fetch(`${apiBase}${PARSE_DOM_PATH}`, {
+  const endpoint = `${canonicalizeApiBase(apiBase)}${PARSE_DOM_PATH}`;
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

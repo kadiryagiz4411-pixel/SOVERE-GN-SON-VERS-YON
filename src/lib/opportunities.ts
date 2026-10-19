@@ -34,6 +34,38 @@ export function normalizeOpportunityUrl(url?: string | null): string {
   return String(url || '').trim().replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
 }
 
+export function platformSearchUrl(platform: string, query?: string): string {
+  const q = encodeURIComponent(String(query || 'developer').trim() || 'developer');
+  if (platform === 'Fiverr') return `https://www.fiverr.com/search/gigs?query=${q}`;
+  if (platform === 'Freelancer') return `https://www.freelancer.com/search/projects?q=${q}`;
+  if (platform === 'LinkedIn') return `https://www.linkedin.com/jobs/search/?keywords=${q}`;
+  return `https://www.upwork.com/nx/search/jobs/?q=${q}`;
+}
+
+export function resolveOpportunityHref(platform: string, rawUrl?: string | null, title?: string): string {
+  let value = String(rawUrl || '').trim();
+  const markdown = value.match(/\((https?:\/\/[^)\s]+)\)/i);
+  if (markdown) value = markdown[1];
+  value = value.replace(/^\[|\]$/g, '').replace(/^<|>$/g, '').trim();
+  if (/^\/\//.test(value)) value = `https:${value}`;
+  if (/^http:\/\//i.test(value)) value = value.replace(/^http:\/\//i, 'https://');
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    const origin = platform === 'Fiverr' ? 'https://www.fiverr.com'
+      : platform === 'Freelancer' ? 'https://www.freelancer.com'
+        : platform === 'LinkedIn' ? 'https://www.linkedin.com'
+          : 'https://www.upwork.com';
+    value = `${origin}${value}`;
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'http:') parsed.protocol = 'https:';
+    if (parsed.protocol === 'https:' && parsed.hostname) return parsed.toString();
+  } catch {
+    // use platform search
+  }
+  return platformSearchUrl(platform, title);
+}
+
 export async function fetchLiveOpportunities(opts: {
   query?: string;
   platform?: string;
@@ -58,9 +90,13 @@ export async function fetchLiveOpportunities(opts: {
   if (!response.ok) {
     throw new Error(data.error || `Server returned ${response.status}`);
   }
-  const items = Array.isArray(data.items) && data.items.length
+  const rawItems = Array.isArray(data.items) && data.items.length
     ? data.items
     : (Array.isArray(data.opportunities) ? data.opportunities : []);
+  const items = rawItems.map((item) => ({
+    ...item,
+    url: resolveOpportunityHref(item.platform, item.url, item.title),
+  }));
   return {
     success: Boolean(data.success),
     generatedAt: data.generatedAt,

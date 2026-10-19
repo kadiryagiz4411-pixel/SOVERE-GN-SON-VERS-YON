@@ -1,4 +1,4 @@
-import type { OpportunityItem } from '@/lib/opportunities';
+import { resolveOpportunityHref, type OpportunityItem } from '@/lib/opportunities';
 
 export interface QueueOpportunityRow {
   job_title: string;
@@ -32,7 +32,7 @@ export function opportunityToQueueRow(
     company: item.clientCountry ? `${item.platform} · ${item.clientCountry}` : item.platform,
     platform: item.platform,
     budget: item.budget || '',
-    job_url: item.url,
+    job_url: resolveOpportunityHref(item.platform, item.url, item.title),
     job_description: item.description,
     match_score: score,
     acceptance_probability: Math.max(50, score - 6),
