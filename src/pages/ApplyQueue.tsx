@@ -17,7 +17,7 @@ import { resolveUpworkJobUrl, upworkSearchUrl } from '@/lib/upwork';
 import {
   Loader2, Crown, ExternalLink, Check, X,
   ChevronDown, Target, TrendingUp,
-  Shield, Users, Send, Ban,
+  Shield, Users, Send, Ban, Sparkles,
 } from 'lucide-react';
 
 interface QueueItem {

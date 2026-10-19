@@ -1,7 +1,21 @@
+import type { ComponentType, SVGProps } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OPPORTUNITY_PLATFORMS, type OpportunityPlatform } from '@/lib/opportunities';
+
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+function SafeIcon({ icon: Icon, className }: { icon?: IconComponent; className?: string }) {
+  if (!Icon) {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" />
+      </svg>
+    );
+  }
+  return <Icon className={className} />;
+}
 
 interface OpportunitiesScannerProps {
   platform: 'All' | OpportunityPlatform;
@@ -41,7 +55,9 @@ export function OpportunitiesScanner({
         disabled={scanning || disabled}
         className="bg-gradient-to-r from-amber-500 to-primary text-primary-foreground"
       >
-        {scanning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+        {scanning
+          ? <SafeIcon icon={Loader2} className="w-4 h-4 animate-spin mr-2" />
+          : <SafeIcon icon={Sparkles} className="w-4 h-4 mr-2" />}
         {scanning ? scanningLabel : scanLabel}
         <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full border border-black/20 bg-black/10">{creditLabel}</span>
       </Button>
