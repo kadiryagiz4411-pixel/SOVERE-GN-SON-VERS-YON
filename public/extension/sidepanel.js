@@ -14,7 +14,9 @@ const bodyHeading = document.getElementById('bodyHeading');
 const proposalEl = document.getElementById('proposal');
 const analyzeBtn = document.getElementById('analyze');
 const copyBtn = document.getElementById('copy');
+const autofillBtn = document.getElementById('autofill');
 const viewJobLink = document.getElementById('viewJob');
+const actionsJobLink = document.getElementById('actionsJobLink');
 const saveCandidateBtn = document.getElementById('saveCandidate');
 const outreachBtn = document.getElementById('outreach');
 const actionsJob = document.getElementById('actionsJob');
@@ -40,6 +42,7 @@ function setBusy(on, message) {
   analyzing = on;
   analyzeBtn.disabled = on;
   copyBtn.disabled = on;
+  if (autofillBtn) autofillBtn.disabled = on;
   saveCandidateBtn.disabled = on;
   outreachBtn.disabled = on;
   spinner.classList.toggle('on', on);
@@ -52,6 +55,7 @@ function showError(message) {
   analyzing = false;
   analyzeBtn.disabled = false;
   copyBtn.disabled = false;
+  if (autofillBtn) autofillBtn.disabled = false;
   saveCandidateBtn.disabled = false;
   outreachBtn.disabled = false;
   statusEl.classList.add('err');
@@ -184,10 +188,13 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   actionsCv.classList.toggle('hidden', !isCv);
   actionsB2b.classList.toggle('hidden', !isB2b);
   copyBtn.disabled = !isJob || !lastProposal;
+  if (autofillBtn) autofillBtn.disabled = !isJob || !lastProposal;
   if (viewJobLink) {
     const href = /^https?:\/\//i.test(lastJobUrl) ? lastJobUrl : '#';
     viewJobLink.href = href;
-    viewJobLink.classList.toggle('hidden', href === '#');
+    const showLink = isJob && href !== '#';
+    viewJobLink.classList.toggle('hidden', !showLink);
+    if (actionsJobLink) actionsJobLink.classList.toggle('hidden', !showLink);
   }
   saveCandidateBtn.disabled = !isCv;
   outreachBtn.disabled = !isB2b || !lastOutreach;
@@ -339,6 +346,23 @@ copyBtn.addEventListener('click', async () => {
   await copyText(lastProposal);
   setBusy(false, 'Proposal copied. Paste it yourself on the original job post — Sovereign never auto-submits.');
 });
+
+if (autofillBtn) {
+  autofillBtn.addEventListener('click', async () => {
+    if (!lastProposal) return;
+    setBusy(true, 'Inserting proposal into the page editor…');
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: 'INJECT_PROPOSAL',
+        proposalText: lastProposal,
+      });
+      if (!result?.success) throw new Error(result?.error || 'No proposal editor found on this page.');
+      setBusy(false, 'Proposal inserted. Review it, then submit yourself — Sovereign never auto-sends.');
+    } catch (err) {
+      showError(err.message || String(err));
+    }
+  });
+}
 
 saveCandidateBtn.addEventListener('click', async () => {
   if (!lastCandidate) return;

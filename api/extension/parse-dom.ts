@@ -242,6 +242,10 @@ export default async function handler(req: Request): Promise<Response> {
     });
   } catch (err: unknown) {
     console.error('Extension Parse DOM Error:', err);
-    return json({ error: err instanceof Error ? err.message : 'DOM analysis failed' }, 500);
+    const message = err instanceof Error ? err.message : 'DOM analysis failed';
+    if (/OPENAI_API_KEY is not configured/i.test(message)) {
+      return json({ ...OPENAI_KEY_MISSING_PAYLOAD, message }, 500);
+    }
+    return json({ error: message }, 500);
   }
 }

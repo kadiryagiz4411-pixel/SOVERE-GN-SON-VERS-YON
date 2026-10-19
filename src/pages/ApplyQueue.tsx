@@ -12,11 +12,12 @@ import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
 import { opportunityToQueueRow } from '@/lib/opportunityFallback';
 import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
+import { isOnboardingComplete, normalizeSkillList } from '@/lib/matchScore';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import {
-  Loader2, Crown, Check, X, Copy,
+  Loader2, Crown, Copy,
   ChevronDown, Target, TrendingUp,
-  Shield, Users, Send, Ban, Sparkles,
+  Shield, Users, Sparkles,
 } from 'lucide-react';
 
 interface QueueItem {
@@ -77,8 +78,7 @@ const ApplyQueue = () => {
   const [scanning, setScanning] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProposal, setEditingProposal] = useState<Record<string, string>>({});
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending'>('all');
   const [platformFilter, setPlatformFilter] = useState<'All' | OpportunityPlatform>('All');
 
   const txt = {
@@ -86,11 +86,9 @@ const ApplyQueue = () => {
     subtitle: language === 'tr' ? 'Sovereign siz yokken en iyi fırsatları buldu' : language === 'de' ? 'Sovereign hat die besten Chancen gefunden' : language === 'fr' ? 'Sovereign a trouvé les meilleures opportunités' : 'Sovereign found your best opportunities while you were away',
     scan: language === 'tr' ? 'Yeni Fırsatları Tara' : language === 'de' ? 'Neue Chancen scannen' : language === 'fr' ? 'Rechercher des opportunités' : 'Scan New Opportunities',
     scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning...',
-    approve: language === 'tr' ? 'Onayla' : language === 'de' ? 'Genehmigen' : language === 'fr' ? 'Approuver' : 'Approve',
-    reject: language === 'tr' ? 'Reddet' : language === 'de' ? 'Ablehnen' : language === 'fr' ? 'Rejeter' : 'Reject',
-    applyAll: language === 'tr' ? 'Seçilenleri uygulandı işaretle' : language === 'de' ? 'Ausgewählte als beworben markieren' : language === 'fr' ? 'Marquer comme postulé' : 'Mark selected as applied',
     copyProposal: language === 'tr' ? 'Teklifi kopyala' : language === 'de' ? 'Vorschlag kopieren' : language === 'fr' ? 'Copier la proposition' : 'Copy Proposal',
-    viewOriginal: language === 'tr' ? 'Orijinal ilanı aç ↗' : language === 'de' ? 'Originalanzeige öffnen ↗' : language === 'fr' ? 'Voir l’offre originale ↗' : 'View Original Job Post ↗',
+    viewOriginal: language === 'tr' ? 'Platformda gör / başvur ↗' : language === 'de' ? 'Auf der Plattform öffnen ↗' : language === 'fr' ? 'Voir / postuler ↗' : 'View / Apply on Platform ↗',
+    onboardingFirst: language === 'tr' ? 'Eşleşme skoru için onboarding’de en az iki beceri ekleyin.' : 'Add at least two skills in onboarding before Sovereign can calculate match scores.',
     noItems: language === 'tr' ? 'Henüz fırsat yok. Tarama yaparak başlayın.' : language === 'de' ? 'Noch keine Chancen. Starten Sie einen Scan.' : language === 'fr' ? 'Pas encore d\'opportunités. Lancez une recherche.' : 'No opportunities yet. Start a scan to find matches.',
     acceptance: language === 'tr' ? 'Kabul Olasılığı' : language === 'de' ? 'Annahmequote' : language === 'fr' ? 'Probabilité d\'acceptation' : 'Acceptance Probability',
     whyThis: language === 'tr' ? 'Neden bu iş?' : language === 'de' ? 'Warum dieser Job?' : language === 'fr' ? 'Pourquoi ce poste ?' : 'Why this job?',
@@ -99,8 +97,6 @@ const ApplyQueue = () => {
     credits30: language === 'tr' ? '30 kredi' : language === 'de' ? '30 Credits' : language === 'fr' ? '30 crédits' : '30 credits',
     all: language === 'tr' ? 'Tümü' : language === 'de' ? 'Alle' : language === 'fr' ? 'Tout' : 'All',
     pending: language === 'tr' ? 'Bekleyen' : language === 'de' ? 'Ausstehend' : language === 'fr' ? 'En attente' : 'Pending',
-    approved: language === 'tr' ? 'Onaylanan' : language === 'de' ? 'Genehmigt' : language === 'fr' ? 'Approuvé' : 'Approved',
-    rejected: language === 'tr' ? 'Reddedilen' : language === 'de' ? 'Abgelehnt' : language === 'fr' ? 'Rejeté' : 'Rejected',
     upgradeNeeded: language === 'tr' ? 'Bu özellik Pro veya Elite plan gerektirir' : language === 'de' ? 'Pro- oder Elite-Plan erforderlich' : language === 'fr' ? 'Plan Pro ou Elite requis' : 'Upgrade to Pro or Elite to use Apply Queue',
   };
 
@@ -137,13 +133,21 @@ const ApplyQueue = () => {
       toast.error(language === 'tr' ? 'Oturum gerekli' : 'Please sign in');
       return;
     }
+    const profileSkills = normalizeSkillList([
+      ...(Array.isArray(profile?.skills) ? profile.skills : []),
+      String(profile?.profession_cluster || ''),
+      String(profile?.onboarding_role || ''),
+    ]);
+    if (!isOnboardingComplete({ skills: profileSkills })) {
+      toast.error(txt.onboardingFirst);
+      return;
+    }
     setScanning(true);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 22000);
 
     try {
-      const skills = Array.isArray(profile?.skills) ? profile.skills.filter(Boolean).join(',') : '';
-      const query = [skills, profile?.profession_cluster, profile?.onboarding_role].filter(Boolean).join(',');
+      const query = profileSkills.join(',');
       const live = await fetchLiveOpportunities({
         query,
         platform: platformFilter,
@@ -153,7 +157,13 @@ const ApplyQueue = () => {
       const existing = new Set(items.map((item) => normalizeOpportunityUrl(item.job_url)));
       const fresh = live.items.filter((item) => item.url && !existing.has(normalizeOpportunityUrl(item.url)));
       const batchId = crypto.randomUUID();
-      const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId));
+      const matchProfile = {
+        skills: profileSkills,
+        experience: String(profile?.experience || ''),
+        profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
+        hourlyRate: typeof profile?.hourly_rate === 'number' ? profile.hourly_rate : null,
+      };
+      const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId, matchProfile));
 
       if (rows.length) {
         const { error } = await supabase.from('apply_queue').insert(rows);
@@ -195,62 +205,6 @@ const ApplyQueue = () => {
       window.clearTimeout(timeout);
       setScanning(false);
     }
-  };
-
-  const updateStatus = async (id: string, status: string) => {
-    const proposal = editingProposal[id];
-    const updates: any = { status };
-    if (proposal !== undefined) {
-      updates.generated_proposal = proposal;
-    }
-    
-    await supabase.from('apply_queue').update(updates).eq('id', id);
-    setItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
-    toast.success(status === 'approved' ? (language === 'tr' ? 'Onaylandı' : 'Approved') : (language === 'tr' ? 'Reddedildi' : 'Rejected'));
-  };
-
-  const handleBatchApply = async () => {
-    const approvedItems = items.filter(i => selectedIds.has(i.id) && i.status === 'approved');
-    if (approvedItems.length === 0) {
-      toast.error(language === 'tr' ? 'Önce fırsatları onaylayın' : 'Approve opportunities first');
-      return;
-    }
-
-    // Mark as applied and create application entries
-    for (const item of approvedItems) {
-      await supabase.from('apply_queue').update({ status: 'applied' }).eq('id', item.id);
-      await supabase.from('applications').insert({
-        user_id: user!.id,
-        job_title: item.job_title,
-        company: item.company,
-        job_url: item.job_url,
-        job_description: item.job_description,
-        generated_proposal: editingProposal[item.id] || item.generated_proposal,
-        status: 'applied',
-        acceptance_score: item.acceptance_probability,
-      });
-      // Create outcome tracking entry
-      await supabase.from('outcome_tracking').insert({
-        user_id: user!.id,
-        queue_item_id: item.id,
-        job_platform: item.platform,
-        match_score_at_apply: item.match_score,
-      });
-    }
-
-    setItems(prev => prev.map(i => selectedIds.has(i.id) ? { ...i, status: 'applied' } : i));
-    setSelectedIds(new Set());
-    toast.success(language === 'tr'
-      ? `${approvedItems.length} kayıt güncellendi. Teklifi kopyalayıp orijinal ilanda elle gönderin — otomatik başvuru yok.`
-      : `${approvedItems.length} marked in Sovereign. Copy each proposal and submit it yourself on the original job post.`);
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
   };
 
   const filtered = items.filter((i) => {
@@ -320,15 +274,8 @@ const ApplyQueue = () => {
                 creditLabel={txt.credits30}
                 counts={platformCounts}
               />
-              {selectedIds.size > 0 && (
-                <Button onClick={handleBatchApply} variant="outline" className="border-green-500/30 text-green-500 mb-3">
-                  <Send className="w-4 h-4 mr-2" />
-                  {txt.applyAll} ({selectedIds.size})
-                </Button>
-              )}
-
               <div className="flex gap-1 ml-auto">
-                {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
+                {(['all', 'pending'] as const).map(f => (
                   <Button
                     key={f}
                     variant={filter === f ? 'default' : 'ghost'}
@@ -357,17 +304,11 @@ const ApplyQueue = () => {
               <div className="space-y-4">
                 {filtered.map((item) => {
                   const isExpanded = expandedId === item.id;
-                  const isRejected = !!item.rejection_reason;
-
                   return (
                     <div
                       key={item.id}
                       className={`rounded-2xl border backdrop-blur-md bg-slate-900/60 transition-all duration-300 hover:border-white/20 hover:shadow-2xl hover:shadow-indigo-500/10 ${
-                        isRejected
-                          ? 'border-red-500/20 bg-red-500/5'
-                          : item.status === 'approved'
-                          ? 'border-green-500/20 bg-green-500/5'
-                          : item.status === 'applied'
+                        item.status === 'applied'
                           ? 'border-blue-500/20 bg-blue-500/5'
                           : 'border-border bg-card'
                       }`}
@@ -378,18 +319,6 @@ const ApplyQueue = () => {
                         onClick={() => setExpandedId(isExpanded ? null : item.id)}
                       >
                         <div className="flex items-start gap-3">
-                          {/* Select checkbox */}
-                          {item.status !== 'applied' && !isRejected && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleSelect(item.id); }}
-                              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                selectedIds.has(item.id) ? 'bg-primary border-primary' : 'border-muted-foreground/30'
-                              }`}
-                            >
-                              {selectedIds.has(item.id) && <Check className="w-3 h-3 text-primary-foreground" />}
-                            </button>
-                          )}
-
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${PLATFORM_COLORS[item.platform] || 'bg-muted text-muted-foreground'}`}>
@@ -407,9 +336,6 @@ const ApplyQueue = () => {
                               </span>
                               {item.status === 'applied' && (
                                 <Badge className="bg-blue-500/20 text-blue-400 text-[10px]">Applied</Badge>
-                              )}
-                              {item.status === 'approved' && (
-                                <Badge className="bg-green-500/20 text-green-400 text-[10px]">Approved</Badge>
                               )}
                             </div>
                             <h3 className="text-sm font-semibold text-foreground truncate">{item.job_title}</h3>
@@ -438,17 +364,6 @@ const ApplyQueue = () => {
 
                           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
-
-                        {/* Rejection warning */}
-                        {isRejected && (
-                          <div className="mt-3 flex items-start gap-2 bg-red-500/10 rounded-lg p-3">
-                            <Ban className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                            <div>
-                              <span className="text-xs font-semibold text-red-400 uppercase">{txt.doNotApply}</span>
-                              <p className="text-xs text-red-300/80 mt-0.5">{item.rejection_reason}</p>
-                            </div>
-                          </div>
-                        )}
 
                         {/* Skills */}
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -522,21 +437,6 @@ const ApplyQueue = () => {
                           {/* Actions */}
                           {item.status !== 'applied' && (
                             <div className="flex items-center gap-3 pt-2">
-                              <Button
-                                size="sm"
-                                onClick={() => updateStatus(item.id, 'approved')}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                <Check className="w-4 h-4 mr-1" /> {txt.approve}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateStatus(item.id, 'rejected')}
-                                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                              >
-                                <X className="w-4 h-4 mr-1" /> {txt.reject}
-                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"

@@ -198,7 +198,7 @@ function heuristicJobScore(job: JobPosting, profile: SkillProfile): number {
   return scoreOpportunity(
     { skills: profile.skills, experience: profile.experience, profession: profile.name },
     job.title,
-    `${job.summary || ''} ${(job.skills || []).join(' ')}`,
+    `${job.summary || ''} ${job.rawContent || ''} ${(job.skills || []).join(' ')}`,
     job.budget,
     job.skills,
   ).matchScore;

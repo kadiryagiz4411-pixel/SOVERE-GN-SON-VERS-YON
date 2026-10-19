@@ -61,7 +61,7 @@
         background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
       }
-      .primary:disabled, .ghost:disabled, .cv:disabled, .b2b:disabled { opacity: .5; cursor: default; }
+      .primary:disabled, .ghost:disabled, .fill:disabled, .cv:disabled, .b2b:disabled { opacity: .5; cursor: default; }
       a.fill {
         display: inline-flex;
         align-items: center;
@@ -191,7 +191,7 @@
         <p>Zero-friction · reads the active tab</p>
       </div>
     </div>
-    <button id="analyze" class="primary">Analyze Active Page</button>
+    <button id="analyze" class="primary">Generate Proposal</button>
     <div id="spinner" class="spinner"></div>
     <p id="status">Opening this panel reads the active tab automatically.</p>
     <div id="card" class="card">
@@ -213,7 +213,10 @@
       <p id="proposal" class="proposal"></p>
       <div id="actionsJob" class="row hidden">
         <button id="copy" class="ghost" type="button">Copy Proposal</button>
-        <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="#">View Original Job Post ↗</a>
+        <button id="autofill" class="fill" type="button">Auto-Fill</button>
+      </div>
+      <div id="actionsJobLink" class="row single hidden" style="margin-top:8px">
+        <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="#">View / Apply on Platform ↗</a>
       </div>
       <div id="actionsCv" class="row single hidden">
         <button id="saveCandidate" class="cv" type="button">Save Candidate to Sovereign B2B</button>
