@@ -53,7 +53,10 @@ async function parseDomViaApi(apiBase, payload) {
     try {
       const res = await fetch(`${base}/api/extension/parse-dom`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-extension-id': chrome.runtime.id || '',
+        },
         body: JSON.stringify(payload || {}),
       });
       const data = await res.json().catch(() => ({}));
@@ -69,6 +72,10 @@ async function parseDomViaApi(apiBase, payload) {
 async function scrapeActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error('No active tab');
+  const href = tab.url || '';
+  if (/^(chrome|edge|about|chrome-extension):/i.test(href)) {
+    throw new Error('Open an Upwork or LinkedIn tab, then click Analyze.');
+  }
 
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -97,14 +104,21 @@ async function injectActiveTab(proposalText) {
 }
 
 function injectProposalToDOM(proposalText) {
+  const isVisible = (el) => {
+    const r = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none';
+  };
+
   const selectors = [
     'textarea[aria-labelledby*="cover-letter"]',
     'textarea[aria-label*="cover letter" i]',
-    'textarea[aria-label*="Cover letter" i]',
-    'textarea[name*="cover" i]',
     'textarea[placeholder*="cover" i]',
+    'textarea[name*="cover" i]',
     'textarea.up-textarea',
     'textarea[data-test="cover-letter"]',
+    '.msg-form__contenteditable',
+    'div.ql-editor[contenteditable="true"]',
     'div[contenteditable="true"][aria-label*="message" i]',
     'div[contenteditable="true"][role="textbox"]',
     'textarea',
@@ -112,7 +126,7 @@ function injectProposalToDOM(proposalText) {
 
   let field = null;
   for (const selector of selectors) {
-    const found = document.querySelector(selector);
+    const found = [...document.querySelectorAll(selector)].find(isVisible);
     if (found) {
       field = found;
       break;
@@ -120,12 +134,11 @@ function injectProposalToDOM(proposalText) {
   }
   if (!field) return false;
 
+  field.focus();
   if (field.isContentEditable) {
-    field.focus();
     field.textContent = proposalText;
-    field.dispatchEvent(new InputEvent('input', { bubbles: true, data: proposalText }));
+    field.dispatchEvent(new InputEvent('input', { bubbles: true, data: proposalText, inputType: 'insertText' }));
   } else {
-    field.focus();
     const proto = field.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
     if (setter) setter.call(field, proposalText);

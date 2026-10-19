@@ -4,57 +4,86 @@
     <meta charset="UTF-8" />
     <title>Sovereign Side Panel</title>
     <style>
-      :root { color-scheme: dark; }
+      :root {
+        color-scheme: dark;
+        --bg: #09090B;
+        --card: #111113;
+        --line: rgba(212, 175, 55, 0.22);
+        --gold: #d4af37;
+        --gold-2: #f5d76e;
+        --muted: #a8a29e;
+        --text: #f5f5f4;
+      }
       * { box-sizing: border-box; }
       body {
         margin: 0;
+        min-height: 100vh;
         font-family: Inter, system-ui, sans-serif;
-        background: #0b0f19;
-        color: #e7e5e4;
+        background: radial-gradient(1200px 400px at 50% -80px, rgba(212, 175, 55, 0.12), transparent 55%), var(--bg);
+        color: var(--text);
         padding: 16px;
       }
-      h1 {
-        font-size: 11px;
-        letter-spacing: .18em;
-        text-transform: uppercase;
-        color: #d4af37;
-        margin: 0 0 14px;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
       }
-      label { display: block; font-size: 11px; color: #a8a29e; margin-bottom: 6px; }
-      input {
-        width: 100%;
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #e7e5e4;
-        margin-bottom: 12px;
+      .brand img {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        border: 1px solid var(--line);
+      }
+      .brand h1 {
+        font-size: 11px;
+        letter-spacing: .2em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0;
+      }
+      .brand p {
+        margin: 2px 0 0;
+        font-size: 11px;
+        color: var(--muted);
       }
       button {
-        width: 100%;
         border: 0;
         border-radius: 10px;
-        padding: 10px 12px;
+        padding: 11px 12px;
         font-weight: 700;
         cursor: pointer;
         font-size: 13px;
+        font-family: inherit;
       }
       .primary {
-        background: linear-gradient(90deg, #d4af37, #b8860b);
+        width: 100%;
+        background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
       }
-      .fill {
-        background: #059669;
-        color: #fff;
-        margin-top: 10px;
+      .primary:disabled, .ghost:disabled, .fill:disabled { opacity: .5; cursor: default; }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
       }
-      .fill:disabled, .primary:disabled { opacity: .55; cursor: default; }
-      #status { font-size: 12px; color: #a8a29e; min-height: 18px; margin: 10px 0; }
+      .ghost {
+        background: transparent;
+        color: var(--gold-2);
+        border: 1px solid var(--line);
+      }
+      .fill {
+        background: #064e3b;
+        color: #6ee7b7;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+      }
+      #status { font-size: 12px; color: var(--muted); min-height: 18px; margin: 12px 0; }
       .spinner {
         display: none;
         width: 22px; height: 22px;
-        border: 2px solid #334155;
-        border-top-color: #d4af37;
+        border: 2px solid #27272a;
+        border-top-color: var(--gold);
         border-radius: 50%;
         animation: spin .8s linear infinite;
         margin: 8px auto;
@@ -63,51 +92,115 @@
       @keyframes spin { to { transform: rotate(360deg); } }
       .card {
         display: none;
-        border: 1px solid #334155;
-        background: #111827;
-        border-radius: 12px;
-        padding: 14px;
-        margin-top: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.04), 0 18px 40px rgba(0, 0, 0, 0.35);
       }
       .card.on { display: block; }
-      .badge {
-        display: inline-flex;
+      .score-row {
+        display: flex;
         align-items: center;
-        font-size: 11px;
-        font-weight: 800;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: #064e3b;
-        color: #6ee7b7;
-        margin-bottom: 8px;
+        gap: 12px;
+        margin-bottom: 12px;
       }
-      .title { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+      .score {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: conic-gradient(var(--gold) calc(var(--p, 0) * 1%), #27272a 0);
+      }
+      .score span {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: var(--bg);
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--gold-2);
+      }
+      .title { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+      .meta { font-size: 11px; color: var(--muted); word-break: break-all; }
+      .k {
+        font-size: 10px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 14px 0 6px;
+      }
       .pain, .proposal {
         font-size: 12px;
-        line-height: 1.45;
-        color: #d6d3d1;
+        line-height: 1.5;
+        color: #e7e5e4;
         white-space: pre-wrap;
+        margin: 0;
       }
-      .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #d4af37; margin: 10px 0 4px; }
-      .err { color: #fca5a5; font-size: 12px; }
+      .proposal {
+        padding: 10px;
+        border-radius: 10px;
+        background: #09090B;
+        border: 1px solid #27272a;
+        max-height: 220px;
+        overflow: auto;
+      }
+      .err { color: #fca5a5; }
+      details {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      details input {
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #27272a;
+        background: #111113;
+        color: var(--text);
+      }
     </style>
   </head>
   <body>
-    <h1>Sovereign Intelligence</h1>
-    <label for="api">API base (deployed Sovereign app)</label>
-    <input id="api" placeholder="https://www.sovereignapp.pro" />
+    <div class="brand">
+      <img src="icons/icon48.png" alt="Sovereign" />
+      <div>
+        <h1>Sovereign Intelligence</h1>
+        <p>Click-only analysis · no background scrape</p>
+      </div>
+    </div>
     <button id="analyze" class="primary">Analyze Active Page</button>
     <div id="spinner" class="spinner"></div>
-    <p id="status">Idle — click Analyze. Nothing runs in the background.</p>
+    <p id="status">Idle — click Analyze on an Upwork or LinkedIn tab.</p>
     <div id="card" class="card">
-      <div id="badge" class="badge">Match</div>
-      <p id="title" class="title"></p>
+      <div class="score-row">
+        <div id="scoreRing" class="score" style="--p:0">
+          <span id="badge">—</span>
+        </div>
+        <div>
+          <p id="title" class="title"></p>
+          <p id="meta" class="meta"></p>
+        </div>
+      </div>
+      <div class="k">Compatibility score</div>
+      <p id="scoreLabel" class="pain"></p>
       <div class="k">Technical pain point</div>
       <p id="pain" class="pain"></p>
-      <div class="k">Sanitized proposal</div>
+      <div class="k">Generated proposal</div>
       <p id="proposal" class="proposal"></p>
-      <button id="autofill" class="fill">Auto-Fill Proposal</button>
+      <div class="row">
+        <button id="copy" class="ghost" type="button">Copy Proposal</button>
+        <button id="autofill" class="fill" type="button">Auto-Fill</button>
+      </div>
     </div>
+    <details>
+      <summary>Advanced API endpoint</summary>
+      <input id="api" placeholder="https://www.sovereignapp.pro" />
+    </details>
     <script src="sidepanel.js"></script>
   </body>
 </html>
