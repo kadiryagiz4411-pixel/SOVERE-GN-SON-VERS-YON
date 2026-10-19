@@ -46,6 +46,48 @@ export function detectPlatform(url: string, fallback?: string): OpportunityPlatf
   return 'Upwork';
 }
 
+export function platformSearchUrl(platform: string, query?: string): string {
+  const q = encodeURIComponent(String(query || 'developer').trim() || 'developer');
+  if (platform === 'Fiverr') return `https://www.fiverr.com/search/gigs?query=${q}`;
+  if (platform === 'Freelancer') return `https://www.freelancer.com/search/projects?q=${q}`;
+  if (platform === 'LinkedIn') return `https://www.linkedin.com/jobs/search/?keywords=${q}`;
+  return `https://www.upwork.com/nx/search/jobs/?q=${q}`;
+}
+
+export function platformOrigin(platform: string): string {
+  if (platform === 'Fiverr') return 'https://www.fiverr.com';
+  if (platform === 'Freelancer') return 'https://www.freelancer.com';
+  if (platform === 'LinkedIn') return 'https://www.linkedin.com';
+  return 'https://www.upwork.com';
+}
+
+export function ensureAbsoluteJobUrl(raw: string | undefined | null, platform: string, title?: string): string {
+  let value = String(raw || '').trim();
+  const markdown = value.match(/\((https?:\/\/[^)\s]+)\)/i);
+  if (markdown) value = markdown[1];
+  value = value.replace(/^\[|\]$/g, '').replace(/^<|>$/g, '').trim();
+  if (/^\/\//.test(value)) value = `https:${value}`;
+  if (/^http:\/\//i.test(value)) value = value.replace(/^http:\/\//i, 'https://');
+  if (value.startsWith('/') && !value.startsWith('//')) {
+    value = `${platformOrigin(platform)}${value}`;
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'http:') parsed.protocol = 'https:';
+    if (parsed.protocol === 'https:' && parsed.hostname) return parsed.toString();
+  } catch {
+    // fall through to platform search
+  }
+  return platformSearchUrl(platform, title);
+}
+
+export function withValidUrl(item: OpportunityItem): OpportunityItem {
+  return {
+    ...item,
+    url: ensureAbsoluteJobUrl(item.url, item.platform, item.title),
+  };
+}
+
 export function normalizeUrl(url: string): string {
   return String(url || '').trim().replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
 }
@@ -406,7 +448,7 @@ export async function collectLiveOpportunities(
   }
 
   await Promise.all(tasks);
-  const items = dedupeOpportunities(bucket)
+  const items = dedupeOpportunities(bucket.map(withValidUrl))
     .sort((a, b) => String(b.postedAt).localeCompare(String(a.postedAt)))
     .slice(0, 40);
   return { items, sources };
