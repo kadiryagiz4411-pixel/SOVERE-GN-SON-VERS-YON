@@ -22,8 +22,49 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'PARSE_DOM') {
+    parseDomViaApi(request.apiBase, request.payload)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
+
+const CANONICAL_API = 'https://www.sovereignapp.pro';
+
+function canonicalizeApiBase(raw) {
+  const trimmed = String(raw || '').trim().replace(/\/$/, '');
+  if (!trimmed) return CANONICAL_API;
+  try {
+    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    if (url.hostname === 'sovereignapp.pro') url.hostname = 'www.sovereignapp.pro';
+    return url.origin;
+  } catch {
+    return CANONICAL_API;
+  }
+}
+
+async function parseDomViaApi(apiBase, payload) {
+  const bases = [...new Set([canonicalizeApiBase(apiBase), CANONICAL_API])];
+  let lastError;
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}/api/extension/parse-dom`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
+      return data;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('Could not connect to Sovereign API.');
+}
 
 async function scrapeActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

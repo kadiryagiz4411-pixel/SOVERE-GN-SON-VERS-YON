@@ -9,11 +9,29 @@ const proposalEl = document.getElementById('proposal');
 const analyzeBtn = document.getElementById('analyze');
 const autofillBtn = document.getElementById('autofill');
 
-const DEFAULT_API = 'https://sovereignapp.pro';
+/** Canonical host — apex sovereignapp.pro 308-redirects to www and that blocks CORS preflight. */
+const API_BASE_URL = window.SOVEREIGN_API_URL || 'https://www.sovereignapp.pro';
 let lastProposal = '';
 
+function canonicalizeApiBase(raw) {
+  const trimmed = String(raw || '').trim().replace(/\/$/, '');
+  if (!trimmed) return API_BASE_URL;
+  try {
+    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    if (url.hostname === 'sovereignapp.pro') url.hostname = 'www.sovereignapp.pro';
+    return url.origin;
+  } catch {
+    return API_BASE_URL;
+  }
+}
+
 chrome.storage.sync.get(['sovereign_api'], (stored) => {
-  apiInput.value = stored.sovereign_api || localStorage.getItem('sovereign_api') || DEFAULT_API;
+  const next = canonicalizeApiBase(
+    stored.sovereign_api || localStorage.getItem('sovereign_api') || API_BASE_URL,
+  );
+  apiInput.value = next;
+  localStorage.setItem('sovereign_api', next);
+  chrome.storage.sync.set({ sovereign_api: next });
 });
 
 function setBusy(on, message) {
@@ -26,43 +44,75 @@ function setBusy(on, message) {
 function showError(message) {
   spinner.classList.remove('on');
   analyzeBtn.disabled = false;
-  statusEl.textContent = message;
   statusEl.classList.add('err');
+  statusEl.innerHTML = `
+    <div style="color:#ef4444;font-size:12px;padding:8px;background:rgba(239,68,68,0.1);border-radius:6px;">
+      <strong>Connection Error:</strong> ${message || 'Could not connect to Sovereign API.'}<br/>
+      <span style="font-size:11px;opacity:0.8;">Use https://www.sovereignapp.pro so OPTIONS preflight is not redirected.</span>
+    </div>
+  `;
+}
+
+function renderAnalysisResults(data, pageTitle) {
+  const isJob = data.type === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
+  const score = data.compatibilityScore ?? data.overallScore ?? '—';
+  badge.textContent = `${score}% match`;
+  titleEl.textContent = data.title || pageTitle || (isJob ? 'Job posting' : 'Candidate');
+  painEl.textContent = data.painPoint || data.whyThisCandidate || data.summary || 'No summary returned.';
+  lastProposal = data.proposalText || '';
+  proposalEl.textContent = lastProposal || data.summary || 'No proposal generated for this page type.';
+  autofillBtn.style.display = lastProposal ? 'block' : 'none';
+  card.classList.add('on');
+  setBusy(false, isJob ? 'Job analysis ready.' : 'Candidate profile parsed.');
 }
 
 analyzeBtn.addEventListener('click', async () => {
-  const apiBase = apiInput.value.replace(/\/$/, '');
+  const apiBase = canonicalizeApiBase(apiInput.value);
+  apiInput.value = apiBase;
   localStorage.setItem('sovereign_api', apiBase);
   chrome.storage.sync.set({ sovereign_api: apiBase });
   card.classList.remove('on');
   lastProposal = '';
-  setBusy(true, 'Analyzing Job Posting & Identifying Pain Points...');
+  setBusy(true, 'Analyzing page content with Sovereign AI...');
 
   try {
     const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
     if (!scraped?.success) throw new Error(scraped?.error || 'Could not scrape this tab.');
 
     const { pageText, pageTitle, pageUrl } = scraped.data || {};
-    const res = await fetch(`${apiBase}/api/extension/parse-dom`, {
+    const payload = { pageText, pageTitle, pageUrl, text: pageText, sourceUrl: pageUrl };
+
+    const viaWorker = await chrome.runtime.sendMessage({
+      type: 'PARSE_DOM',
+      apiBase,
+      payload,
+    });
+
+    if (viaWorker?.success && viaWorker.data) {
+      renderAnalysisResults(viaWorker.data, pageTitle);
+      return;
+    }
+
+    const response = await fetch(`${apiBase}/api/extension/parse-dom`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageText, pageTitle, pageUrl, text: pageText, sourceUrl: pageUrl }),
+      body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || data.error || `API ${res.status}`);
 
-    const isJob = data.type === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
-    const score = data.compatibilityScore ?? data.overallScore ?? '—';
-    badge.textContent = `${score}% match`;
-    titleEl.textContent = data.title || pageTitle || (isJob ? 'Job posting' : 'Candidate');
-    painEl.textContent = data.painPoint || data.whyThisCandidate || data.summary || 'No summary returned.';
-    lastProposal = data.proposalText || '';
-    proposalEl.textContent = lastProposal || data.summary || 'No proposal generated for this page type.';
-    autofillBtn.style.display = lastProposal ? 'block' : 'none';
-    card.classList.add('on');
-    setBusy(false, isJob ? 'Job analysis ready.' : 'Candidate profile parsed.');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || err.error || viaWorker?.error || `Server Error ${response.status}`);
+    }
+
+    renderAnalysisResults(await response.json(), pageTitle);
   } catch (err) {
-    showError(err.message || String(err));
+    console.error('Extension Fetch Error:', err);
+    const msg = err?.message || String(err);
+    if (/Failed to fetch|NetworkError|redirect|CORS|preflight/i.test(msg)) {
+      showError('Could not connect to Sovereign API. Ensure Vercel production is live and reachable.');
+      return;
+    }
+    showError(msg);
   }
 });
 
