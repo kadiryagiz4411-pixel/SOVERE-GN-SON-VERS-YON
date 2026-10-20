@@ -657,7 +657,7 @@ const CVBuilder = () => {
               <p className="text-xs text-slate-500 mt-1.5">
                 Non-English CV generation requires{' '}
                 <span className="text-violet-400 font-medium">Pro ($29/mo)</span> or higher.{' '}
-                <a href="/settings/billing" className="underline hover:text-violet-300">Upgrade →</a>
+                <Link to="/settings/billing" className="underline hover:text-violet-300">Upgrade →</Link>
               </p>
             )}
           </div>

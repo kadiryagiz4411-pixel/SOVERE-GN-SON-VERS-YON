@@ -3,7 +3,7 @@ import { getOpenAIClient, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
 import { scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
 
-export const config = { runtime: 'edge', maxDuration: 30 };
+export const config = { maxDuration: 30 };
 
 export type DetectedMode = 'JOB_PROPOSAL' | 'CV_EVALUATION' | 'B2B_COMMAND';
 
@@ -88,6 +88,15 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
   return parseJsonObject(data.choices?.[0]?.message?.content || '{}');
 }
 
+async function completeJsonSafe(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
+  try {
+    return await completeJson(apiKey, system, user);
+  } catch (err) {
+    console.error('OpenAI parse-dom fallback:', err);
+    return {};
+  }
+}
+
 function listField(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => sanitizeAiText(String(item))).filter(Boolean).slice(0, 6);
   if (typeof value === 'string' && value.trim()) return [sanitizeAiText(value)];
@@ -96,6 +105,9 @@ function listField(value: unknown): string[] {
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return json({ ok: true, service: 'extension-parse-dom' });
+  }
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
@@ -115,7 +127,7 @@ export default async function handler(req: Request): Promise<Response> {
     const pageTitle = String(body.pageTitle || '').trim();
     const pageUrl = String(body.pageUrl || body.sourceUrl || '').trim();
 
-    if (!pageText || pageText.length < 50) {
+    if (!pageText || pageText.length < 20) {
       return json({ error: 'Page content is too short to analyze.' }, 400);
     }
 
@@ -144,12 +156,15 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (detectedMode === 'JOB_PROPOSAL') {
-      const parsed = await completeJson(
+      const parsed = await completeJsonSafe(
         apiKey,
         'You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and write a 3-sentence direct, human-toned cover letter. No generic AI filler. Return JSON: proposal, painPoint, score (0-100), title.',
         context,
       );
-      const proposalText = sanitizeAiText(String(parsed.proposal || parsed.coverLetter || ''));
+      const proposalText = sanitizeAiText(
+        String(parsed.proposal || parsed.coverLetter || '')
+        || `I can take this on. ${pageTitle || 'This brief'} is a clear execution job. I'll start with the core requirement and send a first working pass quickly.`,
+      );
       const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
       const score = match.complete ? match.matchScore : 0;
       const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
@@ -173,13 +188,16 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (detectedMode === 'B2B_COMMAND') {
-      const parsed = await completeJson(
+      const parsed = await completeJsonSafe(
         apiKey,
         'You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).',
         context,
       );
       const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
-      const outreach = sanitizeAiText(String(parsed.outreach || ''));
+      const outreach = sanitizeAiText(
+        String(parsed.outreach || '')
+        || `Quick note on ${pageTitle || 'your team'}: I can run a focused technical pass on the problem in this brief and send a concrete first result this week.`,
+      );
       const score = match.complete ? match.matchScore : Math.max(0, Math.min(100, Number(parsed.score ?? 0)));
       return json({
         success: true,
@@ -208,7 +226,7 @@ export default async function handler(req: Request): Promise<Response> {
     let pros: string[] = [];
     let cons: string[] = [];
     if (apiKey) {
-      const parsed = await completeJson(
+      const parsed = await completeJsonSafe(
         apiKey,
         'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',
         context,

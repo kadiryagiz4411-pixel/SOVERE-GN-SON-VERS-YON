@@ -7,8 +7,8 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-extension-id, x-sovereign-key" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, HEAD, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-extension-id, x-sovereign-key, Cache-Control, Pragma, Accept, X-Requested-With" },
         { "key": "Access-Control-Max-Age", "value": "86400" }
       ]
     },

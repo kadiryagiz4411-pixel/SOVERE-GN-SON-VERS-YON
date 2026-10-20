@@ -1,6 +1,5 @@
 const CANONICAL_API = 'https://www.sovereignapp.pro';
 const PARSE_DOM_URL = `${CANONICAL_API}/api/extension/parse-dom`;
-const PING_URL = `${CANONICAL_API}/api/opportunities`;
 const STORE = {
   SETTINGS: 'sovereign.settings.v1',
   PROPOSALS: 'sovereign.proposals.v1',
@@ -172,7 +171,6 @@ function ingestOpportunity(pageData, analysis) {
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache',
       'x-extension-id': chrome.runtime.id || '',
     },
     body: JSON.stringify({
@@ -455,13 +453,13 @@ async function postParseDom(pageData) {
   }).catch(() => null);
 
   if (viaWorker?.success && viaWorker.data) return viaWorker.data;
+  if (viaWorker?.error) throw new Error(viaWorker.error);
 
   const response = await fetch(`${PARSE_DOM_URL}?t=${Date.now()}`, {
     method: 'POST',
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
       'x-extension-id': chrome.runtime.id || '',
     },
     body: JSON.stringify(payload),
@@ -469,7 +467,7 @@ async function postParseDom(pageData) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || data.error || viaWorker?.error || `Server returned ${response.status}`);
+    throw new Error(data.message || data.error || `Server returned ${response.status}`);
   }
   return data;
 }
@@ -487,7 +485,7 @@ async function analyzeActivePage() {
   try {
     const pageData = await getActiveTabDOM();
     const pageText = String(pageData.pageText || '').trim();
-    if (pageText.length < 50) {
+    if (pageText.length < 20) {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
@@ -549,39 +547,43 @@ async function persistSettings(partial) {
   fillSettingsForm();
 }
 
+function setApiStatus(ok, detail) {
+  const statusElLocal = document.getElementById('api-status');
+  if (apiBadge) {
+    apiBadge.textContent = ok ? 'UP' : 'DOWN';
+    apiBadge.classList.toggle('live', ok);
+    apiBadge.classList.toggle('down', !ok);
+  }
+  if (apiStatusDetail) apiStatusDetail.textContent = detail;
+  if (statusElLocal && statusElLocal !== apiStatusDetail) {
+    statusElLocal.textContent = ok ? 'UP (Connected)' : 'DOWN (Check Vercel)';
+    statusElLocal.style.color = ok ? '#10B981' : '#EF4444';
+  }
+}
+
 async function pingApi() {
   if (apiBadge) {
     apiBadge.textContent = 'API…';
     apiBadge.classList.remove('live', 'down');
   }
-  if (apiStatusDetail) apiStatusDetail.textContent = `Checking ${CANONICAL_API} …`;
+  if (apiStatusDetail) apiStatusDetail.textContent = `Checking ${PARSE_DOM_URL} …`;
   try {
-    const res = await fetch(`${PING_URL}?t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' },
+    const viaWorker = await chrome.runtime.sendMessage({ type: 'PING_API' }).catch(() => null);
+    if (viaWorker?.success && viaWorker.data?.ok) {
+      setApiStatus(true, `UP (Connected) via ${viaWorker.data.method || 'OPTIONS'} · ${PARSE_DOM_URL}`);
+      return true;
+    }
+    const res = await fetch(PARSE_DOM_URL, {
+      method: 'OPTIONS',
+      headers: { 'Content-Type': 'application/json', 'x-extension-id': chrome.runtime.id || '' },
     });
-    const ok = res.ok || res.status === 405 || res.status === 401;
-    if (apiBadge) {
-      apiBadge.textContent = ok ? 'Live' : 'Down';
-      apiBadge.classList.toggle('live', ok);
-      apiBadge.classList.toggle('down', !ok);
+    if (res.ok || res.status === 204) {
+      setApiStatus(true, `UP (Connected) · HTTP ${res.status} · ${PARSE_DOM_URL}`);
+      return true;
     }
-    if (apiStatusDetail) {
-      apiStatusDetail.textContent = ok
-        ? `Connected to ${CANONICAL_API} (HTTP ${res.status}). Parse endpoint: ${PARSE_DOM_URL}`
-        : `Sovereign API returned HTTP ${res.status}.`;
-    }
-    return ok;
+    throw new Error(viaWorker?.error || `API HTTP ${res.status}`);
   } catch (err) {
-    if (apiBadge) {
-      apiBadge.textContent = 'Down';
-      apiBadge.classList.add('down');
-      apiBadge.classList.remove('live');
-    }
-    if (apiStatusDetail) {
-      apiStatusDetail.textContent = `Could not reach ${CANONICAL_API}. ${err?.message || ''}`.trim();
-    }
+    setApiStatus(false, `DOWN (Check Vercel). ${err?.message || 'Could not reach the parse-dom API.'}`);
     return false;
   }
 }

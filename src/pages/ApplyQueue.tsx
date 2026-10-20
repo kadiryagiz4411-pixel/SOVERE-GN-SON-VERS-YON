@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/button';
@@ -256,8 +257,8 @@ const ApplyQueue = () => {
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-8 text-center">
             <Crown className="w-12 h-12 text-amber-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-foreground mb-2">{txt.upgradeNeeded}</h2>
-            <Button onClick={() => window.location.href = '/pricing'} className="mt-4">
-              {language === 'tr' ? 'Planları Gör' : 'View Plans'}
+            <Button asChild className="mt-4">
+              <Link to="/pricing">{language === 'tr' ? 'Planları Gör' : 'View Plans'}</Link>
             </Button>
           </div>
         ) : (

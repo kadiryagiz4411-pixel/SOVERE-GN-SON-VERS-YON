@@ -430,13 +430,19 @@
           <button id="planPro" class="choice" type="button" data-plan="pro">Pro SaaS<small>Active subscription</small></button>
           <button id="planLtd" class="choice" type="button" data-plan="appsumo">AppSumo LTD<small>Lifetime deal</small></button>
         </div>
-        <div class="row single" style="margin-top:10px">
-          <a class="fill" href="https://www.sovereignapp.pro/settings/billing" target="_blank" rel="noopener noreferrer">Open Sovereign Billing ↗</a>
+        <div class="row" style="margin-top:10px">
+          <a class="ghost" href="https://www.sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Pricing</a>
+          <a class="fill" href="https://www.sovereignapp.pro/settings/billing" target="_blank" rel="noopener noreferrer">Billing ↗</a>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <a class="ghost" href="https://www.sovereignapp.pro/proposals" target="_blank" rel="noopener noreferrer">My Proposals</a>
+          <a class="ghost" href="https://www.sovereignapp.pro/cv-builder" target="_blank" rel="noopener noreferrer">My CVs</a>
         </div>
         <p id="planStatus" class="hint">Membership: not set on this device.</p>
 
         <div class="k">API Connection Status</div>
         <p id="apiStatusDetail" class="hint">Checking https://www.sovereignapp.pro …</p>
+        <p id="api-status" class="hint"></p>
         <button id="pingApi" class="ghost" type="button">Ping API</button>
       </section>
     </main>

@@ -31,20 +31,43 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'PING_API') {
+    pingParseDom()
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
 
+function parseDomEndpoint() {
+  return `${canonicalizeApiBase(API_BASE_URL)}/api/extension/parse-dom`;
+}
+
+function extensionHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'x-extension-id': chrome.runtime.id || '',
+  };
+}
+
+async function pingParseDom() {
+  const url = `${parseDomEndpoint()}?t=${Date.now()}`;
+  const optionsRes = await fetch(url, { method: 'OPTIONS', headers: extensionHeaders() });
+  if (optionsRes.ok || optionsRes.status === 204) {
+    return { ok: true, status: optionsRes.status, method: 'OPTIONS' };
+  }
+  const getRes = await fetch(url, { method: 'GET', cache: 'no-store', headers: extensionHeaders() });
+  if (getRes.ok) return { ok: true, status: getRes.status, method: 'GET' };
+  throw new Error(`API HTTP ${optionsRes.status || getRes.status}`);
+}
+
 async function parseDomViaApi(_apiBase, payload) {
-  const base = canonicalizeApiBase(API_BASE_URL);
-  const res = await fetch(`${base}/api/extension/parse-dom?t=${Date.now()}`, {
+  const res = await fetch(`${parseDomEndpoint()}?t=${Date.now()}`, {
     method: 'POST',
     cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      'x-extension-id': chrome.runtime.id || '',
-    },
+    headers: extensionHeaders(),
     body: JSON.stringify(payload || {}),
   });
   const data = await res.json().catch(() => ({}));
