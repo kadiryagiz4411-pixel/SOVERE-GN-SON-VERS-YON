@@ -90,8 +90,8 @@ export const OnboardingSection = () => {
             return (
               <div key={q.id} className="p-6 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <SafeIcon icon={content.en.questions[i]?.icon} fallback={Briefcase} className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                    <SafeIcon icon={content.en.questions[i]?.icon} fallback={Briefcase} className="w-5 h-5 text-amber-400" />
                   </div>
                   <h3 className="font-semibold text-foreground text-sm">{q.question}</h3>
                 </div>
@@ -128,7 +128,8 @@ export const OnboardingSection = () => {
           </CheckoutButton>
           {answeredCount > 0 && !allAnswered && (
             <p className="text-sm text-muted-foreground mt-3">
-              {answeredCount}/{t.questions.length} answered
+              {answeredCount}/{t.questions.length}{' '}
+              {language === 'tr' ? 'yanıtlandı' : language === 'de' ? 'beantwortet' : language === 'fr' ? 'répondues' : 'answered'}
             </p>
           )}
         </div>

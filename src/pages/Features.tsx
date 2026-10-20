@@ -2,31 +2,32 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { FileText, DollarSign, MessageSquare, ShieldCheck, Zap, LineChart, Clock, Users } from 'lucide-react';
+import { Zap, LineChart, Clock, Users } from 'lucide-react';
 
 const Features = () => {
   const { t } = useLanguage();
 
+  const extra = t.features.additional;
   const additionalFeatures = [
     {
       icon: Zap,
-      title: 'Instant Generation',
-      description: 'Get professional proposals in under 30 seconds. No more staring at blank pages.',
+      title: extra?.instant?.title || 'Instant Generation',
+      description: extra?.instant?.description || 'Get professional proposals in under 30 seconds. No more staring at blank pages.',
     },
     {
       icon: LineChart,
-      title: 'Performance Insights',
-      description: 'Track which proposals win and learn what works best for your niche.',
+      title: extra?.insights?.title || 'Performance Insights',
+      description: extra?.insights?.description || 'Track which proposals win and learn what works best for your niche.',
     },
     {
       icon: Clock,
-      title: 'Time Tracking',
-      description: 'See exactly how much time you save with AI-assisted workflows.',
+      title: extra?.time?.title || 'Time Tracking',
+      description: extra?.time?.description || 'See exactly how much time you save with AI-assisted workflows.',
     },
     {
       icon: Users,
-      title: 'Client Management',
-      description: 'Keep all your client communications and proposals organized in one place.',
+      title: extra?.clients?.title || 'Client Management',
+      description: extra?.clients?.description || 'Keep all your client communications and proposals organized in one place.',
     },
   ];
 
@@ -46,18 +47,18 @@ const Features = () => {
           </div>
         </section>
 
-        {/* Main Features */}
-        <FeaturesSection />
+        {/* Main Features — header already rendered above to avoid duplicate title */}
+        <FeaturesSection showHeader={false} />
 
         {/* Additional Features */}
         <section className="py-24 bg-background">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-                And Much More
+                {t.features.additional?.title || 'And Much More'}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Everything you need to streamline your freelance business
+                {t.features.additional?.subtitle || 'Everything you need to streamline your freelance business'}
               </p>
             </div>
 

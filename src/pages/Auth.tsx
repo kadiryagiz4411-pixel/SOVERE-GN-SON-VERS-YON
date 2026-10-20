@@ -18,6 +18,7 @@ const Auth = () => {
   const paramMode = searchParams.get('mode');
   const [mode, setMode] = useState<AuthMode>(paramMode === 'signup' ? 'signup' : 'signin');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -187,6 +188,11 @@ const Auth = () => {
       search.has('code')
     );
   };
+
+  useEffect(() => {
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  }, [mode]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -359,7 +365,7 @@ const Auth = () => {
         }
       }
     } catch (err) {
-      toast.error('An unexpected error occurred');
+      toast.error(({ en: 'An unexpected error occurred', tr: 'Beklenmeyen bir hata oluştu', de: 'Ein unerwarteter Fehler ist aufgetreten', fr: 'Une erreur inattendue s\'est produite' }[language] || 'An unexpected error occurred'));
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -423,7 +429,7 @@ const Auth = () => {
           >
             <RefreshCw className="w-3.5 h-3.5" />
             {resendCooldown > 0
-              ? `Resend in ${resendCooldown}s`
+              ? ({ en: `Resend in ${resendCooldown}s`, tr: `${resendCooldown}s içinde tekrar gönder`, de: `Erneut senden in ${resendCooldown}s`, fr: `Renvoyer dans ${resendCooldown}s` }[language] ?? `Resend in ${resendCooldown}s`)
               : ({ en: 'Resend email', tr: 'Yeniden gönder', de: 'Erneut senden', fr: 'Renvoyer l\'email' }[language] ?? 'Resend email')
             }
           </button>
@@ -551,13 +557,16 @@ const Auth = () => {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="h-12 pr-12"
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     required
                     minLength={6}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowPassword((open) => !open)}
+                    className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground pointer-events-auto"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -568,16 +577,28 @@ const Auth = () => {
             {mode === 'signup' && (
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">{l.confirmPassword}</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="h-12"
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="h-12 pr-12"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowConfirmPassword((open) => !open)}
+                    className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground pointer-events-auto"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
             )}
 

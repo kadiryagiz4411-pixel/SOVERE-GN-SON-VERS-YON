@@ -1,25 +1,29 @@
 /**
  * Shared OpenAI client — never throw at import time when the key is missing.
- * Reads OPENAI_API_KEY, VITE_OPENAI_API_KEY, and NEXT_PUBLIC_OPENAI_API_KEY.
+ * Reads process.env.OPENAI_API_KEY first, then Vite / Next public aliases.
+ * Uses a lightweight fetch client (no `openai` npm package).
  */
 
 export const OPENAI_DUMMY_KEY = 'dummy-key-to-prevent-crash';
 
+function readProcessEnv(key: string): string {
+  try {
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    return String(proc?.[key] ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
 function readEnvValue(key: string): string {
+  const fromProcess = readProcessEnv(key);
+  if (fromProcess) return fromProcess;
   try {
     const meta = (typeof import.meta !== 'undefined'
       ? (import.meta.env as Record<string, string | undefined>)
       : {}) as Record<string, string | undefined>;
     const fromMeta = String(meta[key] ?? '').trim();
     if (fromMeta) return fromMeta;
-  } catch {
-    /* ignore */
-  }
-  try {
-    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } })
-      .process?.env ?? {};
-    const fromProc = String(proc[key] ?? '').trim();
-    if (fromProc) return fromProc;
   } catch {
     /* ignore */
   }
@@ -62,7 +66,7 @@ export function isOpenAIApiKeyConfigured(key = getOpenAIApiKey()): boolean {
 export const OPENAI_KEY_MISSING_PAYLOAD = {
   error: 'OPENAI_KEY_MISSING',
   message:
-    'OPENAI_API_KEY is not configured in environment variables. Please check Vercel Settings -> Environment Variables.',
+    'OPENAI_API_KEY is not configured in Vercel Environment Variables. Please ensure it is added and selected for Production.',
 } as const;
 
 export function getOpenAIClient(): OpenAI {

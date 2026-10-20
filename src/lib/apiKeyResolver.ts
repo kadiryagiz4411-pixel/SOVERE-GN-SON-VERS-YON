@@ -8,8 +8,24 @@
 
 export const BYOK_STORAGE_KEY = 'sovereign_byok_key';
 
-export const AI_NOT_CONFIGURED_MESSAGE =
-  "Lütfen Ayarlar'dan API Anahtarınızı girin";
+function uiLanguage(): string {
+  try {
+    return localStorage.getItem('sovereign-language') || 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+export const AI_NOT_CONFIGURED_MESSAGE_EN =
+  'OPENAI_API_KEY is not configured in Vercel Environment Variables. Add it for Production, or enter a key in Settings.';
+export const AI_NOT_CONFIGURED_MESSAGE_TR =
+  "OPENAI_API_KEY Vercel Production ortamında yok. Lütfen Vercel'e ekleyin veya Ayarlar'dan API anahtarınızı girin.";
+
+export const AI_NOT_CONFIGURED_MESSAGE = AI_NOT_CONFIGURED_MESSAGE_EN;
+
+export function aiNotConfiguredMessage(): string {
+  return uiLanguage() === 'tr' ? AI_NOT_CONFIGURED_MESSAGE_TR : AI_NOT_CONFIGURED_MESSAGE_EN;
+}
 
 function isUsableKey(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 10;
@@ -70,6 +86,7 @@ export function isAiNotConfiguredError(err: unknown): boolean {
   return err instanceof Error && (
     err.message.startsWith('AI_NOT_CONFIGURED') ||
     err.message.startsWith('OPENAI_KEY_MISSING') ||
-    err.message.includes("API Anahtarınızı")
+    err.message.includes("API Anahtarınızı") ||
+    err.message.includes('OPENAI_API_KEY is not configured')
   );
 }

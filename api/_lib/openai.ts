@@ -5,7 +5,7 @@ export const OPENAI_DUMMY_KEY = 'dummy-key-to-prevent-crash';
 export const OPENAI_KEY_MISSING_PAYLOAD = {
   error: 'OPENAI_KEY_MISSING',
   message:
-    'OPENAI_API_KEY is not configured in environment variables. Please check Vercel Settings -> Environment Variables.',
+    'OPENAI_API_KEY is not configured in Vercel Environment Variables. Please ensure it is added and selected for Production.',
 } as const;
 
 const KEY_ALIASES = [

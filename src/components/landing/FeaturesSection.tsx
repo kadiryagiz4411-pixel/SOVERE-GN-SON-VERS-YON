@@ -1,7 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext';
 import { Target, ShieldCheck, BarChart3, Building2 } from 'lucide-react';
 
-export const FeaturesSection = () => {
+export const FeaturesSection = ({ showHeader = true }: { showHeader?: boolean }) => {
   const { t } = useLanguage();
 
   const features = [
@@ -33,14 +33,16 @@ export const FeaturesSection = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-            {t.features.title}
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t.features.subtitle}
-          </p>
-        </div>
+        {showHeader && (
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
+              {t.features.title}
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              {t.features.subtitle}
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (

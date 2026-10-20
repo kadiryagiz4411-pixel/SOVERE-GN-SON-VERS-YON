@@ -140,8 +140,10 @@ function PasswordInput({
       <button
         type="button"
         tabIndex={-1}
+        aria-label={show ? 'Hide password' : 'Show password'}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={onToggleShow}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors pointer-events-auto"
       >
         {show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
       </button>

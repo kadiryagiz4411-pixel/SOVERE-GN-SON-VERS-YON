@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowRight, ArrowLeft, Crown, Briefcase, TrendingUp, Target, Clock, Users, DollarSign, Globe, Loader2, CheckCircle } from 'lucide-react';
+import {
+  ArrowRight, ArrowLeft, Crown, Briefcase, TrendingUp, Target, Clock, Users, DollarSign, Globe,
+  Loader2, CheckCircle, Brain, Zap, LineChart, Laptop, Building2, Mail, Trophy, PenLine,
+  Rocket, Star, Sprout, Search, Coins, Gem, Code2, Palette, Megaphone,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { SafeIcon } from '@/lib/safeIcon';
 
@@ -11,6 +15,46 @@ interface Answer {
   questionId: string;
   value: string;
 }
+
+const RATIONALE_ICONS: Record<string, typeof Target> = {
+  role: Briefcase,
+  experience: Brain,
+  goal: Zap,
+  volume: LineChart,
+  platform: Globe,
+  rate: Target,
+  industry: Users,
+};
+
+const OPTION_ICONS: Record<string, typeof Target> = {
+  freelance: Laptop,
+  fulltime: Building2,
+  parttime: Clock,
+  consulting: LineChart,
+  '0-2': Sprout,
+  '3-5': Rocket,
+  '5-10': Star,
+  '10+': Crown,
+  responses: Mail,
+  standout: Trophy,
+  writing: PenLine,
+  opportunities: Search,
+  '1-5': Target,
+  '5-15': Zap,
+  '15-30': TrendingUp,
+  '30+': Rocket,
+  upwork: Globe,
+  linkedin: Users,
+  fiverr: Star,
+  other: Globe,
+  under25: Coins,
+  '25-50': DollarSign,
+  '50-100': Gem,
+  '100+': Crown,
+  tech: Code2,
+  design: Palette,
+  marketing: Megaphone,
+};
 
 const Onboarding = () => {
   const { language } = useLanguage();
@@ -212,7 +256,31 @@ const Onboarding = () => {
         },
       ],
     },
+    de: {
+      title: 'Personalisieren wir Ihre Erfahrung',
+      subtitle: 'Beantworten Sie ein paar Fragen, damit die KI passende Angebote schreiben kann.',
+      step: 'Schritt',
+      of: 'von',
+      next: 'Weiter',
+      back: 'Zurück',
+      finish: 'Einrichtung abschließen',
+      skip: 'Vorerst überspringen',
+      questions: [] as Array<{ id: string; icon: typeof Briefcase; question: string; subtitle: string; options: Array<{ value: string; label: string; desc: string }> }>,
+    },
+    fr: {
+      title: 'Personnalisons votre expérience',
+      subtitle: 'Répondez à quelques questions pour que l\'IA rédige des propositions adaptées.',
+      step: 'Étape',
+      of: 'sur',
+      next: 'Suivant',
+      back: 'Retour',
+      finish: 'Terminer la configuration',
+      skip: 'Passer pour l\'instant',
+      questions: [] as Array<{ id: string; icon: typeof Briefcase; question: string; subtitle: string; options: Array<{ value: string; label: string; desc: string }> }>,
+    },
   };
+  txt.de.questions = txt.en.questions;
+  txt.fr.questions = txt.en.questions;
 
   const l = txt[language as keyof typeof txt] || txt.en;
   const totalSteps = l.questions.length;
@@ -326,7 +394,12 @@ const Onboarding = () => {
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
               {currentQuestion.question}
             </h2>
-            <p className="text-muted-foreground text-sm">{currentQuestion.subtitle}</p>
+            <div className="mx-auto mt-4 max-w-lg rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 flex items-start gap-3 text-left">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <SafeIcon icon={RATIONALE_ICONS[currentQuestion.id] || currentQuestion.icon} fallback={Target} className="w-5 h-5 text-amber-400" />
+              </div>
+              <p className="text-sm text-amber-100/90 leading-relaxed">{currentQuestion.subtitle}</p>
+            </div>
           </div>
 
           {/* Options Grid */}
@@ -348,10 +421,19 @@ const Onboarding = () => {
                       <CheckCircle className="w-5 h-5 text-primary" />
                     </div>
                   )}
-                  <div className={`text-lg mb-1 font-semibold ${isSelected ? 'text-foreground' : 'text-foreground'}`}>
-                    {option.label}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
+                      isSelected ? 'bg-amber-500/20 border-amber-500/40' : 'bg-amber-500/10 border-amber-500/20'
+                    }`}>
+                      <SafeIcon icon={OPTION_ICONS[option.value] || currentQuestion.icon} fallback={Target} className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-lg mb-1 font-semibold text-foreground">
+                        {option.label}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{option.desc}</div>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{option.desc}</div>
                 </button>
               );
             })}
@@ -415,7 +497,7 @@ const Onboarding = () => {
 
           {!selectedValue && !isLastStep && (
             <p className="text-center text-xs text-muted-foreground mt-3">
-              {language === 'tr' ? 'Devam etmek için bir seçenek seçin' : 'Select an option to continue'}
+              {language === 'tr' ? 'Devam etmek için bir seçenek seçin' : language === 'de' ? 'Wählen Sie eine Option, um fortzufahren' : language === 'fr' ? 'Sélectionnez une option pour continuer' : 'Select an option to continue'}
             </p>
           )}
         </div>

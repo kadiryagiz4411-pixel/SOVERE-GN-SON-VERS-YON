@@ -22,7 +22,7 @@ import {
   getActiveApiKey,
   hasByokKeyStored,
   BYOK_STORAGE_KEY,
-  AI_NOT_CONFIGURED_MESSAGE,
+  aiNotConfiguredMessage,
 } from '@/lib/apiKeyResolver';
 import { messageForOpenAIStatus, toastOpenAIFailure } from '@/lib/openaiErrors';
 
@@ -87,7 +87,7 @@ async function callOpenAI(
   let key = getActiveApiKey();
   if (!key || key === 'dummy-key-to-prevent-crash') {
     toastOpenAIFailure();
-    throw new Error(AI_NOT_CONFIGURED_MESSAGE);
+    throw new Error(aiNotConfiguredMessage());
   }
 
   console.log('[AI Engine Request]', { model, hasKey: true, maxTokens });

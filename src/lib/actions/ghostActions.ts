@@ -16,7 +16,7 @@ const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 
 async function chat(system: string, user: string, maxTokens = 400): Promise<string> {
   const key = getActiveApiKey() || getOpenAIApiKey();
-  if (!isOpenAIApiKeyConfigured(key)) throw new Error('OPENAI_KEY_MISSING: OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.');
+  if (!isOpenAIApiKeyConfigured(key)) throw new Error('OPENAI_KEY_MISSING: OPENAI_API_KEY is not configured in Vercel Environment Variables. Please ensure it is added and selected for Production.');
   const res = await fetch(OPENAI_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },

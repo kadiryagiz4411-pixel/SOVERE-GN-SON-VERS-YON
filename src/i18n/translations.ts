@@ -56,6 +56,26 @@ export const translations = {
         title: 'You\'re Always in Control',
         description: 'Review everything, edit what you want, approve when you\'re ready. The AI helps — you decide.',
       },
+      additional: {
+        title: 'And Much More',
+        subtitle: 'Everything you need to streamline your freelance business',
+        instant: {
+          title: 'Instant Generation',
+          description: 'Get professional proposals in under 30 seconds. No more staring at blank pages.',
+        },
+        insights: {
+          title: 'Performance Insights',
+          description: 'Track which proposals win and learn what works best for your niche.',
+        },
+        time: {
+          title: 'Time Tracking',
+          description: 'See exactly how much time you save with AI-assisted workflows.',
+        },
+        clients: {
+          title: 'Client Management',
+          description: 'Keep all your client communications and proposals organized in one place.',
+        },
+      },
     },
     // Elite Features Section
     eliteFeatures: {
@@ -443,6 +463,26 @@ export const translations = {
         title: 'Kontrol Her Zaman Sende',
         description: 'Her şeyi incele, istediğini düzenle, hazır olunca onayla. Yapay zeka yardım eder — kararı sen verirsin.',
       },
+      additional: {
+        title: 'Ve Daha Fazlası',
+        subtitle: 'Serbest çalışma işinizi hızlandırmak için gereken her şey',
+        instant: {
+          title: 'Anında Üretim',
+          description: '30 saniyeden kısa sürede profesyonel teklifler. Boş sayfaya bakmaya son.',
+        },
+        insights: {
+          title: 'Performans İçgörüleri',
+          description: 'Hangi tekliflerin kazandığını izleyin ve nişinizde neyin işe yaradığını öğrenin.',
+        },
+        time: {
+          title: 'Zaman Takibi',
+          description: 'Yapay zeka destekli iş akışlarıyla ne kadar zaman kazandığınızı görün.',
+        },
+        clients: {
+          title: 'Müşteri Yönetimi',
+          description: 'Tüm müşteri iletişimini ve tekliflerini tek yerde tutun.',
+        },
+      },
     },
     eliteFeatures: {
       badge: 'Elite Özel',
@@ -820,6 +860,26 @@ export const translations = {
         title: 'Sie behalten die Kontrolle',
         description: 'Überprüfen, bearbeiten und genehmigen Sie alles. KI hilft, Sie entscheiden.',
       },
+      additional: {
+        title: 'Und vieles mehr',
+        subtitle: 'Alles, was Sie brauchen, um Ihr Freelance-Geschäft zu vereinfachen',
+        instant: {
+          title: 'Sofortige Erstellung',
+          description: 'Professionelle Angebote in unter 30 Sekunden. Kein starres Anstarren leerer Seiten mehr.',
+        },
+        insights: {
+          title: 'Leistungseinblicke',
+          description: 'Verfolgen Sie, welche Angebote gewinnen, und lernen Sie, was in Ihrer Nische funktioniert.',
+        },
+        time: {
+          title: 'Zeiterfassung',
+          description: 'Sehen Sie genau, wie viel Zeit Sie mit KI-gestützten Workflows sparen.',
+        },
+        clients: {
+          title: 'Kundenverwaltung',
+          description: 'Halten Sie alle Kundenkommunikation und Angebote an einem Ort.',
+        },
+      },
     },
     eliteFeatures: {
       badge: 'Elite Exklusiv',
@@ -1196,6 +1256,26 @@ export const translations = {
       control: {
         title: 'Vous gardez le contrôle',
         description: 'Examinez, modifiez et approuvez tout. L\'IA assiste, vous décidez.',
+      },
+      additional: {
+        title: 'Et bien plus',
+        subtitle: 'Tout ce qu\'il faut pour simplifier votre activité freelance',
+        instant: {
+          title: 'Génération instantanée',
+          description: 'Des propositions professionnelles en moins de 30 secondes. Fini la page blanche.',
+        },
+        insights: {
+          title: 'Insights de performance',
+          description: 'Suivez les propositions qui gagnent et apprenez ce qui fonctionne dans votre niche.',
+        },
+        time: {
+          title: 'Suivi du temps',
+          description: 'Voyez exactement le temps gagné avec des workflows assistés par l\'IA.',
+        },
+        clients: {
+          title: 'Gestion des clients',
+          description: 'Gardez toutes vos communications et propositions au même endroit.',
+        },
       },
     },
     eliteFeatures: {
