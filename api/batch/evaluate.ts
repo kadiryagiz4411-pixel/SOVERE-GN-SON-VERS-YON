@@ -3,6 +3,7 @@
  * Server-side multi-CV evaluation. Returns a friendly busy message instead of crashing.
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
+import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
@@ -136,7 +137,7 @@ Return: { "evaluations": [ { "candidateIndex": number, "overallScore": 0-100, "w
   return parseEvaluations(data.choices?.[0]?.message?.content ?? '');
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -222,3 +223,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: AI_BUSY_MESSAGE }, 503);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

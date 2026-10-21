@@ -3,6 +3,7 @@
  * Creates a Lemon Squeezy hosted checkout and returns { checkoutUrl }.
  */
 import { preflight, json } from '../_lib/cors.js';
+import { exposeApi } from '../_lib/http.js';
 import { firstEnv } from '../_lib/env.js';
 import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy.js';
 
@@ -34,7 +35,7 @@ async function callerUserId(req: Request, bodyUserId?: string): Promise<string |
   return bodyUserId || undefined;
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -135,3 +136,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: message }, 500);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

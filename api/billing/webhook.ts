@@ -5,6 +5,7 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { json, preflight } from '../_lib/cors.js';
+import { exposeApi } from '../_lib/http.js';
 import { env, firstEnv } from '../_lib/env.js';
 import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy.js';
 
@@ -82,7 +83,7 @@ async function updateProfile(base: string, key: string, userId: string, patch: R
   });
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -230,3 +231,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: message }, 500);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

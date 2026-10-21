@@ -1,4 +1,5 @@
 {
+  "trailingSlash": false,
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
@@ -8,7 +9,8 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, HEAD, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-extension-id, x-sovereign-key, Cache-Control, Pragma, Accept, X-Requested-With" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-extension-id, x-sovereign-key, Cache-Control, Pragma, Accept, X-Requested-With, Origin" },
+        { "key": "Vary", "value": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers" },
         { "key": "Access-Control-Max-Age", "value": "86400" },
         { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
         { "key": "CDN-Cache-Control", "value": "no-store" },

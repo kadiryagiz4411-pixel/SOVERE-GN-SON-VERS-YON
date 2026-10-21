@@ -1,4 +1,5 @@
 import { preflight, jsonNoStore, readJsonBody } from '../_lib/cors.js';
+import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
@@ -106,12 +107,20 @@ function listField(value: unknown): string[] {
   return [];
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return preflight();
-  if (req.method === 'GET' || req.method === 'HEAD') {
-    return jsonNoStore({ ok: true, service: 'extension-parse-dom' });
+async function handleRequest(req: Request): Promise<Response> {
+  const method = String(req.method || 'GET').toUpperCase();
+  if (method === 'OPTIONS' || req.headers.get('access-control-request-method')) {
+    return preflight();
   }
-  if (req.method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
+  if (method === 'GET' || method === 'HEAD') {
+    return jsonNoStore({
+      ok: true,
+      success: true,
+      message: 'Sovereign API is LIVE and fully reachable.',
+      service: 'extension-parse-dom',
+    });
+  }
+  if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
 
   try {
     const body = await readJsonBody<{
@@ -260,3 +269,10 @@ export default async function handler(req: Request): Promise<Response> {
     return jsonNoStore({ success: false, error: AI_BUSY_MESSAGE }, 503);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

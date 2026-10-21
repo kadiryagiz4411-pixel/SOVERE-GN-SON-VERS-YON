@@ -52,22 +52,31 @@ function extensionHeaders() {
   };
 }
 
+function fetchNoRedirect(url, init) {
+  return fetch(url, {
+    cache: 'no-store',
+    redirect: 'manual',
+    ...init,
+    headers: { ...extensionHeaders(), ...(init?.headers || {}) },
+  });
+}
+
+function isLiveStatus(res) {
+  return Boolean(res) && (res.status === 200 || res.status === 204);
+}
+
 async function pingParseDom() {
   const url = `${parseDomEndpoint()}?t=${Date.now()}`;
-  const optionsRes = await fetch(url, { method: 'OPTIONS', headers: extensionHeaders() });
-  if (optionsRes.ok || optionsRes.status === 204) {
-    return { ok: true, status: optionsRes.status, method: 'OPTIONS' };
-  }
-  const getRes = await fetch(url, { method: 'GET', cache: 'no-store', headers: extensionHeaders() });
-  if (getRes.ok) return { ok: true, status: getRes.status, method: 'GET' };
-  throw new Error(`API HTTP ${optionsRes.status || getRes.status}`);
+  const getRes = await fetchNoRedirect(url, { method: 'GET' });
+  if (isLiveStatus(getRes)) return { ok: true, status: getRes.status, method: 'GET' };
+  const optionsRes = await fetchNoRedirect(url, { method: 'OPTIONS' });
+  if (isLiveStatus(optionsRes)) return { ok: true, status: optionsRes.status, method: 'OPTIONS' };
+  throw new Error(`API HTTP ${getRes.status || optionsRes.status}`);
 }
 
 async function parseDomViaApi(_apiBase, payload) {
-  const res = await fetch(`${parseDomEndpoint()}?t=${Date.now()}`, {
+  const res = await fetchNoRedirect(`${parseDomEndpoint()}?t=${Date.now()}`, {
     method: 'POST',
-    cache: 'no-store',
-    headers: extensionHeaders(),
     body: JSON.stringify(payload || {}),
   });
   const data = await res.json().catch(() => ({}));

@@ -1,4 +1,5 @@
 import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors.js';
+import { exposeApi } from './_lib/http.js';
 import { scoreOpportunity, type MatchProfile } from './_lib/matchScore.js';
 import {
   collectLiveOpportunities,
@@ -25,7 +26,7 @@ function platformParam(raw: string | null): OpportunityPlatform | 'All' {
   return 'All';
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflightNoStore();
   if (req.method !== 'GET' && req.method !== 'POST') {
     return jsonNoStore({ error: 'Method not allowed' }, 405);
@@ -97,3 +98,10 @@ export default async function handler(req: Request): Promise<Response> {
     }, 500);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

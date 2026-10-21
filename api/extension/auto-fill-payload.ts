@@ -2,6 +2,7 @@
  * POST /api/extension/auto-fill-payload
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
+import { exposeApi } from '../_lib/http.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 30 };
 
@@ -30,7 +31,7 @@ function inferAction(sourceUrl = ''): ActionType {
   return 'GMAIL_OUTREACH';
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
@@ -68,3 +69,10 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: (err as Error).message || 'payload failed' }, 500);
   }
 }
+
+const api = exposeApi(handleRequest);
+export const OPTIONS = api.OPTIONS;
+export const GET = api.GET;
+export const HEAD = api.HEAD;
+export const POST = api.POST;
+export default api;

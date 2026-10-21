@@ -586,6 +586,11 @@ async function persistSettings(partial) {
 }
 
 function setApiStatus(ok, detail) {
+  const connectionStatus = document.getElementById('connectionStatus');
+  if (connectionStatus) {
+    connectionStatus.textContent = ok ? 'UP (Connected)' : 'Service temporarily busy';
+    connectionStatus.style.color = ok ? '#10B981' : '#EF4444';
+  }
   if (!isExtensionAdmin()) return;
   const statusElLocal = document.getElementById('api-status');
   if (apiBadge) {
@@ -601,29 +606,27 @@ function setApiStatus(ok, detail) {
 }
 
 async function pingApi() {
-  if (!isExtensionAdmin()) return false;
-  if (apiBadge) {
+  const connectionStatus = document.getElementById('connectionStatus');
+  if (connectionStatus) {
+    connectionStatus.textContent = 'Checking connection…';
+    connectionStatus.style.color = '';
+  }
+  if (isExtensionAdmin() && apiBadge) {
     apiBadge.textContent = 'API…';
     apiBadge.classList.remove('live', 'down');
   }
-  if (apiStatusDetail) apiStatusDetail.textContent = `Checking ${PARSE_DOM_URL} …`;
+  if (isExtensionAdmin() && apiStatusDetail) {
+    apiStatusDetail.textContent = `Checking ${PARSE_DOM_URL} …`;
+  }
   try {
     const viaWorker = await chrome.runtime.sendMessage({ type: 'PING_API' }).catch(() => null);
     if (viaWorker?.success && viaWorker.data?.ok) {
-      setApiStatus(true, `UP (Connected) via ${viaWorker.data.method || 'OPTIONS'} · ${PARSE_DOM_URL}`);
+      setApiStatus(true, `UP (Connected) via ${viaWorker.data.method || 'GET'} · ${PARSE_DOM_URL}`);
       return true;
     }
-    const res = await fetch(PARSE_DOM_URL, {
-      method: 'OPTIONS',
-      headers: { 'Content-Type': 'application/json', 'x-extension-id': chrome.runtime.id || '' },
-    });
-    if (res.ok || res.status === 204) {
-      setApiStatus(true, `UP (Connected) · HTTP ${res.status} · ${PARSE_DOM_URL}`);
-      return true;
-    }
-    throw new Error(viaWorker?.error || `API HTTP ${res.status}`);
+    throw new Error(viaWorker?.error || 'API unreachable');
   } catch (err) {
-    setApiStatus(false, `DOWN. ${err?.message || 'Could not reach the parse-dom API.'}`);
+    setApiStatus(false, err?.message || 'Could not reach the parse-dom API.');
     return false;
   }
 }
@@ -636,7 +639,7 @@ function switchTab(tab) {
   document.querySelectorAll('#nav button').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.tab === id);
   });
-  if (id === 'settings' && isExtensionAdmin()) void pingApi();
+  if (id === 'settings') void pingApi();
 }
 
 document.getElementById('nav')?.addEventListener('click', (event) => {
@@ -777,7 +780,7 @@ async function boot() {
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
-  if (isExtensionAdmin()) void pingApi();
+  void pingApi();
   void analyzeActivePage();
 }
 
