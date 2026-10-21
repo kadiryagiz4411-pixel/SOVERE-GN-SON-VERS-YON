@@ -65,6 +65,18 @@ function parseJsonObject(raw: string): Record<string, unknown> {
   }
 }
 
+function openaiErrorDetails(error: unknown): { message: string; responseData: unknown } {
+  const err = error as {
+    message?: string;
+    response?: { data?: unknown };
+    data?: unknown;
+  };
+  return {
+    message: String(err?.message || error || 'Unknown OpenAI error'),
+    responseData: err?.response?.data ?? err?.data ?? null,
+  };
+}
+
 async function completeJson(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -84,21 +96,20 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
     }),
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`OpenAI ${res.status}: ${body.slice(0, 200)}`);
+    const raw = await res.text().catch(() => '');
+    let errorData: unknown = raw.slice(0, 800);
+    try {
+      errorData = raw ? JSON.parse(raw) : {};
+    } catch {
+      errorData = { raw: raw.slice(0, 800) };
+    }
+    console.error('OpenAI API response error:', res.status, errorData);
+    const err = new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+    (err as { response?: { data?: unknown } }).response = { data: errorData };
+    throw err;
   }
   const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
   return parseJsonObject(data.choices?.[0]?.message?.content || '{}');
-}
-
-async function completeJsonSafe(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
-  if (!apiKey) return {};
-  try {
-    return await completeJson(apiKey, system, user);
-  } catch (err) {
-    console.error('OpenAI parse-dom fallback:', err);
-    return {};
-  }
 }
 
 function listField(value: unknown): string[] {
@@ -121,6 +132,12 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
   if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
+
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    console.error('CRITICAL ERROR: OPENAI_API_KEY is missing in Vercel environment!');
+    return jsonNoStore({ error: 'AI service not configured on server' }, 500);
+  }
 
   try {
     const body = await readJsonBody<{
@@ -156,13 +173,9 @@ async function handleRequest(req: Request): Promise<Response> {
       pageTitle,
       pageText,
     );
-    const apiKey = getOpenAIApiKey();
-    if (!apiKey) {
-      console.error('CRITICAL: OpenAI API Key could not be resolved from process.env runtime.');
-    }
 
     if (detectedMode === 'JOB_PROPOSAL') {
-      const parsed = await completeJsonSafe(
+      const parsed = await completeJson(
         apiKey,
         'You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and write a 3-sentence direct, human-toned cover letter. No generic AI filler. Return JSON: proposal, painPoint, score (0-100), title.',
         context,
@@ -194,7 +207,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (detectedMode === 'B2B_COMMAND') {
-      const parsed = await completeJsonSafe(
+      const parsed = await completeJson(
         apiKey,
         'You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).',
         context,
@@ -231,20 +244,18 @@ async function handleRequest(req: Request): Promise<Response> {
     let role = '';
     let pros: string[] = [];
     let cons: string[] = [];
-    if (apiKey) {
-      const parsed = await completeJsonSafe(
-        apiKey,
-        'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',
-        context,
-      );
-      summary = sanitizeAiText(String(parsed.summary || summary));
-      whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
-      overallScore = Math.max(0, Math.min(100, Number(parsed.overallScore ?? 70)));
-      title = sanitizeAiText(String(parsed.fullName || title));
-      role = sanitizeAiText(String(parsed.title || ''));
-      pros = listField(parsed.pros);
-      cons = listField(parsed.cons);
-    }
+    const parsed = await completeJson(
+      apiKey,
+      'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',
+      context,
+    );
+    summary = sanitizeAiText(String(parsed.summary || summary));
+    whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
+    overallScore = Math.max(0, Math.min(100, Number(parsed.overallScore ?? 70)));
+    title = sanitizeAiText(String(parsed.fullName || title));
+    role = sanitizeAiText(String(parsed.title || ''));
+    pros = listField(parsed.pros);
+    cons = listField(parsed.cons);
 
     return jsonNoStore({
       success: true,
@@ -264,9 +275,10 @@ async function handleRequest(req: Request): Promise<Response> {
       compatibilityScore: overallScore,
       proposalText: [summary, whyThisCandidate, pros.length ? `Pros: ${pros.join('; ')}` : '', cons.length ? `Watch: ${cons.join('; ')}` : ''].filter(Boolean).join('\n\n'),
     });
-  } catch (err: unknown) {
-    console.error('Extension Parse DOM Error:', err);
-    return jsonNoStore({ success: false, error: AI_BUSY_MESSAGE }, 503);
+  } catch (error: unknown) {
+    const details = openaiErrorDetails(error);
+    console.error('API route caught error:', details.message, details.responseData);
+    return jsonNoStore({ success: false, error: AI_BUSY_MESSAGE }, 500);
   }
 }
 
