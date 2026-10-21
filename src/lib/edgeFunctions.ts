@@ -43,7 +43,7 @@ export async function invokeEdgeJson<T>(
       const token = sessionData.session?.access_token;
       const base = functionsBaseUrl();
       if (!base) {
-        const msg = 'Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in Vercel settings. Add it to your Vercel Environment Variables and redeploy.';
+        const msg = 'AI engine is currently updating. Please try again in a few moments.';
         console.error('[SOVEREIGN_ERR] edgeFunctions: ' + msg);
         return { data: null, error: msg, status: 0, functionName: name };
       }

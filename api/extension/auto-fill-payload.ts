@@ -3,7 +3,7 @@
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
 
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'nodejs', maxDuration: 30 };
 
 const FORBIDDEN = [
   /in today's fast-paced world[,.]?\s*/gi,

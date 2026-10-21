@@ -6,7 +6,7 @@ import { preflight, json } from '../_lib/cors.js';
 import { firstEnv } from '../_lib/env.js';
 import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy.js';
 
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'nodejs', maxDuration: 30 };
 
 const LS_API = 'https://api.lemonsqueezy.com/v1/checkouts';
 

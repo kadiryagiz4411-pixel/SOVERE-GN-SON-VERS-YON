@@ -17,9 +17,9 @@ function uiLanguage(): string {
 }
 
 export const AI_NOT_CONFIGURED_MESSAGE_EN =
-  'OPENAI_API_KEY is not configured in Vercel Environment Variables. Add it for Production, or enter a key in Settings.';
+  'AI engine is currently updating. Please try again in a few moments.';
 export const AI_NOT_CONFIGURED_MESSAGE_TR =
-  "OPENAI_API_KEY Vercel Production ortamında yok. Lütfen Vercel'e ekleyin veya Ayarlar'dan API anahtarınızı girin.";
+  'AI motoru şu anda güncelleniyor. Lütfen birkaç dakika sonra tekrar deneyin.';
 
 export const AI_NOT_CONFIGURED_MESSAGE = AI_NOT_CONFIGURED_MESSAGE_EN;
 
@@ -55,8 +55,11 @@ function readEnvAlias(key: string): string {
 function readViteSystemKey(): string {
   return (
     readEnvAlias('OPENAI_API_KEY') ||
-    readEnvAlias('VITE_OPENAI_API_KEY') ||
     readEnvAlias('NEXT_PUBLIC_OPENAI_API_KEY') ||
+    readEnvAlias('VITE_OPENAI_API_KEY') ||
+    readEnvAlias('OPEN_AI_KEY') ||
+    readEnvAlias('OPEN_AI_API_KEY') ||
+    readEnvAlias('OPENAI_SECRET_KEY') ||
     ''
   );
 }
@@ -86,7 +89,9 @@ export function isAiNotConfiguredError(err: unknown): boolean {
   return err instanceof Error && (
     err.message.startsWith('AI_NOT_CONFIGURED') ||
     err.message.startsWith('OPENAI_KEY_MISSING') ||
+    err.message.startsWith('AI_BUSY') ||
     err.message.includes("API Anahtarınızı") ||
-    err.message.includes('OPENAI_API_KEY is not configured')
+    err.message.includes('OPENAI_API_KEY is not configured') ||
+    err.message.includes('AI engine is currently updating')
   );
 }

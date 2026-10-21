@@ -1,11 +1,11 @@
 /**
  * POST /api/batch/evaluate
- * Server-side multi-CV evaluation. Returns OPENAI_KEY_MISSING instead of crashing.
+ * Server-side multi-CV evaluation. Returns a friendly busy message instead of crashing.
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
-import { getOpenAIClient, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 
-export const config = { maxDuration: 60 };
+export const config = { runtime: 'nodejs', maxDuration: 60 };
 
 type Candidate = {
   fullName?: string;
@@ -140,14 +140,10 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  let apiKey = '';
-  try {
-    apiKey = getOpenAIClient().apiKey;
-  } catch (err) {
-    return json({
-      ...OPENAI_KEY_MISSING_PAYLOAD,
-      message: err instanceof Error ? err.message : OPENAI_KEY_MISSING_PAYLOAD.message,
-    }, 500);
+  const apiKey = getOpenAIApiKey();
+  if (!apiKey) {
+    console.error('CRITICAL: OpenAI API Key could not be resolved from process.env runtime.');
+    return json({ error: AI_BUSY_MESSAGE }, 503);
   }
 
   try {
@@ -223,9 +219,6 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ rankedCandidates });
   } catch (err) {
     console.error('[batch/evaluate]', err);
-    return json({
-      error: 'EVALUATE_FAILED',
-      message: err instanceof Error ? err.message : 'Batch evaluation failed',
-    }, 500);
+    return json({ error: AI_BUSY_MESSAGE }, 503);
   }
 }

@@ -72,8 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </p>
             </div>
 
-            {/* Error detail (dev-friendly, collapsed) */}
-            {this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="text-left text-xs text-muted-foreground bg-muted rounded-xl p-3 cursor-pointer">
                 <summary className="font-medium mb-1">Error details</summary>
                 <pre className="whitespace-pre-wrap break-words mt-2 opacity-70">

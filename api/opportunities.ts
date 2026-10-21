@@ -14,7 +14,7 @@ export type { OpportunityItem, OpportunityPlatform };
 
 // Vite/Vercel handler: always live-fetch. jsonNoStore + outbound cache:no-store
 // are the equivalent of force-dynamic, revalidate 0, and fetchCache no-store.
-export const config = { runtime: 'edge', maxDuration: 25 };
+export const config = { runtime: 'nodejs', maxDuration: 25 };
 
 function platformParam(raw: string | null): OpportunityPlatform | 'All' {
   const value = String(raw || '').trim();

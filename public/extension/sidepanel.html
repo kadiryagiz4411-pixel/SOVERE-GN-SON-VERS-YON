@@ -415,6 +415,10 @@
             <option value="expert">Expert / Lead</option>
           </select>
         </div>
+        <div class="field">
+          <label for="accountEmail">Account email</label>
+          <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
         <p id="profileStatus" class="hint"></p>
 
@@ -440,10 +444,12 @@
         </div>
         <p id="planStatus" class="hint">Membership: not set on this device.</p>
 
-        <div class="k">API Connection Status</div>
-        <p id="apiStatusDetail" class="hint">Checking https://www.sovereignapp.pro …</p>
-        <p id="api-status" class="hint"></p>
-        <button id="pingApi" class="ghost" type="button">Ping API</button>
+        <div id="adminDiagnostics" class="hidden">
+          <div class="k">API Connection Status</div>
+          <p id="apiStatusDetail" class="hint">Admin diagnostics</p>
+          <p id="api-status" class="hint"></p>
+          <button id="pingApi" class="ghost" type="button">Ping API</button>
+        </div>
       </section>
     </main>
     <nav class="nav" id="nav">

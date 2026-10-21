@@ -8,8 +8,8 @@ export const OPENAI_DUMMY_KEY = 'dummy-key-to-prevent-crash';
 
 function readProcessEnv(key: string): string {
   try {
-    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-    return String(proc?.[key] ?? '').trim();
+    const bag = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    return String(bag?.[key] ?? '').trim();
   } catch {
     return '';
   }
@@ -43,8 +43,10 @@ function cleanKey(value: string): string {
 export function getOpenAIApiKey(): string {
   const key = cleanKey(
     readEnvValue('OPENAI_API_KEY') ||
-    readEnvValue('VITE_OPENAI_API_KEY') ||
     readEnvValue('NEXT_PUBLIC_OPENAI_API_KEY') ||
+    readEnvValue('VITE_OPENAI_API_KEY') ||
+    readEnvValue('OPEN_AI_KEY') ||
+    readEnvValue('OPEN_AI_API_KEY') ||
     readEnvValue('OPENAI_SECRET_KEY') ||
     '',
   );
@@ -63,16 +65,19 @@ export function isOpenAIApiKeyConfigured(key = getOpenAIApiKey()): boolean {
   return Boolean(key) && key !== OPENAI_DUMMY_KEY && key.length > 10;
 }
 
+export const AI_BUSY_MESSAGE =
+  'AI engine is currently updating. Please try again in a few moments.';
+
 export const OPENAI_KEY_MISSING_PAYLOAD = {
-  error: 'OPENAI_KEY_MISSING',
-  message:
-    'OPENAI_API_KEY is not configured in Vercel Environment Variables. Please ensure it is added and selected for Production.',
+  error: 'AI_BUSY',
+  message: AI_BUSY_MESSAGE,
 } as const;
 
 export function getOpenAIClient(): OpenAI {
   const apiKey = getOpenAIApiKey();
   if (!isOpenAIApiKeyConfigured(apiKey)) {
-    throw new Error(OPENAI_KEY_MISSING_PAYLOAD.message);
+    console.error('CRITICAL: OpenAI API Key could not be resolved from process.env runtime.');
+    throw new Error(AI_BUSY_MESSAGE);
   }
   return new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
 }

@@ -27,6 +27,7 @@ import {
   AlertCircle, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { publicUserError } from '@/lib/openaiErrors';
 import type { User } from '@supabase/supabase-js';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
@@ -342,16 +343,13 @@ const CVBuilder = () => {
 
         // All paths failed — show structured error toast.
         if (status === 429) {
-          toast.error('Rate Limit — please wait a moment and retry.');
+          toast.error('Service temporarily busy. Please try again in a few moments.');
         } else if (status === 402) {
-          toast.error(`Insufficient Credits: ${error || INSUFFICIENT_CREDITS_MESSAGE}. Add your BYOK key in Profile → Settings to generate without credits.`);
+          toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
         } else if (status === 401) {
-          toast.error('Authentication Error (401) — please sign out and sign back in, then retry.');
+          toast.error('Please sign out and sign back in, then try again.');
         } else {
-          const isNetworkErr = status === 0 || status === 404 || (error && /fetch|network|CORS/i.test(error));
-          toast.error(isNetworkErr
-            ? `CV Generation Failed: ${error || 'Service is unavailable'}. API Key Missing — add your key in Profile → BYOK Settings to generate without the server.`
-            : `CV Generation Failed: ${error || 'Unknown error. Please retry.'}`);
+          toast.error(publicUserError(error || 'Service temporarily busy. Please try again in a few moments.'));
         }
         return;
       }
@@ -376,9 +374,10 @@ const CVBuilder = () => {
       const rawMsg = err?.message || err?.toString() || 'Unknown error';
       console.error('[SOVEREIGN_ERR] CVBuilder handleGenerate:', rawMsg, err);
       const isNetworkErr = err instanceof TypeError || /fetch|network|CORS|failed to fetch/i.test(rawMsg);
-      const msg = isNetworkErr
+      const raw = isNetworkErr
         ? `Connection Timeout: CV service unreachable. Check your internet connection and try again. (${rawMsg})`
         : `CV Generation Failed: ${rawMsg}`;
+      const msg = publicUserError(raw);
       setGenerateError(msg);
       toast.error(msg);
     } finally {

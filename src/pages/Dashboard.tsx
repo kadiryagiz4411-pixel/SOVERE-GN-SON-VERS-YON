@@ -51,6 +51,7 @@ import { InterviewPrep } from '@/components/dashboard/InterviewPrep';
 import { type PlatformType, type ClusterCategory, calculateFreelanceScore, type FreelanceScoreBreakdown } from '@/lib/freelanceClusters';
 import { type CompetitiveScoreResult } from '@/lib/competitiveScoring';
 import { useAdmin } from '@/hooks/useAdmin';
+import { publicUserError } from '@/lib/openaiErrors';
 import { User } from '@supabase/supabase-js';
 import {
   Plus, FileText, Settings, User as UserIcon, LogOut, Sparkles,
@@ -869,19 +870,21 @@ const Dashboard = () => {
       // If this was a bypass-402 attempt and the client fallback also failed,
       // give a more helpful message than the generic one.
       if (isBypass402) {
-        const msg = 'API Key Missing — add your OpenAI key in Profile → BYOK Settings to generate proposals without credits.';
+        const msg = isAdmin
+          ? 'API Key Missing — add your OpenAI key in Profile → BYOK Settings to generate proposals without credits.'
+          : 'AI engine is currently updating. Please try again in a few moments.';
         setGenerateError(msg);
         toast.error(msg);
         return;
       }
 
-      // Both paths failed — surface explicit diagnostic message to the user.
       const isNetworkError =
         err instanceof TypeError ||
         /fetch|network|CORS|failed to fetch/i.test(rawMsg);
-      const msg = isNetworkError
+      const raw = isNetworkError
         ? `Connection Timeout: Could not reach the AI service. Check your internet connection and try again. (${rawMsg})`
         : `Generation Failed: ${rawMsg}`;
+      const msg = publicUserError(raw, isAdmin);
       setGenerateError(msg);
       toast.error(msg);
     } finally {

@@ -8,25 +8,40 @@
 
 export const OPENAI_DUMMY_KEY = 'dummy-key-to-prevent-crash';
 
-export const AI_NOT_CONFIGURED_MESSAGE =
-  "AI_NOT_CONFIGURED: Lütfen sistem OPENAI_API_KEY (Supabase) veya VITE_OPENAI_API_KEY (Vercel) değişkenini kontrol edin veya Ayarlar'dan kendi OpenAI API anahtarınızı girin.";
+export const AI_BUSY_MESSAGE =
+  'AI engine is currently updating. Please try again in a few moments.';
+
+export const AI_NOT_CONFIGURED_MESSAGE = AI_BUSY_MESSAGE;
+
+const KEY_ALIASES = [
+  'OPENAI_API_KEY',
+  'NEXT_PUBLIC_OPENAI_API_KEY',
+  'VITE_OPENAI_API_KEY',
+  'OPEN_AI_KEY',
+  'OPEN_AI_API_KEY',
+  'OPENAI_SECRET_KEY',
+];
 
 function isSkKey(value: unknown): value is string {
   return typeof value === 'string' && value.trim().startsWith('sk-');
 }
 
 export function getOpenAIApiKey(): string {
-  const key = (
-    Deno.env.get('OPENAI_API_KEY')
-    ?? Deno.env.get('VITE_OPENAI_API_KEY')
-    ?? Deno.env.get('NEXT_PUBLIC_OPENAI_API_KEY')
-    ?? ''
-  ).trim();
+  let key = '';
+  for (const alias of KEY_ALIASES) {
+    try {
+      const value = String(Deno.env.get(alias) ?? '').trim();
+      if (value && value !== OPENAI_DUMMY_KEY && value.length > 10) {
+        key = value;
+        break;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
-  if (!key || key === OPENAI_DUMMY_KEY) {
-    console.error(
-      'CRITICAL ERROR: OpenAI API Key is missing across all runtime environments (OPENAI_API_KEY, VITE_OPENAI_API_KEY, NEXT_PUBLIC_OPENAI_API_KEY).',
-    );
+  if (!key) {
+    console.error('CRITICAL: OpenAI API Key could not be resolved from process.env runtime.');
   }
 
   return key === OPENAI_DUMMY_KEY ? '' : key;
@@ -46,13 +61,10 @@ export function resolveEdgeOpenAIKey(body: unknown): string {
 export function missingOpenAIKeyResponse(corsHeaders: Record<string, string>): Response {
   return new Response(
     JSON.stringify({
-      error: 'OPENAI_KEY_MISSING',
-      code: 'AI_NOT_CONFIGURED',
-      message:
-        'OpenAI API Key is not configured in environment variables. Please check Vercel settings and redeploy.',
-      detail: AI_NOT_CONFIGURED_MESSAGE,
+      error: 'AI_BUSY',
+      message: AI_BUSY_MESSAGE,
     }),
-    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }
 

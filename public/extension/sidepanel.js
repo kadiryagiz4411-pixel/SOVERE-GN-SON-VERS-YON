@@ -12,7 +12,33 @@ const DEFAULT_SETTINGS = {
   experience: 'mid',
   theme: 'obsidian',
   membership: 'unknown',
+  accountEmail: '',
+  role: '',
 };
+
+function isExtensionAdmin() {
+  const email = String(settings.accountEmail || '').trim().toLowerCase();
+  const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+  return settings.role === 'admin' || allow.includes(email);
+}
+
+function publicError(raw) {
+  const text = String(raw || '');
+  if (isExtensionAdmin()) return text || 'Unknown error';
+  if (/too short|open a job|Open a job post/i.test(text)) {
+    return 'Open a job post or profile, then try Analyze again.';
+  }
+  if (/readable text|enough readable/i.test(text)) {
+    return 'Open a job post or profile, then try Analyze again.';
+  }
+  if (/permission|host permissions|Reload this unpacked/i.test(text)) {
+    return 'Reload the extension, then try Analyze again.';
+  }
+  if (/system pages|chrome system/i.test(text)) {
+    return 'Open a public web page, then try Analyze again.';
+  }
+  return 'Service temporarily busy. Please try again in a few moments.';
+}
 
 const statusEl = document.getElementById('status');
 const spinner = document.getElementById('spinner');
@@ -127,14 +153,17 @@ function showError(message) {
   if (autofillBtn) autofillBtn.disabled = false;
   if (saveCandidateBtn) saveCandidateBtn.disabled = false;
   if (outreachBtn) outreachBtn.disabled = false;
-  const text = message || 'Could not connect to Sovereign API.';
+  const text = publicError(message);
   if (statusEl) {
     statusEl.classList.add('err');
     statusEl.textContent = text;
   }
   if (errorBadge) {
     errorBadge.classList.remove('hidden');
-    errorBadge.innerHTML = `<strong>Connection error.</strong> ${escapeHtml(text)}<br/><span style="opacity:.8">POST ${escapeHtml(parseDomUrl())}</span>`;
+    const detail = isExtensionAdmin()
+      ? `<br/><span style="opacity:.8">POST ${escapeHtml(parseDomUrl())}</span>`
+      : '';
+    errorBadge.innerHTML = `<strong>Couldn’t finish this scan.</strong> ${escapeHtml(text)}${detail}`;
   }
 }
 
@@ -489,19 +518,19 @@ async function analyzeActivePage() {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
-    setBusy(true, 'Classifying page and generating Sovereign output…');
+    setBusy(true, 'Analyzing page…');
     const data = await postParseDom(pageData);
     ingestOpportunity(pageData, data);
     renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
-    if (/Failed to fetch|NetworkError|redirect|CORS|preflight/i.test(msg)) {
-      showError('Could not reach https://www.sovereignapp.pro. Check that production is live, then try Analyze again.');
+    if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
+      showError('Service temporarily busy. Please try again in a few moments.');
       return;
     }
     if (/permission to access the respective host/i.test(msg)) {
-      showError('Reload this unpacked extension so host permissions take effect, then click Analyze again.');
+      showError('Reload the extension, then try Analyze again.');
       return;
     }
     showError(msg);
@@ -528,17 +557,26 @@ function applyMembership(plan) {
   }
 }
 
+function applyAdminUi() {
+  const admin = isExtensionAdmin();
+  document.getElementById('adminDiagnostics')?.classList.toggle('hidden', !admin);
+  if (apiBadge) apiBadge.classList.toggle('hidden', !admin);
+}
+
 function fillSettingsForm() {
   const skills = document.getElementById('skills');
   const hourlyRate = document.getElementById('hourlyRate');
   const fixedRate = document.getElementById('fixedRate');
   const experience = document.getElementById('experience');
+  const accountEmail = document.getElementById('accountEmail');
   if (skills) skills.value = settings.skills || '';
   if (hourlyRate) hourlyRate.value = settings.hourlyRate || '';
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
   if (experience) experience.value = settings.experience || 'mid';
+  if (accountEmail) accountEmail.value = settings.accountEmail || '';
   applyTheme(settings.theme);
   applyMembership(settings.membership);
+  applyAdminUi();
 }
 
 async function persistSettings(partial) {
@@ -548,6 +586,7 @@ async function persistSettings(partial) {
 }
 
 function setApiStatus(ok, detail) {
+  if (!isExtensionAdmin()) return;
   const statusElLocal = document.getElementById('api-status');
   if (apiBadge) {
     apiBadge.textContent = ok ? 'UP' : 'DOWN';
@@ -556,12 +595,13 @@ function setApiStatus(ok, detail) {
   }
   if (apiStatusDetail) apiStatusDetail.textContent = detail;
   if (statusElLocal && statusElLocal !== apiStatusDetail) {
-    statusElLocal.textContent = ok ? 'UP (Connected)' : 'DOWN (Check Vercel)';
+    statusElLocal.textContent = ok ? 'UP (Connected)' : 'DOWN';
     statusElLocal.style.color = ok ? '#10B981' : '#EF4444';
   }
 }
 
 async function pingApi() {
+  if (!isExtensionAdmin()) return false;
   if (apiBadge) {
     apiBadge.textContent = 'API…';
     apiBadge.classList.remove('live', 'down');
@@ -583,7 +623,7 @@ async function pingApi() {
     }
     throw new Error(viaWorker?.error || `API HTTP ${res.status}`);
   } catch (err) {
-    setApiStatus(false, `DOWN (Check Vercel). ${err?.message || 'Could not reach the parse-dom API.'}`);
+    setApiStatus(false, `DOWN. ${err?.message || 'Could not reach the parse-dom API.'}`);
     return false;
   }
 }
@@ -596,7 +636,7 @@ function switchTab(tab) {
   document.querySelectorAll('#nav button').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.tab === id);
   });
-  if (id === 'settings') void pingApi();
+  if (id === 'settings' && isExtensionAdmin()) void pingApi();
 }
 
 document.getElementById('nav')?.addEventListener('click', (event) => {
@@ -701,6 +741,7 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
     hourlyRate: document.getElementById('hourlyRate')?.value || '',
     fixedRate: document.getElementById('fixedRate')?.value || '',
     experience: document.getElementById('experience')?.value || 'mid',
+    accountEmail: document.getElementById('accountEmail')?.value || '',
   });
   const count = skillListFromSettings().length;
   if (profileStatus) {
@@ -736,7 +777,7 @@ async function boot() {
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
-  void pingApi();
+  if (isExtensionAdmin()) void pingApi();
   void analyzeActivePage();
 }
 

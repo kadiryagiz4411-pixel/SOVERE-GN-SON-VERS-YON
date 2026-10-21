@@ -56,7 +56,7 @@ export async function evaluateCandidatesBatch(opts: BatchEvaluateOptions): Promi
   if (!isOpenAIApiKeyConfigured(key)) {
     const remote = await evaluateViaApi(opts);
     if (remote) return remote;
-    throw new Error(`${OPENAI_KEY_MISSING_PAYLOAD.error}: ${OPENAI_KEY_MISSING_PAYLOAD.message}`);
+    throw new Error(OPENAI_KEY_MISSING_PAYLOAD.message);
   }
 
   // Split into chunks of BATCH_SIZE
@@ -169,7 +169,7 @@ async function evaluateViaApi(opts: BatchEvaluateOptions): Promise<EvaluatorResu
       message?: string;
       rankedCandidates?: RankedCandidate[];
     };
-    if (payload.error === 'OPENAI_KEY_MISSING' || !res.ok) return null;
+    if (payload.error === 'OPENAI_KEY_MISSING' || payload.error === 'AI_BUSY' || !res.ok) return null;
     if (!Array.isArray(payload.rankedCandidates) || payload.rankedCandidates.length === 0) return null;
     opts.onProgress?.(1, payload.rankedCandidates.length, opts.candidates.length);
     payload.rankedCandidates.forEach((c) => opts.onItem?.(c));

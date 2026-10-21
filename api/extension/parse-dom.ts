@@ -1,9 +1,11 @@
-import { preflight, json, readJsonBody } from '../_lib/cors.js';
-import { getOpenAIClient, OPENAI_KEY_MISSING_PAYLOAD } from '../_lib/openai.js';
+import { preflight, jsonNoStore, readJsonBody } from '../_lib/cors.js';
+import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
 
-export const config = { maxDuration: 30 };
+// Node runtime + no-store JSON is the Vite equivalent of Next.js
+// force-dynamic / revalidate 0 / fetchCache force-no-store.
+export const config = { runtime: 'nodejs', maxDuration: 30 };
 
 export type DetectedMode = 'JOB_PROPOSAL' | 'CV_EVALUATION' | 'B2B_COMMAND';
 
@@ -89,6 +91,7 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
 }
 
 async function completeJsonSafe(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
+  if (!apiKey) return {};
   try {
     return await completeJson(apiKey, system, user);
   } catch (err) {
@@ -106,9 +109,9 @@ function listField(value: unknown): string[] {
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method === 'GET' || req.method === 'HEAD') {
-    return json({ ok: true, service: 'extension-parse-dom' });
+    return jsonNoStore({ ok: true, service: 'extension-parse-dom' });
   }
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (req.method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
 
   try {
     const body = await readJsonBody<{
@@ -128,7 +131,7 @@ export default async function handler(req: Request): Promise<Response> {
     const pageUrl = String(body.pageUrl || body.sourceUrl || '').trim();
 
     if (!pageText || pageText.length < 20) {
-      return json({ error: 'Page content is too short to analyze.' }, 400);
+      return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);
     }
 
     const detectedMode = detectMode(pageUrl, pageTitle, pageText);
@@ -144,15 +147,9 @@ export default async function handler(req: Request): Promise<Response> {
       pageTitle,
       pageText,
     );
-    let apiKey = '';
-    try {
-      apiKey = getOpenAIClient().apiKey;
-    } catch (err) {
-      return json({
-        ...OPENAI_KEY_MISSING_PAYLOAD,
-        detectedMode,
-        message: err instanceof Error ? err.message : OPENAI_KEY_MISSING_PAYLOAD.message,
-      }, 500);
+    const apiKey = getOpenAIApiKey();
+    if (!apiKey) {
+      console.error('CRITICAL: OpenAI API Key could not be resolved from process.env runtime.');
     }
 
     if (detectedMode === 'JOB_PROPOSAL') {
@@ -168,7 +165,7 @@ export default async function handler(req: Request): Promise<Response> {
       const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
       const score = match.complete ? match.matchScore : 0;
       const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
-      return json({
+      return jsonNoStore({
         success: true,
         detectedMode,
         type: 'JOB_PROPOSAL',
@@ -199,7 +196,7 @@ export default async function handler(req: Request): Promise<Response> {
         || `Quick note on ${pageTitle || 'your team'}: I can run a focused technical pass on the problem in this brief and send a concrete first result this week.`,
       );
       const score = match.complete ? match.matchScore : Math.max(0, Math.min(100, Number(parsed.score ?? 0)));
-      return json({
+      return jsonNoStore({
         success: true,
         detectedMode,
         type: 'B2B_COMMAND',
@@ -240,7 +237,7 @@ export default async function handler(req: Request): Promise<Response> {
       cons = listField(parsed.cons);
     }
 
-    return json({
+    return jsonNoStore({
       success: true,
       detectedMode: 'CV_EVALUATION',
       type: 'CV_EVALUATION',
@@ -260,10 +257,6 @@ export default async function handler(req: Request): Promise<Response> {
     });
   } catch (err: unknown) {
     console.error('Extension Parse DOM Error:', err);
-    const message = err instanceof Error ? err.message : 'DOM analysis failed';
-    if (/OPENAI_API_KEY is not configured/i.test(message)) {
-      return json({ ...OPENAI_KEY_MISSING_PAYLOAD, message }, 500);
-    }
-    return json({ error: message }, 500);
+    return jsonNoStore({ success: false, error: AI_BUSY_MESSAGE }, 503);
   }
 }

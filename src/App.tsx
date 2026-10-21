@@ -19,9 +19,13 @@ import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
 // Shown as a fixed top bar whenever VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY
 // are missing. This replaces the silent console.error with a visible UI alert
 // so Vercel/hosting misconfigurations are immediately obvious to the operator.
+if (isMisconfigured) {
+  console.error('Sovereign env missing:', missingVars);
+}
+
 const EnvConfigBanner = () => {
   const [dismissed, setDismissed] = useState(false);
-  if (!isMisconfigured || dismissed) return null;
+  if (!isMisconfigured || dismissed || !import.meta.env.DEV) return null;
   return (
     <div
       role="alert"
@@ -29,9 +33,7 @@ const EnvConfigBanner = () => {
     >
       <AlertTriangle className="w-4 h-4 flex-shrink-0" />
       <span className="flex-1">
-        <strong>Sovereign Warning:</strong>{' '}
-        {missingVars.join(', ')} {missingVars.length === 1 ? 'is' : 'are'} missing.
-        {' '}AI &amp; DB features are operating in fallback mode.
+        Service temporarily busy. Please try again in a few moments.
       </span>
       <button
         onClick={() => setDismissed(true)}
