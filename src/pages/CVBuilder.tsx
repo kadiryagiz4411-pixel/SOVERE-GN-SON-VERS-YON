@@ -20,6 +20,7 @@ import { generateCVFallback } from '@/services/aiService';
 import { readGeneratedText } from '@/lib/liveGenerate';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
+import { CVDocumentView } from '@/components/documents/DocumentViews';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
 import { GatedButton } from '@/components/entitlements/FeatureGate';
 import {
@@ -891,9 +892,7 @@ const CVBuilder = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="bg-background rounded-lg p-5 border border-border whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed max-h-[600px] overflow-y-auto">
-                  {generatedCV}
-                </div>
+                <CVDocumentView text={generatedCV} title={fullName || 'Generated CV'} />
               </div>
 
               {/* Elite Apply Section */}

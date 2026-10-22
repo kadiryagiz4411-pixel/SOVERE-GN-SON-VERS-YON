@@ -1,9 +1,5 @@
 import jsPDF from 'jspdf';
-
-interface CVSection {
-  title: string;
-  content: string;
-}
+import { parseDocumentSections, type DocumentSection } from '@/lib/documentParse';
 
 interface ExportOptions {
   fileName?: string;
@@ -16,67 +12,54 @@ interface ExportOptions {
   location?: string;
 }
 
-// Sovereign brand colors
-const GOLD = { r: 218, g: 165, b: 32 };
-const DARK = { r: 15, g: 15, b: 15 };
-const CHARCOAL = { r: 25, g: 25, b: 25 };
-const WHITE = { r: 255, g: 255, b: 255 };
-const GRAY = { r: 160, g: 160, b: 160 };
-const LIGHT_GOLD = { r: 245, g: 230, b: 180 };
-
-function parseCVSections(cvText: string): CVSection[] {
-  const sections: CVSection[] = [];
-  const lines = cvText.split('\n');
-  let currentTitle = '';
-  let currentContent: string[] = [];
-
-  for (const line of lines) {
-    if (line.trim() === '---') continue;
-    const trimmed = line.trim();
-    const isHeader = trimmed === trimmed.toUpperCase() &&
-                     trimmed.length > 2 &&
-                     trimmed.length < 50 &&
-                     !trimmed.startsWith('-') &&
-                     /[A-Z]/.test(trimmed);
-
-    if (isHeader) {
-      if (currentTitle || currentContent.length > 0) {
-        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
-      }
-      currentTitle = trimmed;
-      currentContent = [];
-    } else {
-      currentContent.push(line);
-    }
-  }
-
-  if (currentTitle || currentContent.length > 0) {
-    sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
-  }
-
-  return sections.filter(s => s.content.length > 0);
-}
+const GOLD = { r: 245, g: 158, b: 11 };
+const DARK = { r: 11, g: 15, b: 23 };
+const CHARCOAL = { r: 15, g: 23, b: 42 };
+const WHITE = { r: 248, g: 250, b: 252 };
+const GRAY = { r: 148, g: 163, b: 184 };
+const BODY = { r: 226, g: 232, b: 240 };
+const MARGIN = 18;
 
 // ========== PDF EXPORT ==========
+
+function drawBrandWatermark(doc: jsPDF) {
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const pdf = doc as jsPDF & {
+    GState?: new (opts: { opacity: number }) => unknown;
+    saveGraphicsState?: () => void;
+    restoreGraphicsState?: () => void;
+    setGState?: (state: unknown) => void;
+  };
+  try {
+    if (pdf.GState && pdf.setGState && pdf.saveGraphicsState && pdf.restoreGraphicsState) {
+      pdf.saveGraphicsState();
+      pdf.setGState(new pdf.GState({ opacity: 0.06 }));
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(96);
+      doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+      doc.text('S', pw - 28, ph - 24);
+      pdf.restoreGraphicsState();
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+  doc.text('S', pw - 16, ph - 18);
+}
 
 function drawDarkBackground(doc: jsPDF) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  // Full dark background
   doc.setFillColor(DARK.r, DARK.g, DARK.b);
   doc.rect(0, 0, pw, ph, 'F');
-  // Gold left border
   doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(0, 0, 3, ph, 'F');
-  // Gold right border
-  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(pw - 3, 0, 3, ph, 'F');
-  // Gold top line
-  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(0, 0, pw, 1.5, 'F');
-  // Gold bottom line
-  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(0, ph - 1.5, pw, 1.5, 'F');
+  doc.rect(0, 0, 2.2, ph, 'F');
+  doc.rect(pw - 2.2, 0, 2.2, ph, 'F');
+  drawBrandWatermark(doc);
 }
 
 function drawCVHeader(doc: jsPDF, opts: ExportOptions): number {
@@ -92,7 +75,7 @@ function drawCVHeader(doc: jsPDF, opts: ExportOptions): number {
   doc.rect(3, headerH + 1.5, pw - 6, 1, 'F');
 
   // LEFT SIDE: Name and contact info
-  const leftX = 15;
+  const leftX = MARGIN;
   let nameY = 14;
 
   // Name
@@ -181,22 +164,15 @@ function drawPageFooter(doc: jsPDF, showWatermark: boolean, pageNum: number) {
 }
 
 function renderSectionTitle(doc: jsPDF, title: string, y: number, margin: number): number {
-  // Gold diamond bullet
-  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(margin, y - 2.5, 3, 3, 'F');
-
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.text(title, margin + 6, y);
+  doc.text(title.toUpperCase(), margin, y);
   y += 2;
-
-  // Gold underline
   doc.setDrawColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, margin + 55, y);
-  y += 5;
-
+  doc.setLineWidth(0.35);
+  doc.line(margin, y, margin + 42, y);
+  y += 6;
   return y;
 }
 
@@ -228,8 +204,8 @@ function renderContentLines(
     }
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(LIGHT_GOLD.r, LIGHT_GOLD.g, LIGHT_GOLD.b);
+    doc.setFontSize(10);
+    doc.setTextColor(BODY.r, BODY.g, BODY.b);
 
     const wrapped = doc.splitTextToSize(text, maxWidth - (isBullet ? 8 : 0));
     for (const wLine of wrapped) {
@@ -241,7 +217,7 @@ function renderContentLines(
         y = 18;
       }
       doc.text(wLine, indent, y);
-      y += 4.2;
+      y += 4.8;
     }
     y += 1;
   }
@@ -249,23 +225,29 @@ function renderContentLines(
   return y;
 }
 
+function sectionLines(section: DocumentSection): string[] {
+  return [
+    ...section.paragraphs,
+    ...section.bullets.map((item) => `• ${item}`),
+  ];
+}
+
 export function exportCVAsPDF(cvText: string, fileName = 'cv', options?: Partial<ExportOptions>) {
   const opts: ExportOptions = { fileName, type: 'cv', isPaid: false, ...options };
   const doc = new jsPDF();
-  const sections = parseCVSections(cvText);
+  const sections = parseDocumentSections(cvText);
   const pw = doc.internal.pageSize.getWidth();
-  const margin = 15;
+  const margin = MARGIN;
   const maxWidth = pw - margin * 2;
   const pageNum = { value: 1 };
   const showWatermark = !opts.isPaid;
 
-  // Page 1
   drawDarkBackground(doc);
   let y = drawCVHeader(doc, opts);
   y += 4;
 
   for (const section of sections) {
-    if (y > 255) {
+    if (y > 248) {
       drawPageFooter(doc, showWatermark, pageNum.value);
       doc.addPage();
       pageNum.value++;
@@ -277,9 +259,8 @@ export function exportCVAsPDF(cvText: string, fileName = 'cv', options?: Partial
       y = renderSectionTitle(doc, section.title, y, margin);
     }
 
-    const contentLines = section.content.split('\n');
-    y = renderContentLines(doc, contentLines, y, margin, maxWidth, showWatermark, pageNum);
-    y += 4;
+    y = renderContentLines(doc, sectionLines(section), y, margin, maxWidth, showWatermark, pageNum);
+    y += 5;
   }
 
   drawPageFooter(doc, showWatermark, pageNum.value);
@@ -289,8 +270,9 @@ export function exportCVAsPDF(cvText: string, fileName = 'cv', options?: Partial
 export function exportProposalAsPDF(proposalText: string, fileName = 'proposal', options?: Partial<ExportOptions>) {
   const opts: ExportOptions = { fileName, type: 'proposal', isPaid: false, ...options };
   const doc = new jsPDF();
+  const sections = parseDocumentSections(proposalText);
   const pw = doc.internal.pageSize.getWidth();
-  const margin = 15;
+  const margin = MARGIN;
   const maxWidth = pw - margin * 2;
   const pageNum = { value: 1 };
   const showWatermark = !opts.isPaid;
@@ -299,54 +281,17 @@ export function exportProposalAsPDF(proposalText: string, fileName = 'proposal',
   let y = drawCVHeader(doc, opts);
   y += 4;
 
-  const paragraphs = proposalText.split('\n');
-  for (const para of paragraphs) {
-    if (!para.trim()) {
-      y += 3;
-      continue;
+  for (const section of sections) {
+    if (y > 248) {
+      drawPageFooter(doc, showWatermark, pageNum.value);
+      doc.addPage();
+      pageNum.value++;
+      drawDarkBackground(doc);
+      y = 18;
     }
-
-    const isBold = para.trim() === para.trim().toUpperCase() && para.trim().length > 2 && para.trim().length < 60 && /[A-Z]/.test(para.trim());
-
-    if (isBold) {
-      if (y > 255) {
-        drawPageFooter(doc, showWatermark, pageNum.value);
-        doc.addPage();
-        pageNum.value++;
-        drawDarkBackground(doc);
-        y = 18;
-      }
-      y += 3;
-      y = renderSectionTitle(doc, para.trim(), y, margin);
-      continue;
-    }
-
-    const isBullet = para.trim().startsWith('-') || para.trim().startsWith('•');
-    const text = isBullet ? para.trim().replace(/^[-•]\s*/, '') : para.trim();
-    const indent = isBullet ? margin + 6 : margin;
-
-    if (isBullet) {
-      doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-      doc.circle(margin + 2, y - 1, 0.7, 'F');
-    }
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(LIGHT_GOLD.r, LIGHT_GOLD.g, LIGHT_GOLD.b);
-
-    const wrapped = doc.splitTextToSize(text, maxWidth - (isBullet ? 8 : 0));
-    for (const line of wrapped) {
-      if (y > 272) {
-        drawPageFooter(doc, showWatermark, pageNum.value);
-        doc.addPage();
-        pageNum.value++;
-        drawDarkBackground(doc);
-        y = 18;
-      }
-      doc.text(line, indent, y);
-      y += 4.5;
-    }
-    y += 1;
+    if (section.title) y = renderSectionTitle(doc, section.title, y, margin);
+    y = renderContentLines(doc, sectionLines(section), y, margin, maxWidth, showWatermark, pageNum);
+    y += 5;
   }
 
   drawPageFooter(doc, showWatermark, pageNum.value);
@@ -359,47 +304,43 @@ function escapeXml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function buildDocxParagraphs(sections: CVSection[]): string {
+function buildDocxParagraphs(sections: DocumentSection[]): string {
   let xml = '';
+  const font = 'Arial';
 
   for (const section of sections) {
     if (section.title) {
       xml += `<w:p>
         <w:pPr>
-          <w:spacing w:before="240" w:after="60"/>
-          <w:shd w:val="clear" w:color="auto" w:fill="1A1A1A"/>
-          <w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="DAA520"/></w:pBdr>
+          <w:pStyle w:val="Heading2"/>
+          <w:spacing w:before="240" w:after="80"/>
+          <w:shd w:val="clear" w:color="auto" w:fill="0F172A"/>
+          <w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="F59E0B"/></w:pBdr>
         </w:pPr>
-        <w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/><w:color w:val="DAA520"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>${escapeXml(section.title)}</w:t></w:r>
+        <w:r><w:rPr><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t>${escapeXml(section.title.toUpperCase())}</w:t></w:r>
       </w:p>`;
     }
 
-    const lines = section.content.split('\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
+    for (const paragraph of section.paragraphs) {
+      xml += `<w:p>
+        <w:pPr>
+          <w:spacing w:after="80"/>
+          <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
+        </w:pPr>
+        <w:r><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="E2E8F0"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t xml:space="preserve">${escapeXml(paragraph)}</w:t></w:r>
+      </w:p>`;
+    }
 
-      const isBullet = line.trim().startsWith('-') || line.trim().startsWith('•');
-      const text = isBullet ? line.trim().replace(/^[-•]\s*/, '') : line.trim();
-
-      if (isBullet) {
-        xml += `<w:p>
-          <w:pPr>
-            <w:spacing w:after="40"/>
-            <w:shd w:val="clear" w:color="auto" w:fill="0F0F0F"/>
-            <w:ind w:left="360" w:hanging="180"/>
-          </w:pPr>
-          <w:r><w:rPr><w:color w:val="DAA520"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">&#x25C6;  </w:t></w:r>
-          <w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="F5E6B4"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>
-        </w:p>`;
-      } else {
-        xml += `<w:p>
-          <w:pPr>
-            <w:spacing w:after="60"/>
-            <w:shd w:val="clear" w:color="auto" w:fill="0F0F0F"/>
-          </w:pPr>
-          <w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="F5E6B4"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>
-        </w:p>`;
-      }
+    for (const item of section.bullets) {
+      xml += `<w:p>
+        <w:pPr>
+          <w:spacing w:after="40"/>
+          <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
+          <w:ind w:left="360" w:hanging="180"/>
+        </w:pPr>
+        <w:r><w:rPr><w:color w:val="F59E0B"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">&#x25CF;  </w:t></w:r>
+        <w:r><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="E2E8F0"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t xml:space="preserve">${escapeXml(item)}</w:t></w:r>
+      </w:p>`;
     }
   }
   return xml;
@@ -408,6 +349,7 @@ function buildDocxParagraphs(sections: CVSection[]): string {
 function buildDocxHeader(opts: ExportOptions): string {
   const name = opts.fullName ? escapeXml(opts.fullName) : '';
   const brandLabel = opts.type === 'proposal' ? 'SOVEREIGN \u00B7 PROPOSAL' : 'SOVEREIGN \u00B7 CV';
+  const font = 'Arial';
 
   let headerXml = '';
 
@@ -419,7 +361,7 @@ function buildDocxHeader(opts: ExportOptions): string {
         <w:spacing w:before="0" w:after="0"/>
         <w:jc w:val="left"/>
       </w:pPr>
-      <w:r><w:rPr><w:b/><w:sz w:val="36"/><w:szCs w:val="36"/><w:color w:val="FFFFFF"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>${name}</w:t></w:r>
+      <w:r><w:rPr><w:b/><w:sz w:val="40"/><w:szCs w:val="40"/><w:color w:val="F8FAFC"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t>${name}</w:t></w:r>
     </w:p>`;
   }
 
@@ -434,7 +376,7 @@ function buildDocxHeader(opts: ExportOptions): string {
         <w:shd w:val="clear" w:color="auto" w:fill="191919"/>
         <w:spacing w:before="0" w:after="0"/>
       </w:pPr>
-      <w:r><w:rPr><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="A0A0A0"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>${escapeXml(contactParts.join('  |  '))}</w:t></w:r>
+      <w:r><w:rPr><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="94A3B8"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t>${escapeXml(contactParts.join('  |  '))}</w:t></w:r>
     </w:p>`;
   }
 
@@ -444,14 +386,14 @@ function buildDocxHeader(opts: ExportOptions): string {
       <w:shd w:val="clear" w:color="auto" w:fill="191919"/>
       <w:spacing w:before="60" w:after="60"/>
     </w:pPr>
-    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="DAA520"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>${brandLabel}</w:t></w:r>
+    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="${font}" w:hAnsi="${font}"/></w:rPr><w:t>${brandLabel}</w:t></w:r>
   </w:p>`;
 
   // Gold separator
   headerXml += `<w:p>
     <w:pPr>
-      <w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="DAA520"/></w:pBdr>
-      <w:shd w:val="clear" w:color="auto" w:fill="0F0F0F"/>
+      <w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="F59E0B"/></w:pBdr>
+      <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
       <w:spacing w:before="0" w:after="200"/>
     </w:pPr>
   </w:p>`;
@@ -462,21 +404,21 @@ function buildDocxHeader(opts: ExportOptions): string {
 function buildDocxFooter(showWatermark: boolean): string {
   let footer = `<w:p>
     <w:pPr>
-      <w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="DAA520"/></w:pBdr>
-      <w:shd w:val="clear" w:color="auto" w:fill="0F0F0F"/>
+      <w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="F59E0B"/></w:pBdr>
+      <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
       <w:spacing w:before="400"/>
       <w:jc w:val="center"/>
     </w:pPr>
-    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="DAA520"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>S O V E R E I G N</w:t></w:r>
+    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>S O V E R E I G N</w:t></w:r>
   </w:p>`;
 
   if (showWatermark) {
     footer += `<w:p>
       <w:pPr>
         <w:jc w:val="center"/>
-        <w:shd w:val="clear" w:color="auto" w:fill="0F0F0F"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
       </w:pPr>
-      <w:r><w:rPr><w:sz w:val="12"/><w:szCs w:val="12"/><w:color w:val="666666"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t>Generated by Sovereign (Free) \u00B7 sovereignapp.pro</w:t></w:r>
+      <w:r><w:rPr><w:sz w:val="12"/><w:szCs w:val="12"/><w:color w:val="64748B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>Generated by Sovereign (Free) \u00B7 sovereignapp.pro</w:t></w:r>
     </w:p>`;
   }
 
@@ -484,12 +426,29 @@ function buildDocxFooter(showWatermark: boolean): string {
 }
 
 async function generateDOCX(content: string, opts: ExportOptions) {
-  const sections = parseCVSections(content);
+  const sections = parseDocumentSections(content);
   const headerXml = buildDocxHeader(opts);
   const bodyXml = buildDocxParagraphs(sections);
   const footerXml = buildDocxFooter(!opts.isPaid);
 
-  // Full dark background for entire document
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/><w:color w:val="E2E8F0"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/><w:qFormat/>
+    <w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="0" w:after="120"/></w:pPr>
+    <w:rPr><w:b/><w:sz w:val="40"/><w:color w:val="F8FAFC"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="heading 2"/><w:qFormat/>
+    <w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="240" w:after="80"/></w:pPr>
+    <w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>
+  </w:style>
+</w:styles>`;
+
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -499,12 +458,12 @@ ${bodyXml}
 ${footerXml}
 <w:sectPr>
   <w:pgSz w:w="12240" w:h="15840"/>
-  <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/>
+  <w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/>
   <w:pgBorders w:offsetFrom="page">
-    <w:top w:val="single" w:sz="12" w:space="24" w:color="DAA520"/>
-    <w:left w:val="single" w:sz="12" w:space="24" w:color="DAA520"/>
-    <w:bottom w:val="single" w:sz="12" w:space="24" w:color="DAA520"/>
-    <w:right w:val="single" w:sz="12" w:space="24" w:color="DAA520"/>
+    <w:top w:val="single" w:sz="12" w:space="24" w:color="F59E0B"/>
+    <w:left w:val="single" w:sz="12" w:space="24" w:color="F59E0B"/>
+    <w:bottom w:val="single" w:sz="12" w:space="24" w:color="F59E0B"/>
+    <w:right w:val="single" w:sz="12" w:space="24" w:color="F59E0B"/>
   </w:pgBorders>
 </w:sectPr>
 </w:body>
@@ -515,6 +474,7 @@ ${footerXml}
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`;
 
   const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -522,11 +482,18 @@ ${footerXml}
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`;
 
+  const documentRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   zip.file('[Content_Types].xml', contentTypes);
   zip.file('_rels/.rels', rels);
   zip.file('word/document.xml', docXml);
+  zip.file('word/styles.xml', stylesXml);
+  zip.file('word/_rels/document.xml.rels', documentRels);
 
   const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 

@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 import { GatedFeature } from '@/components/auth/TierGate';
 import { GatedAppPage } from '@/components/auth/GatedAppPage';
 import { useSession } from '@/contexts/SessionContext';
@@ -150,7 +151,7 @@ function JobCard({ job, index, onRetry }: { job: BatchJob; index: number; onRetr
                   Copy
                 </button>
               </div>
-              <p className="text-foreground whitespace-pre-line leading-relaxed break-words">{job.proposal}</p>
+              <ProposalDocumentView text={job.proposal} maxHeightClass="max-h-[240px]" />
             </div>
           )}
           {job.errorMessage && (

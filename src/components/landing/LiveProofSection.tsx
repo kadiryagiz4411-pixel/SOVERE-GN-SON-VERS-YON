@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { Crown, Sparkles, Check, BarChart3, Building2, Target, ArrowRight, ExternalLink, MapPin } from 'lucide-react';
 import { getCheckoutUrl } from '@/lib/plans';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 import { useLanguage } from '@/i18n/LanguageContext';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -385,9 +386,7 @@ export const LiveProofSection = () => {
               </span>
             </div>
 
-            <div className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap max-h-[420px] overflow-y-auto pr-2">
-              {examples[activeTab]}
-            </div>
+            <ProposalDocumentView text={examples[activeTab]} maxHeightClass="max-h-[420px]" />
 
             <div className="mt-4 pt-4 border-t border-border">
               <div className="flex flex-wrap gap-2">

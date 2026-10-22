@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, FileText, ArrowRight, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 
 const ProposalView = () => {
   const { token } = useParams<{ token: string }>();
@@ -82,9 +83,7 @@ const ProposalView = () => {
           <h1 className="text-2xl font-bold mt-1">Optimized Proposal</h1>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-          {proposal!.generated_proposal}
-        </div>
+        <ProposalDocumentView text={proposal!.generated_proposal} maxHeightClass="" />
 
         {/* CTA */}
         <div className="mt-10 rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">

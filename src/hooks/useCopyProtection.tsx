@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { isElitePlan, isProPlan } from '@/lib/plans';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 
 interface UseCopyProtectionOptions {
   plan: string;
@@ -62,11 +63,7 @@ export const ProposalDisplay = ({ text, plan, onUpgrade }: ProposalDisplayProps)
   const BLUR_AFTER = 600;
 
   if (isPaid || text.length <= BLUR_AFTER) {
-    return (
-      <div className="whitespace-pre-wrap text-sm text-foreground leading-relaxed font-mono">
-        {text}
-      </div>
-    );
+    return <ProposalDocumentView text={text} maxHeightClass="" />;
   }
 
   const visiblePart = text.slice(0, BLUR_AFTER);
@@ -74,16 +71,9 @@ export const ProposalDisplay = ({ text, plan, onUpgrade }: ProposalDisplayProps)
 
   return (
     <div className="relative">
-      <div className="whitespace-pre-wrap text-sm text-foreground leading-relaxed font-mono">
-        {visiblePart}
-      </div>
-      <div className="relative">
-        <div
-          className="whitespace-pre-wrap text-sm text-foreground leading-relaxed font-mono blur-sm select-none pointer-events-none"
-          aria-hidden="true"
-        >
-          {blurredPart}
-        </div>
+      <ProposalDocumentView text={visiblePart} maxHeightClass="" />
+      <div className="relative mt-3">
+        <ProposalDocumentView text={blurredPart} maxHeightClass="" blurred />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/70 to-card pointer-events-none" />
         {/* Upgrade gate */}

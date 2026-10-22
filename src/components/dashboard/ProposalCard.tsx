@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { RankedJob, JobFit } from '@/lib/schemas/job';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 
 interface ProposalCardProps {
   job: RankedJob;
@@ -128,9 +129,8 @@ export function ProposalCard({ job, onInjectProposal, injecting }: ProposalCardP
       )}
 
       {job.generatedProposal && (
-        <div className="mx-4 mt-3 rounded-xl bg-muted/40 border border-border p-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Inject Payload</p>
-          <p className="text-xs text-foreground/80 leading-relaxed">{job.generatedProposal}</p>
+        <div className="mx-4 mt-3">
+          <ProposalDocumentView text={job.generatedProposal} title="Proposal" maxHeightClass="max-h-[220px]" />
         </div>
       )}
 

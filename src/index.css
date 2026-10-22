@@ -396,3 +396,10 @@ button:active, a:active, [role="button"]:active {
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+@media print {
+  .sovereign-doc-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

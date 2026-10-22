@@ -20,6 +20,7 @@ import { generateSovereignContent, generateProposalFallback } from '@/services/a
 import { supabaseAnonKey } from '@/integrations/supabase/client';
 import { postLiveProposal, readGeneratedText } from '@/lib/liveGenerate';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
 import { FeatureUpgradeModal } from '@/components/FeatureUpgradeModal';
@@ -1716,9 +1717,7 @@ const Dashboard = () => {
                               </Button>
                             </div>
                             <p className="text-xs text-muted-foreground mb-2 italic">{v.description}</p>
-                            <div className="flex-1 whitespace-pre-wrap text-foreground leading-relaxed text-sm overflow-y-auto max-h-[240px] mb-4">
-                              {v.text}
-                            </div>
+                            <ProposalDocumentView text={v.text} className="mb-4" maxHeightClass="max-h-[240px]" />
                           </TabsContent>
                         );
                       })}
@@ -1747,9 +1746,12 @@ const Dashboard = () => {
                       {/* Proposal output */}
                       {isFreePlan && proposalViewsUsed > FREE_VIEW_LIMIT ? (
                         <div className="relative flex-1 overflow-hidden mb-4 rounded-lg">
-                          <div className="whitespace-pre-wrap text-foreground leading-relaxed text-sm max-h-[200px] overflow-hidden blur-sm select-none pointer-events-none" aria-hidden="true">
-                            {generatedProposal}
-                          </div>
+                          <ProposalDocumentView
+                            text={generatedProposal}
+                            className="max-h-[200px] overflow-hidden"
+                            maxHeightClass="max-h-[200px]"
+                            blurred
+                          />
                           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/80 to-card" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="bg-card border border-border rounded-xl px-6 py-5 text-center shadow-xl max-w-xs mx-4">
@@ -1770,9 +1772,7 @@ const Dashboard = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 whitespace-pre-wrap text-foreground leading-relaxed text-sm overflow-y-auto max-h-[280px] mb-4">
-                          {generatedProposal}
-                        </div>
+                        <ProposalDocumentView text={generatedProposal} className="mb-4 flex-1" />
                       )}
                     </>
                   )}

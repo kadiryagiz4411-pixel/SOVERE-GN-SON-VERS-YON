@@ -11,6 +11,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { User } from '@supabase/supabase-js';
 import { getDownloadLimit } from '@/lib/plans';
 import { getDownloadsUsedToday, incrementDownloadsUsed } from '@/lib/downloads';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 import {
   Crown,
   ArrowLeft,
@@ -442,9 +443,7 @@ const ProposalsHistory = () => {
                       <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                         Generated Application
                       </h4>
-                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                        {proposal.generated_proposal}
-                      </p>
+                      <ProposalDocumentView text={proposal.generated_proposal} maxHeightClass="max-h-[360px]" />
                     </div>
                   </div>
                 )}

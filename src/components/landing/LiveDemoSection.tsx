@@ -14,6 +14,7 @@ import { getCheckoutUrl } from '@/lib/plans';
 import { trackEvent } from '@/lib/analytics';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
+import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 
 const translations = {
   en: {
@@ -295,9 +296,7 @@ export const LiveDemoSection = () => {
 
               {/* Proposal Preview */}
               <div className="p-6 relative">
-                <div className="whitespace-pre-wrap text-foreground leading-relaxed text-sm">
-                  {demoResult.preview}
-                </div>
+                <ProposalDocumentView text={demoResult.preview} maxHeightClass="" />
 
                 {/* Blur overlay */}
                 <div className="mt-4 relative">

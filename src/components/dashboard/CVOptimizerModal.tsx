@@ -17,6 +17,7 @@ import { OWNER_EMAIL } from '@/lib/superadmin';
 import { generateATSFallback, generateCVFallback } from '@/services/aiService';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { exportCVAsPDF } from '@/lib/cvExport';
+import { CVDocumentView } from '@/components/documents/DocumentViews';
 import { CVDiffViewer } from '@/components/dashboard/CVDiffViewer';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
 import {
@@ -608,7 +609,7 @@ export const CVOptimizerModal = ({
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
-              <div className="whitespace-pre-wrap text-sm text-foreground leading-relaxed max-h-[300px] overflow-y-auto">{optimizedCV}</div>
+              <CVDocumentView text={optimizedCV} title="Optimized CV" maxHeightClass="max-h-[300px]" />
             </div>
 
             <div className="flex gap-2">
