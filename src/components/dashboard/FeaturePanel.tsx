@@ -124,7 +124,8 @@ export const FeaturePanel = ({
   const [showStrategyModal, setShowStrategyModal] = useState(false);
   const [strategyResult, setStrategyResult] = useState<FullStrategyResult | null>(null);
   
-  const { optimize, isOptimizing, currentOptimization } = useProposalOptimization();
+  const { optimize, isOptimizing, currentOptimization, error, setError } = useProposalOptimization();
+  const [retryFeature, setRetryFeature] = useState<FeatureItem | null>(null);
 
   const handleFeatureClick = async (feature: FeatureItem) => {
     const hasAccess = canAccessFeature(currentPlan, feature.id);
@@ -145,35 +146,41 @@ export const FeaturePanel = ({
       toast.info('This feature is coming soon!');
       return;
     }
-    
-    const result = await optimize(
-      feature.optimizationType,
-      generatedProposal,
-      jobDescription
-    );
-    
-    if (result) {
-      switch (feature.optimizationType) {
-        case 'acceptance-score':
-          setScoreResult(result.result as AcceptanceScoreResult);
-          setShowScoreModal(true);
-          break;
-        case 'decision-maker':
-          setDecisionMakerResult(result.result as DecisionMakerResult);
-          setShowDecisionMakerModal(true);
-          break;
-        case 'outreach-messages':
-          setOutreachResult(result.result as OutreachMessagesResult);
-          setShowOutreachModal(true);
-          break;
-        case 'full-strategy':
-          setStrategyResult(result.result as FullStrategyResult);
-          setShowStrategyModal(true);
-          break;
-        default:
-          // For rewriting features, update the proposal
-          onProposalUpdate(result.result as string);
+
+    setRetryFeature(feature);
+    setError('');
+    try {
+      const result = await optimize(
+        feature.optimizationType,
+        generatedProposal,
+        jobDescription
+      );
+      
+      if (result) {
+        setRetryFeature(null);
+        switch (feature.optimizationType) {
+          case 'acceptance-score':
+            setScoreResult(result.result as AcceptanceScoreResult);
+            setShowScoreModal(true);
+            break;
+          case 'decision-maker':
+            setDecisionMakerResult(result.result as DecisionMakerResult);
+            setShowDecisionMakerModal(true);
+            break;
+          case 'outreach-messages':
+            setOutreachResult(result.result as OutreachMessagesResult);
+            setShowOutreachModal(true);
+            break;
+          case 'full-strategy':
+            setStrategyResult(result.result as FullStrategyResult);
+            setShowStrategyModal(true);
+            break;
+          default:
+            onProposalUpdate(result.result as string);
+        }
       }
+    } catch {
+      toast.error('Connection timeout. Please try again.');
     }
   };
 
@@ -261,6 +268,19 @@ export const FeaturePanel = ({
   return (
     <>
       <div className="space-y-6">
+        {error && retryFeature ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-xs text-foreground mb-2">{error}</p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-primary underline"
+              onClick={() => void handleFeatureClick(retryFeature)}
+              disabled={isOptimizing}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
         {/* Pro Features Section - DIAGNOSIS */}
         <div>
           <div className="flex items-center gap-2 mb-1">

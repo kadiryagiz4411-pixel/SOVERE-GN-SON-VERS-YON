@@ -1,50 +1,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isPaidPlan } from '@/lib/plans';
-import { isOwnerEmail } from '@/lib/superadmin';
+import { useSmartMatch } from '@/hooks/useSmartMatch';
 import {
   Target, Loader2, ChevronDown, ChevronUp,
-  Copy, Check, Zap, AlertTriangle, Sparkles,
+  Copy, Check, AlertTriangle, Sparkles,
   TrendingUp, TrendingDown, MessageSquare, FileText, Briefcase,
 } from 'lucide-react';
-
-interface SmartMatchResult {
-  jobParsing: {
-    requiredSkills: string[];
-    yearsOfExperience: string;
-    coreTechnologies: string[];
-    companyValues: string[];
-    roleLevel: string;
-    workType: string;
-    estimatedSalary: string;
-  };
-  matchScore: number;
-  matchBreakdown: {
-    skillsMatch: number;
-    experienceMatch: number;
-    cultureMatch: number;
-    technicalMatch: number;
-  };
-  platformAcceptance?: {
-    upwork: number;
-    fiverr: number;
-    linkedin: number;
-    corporate: number;
-  };
-  gapAnalysis: {
-    strengths: Array<{ area: string; detail: string }>;
-    gaps: Array<{ area: string; detail: string; suggestion: string }>;
-  };
-  coverLetter: string;
-  linkedInOutreach: string;
-  sampleJobListings?: Array<{ title: string; platform: string; budget: string; matchReason: string }>;
-  topAlignmentPoints: string[];
-  applicationTips: string[];
-  status: string;
-}
 
 const translations = {
   en: {
@@ -87,6 +51,8 @@ const translations = {
     budget: 'Budget',
     freeTrial: '1 Free Analysis',
     freeTrialDesc: 'Try Smart Match once for free!',
+    retry: 'Retry',
+    timeout: 'Connection timeout. Retry Smart Match.',
   },
   tr: {
     title: 'Akıllı Eşleşme ve Başvuru',
@@ -128,6 +94,8 @@ const translations = {
     budget: 'Bütçe',
     freeTrial: '1 Ücretsiz Analiz',
     freeTrialDesc: 'Smart Match\'i bir kez ücretsiz deneyin!',
+    retry: 'Tekrar dene',
+    timeout: 'Bağlantı zaman aşımı. Smart Match\'i tekrar deneyin.',
   },
   de: {
     title: 'Smart Match & Bewerben',
@@ -169,6 +137,8 @@ const translations = {
     budget: 'Budget',
     freeTrial: '1 Kostenlose Analyse',
     freeTrialDesc: 'Testen Sie Smart Match einmal kostenlos!',
+    retry: 'Erneut versuchen',
+    timeout: 'Zeitüberschreitung. Smart Match erneut starten.',
   },
   fr: {
     title: 'Smart Match & Postuler',
@@ -210,6 +180,8 @@ const translations = {
     budget: 'Budget',
     freeTrial: '1 Analyse gratuite',
     freeTrialDesc: 'Essayez Smart Match une fois gratuitement !',
+    retry: 'Réessayer',
+    timeout: 'Délai dépassé. Relancez Smart Match.',
   },
 };
 
@@ -223,8 +195,7 @@ interface SmartMatchPanelProps {
 export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrade }: SmartMatchPanelProps) => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<SmartMatchResult | null>(null);
+  const { run, isAnalyzing, result, error, setError } = useSmartMatch();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     jobParsing: true,
     gapAnalysis: true,
@@ -266,49 +237,13 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
       // Allow free trial - the backend handles limiting to 1 free use
     }
 
-    setIsAnalyzing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Please log in');
-        return;
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-match`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ jobDescription, outputLanguage }),
-        }
-      );
-
-      if (!response.ok) {
-        const err = await response.json();
-        if (response.status === 403) {
-          onUpgrade();
-          return;
-        }
-        if (response.status === 429) {
-          toast.error('Rate limit exceeded. Please wait.');
-          return;
-        }
-        throw new Error(err.error || 'Analysis failed');
-      }
-
-      const data = await response.json();
-      setResult(data);
-      setExpandedSections({ jobParsing: true, gapAnalysis: true, coverLetter: true, linkedIn: true });
-      toast.success(t.savedToCRM);
-    } catch (err) {
-      console.error('Smart Match error:', err);
-      toast.error(err instanceof Error ? err.message : 'Analysis failed');
-    } finally {
-      setIsAnalyzing(false);
+    const data = await run(jobDescription, outputLanguage);
+    if (!data) {
+      toast.error(t.timeout, { action: { label: t.retry, onClick: () => void handleAnalyze() } });
+      return;
     }
+    setExpandedSections({ jobParsing: true, gapAnalysis: true, coverLetter: true, linkedIn: true });
+    toast.success(t.savedToCRM);
   };
 
   const getScoreColor = (score: number) => {
@@ -343,6 +278,15 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
               <p className="text-[10px] text-muted-foreground">{t.freeTrialDesc}</p>
             </div>
           )}
+          {error ? (
+            <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-xs text-foreground mb-2">{error || t.timeout}</p>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => { setError(''); void handleAnalyze(); }} disabled={isAnalyzing}>
+                {isAnalyzing ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : null}
+                {t.retry}
+              </Button>
+            </div>
+          ) : null}
           <Button
             variant="gold"
             className="w-full"
@@ -376,10 +320,10 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
             </div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: t.skillsMatch, value: result.matchBreakdown.skillsMatch },
-                { label: t.experienceMatch, value: result.matchBreakdown.experienceMatch },
-                { label: t.cultureMatch, value: result.matchBreakdown.cultureMatch },
-                { label: t.technicalMatch, value: result.matchBreakdown.technicalMatch },
+                { label: t.skillsMatch, value: result.matchBreakdown?.skillsMatch ?? 0 },
+                { label: t.experienceMatch, value: result.matchBreakdown?.experienceMatch ?? 0 },
+                { label: t.cultureMatch, value: result.matchBreakdown?.cultureMatch ?? 0 },
+                { label: t.technicalMatch, value: result.matchBreakdown?.technicalMatch ?? 0 },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{item.label}</span>
@@ -476,13 +420,13 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
             {expandedSections.jobParsing && (
               <div className="px-3 pb-3 space-y-2">
                 <div className="flex flex-wrap gap-1">
-                  {result.jobParsing.requiredSkills.map((s, i) => (
+                  {(result.jobParsing?.requiredSkills ?? []).map((s, i) => (
                     <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{s}</span>
                   ))}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {result.jobParsing.coreTechnologies.map((t, i) => (
-                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500">{t}</span>
+                  {(result.jobParsing?.coreTechnologies ?? []).map((tech, i) => (
+                    <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500">{tech}</span>
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-xs">
@@ -514,26 +458,26 @@ export const SmartMatchPanel = ({ jobDescription, plan, outputLanguage, onUpgrad
             </button>
             {expandedSections.gapAnalysis && (
               <div className="px-3 pb-3 space-y-3">
-                {result.gapAnalysis.strengths.length > 0 && (
+                {(result.gapAnalysis?.strengths ?? []).length > 0 && (
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <TrendingUp className="w-3 h-3 text-green-500" />
                       <span className="text-xs font-medium text-green-500">{t.strengths}</span>
                     </div>
-                    {result.gapAnalysis.strengths.map((s, i) => (
+                    {(result.gapAnalysis?.strengths ?? []).map((s, i) => (
                       <div key={i} className="text-xs text-muted-foreground ml-4 mb-1">
                         <span className="font-medium text-foreground">{s.area}:</span> {s.detail}
                       </div>
                     ))}
                   </div>
                 )}
-                {result.gapAnalysis.gaps.length > 0 && (
+                {(result.gapAnalysis?.gaps ?? []).length > 0 && (
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <TrendingDown className="w-3 h-3 text-amber-500" />
                       <span className="text-xs font-medium text-amber-500">{t.gaps}</span>
                     </div>
-                    {result.gapAnalysis.gaps.map((g, i) => (
+                    {(result.gapAnalysis?.gaps ?? []).map((g, i) => (
                       <div key={i} className="text-xs text-muted-foreground ml-4 mb-1">
                         <span className="font-medium text-foreground">{g.area}:</span> {g.detail}
                         {g.suggestion && (

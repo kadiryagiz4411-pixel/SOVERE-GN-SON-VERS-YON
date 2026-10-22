@@ -47,10 +47,16 @@ export function readGeneratedText(payload: unknown, keys: string[]): string {
   return '';
 }
 
+async function resolveAccessToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.access_token) return data.session.access_token;
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  return refreshed.session?.access_token || '';
+}
+
 export async function postLiveJson<T>(path: string, body: Record<string, unknown>): Promise<LiveJsonResult<T>> {
   const url = `${liveApiPath(path)}?t=${Date.now()}`;
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
+  const token = await resolveAccessToken();
   const customApiKey = resolveOpenAIKey();
   const payload = customApiKey ? { ...body, customApiKey } : { ...body };
 
@@ -76,11 +82,14 @@ export async function postLiveJson<T>(path: string, body: Record<string, unknown
     }
     return { ok: true, status: response.status, data: json, error: null };
   } catch (err) {
+    const raw = err instanceof Error ? err.message : 'Network error';
     return {
       ok: false,
       status: 0,
       data: null,
-      error: err instanceof Error ? err.message : 'Network error',
+      error: /Failed to fetch|NetworkError|CORS|preflight|TypeError/i.test(raw)
+        ? 'Connection timeout. Please try again.'
+        : raw,
     };
   }
 }
@@ -91,6 +100,20 @@ export function postLiveCv(body: Record<string, unknown>) {
 
 export function postLiveProposal(body: Record<string, unknown>) {
   return postLiveJson<{ proposal?: string; proposalText?: string; error?: string }>('/api/proposal', body);
+}
+
+export function postLiveSmartMatch(body: Record<string, unknown>) {
+  return postLiveJson<Record<string, unknown>>('/api/smart-match', body);
+}
+
+export function postLiveOptimizeProposal(body: Record<string, unknown>) {
+  return postLiveJson<{
+    type?: string;
+    result?: unknown;
+    error?: string;
+    message?: string;
+    fallback?: boolean;
+  }>('/api/optimize-proposal', body);
 }
 
 export function postLiveFollowup(body: Record<string, unknown>) {

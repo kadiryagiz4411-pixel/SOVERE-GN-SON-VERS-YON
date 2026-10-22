@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { postLiveOptimizeProposal } from '@/lib/liveGenerate';
+import { publicUserError } from '@/lib/openaiErrors';
 
-export type OptimizationType = 
-  | 'company-rewrite' 
-  | 'acceptance-score' 
+export type OptimizationType =
+  | 'company-rewrite'
+  | 'acceptance-score'
   | 'tone-optimization'
   | 'decision-maker'
   | 'outreach-messages'
@@ -86,11 +87,11 @@ export interface FullStrategyResult {
   finalAdvice: string;
 }
 
-export type OptimizationResultData = 
-  | string 
-  | AcceptanceScoreResult 
-  | DecisionMakerResult 
-  | OutreachMessagesResult 
+export type OptimizationResultData =
+  | string
+  | AcceptanceScoreResult
+  | DecisionMakerResult
+  | OutreachMessagesResult
   | FullStrategyResult;
 
 export interface OptimizationResult {
@@ -98,15 +99,135 @@ export interface OptimizationResult {
   result: OptimizationResultData;
 }
 
+const EMPTY_SCORE: AcceptanceScoreResult = {
+  score: 0,
+  strengths: [],
+  weaknesses: [],
+  suggestions: [],
+  summary: '',
+};
+
+const EMPTY_DECISION: DecisionMakerResult = {
+  primaryDecisionMaker: { title: '', department: '', influence: '', linkedInSearchTip: '' },
+  secondaryStakeholders: [],
+  companyInsights: { companyType: '', hiringStyle: '', redFlags: [], greenFlags: [] },
+  outreachStrategy: '',
+};
+
+const EMPTY_OUTREACH: OutreachMessagesResult = {
+  linkedInConnectionRequest: '',
+  linkedInFollowUp: '',
+  coldEmail: { subject: '', body: '' },
+  followUpEmail: { subject: '', body: '' },
+  tips: [],
+};
+
+const EMPTY_STRATEGY: FullStrategyResult = {
+  overallAssessment: { fitScore: 0, summary: '', verdict: '' },
+  whyApplicationsFail: [],
+  differentiators: [],
+  riskFactors: [],
+  actionPlan: [],
+  interviewPrep: { likelyQuestions: [], questionsToAsk: [], keyTalkingPoints: [] },
+  finalAdvice: '',
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function normalizeResult(type: OptimizationType, raw: unknown): OptimizationResultData {
+  if (type === 'company-rewrite' || type === 'tone-optimization') {
+    return typeof raw === 'string' ? raw : String(asRecord(raw).text || asRecord(raw).result || '');
+  }
+  const rec = asRecord(raw);
+  if (type === 'acceptance-score') {
+    return {
+      ...EMPTY_SCORE,
+      score: Number(rec.score) || 0,
+      strengths: Array.isArray(rec.strengths) ? rec.strengths.map(String) : [],
+      weaknesses: Array.isArray(rec.weaknesses) ? rec.weaknesses.map(String) : [],
+      suggestions: Array.isArray(rec.suggestions) ? rec.suggestions.map(String) : [],
+      summary: String(rec.summary || ''),
+    };
+  }
+  if (type === 'decision-maker') {
+    const primary = asRecord(rec.primaryDecisionMaker);
+    const insights = asRecord(rec.companyInsights);
+    return {
+      ...EMPTY_DECISION,
+      primaryDecisionMaker: {
+        title: String(primary.title || ''),
+        department: String(primary.department || ''),
+        influence: String(primary.influence || ''),
+        linkedInSearchTip: String(primary.linkedInSearchTip || ''),
+      },
+      secondaryStakeholders: Array.isArray(rec.secondaryStakeholders)
+        ? rec.secondaryStakeholders as DecisionMakerResult['secondaryStakeholders']
+        : [],
+      companyInsights: {
+        companyType: String(insights.companyType || ''),
+        hiringStyle: String(insights.hiringStyle || ''),
+        redFlags: Array.isArray(insights.redFlags) ? insights.redFlags.map(String) : [],
+        greenFlags: Array.isArray(insights.greenFlags) ? insights.greenFlags.map(String) : [],
+      },
+      outreachStrategy: String(rec.outreachStrategy || ''),
+    };
+  }
+  if (type === 'outreach-messages') {
+    const cold = asRecord(rec.coldEmail);
+    const follow = asRecord(rec.followUpEmail);
+    return {
+      ...EMPTY_OUTREACH,
+      linkedInConnectionRequest: String(rec.linkedInConnectionRequest || ''),
+      linkedInFollowUp: String(rec.linkedInFollowUp || ''),
+      coldEmail: { subject: String(cold.subject || ''), body: String(cold.body || '') },
+      followUpEmail: { subject: String(follow.subject || ''), body: String(follow.body || '') },
+      twitterDM: rec.twitterDM ? String(rec.twitterDM) : undefined,
+      tips: Array.isArray(rec.tips) ? rec.tips.map(String) : [],
+    };
+  }
+  const assessment = asRecord(rec.overallAssessment);
+  const prep = asRecord(rec.interviewPrep);
+  const salary = asRecord(rec.salaryInsight);
+  return {
+    ...EMPTY_STRATEGY,
+    overallAssessment: {
+      fitScore: Number(assessment.fitScore) || 0,
+      summary: String(assessment.summary || ''),
+      verdict: String(assessment.verdict || ''),
+    },
+    whyApplicationsFail: Array.isArray(rec.whyApplicationsFail)
+      ? rec.whyApplicationsFail as FullStrategyResult['whyApplicationsFail']
+      : [],
+    differentiators: Array.isArray(rec.differentiators) ? rec.differentiators.map(String) : [],
+    riskFactors: Array.isArray(rec.riskFactors) ? rec.riskFactors as FullStrategyResult['riskFactors'] : [],
+    actionPlan: Array.isArray(rec.actionPlan) ? rec.actionPlan as FullStrategyResult['actionPlan'] : [],
+    interviewPrep: {
+      likelyQuestions: Array.isArray(prep.likelyQuestions) ? prep.likelyQuestions.map(String) : [],
+      questionsToAsk: Array.isArray(prep.questionsToAsk) ? prep.questionsToAsk.map(String) : [],
+      keyTalkingPoints: Array.isArray(prep.keyTalkingPoints) ? prep.keyTalkingPoints.map(String) : [],
+    },
+    salaryInsight: rec.salaryInsight
+      ? {
+          estimatedRange: String(salary.estimatedRange || ''),
+          negotiationTips: Array.isArray(salary.negotiationTips) ? salary.negotiationTips.map(String) : [],
+        }
+      : undefined,
+    finalAdvice: String(rec.finalAdvice || ''),
+  };
+}
+
 export const useProposalOptimization = () => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [currentOptimization, setCurrentOptimization] = useState<OptimizationType | null>(null);
+  const [error, setError] = useState('');
 
   const optimize = async (
     optimizationType: OptimizationType,
     proposal: string,
     jobDescription: string,
-    companyInfo?: string
+    companyInfo?: string,
   ): Promise<OptimizationResult | null> => {
     if (!proposal.trim()) {
       toast.error('Generate a proposal first before optimizing');
@@ -115,56 +236,27 @@ export const useProposalOptimization = () => {
 
     setIsOptimizing(true);
     setCurrentOptimization(optimizationType);
+    setError('');
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Please log in to use optimization features');
+      const live = await postLiveOptimizeProposal({
+        optimizationType,
+        proposal,
+        jobDescription,
+        jobContext: jobDescription,
+        proposalHistory: proposal,
+        companyInfo,
+      });
+      if (!live.ok || live.data == null) {
+        const message = publicUserError(live.error || 'Connection timeout. Please try again.');
+        setError(message);
+        toast.error(message);
         return null;
       }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/optimize-proposal`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            proposal,
-            jobDescription,
-            optimizationType,
-            companyInfo,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        
-        if (response.status === 403) {
-          const isEliteFeature = ['decision-maker', 'outreach-messages', 'full-strategy'].includes(optimizationType);
-          toast.error(isEliteFeature 
-            ? 'Upgrade to Elite to use this feature' 
-            : 'Upgrade to Pro to use optimization features'
-          );
-          return null;
-        }
-        if (response.status === 429) {
-          toast.error('Rate limit exceeded. Please try again in a moment.');
-          return null;
-        }
-        if (response.status === 402) {
-          toast.error('AI credits exhausted. Please try again later.');
-          return null;
-        }
-        
-        throw new Error(errorData.error || 'Optimization failed');
-      }
-
-      const data: OptimizationResult = await response.json();
-      
+      const data: OptimizationResult = {
+        type: optimizationType,
+        result: normalizeResult(optimizationType, live.data.result),
+      };
       const successMessages: Record<OptimizationType, string> = {
         'company-rewrite': 'Proposal rewritten for target company!',
         'acceptance-score': 'Acceptance analysis complete!',
@@ -173,13 +265,12 @@ export const useProposalOptimization = () => {
         'outreach-messages': 'Outreach messages generated!',
         'full-strategy': 'Full strategy created!',
       };
-      
       toast.success(successMessages[optimizationType]);
       return data;
-      
-    } catch (error) {
-      console.error('Optimization error:', error);
-      toast.error(error instanceof Error ? error.message : 'Optimization failed');
+    } catch (err) {
+      const message = publicUserError(err);
+      setError(message);
+      toast.error(message);
       return null;
     } finally {
       setIsOptimizing(false);
@@ -191,5 +282,7 @@ export const useProposalOptimization = () => {
     optimize,
     isOptimizing,
     currentOptimization,
+    error,
+    setError,
   };
 };
