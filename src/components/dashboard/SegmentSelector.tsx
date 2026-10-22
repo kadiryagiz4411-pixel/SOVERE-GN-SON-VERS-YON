@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Briefcase, User as UserIcon } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 
@@ -45,6 +46,7 @@ const translations = {
 export const SegmentSelector = ({ onSelect }: SegmentSelectorProps) => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
+  const selectingRef = useRef(false);
 
   const segments = [
     {
@@ -81,8 +83,13 @@ export const SegmentSelector = ({ onSelect }: SegmentSelectorProps) => {
         {segments.map((seg) => (
           <button
             key={seg.id}
-            onClick={() => onSelect(seg.id)}
-            className={`group relative rounded-xl border ${seg.border} bg-gradient-to-br ${seg.gradient} p-6 text-left transition-all duration-200 hover:shadow-lg hover:scale-[1.02]`}
+            type="button"
+            onClick={() => {
+              if (selectingRef.current) return;
+              selectingRef.current = true;
+              onSelect(seg.id);
+            }}
+            className={`group relative rounded-xl border ${seg.border} bg-gradient-to-br ${seg.gradient} p-6 text-left transition-transform duration-200 transform-gpu hover:shadow-lg hover:-translate-y-0.5`}
           >
             <seg.icon className={`w-8 h-8 ${seg.iconColor} mb-3`} />
             <h3 className="text-lg font-semibold text-foreground mb-1">{seg.title}</h3>

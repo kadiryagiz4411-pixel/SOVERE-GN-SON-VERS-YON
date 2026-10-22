@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -563,12 +563,43 @@ const Dashboard = () => {
     void checkAuth();
   }, [navigate, searchParams, sessionReady, session?.user?.id]);
 
-  const handleSegmentSelect = async (segment: UserSegment) => {
-    setUserSegment(segment);
+  const handleSegmentSelect = useCallback((segment: UserSegment) => {
+    setUserSegment((prev) => {
+      if (prev === segment) return prev;
+      return segment;
+    });
     if (user) {
-      await supabase.from('profiles').update({ user_segment: segment }).eq('user_id', user.id);
+      void supabase.from('profiles').update({ user_segment: segment }).eq('user_id', user.id);
     }
-  };
+  }, [user]);
+
+  const handlePlatformChange = useCallback((v: PlatformType) => {
+    setPlatformType((prev) => (prev === v ? prev : v));
+    if (user) {
+      void supabase.from('profiles').update({ platform_type: v }).eq('user_id', user.id);
+    }
+  }, [user]);
+
+  const handleClusterChange = useCallback((v: ClusterCategory) => {
+    setProfessionCluster((prev) => {
+      if (prev === v) return prev;
+      return v;
+    });
+    setSelectedProfession('');
+    setFieldErrors((prev) => {
+      if (!prev.category && !prev.profession) return prev;
+      return { ...prev, category: undefined, profession: undefined };
+    });
+    if (user) {
+      void supabase.from('profiles').update({ profession_cluster: v }).eq('user_id', user.id);
+    }
+  }, [user]);
+
+  const handleProfessionChange = useCallback((id: string, label?: string) => {
+    setSelectedProfession((prev) => (prev === id ? prev : id));
+    if (label) setCustomProfession(label);
+    setFieldErrors((prev) => (prev.profession ? { ...prev, profession: undefined } : prev));
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1487,21 +1518,9 @@ const Dashboard = () => {
                       category: professionCluster ? undefined : fieldErrors.category,
                       profession: selectedProfession ? undefined : fieldErrors.profession,
                     }}
-                    onPlatformChange={(v) => {
-                      setPlatformType(v);
-                      if (user) void supabase.from('profiles').update({ platform_type: v }).eq('user_id', user.id);
-                    }}
-                    onClusterChange={(v) => {
-                      setProfessionCluster(v);
-                      setSelectedProfession('');
-                      setFieldErrors((prev) => ({ ...prev, category: undefined, profession: undefined }));
-                      if (user) void supabase.from('profiles').update({ profession_cluster: v }).eq('user_id', user.id);
-                    }}
-                    onProfessionChange={(id, label) => {
-                      setSelectedProfession(id);
-                      if (label) setCustomProfession(label);
-                      setFieldErrors((prev) => ({ ...prev, profession: undefined }));
-                    }}
+                    onPlatformChange={handlePlatformChange}
+                    onClusterChange={handleClusterChange}
+                    onProfessionChange={handleProfessionChange}
                   />
                 </div>
               )}

@@ -9,6 +9,7 @@ import {
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
+import { HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 function sanitizeText(input: unknown, maxLength: number = 10000): string {
   if (!input || typeof input !== 'string') return '';
@@ -383,7 +384,7 @@ Deno.serve(async (req) => {
     // When the user specifies their profession, we prepend an expert persona line
     // so the AI adapts tone, vocabulary, and deliverables to that field.
     const professionAdapterLine = customProfession
-      ? `You are an expert ${customProfession}. Adapt your proposal's tone, terminology, value proposition, and deliverables specifically to match the standards and client expectations of the ${customProfession} industry.\n\n`
+      ? `You work as a ${customProfession}. Write in that field's language and deliverables.\n\n`
       : '';
 
     // ---- Build system prompt based on segment ----
@@ -421,7 +422,8 @@ CRITICAL RULES FOR NATURAL, HUMAN WRITING:
 9. Instead of generic praise, show genuine understanding of the client's actual problem.
 10. Write like you've done this work before and you're confidently offering your help — not begging for the job.
 11. NO emoji, section labels, or formatting markers unless the platform style requires it.
-12. The result should sound like it was written by a thoughtful human — someone you'd want to work with.`;
+12. The result should sound like it was written by a thoughtful human — someone you'd want to work with.
+13. ${HUMAN_WRITING_RULES}`;
 
       userPromptBase = `Write my freelance proposal for this client brief. Output ONLY the proposal text, nothing else.
 
@@ -453,6 +455,7 @@ CRITICAL RULES FOR NATURAL, HUMAN WRITING:
 8. ${languageInstruction}
 9. AVOID these robotic patterns: "I am writing to express my interest", "I believe I would be a great fit", "passionate about", "leverage my skills", "excited for the opportunity", "I am confident that".
 10. Instead, show genuine understanding of what the company actually needs and why you can help.
+11. ${HUMAN_WRITING_RULES}
 
 WRITING STRUCTURE (flowing paragraphs, never label sections):
 - Opening: A specific first sentence that proves you read and understood the job — reference an actual detail
@@ -662,7 +665,7 @@ Write the application text now. No explanations — just the text I'll send.`;
       }
 
       const aiData = await aiResponse.json();
-      const generatedProposal = aiData.choices?.[0]?.message?.content;
+      const generatedProposal = stripAiTone(aiData.choices?.[0]?.message?.content || '');
 
       if (!generatedProposal) {
         return new Response(
@@ -731,7 +734,7 @@ Write the application text now. No explanations — just the text I'll send.`;
         }
 
         const aiData = await aiResponse.json();
-        const text = aiData.choices?.[0]?.message?.content || null;
+        const text = stripAiTone(aiData.choices?.[0]?.message?.content || '') || null;
         if (text) console.log(`Variant ${variant.id} generated successfully`);
         else console.error(`Variant ${variant.id}: no content`);
         return { ...variant, text, error: !text };
@@ -779,7 +782,7 @@ Write the application text now. No explanations — just the text I'll send.`;
         
         if (fallbackResponse.ok) {
           const fallbackData = await fallbackResponse.json();
-          const fallbackText = fallbackData.choices?.[0]?.message?.content;
+          const fallbackText = stripAiTone(fallbackData.choices?.[0]?.message?.content || '');
           if (fallbackText) {
             console.log('Fallback generation succeeded');
             await supabase

@@ -7,6 +7,7 @@ import { exposeApi } from './_lib/http.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
+import { HUMAN_WRITING_RULES } from './_lib/tone.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
 
@@ -82,9 +83,8 @@ async function handleRequest(req: Request): Promise<Response> {
     const rate = body.userProfile?.hourly_rate;
 
     const raw = await completeChat(apiKey, {
-      system: `You are Sovereign Proposal Engine. Write a direct, human-toned freelance proposal.
-Identify the client's real pain, prove you can solve it, end with a clear next step.
-No generic AI filler. No "I am excited to apply". No "leverage" or "synergy".
+      system: `You are the freelancer writing this pitch yourself. Name the client's real problem, say how you will fix it, end with a clear next step.
+${HUMAN_WRITING_RULES}
 Write the entire proposal in ${langName}.
 Return JSON: { "proposal": "full proposal text", "painPoint": "one sentence", "title": "short title" }.`,
       user: `URL: ${textOf(body.pageUrl, 500)}

@@ -41,7 +41,7 @@ export function PricingTable({
   );
 
   return (
-    <div className={cn("w-full max-w-full overflow-hidden box-border", className)}>
+    <div className={cn("w-full max-w-full overflow-visible box-border pt-4", className)}>
       {isSuperAdmin && (
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center text-sm text-emerald-200">
           Signed in as <span className="font-semibold">kadiryagiz4411@gmail.com</span>
@@ -86,7 +86,7 @@ export function PricingTable({
       {/* ── Subscription plan grid ──────────────────────────────────────────── */}
       <div
         className={cn(
-          "grid gap-5 items-stretch w-full max-w-full min-w-0 overflow-hidden box-border",
+          "grid gap-5 items-stretch w-full max-w-full min-w-0 overflow-visible box-border pt-6",
           subscriptionTiers.length >= 4
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
@@ -140,7 +140,7 @@ export function SinglePassBanner() {
 
   return (
     <div className="mt-8 mx-auto max-w-3xl">
-      <div className="relative flex flex-col sm:flex-row items-center gap-5 px-6 py-5 rounded-2xl border border-dashed border-slate-600 bg-slate-900/60 hover:border-slate-500 transition-colors">
+      <div className="relative overflow-visible flex flex-col sm:flex-row items-center gap-5 px-6 py-5 pt-7 rounded-2xl border border-dashed border-slate-600 bg-slate-900/60 hover:border-slate-500 transition-colors transform-gpu">
 
         {/* Pill badge */}
         <div className="absolute -top-3 left-6">

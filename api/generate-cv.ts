@@ -7,6 +7,7 @@ import { exposeApi } from './_lib/http.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
+import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES } from './_lib/tone.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -88,27 +89,14 @@ async function handleRequest(req: Request): Promise<Response> {
     let userPrompt: string;
 
     if (mode === 'optimize' && existingCvText) {
-      systemPrompt = `You are a CV coach and ATS specialist. Rewrite the CV to raise ATS pass rates. Return ONLY the CV text with section headers. No commentary. ${langInstruction}
-Ban filler: passionate, spearheaded, leverage, synergy, results-driven.
-Format:
-PROFESSIONAL SUMMARY
----
-EXPERIENCE
----
-EDUCATION
----
-SKILLS`;
+      systemPrompt = `You are a hiring manager rewriting a colleague's CV so it sounds like a real person wrote it. Return ONLY the CV text. No commentary. ${langInstruction}
+${HUMAN_WRITING_RULES}
+${CV_SECTION_FORMAT}`;
       userPrompt = `Optimize this CV${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}${jobDescription ? `\n\nTarget job:\n${jobDescription}` : ''}\n\nEXISTING CV:\n${existingCvText}`;
     } else if (mode === 'generate' && (formData.fullName || formData.experience || formData.skills)) {
-      systemPrompt = `You are a professional CV writer. Create a complete ATS-friendly CV. Return ONLY the CV text. ${langInstruction}
-Format:
-PROFESSIONAL SUMMARY
----
-EXPERIENCE
----
-EDUCATION
----
-SKILLS`;
+      systemPrompt = `You are a senior operator writing your own CV. Direct, specific, no fluff. Return ONLY the CV text. ${langInstruction}
+${HUMAN_WRITING_RULES}
+${CV_SECTION_FORMAT}`;
       userPrompt = [
         formData.fullName ? `NAME: ${formData.fullName}` : '',
         formData.email ? `EMAIL: ${formData.email}` : '',
@@ -127,15 +115,9 @@ SKILLS`;
       if (!existingCvText || existingCvText.length < 20) {
         return jsonNoStore({ error: 'CV content is too short to generate.' }, 400);
       }
-      systemPrompt = `You are a professional CV writer. Turn the background into a polished ATS-friendly CV. Return ONLY the CV text. ${langInstruction}
-Format:
-PROFESSIONAL SUMMARY
----
-EXPERIENCE
----
-EDUCATION
----
-SKILLS`;
+      systemPrompt = `You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. Return ONLY the CV text. ${langInstruction}
+${HUMAN_WRITING_RULES}
+${CV_SECTION_FORMAT}`;
       userPrompt = `Create a CV from this information${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}:\n\n${existingCvText}${jobDescription ? `\n\nJOB DESCRIPTION:\n${jobDescription}` : ''}`;
     }
 

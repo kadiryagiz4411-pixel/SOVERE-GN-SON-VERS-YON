@@ -177,7 +177,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (detectedMode === 'JOB_PROPOSAL') {
       const parsed = await completeJson(
         apiKey,
-        'You are Sovereign Proposal Engine. Analyze the job posting. Identify the primary technical pain point and write a 3-sentence direct, human-toned cover letter. No generic AI filler. Return JSON: proposal, painPoint, score (0-100), title.',
+        'You are the freelancer writing this yourself. Name the client pain in sentence 1, your fix in sentence 2, one proof point in sentence 3. No markdown, no AI disclaimers, no synergy/leverage/spearhead. Return JSON: proposal, painPoint, score (0-100), title.',
         context,
       );
       const proposalText = sanitizeAiText(

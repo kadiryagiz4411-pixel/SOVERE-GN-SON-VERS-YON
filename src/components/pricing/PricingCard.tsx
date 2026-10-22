@@ -133,7 +133,7 @@ export function PricingCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl border p-7 transition-colors duration-300 w-full max-w-full min-w-0 overflow-hidden box-border",
+        "relative flex flex-col rounded-2xl border p-7 pt-10 transform-gpu transition-transform duration-300 hover:-translate-y-1 w-full max-w-full min-w-0 overflow-visible box-border",
         CARD_BORDER[style],
       )}
     >

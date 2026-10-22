@@ -388,10 +388,9 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
 
   if (input.mode === 'optimize' && input.existingCvText) {
     systemPrompt =
-      'You are a world-class CV coach and ATS optimization specialist. ' +
-      'Rewrite and enhance the provided CV to maximise ATS pass rates and recruiter appeal. ' +
-      'Inject relevant keywords, quantify achievements, remove filler phrases, and tighten language. ' +
-      'Return ONLY the improved CV text — no commentary, no markdown headers, no preamble. ' +
+      'You are a hiring manager rewriting a colleague\'s CV so it sounds like a real person wrote it. ' +
+      'Return ONLY the CV text. No commentary, no markdown dividers (---), no disclaimers. ' +
+      'Never use synergy, spearhead, dynamic, detail-oriented, leverage, delve, testament. ' +
       langNote;
 
     userPrompt = `EXISTING CV:\n${input.existingCvText.slice(0, 4000)}` +
@@ -400,9 +399,8 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
 
   } else if (input.mode === 'generate-from-text' && input.existingCvText) {
     systemPrompt =
-      'You are a professional CV writer. Transform the provided background description into a ' +
-      'polished, ATS-friendly CV. Use clear sections (Summary, Experience, Skills, Education). ' +
-      'Return ONLY the CV text — no commentary. ' +
+      'You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. ' +
+      'CAPS section titles on their own line. No markdown dividers. Return ONLY the CV text. ' +
       langNote;
 
     userPrompt = `BACKGROUND DESCRIPTION:\n${input.existingCvText.slice(0, 4000)}` +
@@ -413,9 +411,8 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
   } else if (input.mode === 'generate' && input.formData) {
     const fd = input.formData;
     systemPrompt =
-      'You are a professional CV writer. Generate a polished, ATS-friendly CV from the provided details. ' +
-      'Use clear sections (Professional Summary, Work Experience, Skills, Education, Certifications). ' +
-      'Return ONLY the CV text — no commentary, no markdown code fences. ' +
+      'You are a senior operator writing your own CV. Direct, specific, no fluff. ' +
+      'CAPS section titles. No markdown dividers or AI disclaimers. Return ONLY the CV text. ' +
       langNote;
 
     userPrompt = [
@@ -437,7 +434,7 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
     // Fallback-of-fallback: generate from whatever text is available.
     const anyText = input.existingCvText || Object.values(input.formData ?? {}).join(' ');
     if (!anyText.trim()) return null;
-    systemPrompt = 'You are a professional CV writer. Generate a polished CV. Return only CV text. ' + langNote;
+    systemPrompt = 'Write your own CV in a direct human voice. Return only CV text. No markdown dividers. ' + langNote;
     userPrompt = anyText.slice(0, 4000);
   }
 
@@ -565,13 +562,13 @@ export async function generateProposalFallback(
 
   // Dynamic system prompt: adapt tone & terminology to the user's profession.
   const professionLine = profession?.trim()
-    ? `You are an expert ${profession.trim()}. Adapt the proposal's tone, terminology, value proposition, and deliverables specifically to match the standards and client expectations of the ${profession.trim()} industry.`
-    : 'You are a world-class freelance proposal writer specialising in high-conversion client pitches.';
+    ? `You work as a ${profession.trim()}. Write in that field's language.`
+    : 'You are the freelancer writing this pitch yourself.';
 
   const systemPrompt =
     professionLine +
-    ' Write natural, specific, and compelling proposals. Avoid generic filler.' +
-    ' Lead with the client\'s problem, prove expertise, end with a clear CTA.';
+    ' Name the client problem, say how you will fix it, end with a clear next step.' +
+    ' No markdown dividers, no AI disclaimers, no synergy/leverage/spearhead.';
 
   const userPrompt = `Write a professional, high-converting proposal for this opportunity.
 

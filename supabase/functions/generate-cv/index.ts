@@ -10,6 +10,7 @@ import {
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
+import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 function sanitize(input: unknown, max = 5000): string {
   if (!input || typeof input !== 'string') return '';
@@ -105,7 +106,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    const isPro = plan === 'pro' || plan === 'elite';
     const isElite = plan === 'elite';
     const keyResult = tryResolveEdgeOpenAIKey(body, corsHeaders);
     if ('response' in keyResult) return keyResult.response;
@@ -121,37 +121,12 @@ Deno.serve(async (req) => {
 
     if (mode === 'optimize' && existingCvText) {
       // Optimize existing CV
-      const qualityLevel = isElite ? 'ELITE TOP 1%' : isPro ? 'PRO TOP 10%' : 'STANDARD';
-      systemPrompt = `You are an ${qualityLevel} Application Optimizer. Rewrite CVs to maximize ATS pass-rate and hiring-manager callbacks.
-
-RULES:
-- Return ONLY the optimized CV content in structured sections
-- Single-column ATS-friendly layout, CAPS section headers, "- " bullets
-- Every experience bullet = action verb + what you did + measurable result
-- Mirror target-role keywords naturally (spelled-out + acronym)
-- Ban AI clichés: passionate, spearheaded, leverage, synergy, results-driven
-- ${langInstruction}
-${isElite ? '- Apply advanced persuasion techniques and executive-level positioning\n- Include strategic keyword placement for ATS systems\n- Add power verbs and impact statements' : ''}
-${isPro ? '- Tailor specifically to the target role and company\n- Optimize structure for maximum readability' : ''}
-
-Return the CV in this exact format with section headers:
-PROFESSIONAL SUMMARY
----
-[summary]
-
-EXPERIENCE
----
-[experience entries]
-
-EDUCATION
----
-[education]
-
-SKILLS
----
-[skills]
-
-${isElite ? 'CERTIFICATIONS & ACHIEVEMENTS\n---\n[if applicable]' : ''}`;
+      systemPrompt = `You are a hiring manager rewriting a colleague's CV so it sounds like a real person wrote it. Return ONLY the CV text. No commentary.
+${HUMAN_WRITING_RULES}
+${langInstruction}
+Single-column layout. CAPS section headers. "- " bullets. Every experience line = what you did + a measurable result.
+${CV_SECTION_FORMAT}
+${isElite ? 'CERTIFICATIONS & ACHIEVEMENTS\n[if applicable]' : ''}`;
 
       userPrompt = `Optimize this CV${targetRole ? ` for the role: ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}${jobDescription ? `\n\nTarget job description:\n${jobDescription}` : ''}
 
@@ -159,66 +134,20 @@ EXISTING CV:
 ${existingCvText}`;
     } else if (mode === 'generate-from-text') {
       // Generate from free text description
-      const qualityLevel = isElite ? 'ELITE TOP 1%' : isPro ? 'PRO TOP 10%' : 'PROFESSIONAL';
-      systemPrompt = `You are a ${qualityLevel} CV/Resume writer. Create a complete, polished CV from the user's description.
-
-RULES:
-- Create a complete, professional CV with proper sections
-- Use ATS-friendly formatting
-- Quantify achievements and use strong action verbs
-- ${langInstruction}
-${isElite ? '- Position the candidate as a top-tier professional\n- Use executive-level language and strategic positioning\n- Include industry-specific keywords for ATS optimization' : ''}
-${isPro ? '- Tailor specifically for the target role\n- Emphasize most relevant experience and skills' : ''}
-
-Return the CV in this exact format:
-PROFESSIONAL SUMMARY
----
-[summary]
-
-EXPERIENCE
----
-[experience entries with dates]
-
-EDUCATION
----
-[education]
-
-SKILLS
----
-[skills]`;
+      systemPrompt = `You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. Return ONLY the CV text.
+${HUMAN_WRITING_RULES}
+${langInstruction}
+${CV_SECTION_FORMAT}`;
 
       userPrompt = `Create a professional CV from this information${targetRole ? ` for the role: ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}:
 
 ${existingCvText}`;
     } else {
       // Generate from form data
-      const qualityLevel = isElite ? 'ELITE TOP 1%' : isPro ? 'PRO TOP 10%' : 'PROFESSIONAL';
-      systemPrompt = `You are a ${qualityLevel} CV/Resume writer. Create a complete, polished, ATS-optimized CV.
-
-RULES:
-- Create a professional CV with clear section headers
-- Use strong action verbs and quantified achievements
-- Optimize for ATS scanning
-- ${langInstruction}
-${isElite ? '- Position as an elite professional with strategic keyword placement\n- Use executive-level impact statements' : ''}
-${isPro ? '- Tailor for maximum relevance to the target role' : ''}
-
-Return the CV in this exact format:
-PROFESSIONAL SUMMARY
----
-[compelling 3-4 sentence summary]
-
-EXPERIENCE
----
-[formatted experience entries]
-
-EDUCATION
----
-[education]
-
-SKILLS
----
-[categorized skills]`;
+      systemPrompt = `You are a senior operator writing your own CV. Direct, specific, no fluff. Return ONLY the CV text.
+${HUMAN_WRITING_RULES}
+${langInstruction}
+${CV_SECTION_FORMAT}`;
 
       const parts = [];
       if (formData.fullName) parts.push(`Full Name: ${formData.fullName}`);
@@ -274,7 +203,7 @@ ${parts.join('\n\n')}`;
     }
 
     const aiResult = await aiResponse.json();
-    const cvContent = aiResult.choices?.[0]?.message?.content;
+    const cvContent = stripAiTone(aiResult.choices?.[0]?.message?.content || '');
 
     if (!cvContent) {
       return new Response(JSON.stringify({ error: "No CV content generated" }),

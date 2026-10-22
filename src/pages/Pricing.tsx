@@ -39,7 +39,7 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-16">
+      <main className="pt-32 overflow-visible">
         {fromOnboarding && (
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-primary/20">
             <div className="container mx-auto px-4 py-5 flex items-center justify-between gap-4 flex-wrap">

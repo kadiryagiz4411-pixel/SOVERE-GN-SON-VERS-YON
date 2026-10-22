@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   Select,
   SelectContent,
@@ -54,6 +55,9 @@ const translations = {
   },
 };
 
+const PLATFORM_NONE = '__platform_none__';
+const CLUSTER_NONE = '__cluster_none__';
+
 export const FreelanceInputs = ({
   platformType,
   professionCluster,
@@ -67,18 +71,36 @@ export const FreelanceInputs = ({
   const t = translations[language] || translations.en;
   const selectedCluster = CLUSTERS.find((c) => c.id === professionCluster);
 
+  const handlePlatformChange = useCallback((v: string) => {
+    if (!v || v === PLATFORM_NONE || v === platformType) return;
+    onPlatformChange(v as PlatformType);
+  }, [onPlatformChange, platformType]);
+
+  const handleClusterChange = useCallback((v: string) => {
+    if (!v || v === CLUSTER_NONE || v === professionCluster) return;
+    onClusterChange(v as ClusterCategory);
+  }, [onClusterChange, professionCluster]);
+
+  const handleProfessionClick = useCallback((id: string, label: string) => {
+    if (id === selectedProfession) return;
+    onProfessionChange(id, label);
+  }, [onProfessionChange, selectedProfession]);
+
   return (
     <div className="space-y-3">
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t.platform}</label>
         <Select
-          value={platformType || undefined}
-          onValueChange={(v) => onPlatformChange(v as PlatformType)}
+          value={platformType || PLATFORM_NONE}
+          onValueChange={handlePlatformChange}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder={t.platformPlaceholder} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={PLATFORM_NONE} className="hidden">
+              {t.platformPlaceholder}
+            </SelectItem>
             {PLATFORMS.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.label}
@@ -91,16 +113,16 @@ export const FreelanceInputs = ({
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t.category}</label>
         <Select
-          value={professionCluster || undefined}
-          onValueChange={(v) => {
-            onClusterChange(v as ClusterCategory);
-            onProfessionChange('');
-          }}
+          value={professionCluster || CLUSTER_NONE}
+          onValueChange={handleClusterChange}
         >
           <SelectTrigger className={cn('w-full', errors?.category && 'border-red-500/60')}>
             <SelectValue placeholder={t.categoryPlaceholder} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={CLUSTER_NONE} className="hidden">
+              {t.categoryPlaceholder}
+            </SelectItem>
             {CLUSTERS.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {`${c.icon} ${c.label}`}
@@ -121,7 +143,7 @@ export const FreelanceInputs = ({
               <button
                 key={p.id}
                 type="button"
-                onClick={() => onProfessionChange(p.id, p.label)}
+                onClick={() => handleProfessionClick(p.id, p.label)}
                 className={cn(
                   'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
                   selectedProfession === p.id

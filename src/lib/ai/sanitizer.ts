@@ -12,6 +12,14 @@ const FORBIDDEN_AI_PATTERNS: Array<[RegExp, string]> = [
   [/i hope this (?:email|message) finds you well[,.]?\s*/gi, ''],
   [/please (?:do not|don't) hesitate to (?:reach out|contact me)[,.]?\s*/gi, ''],
   [/as an? (?:ai|artificial intelligence) (?:language )?model[,.]?\s*/gi, ''],
+  [/here is (?:a |your )?tailored (?:proposal|cv|resume)[^.!\n]*[.!]?\s*/gi, ''],
+  [/based on the (?:job description|provided (?:text|information))[^.!\n]*[.!]?\s*/gi, ''],
+  [/note:\s*specific roles were not provided[^.!\n]*[.!]?\s*/gi, ''],
+  [/\bpivotal\b/gi, 'important'],
+  [/\bdetail[- ]oriented\b/gi, 'careful'],
+  [/hit the ground running/gi, 'start fast'],
+  [/\bdynamic\b/gi, 'active'],
+  [/\bspearhead(?:ed|ing|s)?\b/gi, 'led'],
   [/delve into/gi, 'look at'],
   [/delves into/gi, 'looks at'],
   [/\bleverage(?:s|d)?\b/gi, 'use'],
@@ -52,6 +60,8 @@ const FORBIDDEN_AI_PATTERNS: Array<[RegExp, string]> = [
 /** Collapse leftover punctuation / empty clauses after replacements. */
 function tidyWhitespace(text: string): string {
   return text
+    .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+    .replace(/^\s*#{1,6}\s+/gm, '')
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

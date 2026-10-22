@@ -102,9 +102,9 @@ const Index = () => {
         <AnimatedSection delay={0.1}>
           <ReviewsSection />
         </AnimatedSection>
-        <AnimatedSection delay={0.1}>
+        <div className="overflow-visible">
           <PricingSection />
-        </AnimatedSection>
+        </div>
       </main>
       <Footer />
     </div>

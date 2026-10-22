@@ -10,7 +10,7 @@ export const PricingSection = () => {
   const { planType } = usePlan();
 
   return (
-    <section id="pricing" className="py-24 bg-slate-950 relative overflow-hidden">
+    <section id="pricing" className="pt-28 pb-24 bg-slate-950 relative overflow-visible scroll-mt-32">
       {/* Background glow accents */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-amber-500/8 rounded-full blur-3xl pointer-events-none" />
@@ -33,7 +33,7 @@ export const PricingSection = () => {
         <PricingTable
           currentPlanType={planType}
           showEnterprise
-          className="max-w-screen-xl mx-auto w-full overflow-hidden box-border"
+          className="max-w-screen-xl mx-auto w-full overflow-visible box-border"
         />
       </div>
     </section>
