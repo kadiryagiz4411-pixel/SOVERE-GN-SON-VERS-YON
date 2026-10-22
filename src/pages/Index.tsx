@@ -15,6 +15,7 @@ import { CVOptimizerSection } from '@/components/landing/CVOptimizerSection';
 import { PlanShowcaseSection } from '@/components/landing/PlanShowcaseSection';
 import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { PricingSection } from '@/components/landing/PricingSection';
+import { ExtensionDownloadSection } from '@/components/landing/ExtensionDownloadSection';
 import { FreelancePlatformSection } from '@/components/landing/FreelancePlatformSection';
 import { OnboardingSection } from '@/components/landing/OnboardingSection';
 import { AnimatedSection } from '@/components/landing/AnimatedSection';
@@ -101,6 +102,9 @@ const Index = () => {
         </AnimatedSection>
         <AnimatedSection delay={0.1}>
           <ReviewsSection />
+        </AnimatedSection>
+        <AnimatedSection delay={0.1}>
+          <ExtensionDownloadSection />
         </AnimatedSection>
         <div className="overflow-visible">
           <PricingSection />

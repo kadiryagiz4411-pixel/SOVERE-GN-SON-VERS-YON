@@ -52,6 +52,42 @@ function injectProposalToDOM(proposalText) {
   return true;
 }
 
+function markSovereignHost() {
+  try {
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.5.0';
+    document.documentElement.setAttribute('data-sovereign-extension', version);
+    window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
+  } catch {
+    // Page may be restricted.
+  }
+}
+
+function captureSovereignSession() {
+  try {
+    const host = String(location.hostname || '');
+    if (!/(^|\.)sovereignapp\.pro$/i.test(host)) return;
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith('sb-') || !key.includes('auth-token')) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const accessToken = parsed?.access_token || parsed?.currentSession?.access_token || '';
+      const email = parsed?.user?.email || parsed?.currentSession?.user?.email || '';
+      if (!accessToken) continue;
+      chrome.storage.local.set({
+        'sovereign.session.v1': { accessToken, email, at: Date.now() },
+      });
+      break;
+    }
+  } catch {
+    // Ignore locked storage.
+  }
+}
+
+markSovereignHost();
+captureSovereignSession();
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request?.type === 'SCRAPE_PAGE') {
     try {

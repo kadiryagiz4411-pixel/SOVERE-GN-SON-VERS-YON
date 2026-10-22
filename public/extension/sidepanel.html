@@ -373,6 +373,40 @@
       }
       .cv-preview h3:first-child { margin-top: 0; }
       .cv-preview .name { color: #fff; font-size: 16px; font-weight: 800; margin: 0 0 8px; letter-spacing: .04em; }
+      .header-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-left: auto; }
+      .plan-pill {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 5px 9px;
+        white-space: nowrap;
+      }
+      .plan-pill.b2c { color: #dbeafe; background: linear-gradient(90deg, #1d4ed8, #38bdf8); }
+      .plan-pill.b2b { color: #111; background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      .plan-pill.admin { color: #111; background: linear-gradient(90deg, #c4b5fd, #f5d76e); }
+      .mode-slider {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        overflow: hidden;
+        min-width: 168px;
+      }
+      .mode-slider.on { display: grid; }
+      .mode-slider button {
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        padding: 6px 8px;
+      }
+      .mode-slider button.on { background: rgba(212, 175, 55, 0.18); color: var(--gold-2); }
+      .nav.hidden { display: none !important; }
     </style>
   </head>
   <body data-theme="obsidian">
@@ -382,12 +416,25 @@
         <h1>Sovereign</h1>
         <p>Reads the open job · never the feed</p>
       </div>
-      <div id="apiBadge" class="api-badge">API…</div>
+      <div class="header-tools">
+        <div id="planBadge" class="plan-pill b2c">B2C</div>
+        <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode">
+          <button type="button" data-mode="b2c" class="on">B2C Mode</button>
+          <button type="button" data-mode="b2b">B2B Mode</button>
+        </div>
+        <div id="apiBadge" class="api-badge hidden">API…</div>
+      </div>
     </header>
-    <nav class="nav" id="nav">
+    <nav class="nav" id="navB2c">
       <button type="button" data-tab="proposal" class="on"><span>⚡</span>Proposal</button>
       <button type="button" data-tab="cv"><span>📄</span>CV Builder</button>
       <button type="button" data-tab="match"><span>◎</span>Match</button>
+      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
+    </nav>
+    <nav class="nav hidden" id="navB2b">
+      <button type="button" data-tab="lead"><span>◎</span>Leads</button>
+      <button type="button" data-tab="dispatch"><span>⚡</span>Dispatch</button>
+      <button type="button" data-tab="team"><span>🏢</span>Team</button>
       <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
     </nav>
     <div id="matchBanner" class="match-banner">
@@ -470,6 +517,50 @@
           <div id="matchGaps" class="chips"></div>
           <p id="matchNote" class="hint"></p>
         </div>
+      </section>
+
+      <section id="tab-lead" class="tab-view">
+        <p class="hint">Agency lead capture from the open page. Pulls client details for team routing — never auto-sends.</p>
+        <button id="extractLead" class="b2b" type="button" style="width:100%">Extract Lead</button>
+        <p id="leadStatus" class="hint">Open a company page or job brief, then extract.</p>
+        <div id="leadCard" class="card">
+          <p id="leadTitle" class="title"></p>
+          <p id="leadMeta" class="meta"></p>
+          <div class="k">Client details</div>
+          <p id="leadClient" class="pain"></p>
+          <div class="k">Decision-makers</div>
+          <p id="leadMakers" class="pain"></p>
+          <div class="k">Outreach draft</div>
+          <p id="leadOutreach" class="proposal"></p>
+          <div class="row">
+            <button id="copyLead" class="ghost" type="button">Copy Outreach</button>
+            <a class="fill" id="openB2bLead" href="https://www.sovereignapp.pro/b2b" target="_blank" rel="noopener noreferrer">Open B2B Dashboard ↗</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-dispatch" class="tab-view">
+        <p class="hint">Draft a team-ready pitch for the open opportunity, then copy it. Sovereign never auto-submits.</p>
+        <button id="dispatchProposal" class="primary" type="button">Draft Team Proposal</button>
+        <p id="dispatchStatus" class="hint">Same human-tone engine as individual mode.</p>
+        <p id="dispatchOutput" class="proposal hidden"></p>
+        <div id="dispatchActions" class="row hidden">
+          <button id="copyDispatch" class="ghost" type="button">Copy for team</button>
+          <button id="autofillDispatch" class="fill" type="button">Insert (never submit)</button>
+        </div>
+      </section>
+
+      <section id="tab-team" class="tab-view">
+        <p class="hint">Route captured leads and pitches to your agency workspace. Dispatch stays manual.</p>
+        <div class="row single">
+          <a class="fill" href="https://www.sovereignapp.pro/b2b" target="_blank" rel="noopener noreferrer">Team client dashboard ↗</a>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <a class="ghost" href="https://www.sovereignapp.pro/organization" target="_blank" rel="noopener noreferrer">Organization</a>
+          <a class="ghost" href="https://www.sovereignapp.pro/team" target="_blank" rel="noopener noreferrer">Team workspace</a>
+        </div>
+        <div class="k">Captured this session</div>
+        <div id="teamLeadList"></div>
       </section>
 
       <section id="tab-settings" class="tab-view">

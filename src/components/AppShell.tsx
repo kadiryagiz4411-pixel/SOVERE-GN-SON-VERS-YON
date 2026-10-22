@@ -29,6 +29,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BrandLogo } from '@/components/common/BrandLogo';
 import { QuickNavUpload } from '@/components/upload/QuickNavUpload';
 import { SidebarNav } from '@/components/layout/Sidebar';
+import { ExtensionReadyWidget } from '@/components/extension/ExtensionReadyWidget';
 
 const AppShellPresenceContext = createContext(false);
 
@@ -277,6 +278,9 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
 
         {/* Monthly AppSumo credit counter */}
         <CreditCounterWidget userId={user?.id ?? null} variant="sidebar" />
+        <div className="px-3 pt-2">
+          <ExtensionReadyWidget />
+        </div>
         {b2bTrial.showSidebarUpsellBadge && (
           <div className="px-3 pt-2">
             <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] font-semibold text-amber-200">
@@ -360,6 +364,9 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
+            <div className="px-3 pt-3">
+              <ExtensionReadyWidget />
+            </div>
             <SidebarNav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
               {navItems.map((item) => {
                 const active = location.pathname === item.to;
@@ -408,6 +415,9 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           <ErrorBoundary fallback={null}>
             <TrialCountdownBadge />
           </ErrorBoundary>
+          <div className="w-52">
+            <ExtensionReadyWidget compact />
+          </div>
           <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
         </div>
         {children}

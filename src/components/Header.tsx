@@ -21,6 +21,7 @@ export const Header = () => {
     { path: '/features', label: t.nav.features },
     { path: '/pricing', label: t.nav.pricing },
     { path: '/cv-builder', label: 'CV Builder' },
+    { path: '/#extension', label: 'Extension' },
   ];
 
   return (

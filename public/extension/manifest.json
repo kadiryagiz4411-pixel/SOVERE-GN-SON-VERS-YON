@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Sovereign — AI Candidate & Proposal Intelligence",
-  "version": "1.4.0",
-  "description": "Proposal engine, tailored CVs, and match scores for the open job — never the feed. Never auto-submits.",
+  "version": "1.5.0",
+  "description": "B2C job pitch & CV tools, B2B lead routing for agencies. Reads the open job. Never auto-submits.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "matches": ["https://*/*", "http://*/*"],
-      "js": ["scraper.js", "content.js"],
+      "js": ["config.js", "scraper.js", "content.js"],
       "run_at": "document_idle"
     }
   ]

@@ -5,6 +5,8 @@ const STORE = {
   PROPOSALS: 'sovereign.proposals.v1',
   CANDIDATES: 'sovereign.candidates.v1',
   CVS: 'sovereign.tailored-cvs.v1',
+  SESSION: 'sovereign.session.v1',
+  LEADS: 'sovereign.leads.v1',
 };
 const DEFAULT_SETTINGS = {
   skills: '',
@@ -15,12 +17,24 @@ const DEFAULT_SETTINGS = {
   membership: 'unknown',
   accountEmail: '',
   role: '',
+  workspaceMode: 'b2c',
+  b2bAccess: false,
+  isAdmin: false,
 };
 
 function isExtensionAdmin() {
   const email = String(settings.accountEmail || '').trim().toLowerCase();
   const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
-  return settings.role === 'admin' || allow.includes(email);
+  return settings.isAdmin === true || settings.role === 'admin' || allow.includes(email);
+}
+
+function canUseB2B() {
+  return isExtensionAdmin() || settings.b2bAccess === true;
+}
+
+function effectiveMode() {
+  if (isExtensionAdmin()) return settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c';
+  return canUseB2B() ? 'b2b' : 'b2c';
 }
 
 function publicError(raw) {
@@ -505,7 +519,42 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (saveCandidateBtn) saveCandidateBtn.disabled = !isCv;
   if (outreachBtn) outreachBtn.disabled = !isB2b || !lastOutreach;
   card?.classList.add('on');
+  const dispatchOut = document.getElementById('dispatchOutput');
+  const dispatchActions = document.getElementById('dispatchActions');
+  if (dispatchOut) {
+    dispatchOut.textContent = lastProposal || lastOutreach || '';
+    dispatchOut.classList.toggle('hidden', !(lastProposal || lastOutreach));
+  }
+  dispatchActions?.classList.toggle('hidden', !(lastProposal || lastOutreach));
+  const leadCard = document.getElementById('leadCard');
+  if (effectiveMode() === 'b2b' || isB2b) {
+    leadCard?.classList.add('on');
+    const leadTitle = document.getElementById('leadTitle');
+    const leadMeta = document.getElementById('leadMeta');
+    const leadClient = document.getElementById('leadClient');
+    const leadMakers = document.getElementById('leadMakers');
+    const leadOutreach = document.getElementById('leadOutreach');
+    if (leadTitle) leadTitle.textContent = lastTitle || 'Lead';
+    if (leadMeta) leadMeta.textContent = lastJobUrl || pageUrl || '';
+    if (leadClient) leadClient.textContent = data.executiveSummary || data.clientHistory || data.painPoint || 'Client details captured from the open page.';
+    if (leadMakers) {
+      const makers = Array.isArray(data.decisionMakers) ? data.decisionMakers : [];
+      leadMakers.textContent = makers.length ? makers.join(', ') : 'Not listed on this page.';
+    }
+    if (leadOutreach) leadOutreach.textContent = lastOutreach || lastProposal || '';
+    void saveLeadRecord({
+      id: `${Date.now()}`,
+      title: lastTitle,
+      url: lastJobUrl || pageUrl,
+      text: lastOutreach || lastProposal || data.executiveSummary || '',
+      at: Date.now(),
+    });
+  }
   setBusy(false, isJob ? 'Job analysis ready.' : isCv ? 'Candidate evaluation ready.' : 'B2B brief ready.');
+  const leadStatus = document.getElementById('leadStatus');
+  const dispatchStatus = document.getElementById('dispatchStatus');
+  if (leadStatus) leadStatus.textContent = 'Lead captured. Copy outreach or open the B2B dashboard.';
+  if (dispatchStatus) dispatchStatus.textContent = lastProposal ? 'Team pitch ready. Copy it — Sovereign never auto-submits.' : dispatchStatus.textContent;
 }
 
 function emptyPageData() {
@@ -660,6 +709,42 @@ function applyAdminUi() {
   if (apiBadge) apiBadge.classList.toggle('hidden', !admin);
 }
 
+function applyWorkspaceUi() {
+  const mode = effectiveMode();
+  const admin = isExtensionAdmin();
+  const pill = document.getElementById('planBadge');
+  const slider = document.getElementById('adminSlider');
+  if (pill) {
+    pill.classList.remove('b2c', 'b2b', 'admin');
+    if (admin) {
+      pill.textContent = 'ADMIN (DUAL)';
+      pill.classList.add('admin');
+    } else if (mode === 'b2b') {
+      pill.textContent = 'B2B';
+      pill.classList.add('b2b');
+    } else {
+      pill.textContent = 'B2C';
+      pill.classList.add('b2c');
+    }
+  }
+  slider?.classList.toggle('on', admin);
+  slider?.querySelectorAll('button[data-mode]').forEach((btn) => {
+    btn.classList.toggle('on', btn.dataset.mode === mode);
+  });
+  document.getElementById('navB2c')?.classList.toggle('hidden', mode !== 'b2c');
+  document.getElementById('navB2b')?.classList.toggle('hidden', mode !== 'b2b');
+  const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
+  const allowed = mode === 'b2b'
+    ? ['lead', 'dispatch', 'team', 'settings']
+    : ['proposal', 'cv', 'match', 'settings'];
+  if (!allowed.includes(current)) switchTab(allowed[0]);
+  else {
+    document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
+      btn.classList.toggle('on', btn.dataset.tab === current);
+    });
+  }
+}
+
 function fillSettingsForm() {
   const skills = document.getElementById('skills');
   const hourlyRate = document.getElementById('hourlyRate');
@@ -674,6 +759,7 @@ function fillSettingsForm() {
   applyTheme(settings.theme);
   applyMembership(settings.membership);
   applyAdminUi();
+  applyWorkspaceUi();
 }
 
 async function persistSettings(partial) {
@@ -729,20 +815,39 @@ async function pingApi() {
 }
 
 function switchTab(tab) {
-  const id = ['proposal', 'cv', 'match', 'settings'].includes(tab) ? tab : 'proposal';
+  const mode = effectiveMode();
+  const allowed = mode === 'b2b'
+    ? ['lead', 'dispatch', 'team', 'settings']
+    : ['proposal', 'cv', 'match', 'settings'];
+  const id = allowed.includes(tab) ? tab : allowed[0];
   document.querySelectorAll('.tab-view').forEach((view) => {
     view.classList.toggle('on', view.id === `tab-${id}`);
   });
-  document.querySelectorAll('#nav button').forEach((btn) => {
+  document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.tab === id);
   });
   if (id === 'settings') void pingApi();
 }
 
-document.getElementById('nav')?.addEventListener('click', (event) => {
+document.getElementById('navB2c')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-tab]');
   if (!btn) return;
   switchTab(btn.dataset.tab);
+});
+document.getElementById('navB2b')?.addEventListener('click', (event) => {
+  const btn = event.target.closest('button[data-tab]');
+  if (!btn) return;
+  if (!canUseB2B()) {
+    switchTab('settings');
+    if (profileStatus) profileStatus.textContent = 'B2B tools need an agency plan. Sign in on sovereignapp.pro.';
+    return;
+  }
+  switchTab(btn.dataset.tab);
+});
+document.getElementById('adminSlider')?.addEventListener('click', (event) => {
+  const btn = event.target.closest('button[data-mode]');
+  if (!btn || !isExtensionAdmin()) return;
+  void persistSettings({ workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c' });
 });
 
 analyzeBtn?.addEventListener('click', () => {
@@ -968,6 +1073,53 @@ function downloadTextPdf(filename, title, body) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
 
+async function saveLeadRecord(record) {
+  const list = await storageGet(STORE.LEADS, []);
+  const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
+  await storageSet(STORE.LEADS, next);
+  renderTeamLeads(next);
+}
+
+function renderTeamLeads(list) {
+  const el = document.getElementById('teamLeadList');
+  if (!el) return;
+  if (!list?.length) {
+    el.innerHTML = '<div class="empty">No leads captured yet. Extract a company page or job brief.</div>';
+    return;
+  }
+  el.innerHTML = list.map((item) => `
+    <article class="list-item">
+      <h3>${escapeHtml(item.title || 'Lead')}</h3>
+      <div class="when">${escapeHtml(formatWhen(item.at))}</div>
+      <p>${escapeHtml(item.text || '')}</p>
+    </article>
+  `).join('');
+}
+
+async function resolveWorkspaceAccess() {
+  try {
+    const sessionBag = await storageGet(STORE.SESSION, null);
+    const accessToken = sessionBag?.accessToken || '';
+    const viaWorker = await chrome.runtime.sendMessage({
+      type: 'FETCH_ME',
+      accessToken,
+    }).catch(() => null);
+    const data = viaWorker?.success ? viaWorker.data : null;
+    if (!data?.success && !data?.signedIn && !accessToken) {
+      applyWorkspaceUi();
+      return;
+    }
+    await persistSettings({
+      accountEmail: data?.email || settings.accountEmail,
+      role: data?.role || settings.role,
+      isAdmin: Boolean(data?.is_admin || data?.isAdmin),
+      b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess),
+    });
+  } catch {
+    applyWorkspaceUi();
+  }
+}
+
 async function saveCvRecord(record) {
   const list = await storageGet(STORE.CVS, []);
   const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
@@ -1035,6 +1187,42 @@ async function generateTailoredCv() {
   }
 }
 
+document.getElementById('extractLead')?.addEventListener('click', () => {
+  if (!canUseB2B()) return;
+  void analyzeActivePage();
+});
+document.getElementById('dispatchProposal')?.addEventListener('click', () => {
+  if (!canUseB2B()) return;
+  void analyzeActivePage();
+});
+document.getElementById('copyLead')?.addEventListener('click', async () => {
+  const text = lastOutreach || lastProposal;
+  if (!text) return;
+  await copyText(text);
+  const leadStatus = document.getElementById('leadStatus');
+  if (leadStatus) leadStatus.textContent = 'Outreach copied.';
+});
+document.getElementById('copyDispatch')?.addEventListener('click', async () => {
+  if (!lastProposal) return;
+  await copyText(lastProposal);
+  const dispatchStatus = document.getElementById('dispatchStatus');
+  if (dispatchStatus) dispatchStatus.textContent = 'Copied for the team. Sovereign never auto-submits.';
+});
+document.getElementById('autofillDispatch')?.addEventListener('click', async () => {
+  if (!lastProposal) return;
+  try {
+    const result = await chrome.runtime.sendMessage({
+      type: 'INJECT_PROPOSAL',
+      proposalText: lastProposal,
+    });
+    if (!result?.success) throw new Error(result?.error || 'No editor found on this page.');
+    const dispatchStatus = document.getElementById('dispatchStatus');
+    if (dispatchStatus) dispatchStatus.textContent = 'Inserted. Review it, then submit yourself.';
+  } catch (err) {
+    showError(err.message || String(err));
+  }
+});
+
 document.getElementById('generateCv')?.addEventListener('click', () => {
   void generateTailoredCv();
 });
@@ -1057,6 +1245,8 @@ async function boot() {
     fillSettingsForm();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));
+    renderTeamLeads(await storageGet(STORE.LEADS, []));
+    await resolveWorkspaceAccess();
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
