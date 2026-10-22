@@ -38,14 +38,33 @@ function titleFrom(text: string): string {
   return String(text || '').split(/\n/)[0].replace(/[#*_`-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'this role';
 }
 
-function fallbackSmartMatch(job: string, skills: string[]) {
-  const required = extractRequiredSkills(job, skills).slice(0, 8);
-  const scored = scoreOpportunity({ skills: skills.length >= 2 ? skills : required.concat(['communication']) }, titleFrom(job), job);
-  const matchScore = scored.complete ? scored.matchScore : 55;
-  const role = titleFrom(job);
+function fallbackSmartMatch(
+  job: string,
+  skills: string[],
+  extras?: {
+    experience?: string;
+    hourlyRate?: number;
+    budget?: string;
+    listedSkills?: string[];
+    depth?: 'basic' | 'deep';
+    clientHistory?: string;
+    jobTitle?: string;
+  },
+) {
+  const required = extractRequiredSkills(job, extras?.listedSkills || skills).slice(0, 8);
+  const scored = scoreOpportunity(
+    { skills, experience: extras?.experience, hourlyRate: extras?.hourlyRate },
+    extras?.jobTitle || titleFrom(job),
+    job,
+    extras?.budget || '',
+    extras?.listedSkills || [],
+    { depth: extras?.depth === 'deep' ? 'deep' : 'basic', clientHistory: extras?.clientHistory },
+  );
+  const matchScore = scored.complete ? scored.matchScore : 0;
+  const role = extras?.jobTitle || titleFrom(job);
   return {
     jobParsing: {
-      requiredSkills: required.length ? required : ['communication', 'delivery'],
+      requiredSkills: required.length ? required : scored.requiredSkills.slice(0, 8),
       yearsOfExperience: 'Not clearly stated',
       coreTechnologies: required.slice(0, 6),
       companyValues: ['clear communication', 'on-time delivery'],
@@ -54,17 +73,20 @@ function fallbackSmartMatch(job: string, skills: string[]) {
       estimatedSalary: 'N/A',
     },
     matchScore,
+    acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
+    matchNarrative: scored.narrative || scored.message || '',
+    onboardingRequired: !scored.complete,
     matchBreakdown: {
       skillsMatch: matchScore,
-      experienceMatch: Math.max(35, matchScore - 8),
-      cultureMatch: Math.max(40, matchScore - 5),
+      experienceMatch: scored.complete ? Math.max(35, matchScore - 8) : 0,
+      cultureMatch: scored.complete ? Math.max(40, matchScore - 5) : 0,
       technicalMatch: matchScore,
     },
     platformAcceptance: {
-      upwork: Math.max(8, Math.min(40, Math.round(matchScore * 0.4))),
-      fiverr: Math.max(10, Math.min(45, Math.round(matchScore * 0.42))),
-      linkedin: Math.max(6, Math.min(28, Math.round(matchScore * 0.24))),
-      corporate: Math.max(7, Math.min(32, Math.round(matchScore * 0.28))),
+      upwork: scored.complete ? Math.max(8, Math.min(40, Math.round(matchScore * 0.4))) : 0,
+      fiverr: scored.complete ? Math.max(10, Math.min(45, Math.round(matchScore * 0.42))) : 0,
+      linkedin: scored.complete ? Math.max(6, Math.min(28, Math.round(matchScore * 0.24))) : 0,
+      corporate: scored.complete ? Math.max(7, Math.min(32, Math.round(matchScore * 0.28))) : 0,
     },
     gapAnalysis: {
       strengths: scored.matchedSkills.slice(0, 3).map((area) => ({
@@ -111,12 +133,15 @@ function normalize(raw: Record<string, unknown>, fallback: ReturnType<typeof fal
       workType: sanitizeAiText(textOf(jobParsing.workType, 40)) || fallback.jobParsing.workType,
       estimatedSalary: sanitizeAiText(textOf(jobParsing.estimatedSalary, 60)) || fallback.jobParsing.estimatedSalary,
     },
-    matchScore: clamp(raw.matchScore, fallback.matchScore),
+    matchScore: fallback.matchScore,
+    acceptanceScore: fallback.acceptanceScore,
+    matchNarrative: fallback.matchNarrative,
+    onboardingRequired: fallback.onboardingRequired,
     matchBreakdown: {
-      skillsMatch: clamp(breakdown.skillsMatch, fallback.matchBreakdown.skillsMatch),
+      skillsMatch: fallback.matchScore,
       experienceMatch: clamp(breakdown.experienceMatch, fallback.matchBreakdown.experienceMatch),
       cultureMatch: clamp(breakdown.cultureMatch, fallback.matchBreakdown.cultureMatch),
-      technicalMatch: clamp(breakdown.technicalMatch, fallback.matchBreakdown.technicalMatch),
+      technicalMatch: fallback.matchScore,
     },
     platformAcceptance: {
       upwork: clamp(platforms.upwork, fallback.platformAcceptance.upwork),
@@ -143,9 +168,18 @@ export async function handleSmartMatchPost(body: Record<string, unknown>): Promi
   const jobDescription = textOf(body.jobDescription ?? body.jobContext ?? body.job, 8000);
   const outputLanguage = textOf(body.outputLanguage ?? body.language, 12) || 'en';
   const skills = asList(body.skills, 16);
-  const fallback = fallbackSmartMatch(jobDescription, skills);
+  const extras = {
+    experience: textOf(body.experience, 40),
+    hourlyRate: Number(body.hourlyRate) || undefined,
+    budget: textOf(body.budget, 160),
+    listedSkills: asList(body.requiredSkills ?? body.listedSkills, 16),
+    depth: body.matchDepth === 'deep' || body.deepMatch ? 'deep' as const : 'basic' as const,
+    clientHistory: textOf(body.clientHistory, 500),
+    jobTitle: textOf(body.jobTitle ?? body.pageTitle, 180),
+  };
+  const fallback = fallbackSmartMatch(jobDescription, skills, extras);
 
-  if (jobDescription.length < 12) {
+  if (jobDescription.length < 12 || fallback.onboardingRequired) {
     return jsonNoStore({ success: true, fallback: true, ...fallback });
   }
 

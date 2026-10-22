@@ -1,6 +1,6 @@
 /**
- * Isolates the currently opened job (detail pane / selected card),
- * never the surrounding feed. Safe in page, content-script, and
+ * Isolates the job currently in view (detail pane, drawer, selected card),
+ * never the first card in the feed. Safe in page, content-script, and
  * chrome.scripting.executeScript (no closures, no chrome.* APIs).
  */
 function extractActiveJob() {
@@ -11,20 +11,61 @@ function extractActiveJob() {
     if (!el || !(el instanceof Element)) return false;
     const r = el.getBoundingClientRect();
     const style = window.getComputedStyle(el);
-    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none';
+    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
   };
 
-  const first = (selectors, root) => {
+  const collect = (selectors, root) => {
     const scope = root || document;
+    const out = [];
+    const seen = new Set();
     for (const selector of selectors) {
       try {
-        const found = [...scope.querySelectorAll(selector)].find(visible);
-        if (found) return found;
+        scope.querySelectorAll(selector).forEach((el) => {
+          if (seen.has(el)) return;
+          seen.add(el);
+          out.push(el);
+        });
       } catch {
         // invalid selector on this host
       }
     }
-    return null;
+    return out;
+  };
+
+  const viewportScore = (el) => {
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth || 1200;
+    const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    const visW = Math.min(r.right, vw) - Math.max(r.left, 0);
+    if (visH < 32 || visW < 32) return -1;
+    const area = visH * visW;
+    const cx = (r.left + r.right) / 2;
+    const cy = (r.top + r.bottom) / 2;
+    const dist = Math.hypot(cx - vw * 0.64, cy - vh * 0.46);
+    const selected = el.matches?.(
+      '[aria-current="true"], [aria-current="page"], [aria-selected="true"], [data-sovereign-active-job="1"]',
+    ) || el.closest?.(
+      '.jobs-search-results-list__list-item--active, .scaffold-layout__list-item--active, .vjs-highlight, [aria-current="true"]',
+    );
+    const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider');
+    const rightPane = r.left > vw * 0.28 ? 18000 : 0;
+    return area - dist * 28 + (selected ? 90000 : 0) + (dialog ? 130000 : 0) + rightPane + Math.min(r.height, 920) * 10;
+  };
+
+  const pickBest = (selectors, root) => {
+    const nodes = collect(selectors, root).filter(visible);
+    if (!nodes.length) return null;
+    let best = null;
+    let bestScore = -1;
+    for (const el of nodes) {
+      const score = viewportScore(el);
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    }
+    return best;
   };
 
   const cleanText = (value, max) => String(value || '')
@@ -70,6 +111,7 @@ function extractActiveJob() {
   ];
 
   const DETAIL_SELECTORS = [
+    '[data-sovereign-active-job="1"]',
     '[data-test="JobDetails"]',
     '[data-test="job-details"]',
     '[data-ev-sublocation="job_details"]',
@@ -80,6 +122,7 @@ function extractActiveJob() {
     '.job-view-layout',
     '.jobs-search__job-details',
     '.jobs-search__job-details--container',
+    '.jobs-search__job-details-container',
     '#job-details',
     '#job-details-container',
     '.jobs-description',
@@ -155,6 +198,7 @@ function extractActiveJob() {
   ];
 
   const SELECTED_CARD = [
+    '[data-sovereign-active-job="1"]',
     '[aria-current="true"]',
     '[aria-current="page"]',
     '[aria-selected="true"]',
@@ -196,7 +240,7 @@ function extractActiveJob() {
   };
 
   const budgetFrom = (root, hay) => {
-    const el = first(BUDGET_SELECTORS, root);
+    const el = pickBest(BUDGET_SELECTORS, root);
     const direct = textOf(el, 160);
     if (direct) return direct;
     const match = String(hay || '').match(
@@ -206,34 +250,34 @@ function extractActiveJob() {
   };
 
   const clientFrom = (root) => {
-    const el = first(CLIENT_SELECTORS, root);
+    const el = pickBest(CLIENT_SELECTORS, root);
     return textOf(el, 500);
   };
 
-  let detail = first(DETAIL_SELECTORS);
+  let detail = pickBest(DETAIL_SELECTORS);
   if (detail) {
     const feedHit = FEED_SELECTORS.some((selector) => {
       try { return detail.closest(selector); } catch { return false; }
     });
-    if (feedHit) detail = null;
+    if (feedHit && !detail.closest('[data-sovereign-active-job="1"]')) detail = null;
   }
 
-  let selectedCard = first(SELECTED_CARD);
+  let selectedCard = pickBest(SELECTED_CARD);
   if (!detail && selectedCard) {
-    const siblingPane = first(DETAIL_SELECTORS, selectedCard.parentElement || document);
+    const siblingPane = pickBest(DETAIL_SELECTORS, selectedCard.parentElement || document);
     detail = siblingPane || selectedCard;
   }
 
-  const titleEl = first(TITLE_SELECTORS, detail || document);
-  const descEl = first(DESC_SELECTORS, detail || document);
+  const titleEl = pickBest(TITLE_SELECTORS, detail || undefined);
+  const descEl = pickBest(DESC_SELECTORS, detail || undefined);
   const root = detail || descEl || titleEl || document.querySelector('main') || document.body;
 
   let jobTitle = cleanText(
-    attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180) || document.title,
+    attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180) || '',
     180,
   );
-  if (/^\s*(home|jobs|search|feed)\s*$/i.test(jobTitle)) {
-    jobTitle = cleanText(document.title, 180);
+  if (!jobTitle || /^\s*(home|jobs|search|feed)\s*$/i.test(jobTitle)) {
+    jobTitle = cleanText(textOf(pickBest(TITLE_SELECTORS, root), 180) || document.title, 180);
   }
 
   let jobDescription = textOf(descEl || root, MAX_TEXT);
@@ -242,10 +286,10 @@ function extractActiveJob() {
   }
 
   if (!jobDescription || looksLikeFeed(jobDescription)) {
-    const main = document.querySelector('main, [role="main"], article');
-    const mainText = textOf(main, MAX_TEXT);
-    if (mainText && !looksLikeFeed(mainText) && mainText.length >= 80) {
-      jobDescription = mainText;
+    const pane = pickBest(DETAIL_SELECTORS) || document.querySelector('main, [role="main"], article');
+    const paneText = textOf(pane, MAX_TEXT);
+    if (paneText && !looksLikeFeed(paneText) && paneText.length >= 80) {
+      jobDescription = paneText;
     }
   }
 
@@ -272,5 +316,6 @@ function extractActiveJob() {
     clientHistory: cleanText(clientHistory, MAX_FIELD),
     isolated,
     host,
+    signature: `${jobTitle}|${cleanText(jobDescription, 80)}`.toLowerCase(),
   };
 }

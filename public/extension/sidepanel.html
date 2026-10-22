@@ -34,8 +34,9 @@
       .header {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 12px;
-        padding: 14px 16px;
+        padding: 14px 16px 10px;
         background: #09090B;
         border-bottom: 1px solid var(--line);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(212, 175, 55, 0.08);
@@ -388,24 +389,57 @@
       .plan-pill.admin { color: #111; background: linear-gradient(90deg, #c4b5fd, #f5d76e); }
       .mode-slider {
         display: none;
-        grid-template-columns: 1fr 1fr;
-        gap: 0;
+        position: relative;
+        min-width: 228px;
         border: 1px solid var(--line);
         border-radius: 999px;
         overflow: hidden;
-        min-width: 168px;
+        touch-action: pan-y;
+        user-select: none;
       }
-      .mode-slider.on { display: grid; }
+      .mode-slider.on { display: block; }
+      .mode-slider-track {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        position: relative;
+        z-index: 1;
+      }
+      .mode-slider-thumb {
+        position: absolute;
+        top: 2px;
+        bottom: 2px;
+        left: 2px;
+        width: calc(50% - 4px);
+        border-radius: 999px;
+        background: rgba(212, 175, 55, 0.22);
+        box-shadow: 0 0 12px rgba(212, 175, 55, 0.18);
+        transition: transform .22s ease;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .mode-slider[data-mode="b2b"] .mode-slider-thumb { transform: translateX(100%); }
       .mode-slider button {
+        position: relative;
+        z-index: 1;
         border-radius: 0;
         background: transparent;
         color: var(--muted);
         font-size: 9px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        padding: 7px 8px;
+      }
+      .mode-slider button.on { color: var(--gold-2); }
+      .rescan {
+        font-size: 9px;
         letter-spacing: .06em;
         text-transform: uppercase;
-        padding: 6px 8px;
+        padding: 5px 8px;
+        background: transparent;
+        color: var(--gold-2);
+        border: 1px solid var(--line);
+        white-space: nowrap;
       }
-      .mode-slider button.on { background: rgba(212, 175, 55, 0.18); color: var(--gold-2); }
       .nav.hidden { display: none !important; }
       .credit-badge {
         margin-left: auto;
@@ -481,15 +515,19 @@
       <img class="logo" src="assets/logo.png" alt="Sovereign" />
       <div>
         <h1>Sovereign</h1>
-        <p>Reads the open job · never the feed</p>
+        <p>Reads the job on screen · never the feed</p>
       </div>
       <div class="header-tools">
         <div id="creditBadge" class="credit-badge hidden">Credits —</div>
         <div id="planBadge" class="plan-pill b2c">B2C</div>
-        <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode">
-          <button type="button" data-mode="b2c" class="on">B2C Mode</button>
-          <button type="button" data-mode="b2b">B2B Mode</button>
+        <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode" data-mode="b2c">
+          <div class="mode-slider-thumb" id="modeSliderThumb"></div>
+          <div class="mode-slider-track" id="modeSliderTrack">
+            <button type="button" data-mode="b2c" class="on">👤 B2C Personal</button>
+            <button type="button" data-mode="b2b">🏢 B2B Agency</button>
+          </div>
         </div>
+        <button id="rescan" class="rescan" type="button">Re-Scan Current Screen</button>
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>
@@ -580,7 +618,7 @@
       </section>
 
       <section id="tab-match" class="tab-view">
-        <p class="hint">Skill-overlap fit for the isolated job. Scores are never guessed.</p>
+        <p class="hint">Live fit for the job currently on screen. Scores come from your skills vs this brief — never a guessed placeholder.</p>
         <div id="matchEmpty" class="empty">Generate a proposal or CV on the open job to see strengths and gaps.</div>
         <div id="matchCard" class="card">
           <div class="score-row">

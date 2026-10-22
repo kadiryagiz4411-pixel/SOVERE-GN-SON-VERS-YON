@@ -58,6 +58,17 @@ function canUseDualWorkspace() {
     || (canUseB2B() && appsumoTier() !== 1 && appsumoTier() !== 2);
 }
 
+function canUseDeepMatch() {
+  if (isExtensionAdmin()) return true;
+  if (appsumoTier() >= 2) return true;
+  if (appsumoTier() === 1) return false;
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  if (['active', 'trialing', 'paid'].includes(status)) return true;
+  const membership = String(settings.membership || '').toLowerCase();
+  if (membership === 'pro' || membership === 'elite') return true;
+  return settings.b2bAccess === true || settings.workspace === 'dual' || settings.workspace === 'b2b';
+}
+
 const APPSUMO_ZERO_MESSAGE = 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.';
 
 function hidePaywall() {
@@ -228,6 +239,7 @@ let lastMatch = {
   gaps: [],
   message: '',
   onboardingRequired: false,
+  acceptanceScore: 0,
 };
 let lastJob = {
   title: '',
@@ -475,28 +487,60 @@ function chipHtml(items, kind) {
   return items.map((item) => `<span class="chip ${kind}">${escapeHtml(item)}</span>`).join('');
 }
 
+function humanMatchCopy(analysis, title) {
+  const raw = String(analysis?.matchNarrative || analysis?.matchMessage || '').trim();
+  if (raw && !/here is your score|ai match result|match analytics|your score is/i.test(raw)) {
+    return raw;
+  }
+  if (analysis?.onboardingRequired) {
+    return 'Add at least two skills in Settings so this brief can be scored against your profile.';
+  }
+  const score = Number(analysis?.match_score ?? analysis?.matchScore ?? 0);
+  const accept = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? score);
+  const strengths = Array.isArray(analysis?.strengths)
+    ? analysis.strengths
+    : (Array.isArray(analysis?.matchedSkills) ? analysis.matchedSkills : []);
+  const gaps = Array.isArray(analysis?.gaps)
+    ? analysis.gaps
+    : (Array.isArray(analysis?.missingSkills) ? analysis.missingSkills : []);
+  const overlap = strengths.slice(0, 3).join(' & ') || 'the skills you listed';
+  const gap = gaps[0] || '';
+  const role = String(title || 'this brief').replace(/\s+/g, ' ').trim().slice(0, 72);
+  const fit = score >= 80 ? 'high overlap' : score >= 60 ? 'solid overlap' : score >= 40 ? 'partial overlap' : 'thin overlap';
+  let line = `${Math.round(score)}% fit — ${fit} on ${overlap}`;
+  if (gap) line += `; the brief also asks for ${gap}`;
+  line += `. Acceptance sits around ${Math.round(accept)}% if you lead with a first-week result`;
+  if (gap) line += ` and cover ${gap} in one concrete example`;
+  if (role) line += ` for ${role}`;
+  return `${line}.`;
+}
+
 function updateMatchUi(analysis, title) {
   const score = Number(analysis?.match_score ?? analysis?.matchScore ?? analysis?.compatibilityScore ?? lastScore ?? 0);
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+  const acceptRaw = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? safeScore);
+  const accept = Number.isFinite(acceptRaw) ? Math.max(0, Math.min(100, Math.round(acceptRaw))) : safeScore;
   const label = analysis?.matchLabel || (analysis?.onboardingRequired ? 'Add skills' : matchBand(safeScore));
+  const message = humanMatchCopy(analysis, title);
   lastScore = safeScore;
   lastMatch = {
     label,
     strengths: Array.isArray(analysis?.strengths) ? analysis.strengths : (analysis?.matchedSkills || []),
     gaps: Array.isArray(analysis?.gaps) ? analysis.gaps : (analysis?.missingSkills || []),
-    message: analysis?.matchMessage || '',
+    message,
     onboardingRequired: Boolean(analysis?.onboardingRequired),
+    acceptanceScore: accept,
   };
 
   const banner = document.getElementById('matchBanner');
   const bannerScore = document.getElementById('matchBannerScore');
   const bannerLabel = document.getElementById('matchBannerLabel');
   if (banner) banner.classList.add('on');
-  if (bannerScore) bannerScore.textContent = lastMatch.onboardingRequired ? '—' : `${safeScore}% Match`;
+  if (bannerScore) bannerScore.textContent = lastMatch.onboardingRequired ? '—' : `${safeScore}%`;
   if (bannerLabel) {
     bannerLabel.textContent = lastMatch.onboardingRequired
       ? (lastMatch.message || 'Add at least two skills in Settings.')
-      : `${label}${title ? ` · ${title}` : ''}`;
+      : message;
   }
 
   const matchEmpty = document.getElementById('matchEmpty');
@@ -510,19 +554,17 @@ function updateMatchUi(analysis, title) {
   const matchTitle = document.getElementById('matchTitle');
   const matchLabel = document.getElementById('matchLabel');
   if (matchTitle) matchTitle.textContent = title || lastTitle || 'Open job';
-  if (matchLabel) matchLabel.textContent = lastMatch.onboardingRequired ? lastMatch.message : `${safeScore}% · ${label}`;
+  if (matchLabel) {
+    matchLabel.textContent = lastMatch.onboardingRequired
+      ? lastMatch.message
+      : `${safeScore}% fit · ~${accept}% acceptance`;
+  }
   const strengths = document.getElementById('matchStrengths');
   const gaps = document.getElementById('matchGaps');
   if (strengths) strengths.innerHTML = chipHtml(lastMatch.strengths, 'ok');
   if (gaps) gaps.innerHTML = chipHtml(lastMatch.gaps, 'gap');
   const note = document.getElementById('matchNote');
-  if (note) {
-    note.textContent = lastMatch.onboardingRequired
-      ? (lastMatch.message || 'Add at least two skills in Settings to unlock a real match score.')
-      : (lastMatch.gaps.length
-        ? 'Cover the gaps in the first lines of the proposal and CV.'
-        : 'Core requirements overlap. Lead with those skills.');
-  }
+  if (note) note.textContent = message;
 }
 
 function renderCvPreview(text) {
@@ -572,12 +614,8 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (metaEl) metaEl.textContent = data.url || pageUrl || '';
 
   if (isJob) {
-    if (scoreHeading) scoreHeading.textContent = 'Match score';
-    if (scoreLabel) {
-      scoreLabel.textContent = data.onboardingRequired
-        ? (data.matchMessage || 'Add at least two skills in Settings to unlock a real match score.')
-        : `${safeScore}% Match — ${data.matchLabel || matchBand(safeScore)}`;
-    }
+    if (scoreHeading) scoreHeading.textContent = 'Match';
+    if (scoreLabel) scoreLabel.textContent = humanMatchCopy(data, lastTitle);
     if (painHeading) painHeading.textContent = 'Technical pain point';
     if (bodyHeading) bodyHeading.textContent = 'Generated proposal';
     if (painEl) painEl.textContent = data.painPoint || data.summary || 'No pain point returned.';
@@ -728,7 +766,8 @@ async function getActiveTabDOM() {
   throw new Error(scraped?.error || 'Could not isolate the open job.');
 }
 
-async function postParseDom(pageData) {
+async function postParseDom(pageData, options = {}) {
+  const deep = canUseDeepMatch();
   const payload = {
     pageText: pageData.pageText,
     pageTitle: pageData.pageTitle,
@@ -743,6 +782,9 @@ async function postParseDom(pageData) {
     skills: skillListFromSettings(),
     experience: settings.experience,
     hourlyRate: Number(settings.hourlyRate) || undefined,
+    matchDepth: deep ? 'deep' : 'basic',
+    deepMatch: deep,
+    scoreOnly: Boolean(options.scoreOnly),
   };
 
   const viaWorker = await chrome.runtime.sendMessage({
@@ -769,6 +811,57 @@ async function postParseDom(pageData) {
     throw new Error(data.message || data.error || `Server returned ${response.status}`);
   }
   return data;
+}
+
+function gapLabels(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (typeof item === 'string') return item;
+    return String(item?.area || item?.detail || '').trim();
+  }).filter(Boolean).slice(0, 6);
+}
+
+async function enrichWithSmartMatch(pageData, data) {
+  if (!canUseDeepMatch() || data?.onboardingRequired) return data;
+  const payload = {
+    intent: 'smart-match',
+    jobDescription: pageData.jobDescription || pageData.pageText,
+    jobTitle: pageData.jobTitle || pageData.pageTitle,
+    skills: skillListFromSettings(),
+    experience: settings.experience,
+    hourlyRate: Number(settings.hourlyRate) || undefined,
+    budget: pageData.budget,
+    requiredSkills: pageData.requiredSkills || [],
+    clientHistory: pageData.clientHistory,
+    matchDepth: 'deep',
+    deepMatch: true,
+  };
+  const viaWorker = await chrome.runtime.sendMessage({
+    type: 'SMART_MATCH',
+    apiBase: apiBase(),
+    payload,
+  }).catch(() => null);
+  const smart = viaWorker?.success ? viaWorker.data : null;
+  if (!smart) return data;
+  const extraTip = Array.isArray(smart.applicationTips) ? String(smart.applicationTips[0] || '').trim() : '';
+  const banned = /here is your score|ai match result|your score is/i;
+  const narrative = String(data.matchNarrative || data.matchMessage || smart.matchNarrative || '').trim();
+  const withTip = extraTip && !banned.test(extraTip) ? `${narrative} ${extraTip}`.trim() : narrative;
+  return {
+    ...data,
+    match_score: data.match_score ?? data.matchScore,
+    matchScore: data.matchScore ?? data.match_score,
+    acceptanceScore: data.acceptanceScore,
+    overallScore: data.acceptanceScore ?? data.overallScore,
+    strengths: (Array.isArray(data.strengths) && data.strengths.length)
+      ? data.strengths
+      : gapLabels(smart.gapAnalysis?.strengths),
+    gaps: (Array.isArray(data.gaps) && data.gaps.length)
+      ? data.gaps
+      : gapLabels(smart.gapAnalysis?.gaps),
+    matchMessage: withTip,
+    matchNarrative: withTip,
+  };
 }
 
 function assertAccountOpen() {
@@ -813,10 +906,11 @@ async function analyzeActivePage() {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
-    setBusy(true, pageData.isolated ? 'Analyzing the open job…' : 'Analyzing page…');
+    setBusy(true, pageData.isolated ? 'Analyzing the job on screen…' : 'Analyzing the visible page…');
     const data = await postParseDom(pageData);
-    void ingestOpportunity(pageData, data);
-    renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
+    const merged = await enrichWithSmartMatch(pageData, data);
+    void ingestOpportunity(pageData, merged);
+    renderAnalysisResults(merged, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
@@ -826,6 +920,58 @@ async function analyzeActivePage() {
     }
     if (/permission to access the respective host/i.test(msg)) {
       showError('Reload the extension, then try Analyze again.');
+      return;
+    }
+    showError(msg);
+  }
+}
+
+async function rescanActiveScreen() {
+  if (analyzing) return;
+  if (!assertAccountOpen()) return;
+  hideErrorBadge();
+  setBusy(true, 'Re-scanning the job on this screen…');
+  try {
+    const pageData = await getActiveTabDOM();
+    lastJob = {
+      title: pageData.jobTitle || pageData.pageTitle,
+      url: pageData.pageUrl,
+      description: pageData.jobDescription || pageData.pageText,
+      skills: pageData.requiredSkills || [],
+      budget: pageData.budget || '',
+      clientHistory: pageData.clientHistory || '',
+    };
+    const cvJobMeta = document.getElementById('cvJobMeta');
+    if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
+    const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
+    if (pageText.length < 20) {
+      throw new Error('This tab does not have enough readable text to analyze.');
+    }
+    if (skillListFromSettings().length < 2) {
+      updateMatchUi({
+        onboardingRequired: true,
+        matchMessage: 'Add at least two skills in Settings so this brief can be scored against your profile.',
+        match_score: 0,
+        acceptanceScore: 0,
+      }, lastJob.title);
+      setBusy(false, 'Isolated the job on screen. Add at least two skills in Settings to score it.');
+      return;
+    }
+    const data = await postParseDom(pageData, { scoreOnly: true });
+    const merged = await enrichWithSmartMatch(pageData, data);
+    updateMatchUi(merged, lastJob.title || pageData.pageTitle);
+    if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
+    if (scoreLabel) scoreLabel.textContent = humanMatchCopy(merged, lastJob.title);
+    const score = Number(merged.match_score ?? merged.matchScore ?? 0);
+    if (badge) badge.textContent = String(Math.max(0, Math.min(100, Math.round(score))));
+    scoreRing?.style.setProperty('--p', String(Math.max(0, Math.min(100, Math.round(score)))));
+    setBusy(false, pageData.isolated
+      ? `Now scoring “${String(lastJob.title || 'this job').slice(0, 52)}” — the pane currently on screen.`
+      : 'Scanned the visible page. Open a job detail pane, then Re-Scan for a tighter match.');
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
+      showError('Service temporarily busy. Please try again in a few moments.');
       return;
     }
     showError(msg);
@@ -878,6 +1024,7 @@ function applyWorkspaceUi() {
     }
   }
   slider?.classList.toggle('on', dual);
+  if (slider) slider.dataset.mode = mode;
   slider?.querySelectorAll('button[data-mode]').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.mode === mode);
   });
@@ -999,6 +1146,32 @@ document.getElementById('adminSlider')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-mode]');
   if (!btn || !canUseDualWorkspace()) return;
   void persistSettings({ workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c' });
+});
+
+(function bindModeSliderSwipe() {
+  const slider = document.getElementById('adminSlider');
+  if (!slider) return;
+  let startX = 0;
+  let dragging = false;
+  slider.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    startX = event.clientX;
+    try { slider.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+  });
+  const finish = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    if (!canUseDualWorkspace()) return;
+    const dx = event.clientX - startX;
+    if (Math.abs(dx) < 36) return;
+    void persistSettings({ workspaceMode: dx < 0 ? 'b2b' : 'b2c' });
+  };
+  slider.addEventListener('pointerup', finish);
+  slider.addEventListener('pointercancel', () => { dragging = false; });
+})();
+
+document.getElementById('rescan')?.addEventListener('click', () => {
+  void rescanActiveScreen();
 });
 
 analyzeBtn?.addEventListener('click', () => {
@@ -1349,13 +1522,15 @@ async function generateTailoredCv() {
     lastCv = cvText;
     document.getElementById('cvCard')?.classList.add('on');
     renderCvPreview(cvText);
-    updateMatchUi(data || {}, lastJob.title);
+    const scored = await postParseDom(pageData, { scoreOnly: true }).catch(() => data || {});
+    const merged = await enrichWithSmartMatch(pageData, scored);
+    updateMatchUi(merged, lastJob.title);
     await saveCvRecord({
       id: `${Date.now()}`,
       title: lastJob.title || 'Tailored CV',
       url: lastJob.url,
       text: cvText,
-      score: Number(data?.match_score ?? data?.matchScore ?? lastScore ?? 0),
+      score: Number(merged?.match_score ?? merged?.matchScore ?? lastScore ?? 0),
       at: Date.now(),
     });
     setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');

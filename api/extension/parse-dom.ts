@@ -135,12 +135,6 @@ async function handleRequest(req: Request): Promise<Response> {
   }
   if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
 
-  const apiKey = getOpenAIApiKey();
-  if (!apiKey) {
-    console.error('CRITICAL ERROR: OPENAI_API_KEY is missing in Vercel environment!');
-    return jsonNoStore({ error: 'AI service not configured on server' }, 500);
-  }
-
   try {
     const body = await readJsonBody<{
       pageText?: string;
@@ -157,6 +151,9 @@ async function handleRequest(req: Request): Promise<Response> {
       experience?: string;
       profession?: string;
       hourlyRate?: number;
+      matchDepth?: string;
+      deepMatch?: boolean;
+      scoreOnly?: boolean;
     }>(req);
 
     const jobTitle = String(body.jobTitle || body.pageTitle || '').trim();
@@ -184,6 +181,7 @@ async function handleRequest(req: Request): Promise<Response> {
       clientHistory ? `Client: ${clientHistory.slice(0, 400)}` : '',
       `Content:\n${pageText.slice(0, 4000)}`,
     ].filter(Boolean).join('\n');
+    const depth = body.matchDepth === 'deep' || body.deepMatch ? 'deep' : 'basic';
     const match = scoreOpportunity(
       {
         skills: Array.isArray(body.skills) ? body.skills : [],
@@ -195,11 +193,15 @@ async function handleRequest(req: Request): Promise<Response> {
       pageText,
       budget,
       listedSkills,
+      { depth, clientHistory },
     );
     const score = match.complete ? match.matchScore : 0;
+    const accept = match.complete ? match.acceptanceScore : 0;
     const matchPayload = {
       match_score: score,
       matchScore: score,
+      acceptanceScore: accept,
+      overallScore: accept,
       matchLabel: match.complete ? matchBand(score) : 'Add skills',
       strengths: match.matchedSkills.slice(0, 6),
       gaps: match.missingSkills.slice(0, 6),
@@ -207,8 +209,36 @@ async function handleRequest(req: Request): Promise<Response> {
       matchedSkills: match.matchedSkills,
       missingSkills: match.missingSkills,
       onboardingRequired: !match.complete,
-      matchMessage: match.message || '',
+      matchMessage: match.narrative || match.message || '',
+      matchNarrative: match.narrative || match.message || '',
+      domainFit: match.domainFit || 0,
+      clientFit: match.clientFit || 0,
     };
+
+    if (body.scoreOnly) {
+      return jsonNoStore({
+        success: true,
+        detectedMode,
+        type: detectedMode,
+        intent: detectedMode === 'B2B_COMMAND' ? 'B2B_COMMAND' : detectedMode === 'CV_EVALUATION' ? 'CANDIDATE_POOL' : 'JOB_POSTINGS',
+        platformLabel: label,
+        title: pageTitle,
+        url: pageUrl,
+        jobTitle: pageTitle,
+        jobDescription: pageText.slice(0, 4000),
+        budget,
+        clientHistory: clientHistory.slice(0, 500),
+        compatibilityScore: score,
+        scoreOnly: true,
+        ...matchPayload,
+      });
+    }
+
+    const apiKey = getOpenAIApiKey();
+    if (!apiKey) {
+      console.error('CRITICAL ERROR: OPENAI_API_KEY is missing in Vercel environment!');
+      return jsonNoStore({ error: 'AI service not configured on server' }, 500);
+    }
 
     if (detectedMode === 'JOB_PROPOSAL') {
       const parsed = await completeJson(

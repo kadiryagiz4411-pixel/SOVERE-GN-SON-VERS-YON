@@ -1,8 +1,9 @@
 const API_BASE_URL = 'https://sovereignapp.pro';
 const PARSE_DOM_PATH = '/api/extension/parse-dom';
 const GENERATE_CV_PATH = '/api/generate-cv';
+const SMART_MATCH_PATH = '/api/smart-match';
 const EXTENSION_ME_PATH = '/api/extension/me';
-const EXTENSION_VERSION = '1.6.3';
+const EXTENSION_VERSION = '1.6.4';
 const ADMIN_EMAILS = ['kadiryagiz4411@gmail.com'];
 
 function canonicalizeApiBase(raw) {

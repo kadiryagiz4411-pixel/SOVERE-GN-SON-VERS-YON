@@ -38,6 +38,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'SMART_MATCH') {
+    const payload = { intent: 'smart-match', ...(request.payload || {}) };
+    const path = typeof SMART_MATCH_PATH === 'string' ? SMART_MATCH_PATH : '/api/smart-match';
+    postJson(path, payload)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+
   if (request.type === 'FETCH_ME') {
     fetchMe(request.accessToken || '')
       .then((data) => {
