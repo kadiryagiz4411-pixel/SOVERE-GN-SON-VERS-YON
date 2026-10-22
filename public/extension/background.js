@@ -79,6 +79,29 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'VIEWPORT_FOCUS' && request.data) {
+    persistViewportTarget(request.data, false);
+    return false;
+  }
+
+  if (request.type === 'VIEWPORT_SCANNING') {
+    return false;
+  }
+
+  if (request.type === 'FORCE_VIEWPORT_SCAN') {
+    forceViewportScan()
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+
+  if (request.type === 'GET_VIEWPORT_TARGET') {
+    chrome.storage.local.get('sovereign.viewport.v1', (bag) => {
+      sendResponse({ success: true, data: bag['sovereign.viewport.v1'] || null });
+    });
+    return true;
+  }
+
   return false;
 });
 
@@ -119,6 +142,23 @@ async function pingParseDom() {
   const optionsRes = await fetchNoRedirect(url, { method: 'OPTIONS' });
   if (isLiveStatus(optionsRes)) return { ok: true, status: optionsRes.status, method: 'OPTIONS' };
   throw new Error(`API HTTP ${getRes.status || optionsRes.status}`);
+}
+
+function persistViewportTarget(data, scanning) {
+  chrome.storage.local.get('sovereign.viewport.v1', (bag) => {
+    const prev = bag['sovereign.viewport.v1'] || {};
+    chrome.storage.local.set({
+      'sovereign.viewport.v1': data
+        ? { ...data, scanning: false, at: Date.now() }
+        : { ...prev, scanning: Boolean(scanning), at: Date.now() },
+    });
+  });
+}
+
+async function forceViewportScan() {
+  const data = await scrapeActiveTab('RESCAN_PAGE');
+  persistViewportTarget(data, false);
+  return data;
 }
 
 function persistPlanFromMe(data, fallbackEmail) {
@@ -171,7 +211,7 @@ function isRestrictedUrl(href) {
     || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
 }
 
-async function scrapeActiveTab() {
+async function scrapeActiveTab(messageType = 'SCRAPE_PAGE') {
   let tab;
   try {
     const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -189,7 +229,7 @@ async function scrapeActiveTab() {
   }
 
   try {
-    const viaContent = await chrome.tabs.sendMessage(tab.id, { type: 'SCRAPE_PAGE' }).catch(() => null);
+    const viaContent = await chrome.tabs.sendMessage(tab.id, { type: messageType || 'SCRAPE_PAGE' }).catch(() => null);
     if (viaContent?.success && viaContent.data?.pageText) return viaContent.data;
   } catch {
     // Content script may not be loaded yet.

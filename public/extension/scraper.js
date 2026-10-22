@@ -1,60 +1,240 @@
 /**
- * Isolates the job currently in view (detail pane, drawer, selected card),
- * never the first card in the feed. Safe in page, content-script, and
- * chrome.scripting.executeScript (no closures, no chrome.* APIs).
+ * Isolates the job or CV currently centered in the viewport.
+ * Safe in page, content-script, and chrome.scripting.executeScript
+ * (no closures, no chrome.* APIs).
  */
+
+const SOVEREIGN_FEED_WRAPPERS = [
+  '[data-test="job-tile-list"]',
+  'section[data-test="job-tile-list"]',
+  '.jobs-search-results-list',
+  '.scaffold-layout__list',
+  '#mosaic-provider-jobcards',
+  '.jobsearch-LeftPane',
+  '[data-test="job-list"]',
+  '.jobs-search-results-list__list',
+  'ul.jobs-search__results-list',
+];
+
+const SOVEREIGN_DETAIL_SELECTORS = [
+  '[data-sovereign-active-job="1"]',
+  '[data-test="JobDetails"]',
+  '[data-test="job-details"]',
+  '[data-ev-sublocation="job_details"]',
+  '[data-ev-label="job_details"]',
+  'section[data-test="JobDetails"]',
+  '.job-details',
+  '.jobs-details',
+  '.job-view-layout',
+  '.jobs-search__job-details',
+  '.jobs-search__job-details--container',
+  '.jobs-search__job-details-container',
+  '#job-details',
+  '#job-details-container',
+  '.jobs-description',
+  '.jobs-description__content',
+  '#jobDescriptionText',
+  '.jobsearch-JobComponent',
+  '.jobsearch-RightPane',
+  '.jobsearch-ViewJobLayout--mainContent',
+  '.PageProjectViewLogout-detail',
+  '.PageProjectView-detail',
+  '#main-content .ProjectView',
+  '[aria-label="Job details"]',
+  '[aria-label="Job Details"]',
+  'article[data-job-id]',
+];
+
+const SOVEREIGN_CARD_SELECTORS = [
+  '[data-test="JobTile"]',
+  '[data-test="job-tile"]',
+  '[data-test="job-tile-list"] > article',
+  '[data-test="job-tile-list"] > section',
+  '.jobs-search-results__list-item',
+  '.scaffold-layout__list-item',
+  'li.jobs-search-results__list-item',
+  '.jobsearch-SerpJobCard',
+  '.jobsearch-ResultsList > li',
+  '[data-jk]',
+  '[data-job-id]',
+  '.up-card-section.job-tile',
+  '.up-card-section',
+  'article[data-test="JobTile"]',
+];
+
+const SOVEREIGN_CV_SELECTORS = [
+  '.pv-top-card',
+  '.scaffold-layout__main',
+  '#profile-content',
+  '.profile-overview',
+  '[data-test="resume"]',
+  '.resume-section',
+  '.cv-preview',
+  'section.pv-profile-section',
+];
+
+function hashScrapedText(text) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 5000);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function detectIsolatedKind(url, title, text) {
+  const href = String(url || '').toLowerCase();
+  const sample = `${title || ''}\n${text || ''}`.toLowerCase();
+  if (/linkedin\.com\/in\//.test(href) || /\/resume|\/cv(?:\/|$)/.test(href)) return 'cv';
+  if (/linkedin\.com\/company|crunchbase\.com/.test(href)) return 'b2b';
+  if (/upwork\.com\/(jobs|nx\/search\/jobs|ab\/proposals)/.test(href)
+    || /linkedin\.com\/jobs/.test(href)
+    || /indeed\.com\/(viewjob|jobs)/.test(href)
+    || /freelancer\.com\/projects/.test(href)
+    || /fiverr\.com/.test(href)) return 'job';
+  const jobHits = (sample.match(/job description|responsibilities|qualifications|requirements|apply now|hourly rate|fixed[- ]price|proposals? bid/g) || []).length;
+  const cvHits = (sample.match(/work experience|professional experience|education|curriculum vitae|\bcv\b|professional summary|certifications/g) || []).length;
+  if (cvHits > jobHits && cvHits >= 2) return 'cv';
+  return 'job';
+}
+
+function sovereignVisible(el) {
+  if (!el || !(el instanceof Element)) return false;
+  const r = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return r.width > 48 && r.height > 36
+    && style.visibility !== 'hidden'
+    && style.display !== 'none'
+    && style.opacity !== '0';
+}
+
+function sovereignMatchesAny(el, selectors) {
+  return selectors.some((selector) => {
+    try { return el.matches(selector); } catch { return false; }
+  });
+}
+
+function sovereignClosestAny(el, selectors) {
+  for (const selector of selectors) {
+    try {
+      const hit = el.closest(selector);
+      if (hit) return hit;
+    } catch {
+      // skip
+    }
+  }
+  return null;
+}
+
+function sovereignCenterScore(el) {
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || 800;
+  const vw = window.innerWidth || 1200;
+  const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+  const visW = Math.min(r.right, vw) - Math.max(r.left, 0);
+  if (visH < 40 || visW < 40) return -1;
+  const visArea = visH * visW;
+  const fullArea = Math.max(r.width * r.height, 1);
+  const ratio = Math.max(0, Math.min(1, visArea / fullArea));
+  const cx = (r.left + r.right) / 2;
+  const cy = (r.top + r.bottom) / 2;
+  const distY = Math.abs(cy - vh / 2);
+  const distX = Math.abs(cx - vw / 2);
+  const marked = el.matches?.('[data-sovereign-active-job="1"]');
+  const selected = el.matches?.(
+    '[aria-current="true"], [aria-current="page"], [aria-selected="true"]',
+  ) || el.closest?.(
+    '.jobs-search-results-list__list-item--active, .scaffold-layout__list-item--active, .vjs-highlight',
+  );
+  const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider');
+  const detail = sovereignMatchesAny(el, SOVEREIGN_DETAIL_SELECTORS)
+    || sovereignClosestAny(el, SOVEREIGN_DETAIL_SELECTORS) === el;
+  const rightPane = r.left > vw * 0.28 && visH > 160 ? 22000 : 0;
+  return visArea * (0.4 + 0.6 * ratio)
+    - distY * 52
+    - distX * 10
+    + (marked ? 70000 : 0)
+    + (selected ? 48000 : 0)
+    + (dialog ? 110000 : 0)
+    + (detail ? 36000 : 0)
+    + rightPane
+    + Math.min(visH, 900) * 8;
+}
+
+function sovereignIsLayoutShell(el) {
+  if (!el || el === document.body || el === document.documentElement) return true;
+  if (sovereignMatchesAny(el, SOVEREIGN_FEED_WRAPPERS)) return true;
+  const tag = el.tagName;
+  if (tag === 'NAV' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE') return true;
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || 800;
+  const vw = window.innerWidth || 1200;
+  const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+  const visW = Math.min(r.right, vw) - Math.max(r.left, 0);
+  const knownDetail = sovereignMatchesAny(el, SOVEREIGN_DETAIL_SELECTORS);
+  if (!knownDetail && visH * visW > vh * vw * 0.74) return true;
+  return false;
+}
+
+function sovereignCollect(selectors, root) {
+  const scope = root || document;
+  const out = [];
+  const seen = new Set();
+  for (const selector of selectors) {
+    try {
+      scope.querySelectorAll(selector).forEach((el) => {
+        if (seen.has(el)) return;
+        seen.add(el);
+        out.push(el);
+      });
+    } catch {
+      // invalid selector on this host
+    }
+  }
+  return out;
+}
+
+function pickViewportFocusElement() {
+  const marked = document.querySelector('[data-sovereign-active-job="1"]');
+  const pool = sovereignCollect(
+    SOVEREIGN_DETAIL_SELECTORS
+      .concat(SOVEREIGN_CARD_SELECTORS)
+      .concat(SOVEREIGN_CV_SELECTORS)
+      .concat([
+        '[aria-current="true"]',
+        '[aria-selected="true"]',
+        '.vjs-highlight',
+        'dialog',
+        '[role="dialog"]',
+      ]),
+  );
+  if (marked) pool.push(marked);
+  let best = null;
+  let bestScore = -1;
+  for (const el of pool) {
+    if (!sovereignVisible(el) || sovereignIsLayoutShell(el)) continue;
+    const score = sovereignCenterScore(el);
+    if (score > bestScore) {
+      bestScore = score;
+      best = el;
+    }
+  }
+  return best;
+}
+
 function extractActiveJob() {
   const MAX_TEXT = 12_000;
   const MAX_FIELD = 2_000;
 
-  const visible = (el) => {
-    if (!el || !(el instanceof Element)) return false;
-    const r = el.getBoundingClientRect();
-    const style = window.getComputedStyle(el);
-    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
-  };
+  const visible = sovereignVisible;
 
-  const collect = (selectors, root) => {
-    const scope = root || document;
-    const out = [];
-    const seen = new Set();
-    for (const selector of selectors) {
-      try {
-        scope.querySelectorAll(selector).forEach((el) => {
-          if (seen.has(el)) return;
-          seen.add(el);
-          out.push(el);
-        });
-      } catch {
-        // invalid selector on this host
-      }
-    }
-    return out;
-  };
+  const collect = sovereignCollect;
 
-  const viewportScore = (el) => {
-    const r = el.getBoundingClientRect();
-    const vh = window.innerHeight || 800;
-    const vw = window.innerWidth || 1200;
-    const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
-    const visW = Math.min(r.right, vw) - Math.max(r.left, 0);
-    if (visH < 32 || visW < 32) return -1;
-    const area = visH * visW;
-    const cx = (r.left + r.right) / 2;
-    const cy = (r.top + r.bottom) / 2;
-    const dist = Math.hypot(cx - vw * 0.64, cy - vh * 0.46);
-    const selected = el.matches?.(
-      '[aria-current="true"], [aria-current="page"], [aria-selected="true"], [data-sovereign-active-job="1"]',
-    ) || el.closest?.(
-      '.jobs-search-results-list__list-item--active, .scaffold-layout__list-item--active, .vjs-highlight, [aria-current="true"]',
-    );
-    const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider');
-    const rightPane = r.left > vw * 0.28 ? 18000 : 0;
-    return area - dist * 28 + (selected ? 90000 : 0) + (dialog ? 130000 : 0) + rightPane + Math.min(r.height, 920) * 10;
-  };
+  const viewportScore = sovereignCenterScore;
 
   const pickBest = (selectors, root) => {
-    const nodes = collect(selectors, root).filter(visible);
+    const nodes = collect(selectors, root).filter((el) => visible(el) && !sovereignIsLayoutShell(el));
     if (!nodes.length) return null;
     let best = null;
     let bestScore = -1;
@@ -97,49 +277,6 @@ function extractActiveJob() {
   const host = String(location.hostname || '').replace(/^www\./, '').toLowerCase();
   const href = String(location.href || '');
 
-  const FEED_SELECTORS = [
-    '[data-test="job-tile-list"]',
-    '[data-test="JobTile"]',
-    'section[data-test="job-tile-list"]',
-    '.jobs-search-results-list',
-    '.scaffold-layout__list',
-    '#mosaic-provider-jobcards',
-    '.jobsearch-LeftPane',
-    '.jobsearch-SerpJobCard',
-    '[data-test="job-list"]',
-    '.up-card-section.job-tile',
-  ];
-
-  const DETAIL_SELECTORS = [
-    '[data-sovereign-active-job="1"]',
-    '[data-test="JobDetails"]',
-    '[data-test="job-details"]',
-    '[data-ev-sublocation="job_details"]',
-    '[data-ev-label="job_details"]',
-    'section[data-test="JobDetails"]',
-    '.job-details',
-    '.jobs-details',
-    '.job-view-layout',
-    '.jobs-search__job-details',
-    '.jobs-search__job-details--container',
-    '.jobs-search__job-details-container',
-    '#job-details',
-    '#job-details-container',
-    '.jobs-description',
-    '.jobs-description__content',
-    '#jobDescriptionText',
-    '.jobsearch-JobComponent',
-    '.jobsearch-RightPane',
-    '.jobsearch-ViewJobLayout--mainContent',
-    '.PageProjectViewLogout-detail',
-    '.PageProjectView-detail',
-    '#main-content .ProjectView',
-    '[aria-label="Job details"]',
-    '[aria-label="Job Details"]',
-    'article[data-job-id]',
-    'main article',
-  ];
-
   const TITLE_SELECTORS = [
     '[data-test="job-title"]',
     '[data-test="JobTitle"]',
@@ -148,9 +285,11 @@ function extractActiveJob() {
     '.job-details-jobs-unified-top-card__job-title',
     '.jobs-unified-top-card__job-title',
     'h1.t-24',
+    'h1.text-heading-xlarge',
     'h1.jobsearch-JobInfoHeader-title',
     '.jobsearch-JobInfoHeader-title',
     '.PageProjectViewLogout-header-title',
+    '.pv-text-details__left-panel h1',
     'h1',
     'h2',
   ];
@@ -167,6 +306,8 @@ function extractActiveJob() {
     '.jobsearch-jobDescriptionText',
     '.ProjectDescription',
     '[data-qa="project-description"]',
+    '.pv-shared-text-with-see-more',
+    '#about',
   ];
 
   const SKILL_SELECTORS = [
@@ -178,6 +319,7 @@ function extractActiveJob() {
     '.jobs-unified-top-card__job-insight',
     '.ProjectSkills a',
     '[data-qa="skill"]',
+    '.pv-skill-category-entity__name-text',
   ];
 
   const BUDGET_SELECTORS = [
@@ -195,20 +337,6 @@ function extractActiveJob() {
     '.about-client',
     '.jobsearch-CompanyReview--heading',
     '[data-test="ClientInfo"]',
-  ];
-
-  const SELECTED_CARD = [
-    '[data-sovereign-active-job="1"]',
-    '[aria-current="true"]',
-    '[aria-current="page"]',
-    '[aria-selected="true"]',
-    '.jobs-search-results-list__list-item--active',
-    '.scaffold-layout__list-item--active',
-    'li.jobs-search-results__list-item--active',
-    '.vjs-highlight',
-    '[data-jk].vjs-highlight',
-    '.jobsearch-ResultsList li[aria-selected="true"]',
-    '[data-test="job-tile-list"] [aria-current]',
   ];
 
   const looksLikeFeed = (text) => {
@@ -254,29 +382,26 @@ function extractActiveJob() {
     return textOf(el, 500);
   };
 
-  let detail = pickBest(DETAIL_SELECTORS);
-  if (detail) {
-    const feedHit = FEED_SELECTORS.some((selector) => {
-      try { return detail.closest(selector); } catch { return false; }
-    });
-    if (feedHit && !detail.closest('[data-sovereign-active-job="1"]')) detail = null;
+  let focus = pickViewportFocusElement();
+  if (focus && sovereignIsLayoutShell(focus)) focus = null;
+
+  let detail = pickBest(SOVEREIGN_DETAIL_SELECTORS);
+  if (detail && sovereignClosestAny(detail, SOVEREIGN_FEED_WRAPPERS) && !detail.closest('[data-sovereign-active-job="1"]')) {
+    detail = null;
   }
 
-  let selectedCard = pickBest(SELECTED_CARD);
-  if (!detail && selectedCard) {
-    const siblingPane = pickBest(DETAIL_SELECTORS, selectedCard.parentElement || document);
-    detail = siblingPane || selectedCard;
-  }
+  const card = pickBest(SOVEREIGN_CARD_SELECTORS.concat(SOVEREIGN_CV_SELECTORS));
+  const root = focus || detail || card || pickBest(DESC_SELECTORS)
+    || document.querySelector('main, [role="main"]') || document.body;
 
-  const titleEl = pickBest(TITLE_SELECTORS, detail || undefined);
-  const descEl = pickBest(DESC_SELECTORS, detail || undefined);
-  const root = detail || descEl || titleEl || document.querySelector('main') || document.body;
+  const titleEl = pickBest(TITLE_SELECTORS, root);
+  const descEl = pickBest(DESC_SELECTORS, root);
 
   let jobTitle = cleanText(
     attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180) || '',
     180,
   );
-  if (!jobTitle || /^\s*(home|jobs|search|feed)\s*$/i.test(jobTitle)) {
+  if (!jobTitle || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
     jobTitle = cleanText(textOf(pickBest(TITLE_SELECTORS, root), 180) || document.title, 180);
   }
 
@@ -286,24 +411,25 @@ function extractActiveJob() {
   }
 
   if (!jobDescription || looksLikeFeed(jobDescription)) {
-    const pane = pickBest(DETAIL_SELECTORS) || document.querySelector('main, [role="main"], article');
+    const pane = pickBest(SOVEREIGN_DETAIL_SELECTORS) || root;
     const paneText = textOf(pane, MAX_TEXT);
     if (paneText && !looksLikeFeed(paneText) && paneText.length >= 80) {
       jobDescription = paneText;
     }
   }
 
-  const isolated = Boolean(detail || descEl) && !looksLikeFeed(jobDescription);
+  const isolated = Boolean(focus || detail || descEl) && !looksLikeFeed(jobDescription);
   const requiredSkills = skillsFrom(root);
   const budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
   const clientHistory = clientFrom(root);
-
   const pageText = cleanText(
     [jobTitle, budget, requiredSkills.join(', '), clientHistory, jobDescription]
       .filter(Boolean)
       .join('\n\n'),
     MAX_TEXT,
   );
+  const kind = detectIsolatedKind(href, jobTitle, pageText);
+  const hash = hashScrapedText(`${kind}|${jobTitle}|${jobDescription}`);
 
   return {
     pageText,
@@ -316,6 +442,8 @@ function extractActiveJob() {
     clientHistory: cleanText(clientHistory, MAX_FIELD),
     isolated,
     host,
-    signature: `${jobTitle}|${cleanText(jobDescription, 80)}`.toLowerCase(),
+    kind,
+    hash,
+    signature: hash,
   };
 }

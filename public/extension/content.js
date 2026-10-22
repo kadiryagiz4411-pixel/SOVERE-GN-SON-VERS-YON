@@ -1,57 +1,24 @@
 /**
- * Page bridge: session inherit on sovereignapp.pro, Auto-Fill into editors.
- * Marks the job currently in view so the scraper never sticks on the first card.
- * Never submits the form.
+ * Live viewport observer: isolates the single job or CV nearest the
+ * center of the screen, then tells the side panel when that target changes.
+ * Auto-Fill never submits the form.
  */
 
 const ACTIVE_JOB_ATTR = 'data-sovereign-active-job';
-
-const DETAIL_HINTS = [
-  '[data-test="JobDetails"]',
-  '[data-test="job-details"]',
-  '.jobs-search__job-details',
-  '.jobs-search__job-details-container',
-  '.jobs-details',
-  '.job-details',
-  '.job-view-layout',
-  '#job-details',
-  '.jobs-description',
-  '.jobsearch-RightPane',
-  '.jobsearch-JobComponent',
-  '.jobsearch-ViewJobLayout--mainContent',
-  '#jobDescriptionText',
-  '.PageProjectViewLogout-detail',
-  '.PageProjectView-detail',
-  '[aria-label="Job details"]',
-  '[aria-label="Job Details"]',
-  '[role="dialog"]',
-  'dialog',
-  '[aria-modal="true"]',
-  'article[data-job-id]',
-];
-
-const CARD_HINTS = [
-  'a[href*="/jobs/"]',
-  'a[href*="/job/"]',
-  '[data-test="JobTile"]',
-  '[data-test="job-tile"]',
-  '.jobs-search-results__list-item',
-  '.scaffold-layout__list-item',
-  '.jobsearch-SerpJobCard',
-  '[data-jk]',
-  '[data-job-id]',
-  'article',
-  '.up-card-section',
-];
+const isTopFrame = window === window.top;
 
 let markTimer = 0;
+let scanTimer = 0;
 let viewportObserver = null;
 let mutationObserver = null;
 let watchingViewport = false;
+let lastHash = '';
+let lastNotifyAt = 0;
+let publishing = false;
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.4';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.5';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {
@@ -92,64 +59,103 @@ function captureSovereignSession() {
 
 function markActiveJob(el) {
   if (!el || !(el instanceof Element)) return;
-  const root = el.closest(DETAIL_HINTS.concat(CARD_HINTS).join(',')) || el;
-  if (!(root instanceof Element)) return;
   document.querySelectorAll(`[${ACTIVE_JOB_ATTR}="1"]`).forEach((node) => {
-    if (node !== root) node.removeAttribute(ACTIVE_JOB_ATTR);
+    if (node !== el) node.removeAttribute(ACTIVE_JOB_ATTR);
   });
-  root.setAttribute(ACTIVE_JOB_ATTR, '1');
+  el.setAttribute(ACTIVE_JOB_ATTR, '1');
 }
 
-function viewportJobScore(el) {
-  const r = el.getBoundingClientRect();
-  const vh = window.innerHeight || 800;
-  const vw = window.innerWidth || 1200;
-  const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
-  const visW = Math.min(r.right, vw) - Math.max(r.left, 0);
-  if (visH < 36 || visW < 36) return -1;
-  const selected = el.matches?.('[aria-current="true"], [aria-current="page"], [aria-selected="true"]')
-    || el.closest?.('.jobs-search-results-list__list-item--active, .scaffold-layout__list-item--active, .vjs-highlight');
-  const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider');
-  const rightPane = r.left > vw * 0.28 ? 18000 : 0;
-  return visH * visW + (selected ? 90000 : 0) + (dialog ? 130000 : 0) + rightPane;
+function candidateSelectors() {
+  const details = typeof SOVEREIGN_DETAIL_SELECTORS !== 'undefined' ? SOVEREIGN_DETAIL_SELECTORS : [];
+  const cards = typeof SOVEREIGN_CARD_SELECTORS !== 'undefined' ? SOVEREIGN_CARD_SELECTORS : [];
+  const cvs = typeof SOVEREIGN_CV_SELECTORS !== 'undefined' ? SOVEREIGN_CV_SELECTORS : [];
+  return details.concat(cards).concat(cvs);
 }
 
-function markBestVisibleJob() {
-  const nodes = [];
-  DETAIL_HINTS.concat(['[aria-current="true"]', '[aria-selected="true"]', '.vjs-highlight']).forEach((selector) => {
-    try {
-      document.querySelectorAll(selector).forEach((el) => nodes.push(el));
-    } catch {
-      // invalid selector on this host
-    }
-  });
-  let best = null;
-  let bestScore = -1;
-  for (const el of nodes) {
-    const score = viewportJobScore(el);
-    if (score > bestScore) {
-      bestScore = score;
-      best = el;
-    }
+function pickFocusedElement() {
+  if (typeof pickViewportFocusElement === 'function') return pickViewportFocusElement();
+  return document.querySelector(`[${ACTIVE_JOB_ATTR}="1"]`);
+}
+
+function scrapeCurrentJob() {
+  const focus = pickFocusedElement();
+  if (focus) markActiveJob(focus);
+  if (typeof extractActiveJob === 'function') return extractActiveJob();
+  return null;
+}
+
+function postRuntime(payload) {
+  try {
+    chrome.runtime.sendMessage(payload, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch {
+    // Side panel or worker may be closed.
   }
-  if (best) markActiveJob(best);
 }
 
-function scheduleMark() {
+function notifyScanning() {
+  if (!isTopFrame) return;
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(() => {
+    postRuntime({ type: 'VIEWPORT_SCANNING', at: Date.now() });
+  }, 80);
+}
+
+function publishFocus(force) {
+  if (!isTopFrame || publishing) return;
+  publishing = true;
+  try {
+    const data = scrapeCurrentJob();
+    if (!data?.pageText) return;
+    const hash = data.hash || data.signature
+      || (typeof hashScrapedText === 'function' ? hashScrapedText(data.pageText) : '');
+    const now = Date.now();
+    if (!force && hash && hash === lastHash && now - lastNotifyAt < 12000) return;
+    lastHash = hash;
+    lastNotifyAt = now;
+    postRuntime({
+      type: 'VIEWPORT_FOCUS',
+      data: {
+        ...data,
+        hash,
+        kind: data.kind || (typeof detectIsolatedKind === 'function'
+          ? detectIsolatedKind(data.pageUrl, data.jobTitle, data.pageText)
+          : 'job'),
+      },
+    });
+  } catch {
+    // Isolation can fail on transient DOM swaps.
+  } finally {
+    publishing = false;
+  }
+}
+
+function evaluateViewport(force) {
+  const focus = pickFocusedElement();
+  if (focus) markActiveJob(focus);
+  publishFocus(Boolean(force));
+}
+
+function scheduleEvaluate(force) {
   clearTimeout(markTimer);
-  markTimer = setTimeout(markBestVisibleJob, 90);
+  markTimer = setTimeout(() => evaluateViewport(force), force ? 40 : 140);
 }
 
 function onUserPick(event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  const card = target.closest(CARD_HINTS.concat(DETAIL_HINTS).join(','));
-  if (card) markActiveJob(card);
+  const selectors = candidateSelectors();
+  const card = selectors.length ? target.closest(selectors.join(',')) : null;
+  if (card) {
+    markActiveJob(card);
+    scheduleEvaluate(true);
+  }
 }
 
-function observeDetails() {
+function observeCandidates() {
   if (!viewportObserver) return;
-  DETAIL_HINTS.forEach((selector) => {
+  candidateSelectors().forEach((selector) => {
     try {
       document.querySelectorAll(selector).forEach((el) => viewportObserver.observe(el));
     } catch {
@@ -159,45 +165,38 @@ function observeDetails() {
 }
 
 function startViewportWatch() {
-  if (watchingViewport) return;
+  if (watchingViewport || !isTopFrame) return;
   watchingViewport = true;
   document.addEventListener('click', onUserPick, true);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') onUserPick(event);
   }, true);
-  window.addEventListener('scroll', scheduleMark, { passive: true, capture: true });
-  window.addEventListener('hashchange', scheduleMark);
-  window.addEventListener('popstate', scheduleMark);
+  const onMove = () => {
+    notifyScanning();
+    scheduleEvaluate(false);
+  };
+  window.addEventListener('scroll', onMove, { passive: true, capture: true });
+  window.addEventListener('wheel', onMove, { passive: true, capture: true });
+  window.addEventListener('resize', onMove, { passive: true });
+  window.addEventListener('hashchange', () => scheduleEvaluate(true));
+  window.addEventListener('popstate', () => scheduleEvaluate(true));
 
-  viewportObserver = new IntersectionObserver((entries) => {
-    let best = null;
-    let bestRatio = 0.22;
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      if (entry.intersectionRatio >= bestRatio) {
-        bestRatio = entry.intersectionRatio;
-        best = entry.target;
-      }
-    }
-    if (best) markActiveJob(best);
+  viewportObserver = new IntersectionObserver(() => {
+    notifyScanning();
+    scheduleEvaluate(false);
   }, {
-    threshold: [0.2, 0.4, 0.6, 0.8],
-    rootMargin: '-10% 0px -20% 0px',
+    threshold: [0, 0.15, 0.3, 0.5, 0.7, 0.9],
+    rootMargin: '-8% 0px -12% 0px',
   });
-  observeDetails();
+  observeCandidates();
 
   mutationObserver = new MutationObserver(() => {
-    observeDetails();
-    scheduleMark();
+    observeCandidates();
+    scheduleEvaluate(false);
   });
   mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
-  scheduleMark();
-}
-
-function scrapeCurrentJob() {
-  markBestVisibleJob();
-  if (typeof extractActiveJob === 'function') return extractActiveJob();
-  return null;
+  notifyScanning();
+  scheduleEvaluate(true);
 }
 
 markSovereignHost();
@@ -215,7 +214,13 @@ if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE') {
     try {
+      if (request.type === 'RESCAN_PAGE') lastHash = '';
       const data = scrapeCurrentJob();
+      if (isTopFrame && data?.pageText) {
+        lastHash = data.hash || data.signature || lastHash;
+        lastNotifyAt = Date.now();
+        postRuntime({ type: 'VIEWPORT_FOCUS', data });
+      }
       sendResponse({ success: Boolean(data?.pageText), data });
     } catch (err) {
       sendResponse({ success: false, error: err?.message || String(err) });

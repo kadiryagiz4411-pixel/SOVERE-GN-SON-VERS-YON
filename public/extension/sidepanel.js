@@ -7,6 +7,7 @@ const STORE = {
   CVS: 'sovereign.tailored-cvs.v1',
   SESSION: 'sovereign.session.v1',
   LEADS: 'sovereign.leads.v1',
+  VIEWPORT: 'sovereign.viewport.v1',
 };
 const DEFAULT_SETTINGS = {
   skills: '',
@@ -248,7 +249,11 @@ let lastJob = {
   skills: [],
   budget: '',
   clientHistory: '',
+  kind: 'job',
+  hash: '',
 };
+let lastTargetHash = '';
+let viewportScoreTimer = 0;
 let analyzing = false;
 let generatingCv = false;
 let settings = { ...DEFAULT_SETTINGS };
@@ -738,6 +743,8 @@ function emptyPageData() {
     budget: '',
     clientHistory: '',
     isolated: false,
+    kind: 'job',
+    hash: '',
   };
 }
 
@@ -755,7 +762,127 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     budget: String(raw?.budget || fallback.budget || ''),
     clientHistory: String(raw?.clientHistory || fallback.clientHistory || ''),
     isolated: Boolean(raw?.isolated),
+    kind: raw?.kind || fallback.kind || 'job',
+    hash: String(raw?.hash || raw?.signature || fallback.hash || ''),
   };
+}
+
+function setTargetBadge(state, title, kind) {
+  const el = document.getElementById('targetBadge');
+  const text = document.getElementById('targetBadgeText');
+  if (!el || !text) return;
+  el.classList.toggle('live', state === 'live');
+  el.classList.toggle('scanning', state !== 'live');
+  if (state !== 'live') {
+    text.textContent = '🟡 Scanning Viewport...';
+    return;
+  }
+  const noun = kind === 'cv' ? 'CV' : kind === 'b2b' ? 'Lead' : 'Job';
+  const name = String(title || noun).replace(/\s+/g, ' ').trim().slice(0, 72);
+  text.textContent = `🟢 Active Target Identified: ${name}`;
+}
+
+function applyIsolatedJob(pageData) {
+  lastJob = {
+    title: pageData.jobTitle || pageData.pageTitle || lastJob.title,
+    url: pageData.pageUrl || lastJob.url,
+    description: pageData.jobDescription || pageData.pageText || lastJob.description,
+    skills: pageData.requiredSkills || lastJob.skills,
+    budget: pageData.budget || lastJob.budget,
+    clientHistory: pageData.clientHistory || lastJob.clientHistory,
+    kind: pageData.kind || lastJob.kind || 'job',
+    hash: pageData.hash || lastJob.hash || '',
+  };
+  lastTitle = lastJob.title;
+  lastJobUrl = lastJob.url;
+  const cvJobMeta = document.getElementById('cvJobMeta');
+  if (cvJobMeta) {
+    cvJobMeta.textContent = lastJob.kind === 'cv'
+      ? (lastJob.title ? `Profile on screen: ${lastJob.title}` : 'Profile isolated.')
+      : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
+  }
+  if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
+  if (metaEl) metaEl.textContent = lastJob.url || '';
+}
+
+async function refreshViewportAnalysis(pageData) {
+  if (!assertAccountOpen()) return;
+  applyIsolatedJob(pageData);
+  setTargetBadge('live', lastJob.title, lastJob.kind);
+  if (skillListFromSettings().length < 2) {
+    updateMatchUi({
+      onboardingRequired: true,
+      matchMessage: 'Add at least two skills in Settings so this brief can be scored against your profile.',
+      match_score: 0,
+      acceptanceScore: 0,
+    }, lastJob.title);
+    setBusy(false, lastJob.kind === 'cv'
+      ? 'Profile isolated. Add at least two skills to score it.'
+      : 'Job isolated. Add at least two skills to score it.');
+    return;
+  }
+  setBusy(true, lastJob.kind === 'cv' ? 'Scoring the profile on screen…' : 'Scoring the job on screen…');
+  try {
+    const data = await postParseDom(pageData, { scoreOnly: true });
+    const merged = await enrichWithSmartMatch(pageData, data);
+    updateMatchUi(merged, lastJob.title);
+    if (scoreLabel) scoreLabel.textContent = humanMatchCopy(merged, lastJob.title);
+    const score = Number(merged.match_score ?? merged.matchScore ?? 0);
+    const safe = Math.max(0, Math.min(100, Math.round(score)));
+    if (badge) badge.textContent = String(safe);
+    scoreRing?.style.setProperty('--p', String(safe));
+    card?.classList.add('on');
+    if (modeBadge) {
+      modeBadge.textContent = lastJob.kind === 'cv'
+        ? '⚡ Detected: Candidate Profile'
+        : lastJob.kind === 'b2b'
+          ? '⚡ Detected: B2B Lead'
+          : '⚡ Detected: Job Post';
+    }
+    setBusy(false, lastJob.kind === 'cv'
+      ? 'Profile on screen is scored. Generate a tailored CV when you want a rewrite.'
+      : `Scoring “${String(lastJob.title || 'this job').slice(0, 52)}”. Generate Proposal to rewrite for this brief.`);
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
+      setBusy(false, 'Target updated. Scoring will retry on the next pause.');
+      return;
+    }
+    setBusy(false, publicError(msg));
+  }
+}
+
+function onViewportFocus(raw) {
+  if (!raw?.pageText && !raw?.jobDescription) return;
+  const pageData = normalizePageData(raw);
+  const hash = pageData.hash || '';
+  if (hash && hash === lastTargetHash) {
+    setTargetBadge('live', pageData.jobTitle || lastJob.title, pageData.kind);
+    return;
+  }
+  if (analyzing || generatingCv) {
+    applyIsolatedJob(pageData);
+    setTargetBadge('live', pageData.jobTitle, pageData.kind);
+    lastTargetHash = hash || lastTargetHash;
+    return;
+  }
+  if (hash && lastTargetHash && hash !== lastTargetHash) {
+    lastProposal = '';
+    lastOutreach = '';
+    lastCv = '';
+    if (proposalEl) {
+      proposalEl.textContent = pageData.kind === 'cv'
+        ? 'Profile changed. Generate a tailored CV for this document.'
+        : 'Target changed. Generate Proposal to write for this brief.';
+    }
+  }
+  lastTargetHash = hash;
+  applyIsolatedJob(pageData);
+  setTargetBadge('live', pageData.jobTitle, pageData.kind);
+  clearTimeout(viewportScoreTimer);
+  viewportScoreTimer = setTimeout(() => {
+    void refreshViewportAnalysis(pageData);
+  }, 380);
 }
 
 async function getActiveTabDOM() {
@@ -900,7 +1027,11 @@ async function analyzeActivePage() {
       skills: pageData.requiredSkills || [],
       budget: pageData.budget || '',
       clientHistory: pageData.clientHistory || '',
+      kind: pageData.kind || 'job',
+      hash: pageData.hash || '',
     };
+    lastTargetHash = pageData.hash || lastTargetHash;
+    setTargetBadge('live', lastJob.title, lastJob.kind);
     const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
     if (pageText.length < 20) {
       throw new Error('This tab does not have enough readable text to analyze.');
@@ -930,9 +1061,14 @@ async function rescanActiveScreen() {
   if (analyzing) return;
   if (!assertAccountOpen()) return;
   hideErrorBadge();
-  setBusy(true, 'Re-scanning the job on this screen…');
+  setTargetBadge('scanning');
+  setBusy(true, 'Force re-scanning the viewport…');
   try {
-    const pageData = await getActiveTabDOM();
+    const forced = await chrome.runtime.sendMessage({ type: 'FORCE_VIEWPORT_SCAN' }).catch(() => null);
+    const pageData = forced?.success && forced.data
+      ? normalizePageData(forced.data)
+      : await getActiveTabDOM();
+    lastTargetHash = '';
     lastJob = {
       title: pageData.jobTitle || pageData.pageTitle,
       url: pageData.pageUrl,
@@ -940,7 +1076,11 @@ async function rescanActiveScreen() {
       skills: pageData.requiredSkills || [],
       budget: pageData.budget || '',
       clientHistory: pageData.clientHistory || '',
+      kind: pageData.kind || 'job',
+      hash: pageData.hash || '',
     };
+    lastTargetHash = pageData.hash || lastTargetHash;
+    setTargetBadge('live', lastJob.title, lastJob.kind);
     const cvJobMeta = document.getElementById('cvJobMeta');
     if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
     const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
@@ -1607,12 +1747,32 @@ async function boot() {
     renderCvList(await storageGet(STORE.CVS, []));
     renderTeamLeads(await storageGet(STORE.LEADS, []));
     await resolveWorkspaceAccess();
+    const viewport = await storageGet(STORE.VIEWPORT, null);
+    if (viewport?.jobTitle || viewport?.pageText) {
+      setTargetBadge('live', viewport.jobTitle || viewport.pageTitle, viewport.kind);
+      applyIsolatedJob(normalizePageData(viewport));
+      lastTargetHash = viewport.hash || viewport.signature || '';
+    } else {
+      setTargetBadge('scanning');
+    }
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
   void pingApi();
   void analyzeActivePage();
 }
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request?.type === 'VIEWPORT_SCANNING') {
+    if (!analyzing && !generatingCv) setTargetBadge('scanning');
+    return false;
+  }
+  if (request?.type === 'VIEWPORT_FOCUS' && request.data) {
+    onViewportFocus(request.data);
+    return false;
+  }
+  return false;
+});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
@@ -1622,6 +1782,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
   if (changes[STORE.SESSION]?.newValue) {
     void resolveWorkspaceAccess();
+  }
+  if (changes[STORE.VIEWPORT]?.newValue && !changes[STORE.VIEWPORT].newValue.scanning) {
+    onViewportFocus(changes[STORE.VIEWPORT].newValue);
   }
 });
 
