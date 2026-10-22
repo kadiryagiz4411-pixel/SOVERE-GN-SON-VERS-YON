@@ -1,18 +1,14 @@
 /**
- * POST /api/optimize-proposal
- * Pro/Elite diagnosis cards: acceptance score, why it may fail, outreach, strategy.
+ * Pro/Elite diagnosis cards. Invoked from generate-cv so Hobby stays under 12 functions.
  */
-import { preflight, jsonNoStore, readJsonBody } from './_lib/cors.js';
-import { exposeApi } from './_lib/http.js';
-import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
-import { completeChat, parseJsonObject } from './_lib/complete.js';
-import { sanitizeAiText } from './_lib/sanitize.js';
-import { HUMAN_WRITING_RULES } from './_lib/tone.js';
-import { extractRequiredSkills, scoreOpportunity } from './_lib/matchScore.js';
+import { jsonNoStore } from './cors.js';
+import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
+import { completeChat, parseJsonObject } from './complete.js';
+import { sanitizeAiText } from './sanitize.js';
+import { HUMAN_WRITING_RULES } from './tone.js';
+import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
-export const config = { runtime: 'nodejs', maxDuration: 60 };
-
-type OptimizationType =
+export type OptimizationType =
   | 'company-rewrite'
   | 'acceptance-score'
   | 'tone-optimization'
@@ -20,7 +16,7 @@ type OptimizationType =
   | 'outreach-messages'
   | 'full-strategy';
 
-const VALID: OptimizationType[] = [
+export const OPTIMIZE_TYPES: OptimizationType[] = [
   'company-rewrite',
   'acceptance-score',
   'tone-optimization',
@@ -61,8 +57,8 @@ function fallbackFor(type: OptimizationType, proposal: string, job: string) {
   if (type === 'acceptance-score') {
     return {
       score,
-      strengths: scored.matchedSkills.slice(0, 3).map((s) => `Clear overlap on ${s}`) || ['The note is specific about a first deliverable'],
-      weaknesses: scored.missingSkills.slice(0, 3).map((s) => `The brief also asks for ${s}`) || ['The first week outcome could be sharper'],
+      strengths: scored.matchedSkills.slice(0, 3).map((s) => `Clear overlap on ${s}`),
+      weaknesses: scored.missingSkills.slice(0, 3).map((s) => `The brief also asks for ${s}`),
       suggestions: ['Lead with one result', 'Name the first milestone and when they see it'],
       summary: `Fit sits around ${score}%. Tighten the first-week outcome and drop generic claims.`,
     };
@@ -137,17 +133,13 @@ function fallbackFor(type: OptimizationType, proposal: string, job: string) {
   };
 }
 
-async function handleRequest(req: Request): Promise<Response> {
-  const method = String(req.method || 'GET').toUpperCase();
-  if (method === 'OPTIONS' || req.headers.get('access-control-request-method')) return preflight();
-  if (method === 'GET' || method === 'HEAD') {
-    return jsonNoStore({ ok: true, success: true, service: 'optimize-proposal' });
-  }
-  if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
+export function isOptimizeType(value: unknown): value is OptimizationType {
+  return OPTIMIZE_TYPES.includes(String(value || '').toLowerCase() as OptimizationType);
+}
 
-  const body = await readJsonBody<Record<string, unknown>>(req);
+export async function handleOptimizeProposalPost(body: Record<string, unknown>): Promise<Response> {
   const typeRaw = String(body.optimizationType || body.type || '').toLowerCase();
-  const optimizationType = VALID.includes(typeRaw as OptimizationType) ? typeRaw as OptimizationType : 'acceptance-score';
+  const optimizationType = isOptimizeType(typeRaw) ? typeRaw : 'acceptance-score';
   const proposal = textOf(body.proposal ?? body.proposalHistory, 8000);
   const jobDescription = textOf(body.jobDescription ?? body.jobContext, 8000);
   const fallback = fallbackFor(optimizationType, proposal, jobDescription);
@@ -200,10 +192,3 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 }
-
-const api = exposeApi(handleRequest);
-export const OPTIONS = api.OPTIONS;
-export const GET = api.GET;
-export const HEAD = api.HEAD;
-export const POST = api.POST;
-export default api;

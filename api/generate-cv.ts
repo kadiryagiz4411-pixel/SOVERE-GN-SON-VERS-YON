@@ -9,6 +9,8 @@ import { completeChat } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES } from './_lib/tone.js';
 import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
+import { handleSmartMatchPost } from './_lib/smartMatch.js';
+import { handleOptimizeProposalPost, isOptimizeType } from './_lib/optimizeProposal.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -40,16 +42,22 @@ async function handleRequest(req: Request): Promise<Response> {
     return preflight();
   }
   if (method === 'GET' || method === 'HEAD') {
+    const hint = `${new URL(req.url).pathname} ${req.headers.get('x-invoke-path') || ''} ${req.headers.get('x-matched-path') || ''}`.toLowerCase();
+    const service = hint.includes('optimize-proposal')
+      ? 'optimize-proposal'
+      : hint.includes('smart-match')
+        ? 'smart-match'
+        : 'generate-cv';
     return jsonNoStore({
       ok: true,
       success: true,
       message: 'Sovereign API is LIVE and fully reachable.',
-      service: 'generate-cv',
+      service,
     });
   }
   if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
 
-  const body = await readJsonBody<{
+  const body = await readJsonBody<Record<string, unknown> & {
     mode?: string;
     targetRole?: string;
     targetCompany?: string;
@@ -64,7 +72,17 @@ async function handleRequest(req: Request): Promise<Response> {
     experience?: string;
     hourlyRate?: number;
     customApiKey?: unknown;
+    intent?: string;
+    optimizationType?: string;
   }>(req);
+
+  const intent = String(body.intent || body.action || '').toLowerCase();
+  if (intent === 'optimize-proposal' || isOptimizeType(body.optimizationType || body.type)) {
+    return handleOptimizeProposalPost(body);
+  }
+  if (intent === 'smart-match') {
+    return handleSmartMatchPost(body);
+  }
 
   const apiKey = resolveRequestApiKey(body);
   if (!apiKey) {

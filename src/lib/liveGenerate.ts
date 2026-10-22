@@ -103,7 +103,10 @@ export function postLiveProposal(body: Record<string, unknown>) {
 }
 
 export function postLiveSmartMatch(body: Record<string, unknown>) {
-  return postLiveJson<Record<string, unknown>>('/api/smart-match', body);
+  return postLiveJson<Record<string, unknown>>('/api/smart-match', {
+    ...body,
+    intent: 'smart-match',
+  });
 }
 
 export function postLiveOptimizeProposal(body: Record<string, unknown>) {
@@ -113,7 +116,10 @@ export function postLiveOptimizeProposal(body: Record<string, unknown>) {
     error?: string;
     message?: string;
     fallback?: boolean;
-  }>('/api/optimize-proposal', body);
+  }>('/api/optimize-proposal', {
+    ...body,
+    intent: 'optimize-proposal',
+  });
 }
 
 export function postLiveFollowup(body: Record<string, unknown>) {

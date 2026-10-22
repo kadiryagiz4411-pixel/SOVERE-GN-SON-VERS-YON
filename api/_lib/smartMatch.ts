@@ -1,16 +1,12 @@
 /**
- * POST /api/smart-match
- * Job match analysis for Run Smart Match. Incomplete payloads never 500.
+ * Smart Match analysis. Invoked from generate-cv so Hobby stays under 12 functions.
  */
-import { preflight, jsonNoStore, readJsonBody } from './_lib/cors.js';
-import { exposeApi } from './_lib/http.js';
-import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
-import { completeChat, parseJsonObject } from './_lib/complete.js';
-import { sanitizeAiText } from './_lib/sanitize.js';
-import { HUMAN_WRITING_RULES } from './_lib/tone.js';
-import { extractRequiredSkills, scoreOpportunity } from './_lib/matchScore.js';
-
-export const config = { runtime: 'nodejs', maxDuration: 45 };
+import { jsonNoStore } from './cors.js';
+import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
+import { completeChat, parseJsonObject } from './complete.js';
+import { sanitizeAiText } from './sanitize.js';
+import { HUMAN_WRITING_RULES } from './tone.js';
+import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
 function textOf(value: unknown, max = 8000): string {
   if (typeof value === 'string') return value.trim().slice(0, max);
@@ -143,15 +139,7 @@ function normalize(raw: Record<string, unknown>, fallback: ReturnType<typeof fal
   };
 }
 
-async function handleRequest(req: Request): Promise<Response> {
-  const method = String(req.method || 'GET').toUpperCase();
-  if (method === 'OPTIONS' || req.headers.get('access-control-request-method')) return preflight();
-  if (method === 'GET' || method === 'HEAD') {
-    return jsonNoStore({ ok: true, success: true, service: 'smart-match' });
-  }
-  if (method !== 'POST') return jsonNoStore({ error: 'Method not allowed' }, 405);
-
-  const body = await readJsonBody<Record<string, unknown>>(req);
+export async function handleSmartMatchPost(body: Record<string, unknown>): Promise<Response> {
   const jobDescription = textOf(body.jobDescription ?? body.jobContext ?? body.job, 8000);
   const outputLanguage = textOf(body.outputLanguage ?? body.language, 12) || 'en';
   const skills = asList(body.skills, 16);
@@ -184,10 +172,3 @@ Write user-facing text in ${lang}. No markdown.`,
     return jsonNoStore({ success: true, fallback: true, message: AI_BUSY_MESSAGE, ...fallback });
   }
 }
-
-const api = exposeApi(handleRequest);
-export const OPTIONS = api.OPTIONS;
-export const GET = api.GET;
-export const HEAD = api.HEAD;
-export const POST = api.POST;
-export default api;

@@ -1,6 +1,8 @@
 {
   "trailingSlash": false,
   "rewrites": [
+    { "source": "/api/smart-match", "destination": "/api/generate-cv" },
+    { "source": "/api/optimize-proposal", "destination": "/api/generate-cv" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
