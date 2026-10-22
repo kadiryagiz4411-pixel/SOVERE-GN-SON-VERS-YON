@@ -16,8 +16,28 @@ const SOVEREIGN_FEED_WRAPPERS = [
   'ul.jobs-search__results-list',
 ];
 
+const SOVEREIGN_DRAWER_SELECTORS = [
+  '[aria-modal="true"]',
+  'dialog[open]',
+  'dialog',
+  '[role="dialog"]',
+  '.air3-slider',
+  '.up-slider',
+  '.air3-fullscreen-element',
+  '[data-test="JobDetails"]',
+  '[data-test="job-details"]',
+  '.jobs-search__job-details',
+  '.jobs-search__job-details-container',
+  '.jobs-search__job-details--container',
+  '.jobsearch-RightPane',
+  '.jobsearch-JobComponent',
+  '.job-view-layout',
+  '.jobs-details',
+  '.PageProjectViewLogout-detail',
+  '.PageProjectView-detail',
+];
+
 const SOVEREIGN_DETAIL_SELECTORS = [
-  '[data-sovereign-active-job="1"]',
   '[data-test="JobDetails"]',
   '[data-test="job-details"]',
   '[data-ev-sublocation="job_details"]',
@@ -127,6 +147,13 @@ function sovereignClosestAny(el, selectors) {
   return null;
 }
 
+function sovereignInViewport(el) {
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || 800;
+  const vw = window.innerWidth || 1200;
+  return r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+}
+
 function sovereignCenterScore(el) {
   const r = el.getBoundingClientRect();
   const vh = window.innerHeight || 800;
@@ -137,29 +164,21 @@ function sovereignCenterScore(el) {
   const visArea = visH * visW;
   const fullArea = Math.max(r.width * r.height, 1);
   const ratio = Math.max(0, Math.min(1, visArea / fullArea));
-  const cx = (r.left + r.right) / 2;
   const cy = (r.top + r.bottom) / 2;
+  const cx = (r.left + r.right) / 2;
   const distY = Math.abs(cy - vh / 2);
   const distX = Math.abs(cx - vw / 2);
-  const marked = el.matches?.('[data-sovereign-active-job="1"]');
-  const selected = el.matches?.(
-    '[aria-current="true"], [aria-current="page"], [aria-selected="true"]',
-  ) || el.closest?.(
-    '.jobs-search-results-list__list-item--active, .scaffold-layout__list-item--active, .vjs-highlight',
-  );
-  const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider');
-  const detail = sovereignMatchesAny(el, SOVEREIGN_DETAIL_SELECTORS)
-    || sovereignClosestAny(el, SOVEREIGN_DETAIL_SELECTORS) === el;
-  const rightPane = r.left > vw * 0.28 && visH > 160 ? 22000 : 0;
-  return visArea * (0.4 + 0.6 * ratio)
-    - distY * 52
-    - distX * 10
-    + (marked ? 70000 : 0)
-    + (selected ? 48000 : 0)
-    + (dialog ? 110000 : 0)
-    + (detail ? 36000 : 0)
-    + rightPane
-    + Math.min(visH, 900) * 8;
+  const dialog = el.closest?.('dialog, [role="dialog"], [aria-modal="true"], .air3-slider, .up-slider, .air3-fullscreen-element');
+  const drawer = sovereignMatchesAny(el, SOVEREIGN_DRAWER_SELECTORS)
+    || Boolean(sovereignClosestAny(el, SOVEREIGN_DRAWER_SELECTORS));
+  const rightPane = r.left > vw * 0.32 && visH > 140 && visW > 240;
+  return visArea * (0.35 + 0.65 * ratio)
+    - distY * 64
+    - distX * 12
+    + (dialog ? 160000 : 0)
+    + (drawer ? 90000 : 0)
+    + (rightPane ? 28000 : 0)
+    + Math.min(visH, 900) * 6;
 }
 
 function sovereignIsLayoutShell(el) {
@@ -195,25 +214,25 @@ function sovereignCollect(selectors, root) {
   return out;
 }
 
-function pickViewportFocusElement() {
-  const marked = document.querySelector('[data-sovereign-active-job="1"]');
-  const pool = sovereignCollect(
-    SOVEREIGN_DETAIL_SELECTORS
-      .concat(SOVEREIGN_CARD_SELECTORS)
-      .concat(SOVEREIGN_CV_SELECTORS)
-      .concat([
-        '[aria-current="true"]',
-        '[aria-selected="true"]',
-        '.vjs-highlight',
-        'dialog',
-        '[role="dialog"]',
-      ]),
-  );
-  if (marked) pool.push(marked);
+function clearSovereignMarks() {
+  document.querySelectorAll('[data-sovereign-active-job]').forEach((el) => {
+    el.removeAttribute('data-sovereign-active-job');
+  });
+}
+
+function getOpenDetailPane() {
+  const panes = sovereignCollect(SOVEREIGN_DRAWER_SELECTORS).filter((el) => {
+    if (!sovereignVisible(el) || !sovereignInViewport(el)) return false;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || 800;
+    const visH = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    const visW = Math.min(r.right, window.innerWidth || 1200) - Math.max(r.left, 0);
+    return visH >= 140 && visW >= 220 && visH * visW >= 36000;
+  });
+  if (!panes.length) return null;
   let best = null;
   let bestScore = -1;
-  for (const el of pool) {
-    if (!sovereignVisible(el) || sovereignIsLayoutShell(el)) continue;
+  for (const el of panes) {
     const score = sovereignCenterScore(el);
     if (score > bestScore) {
       bestScore = score;
@@ -223,7 +242,37 @@ function pickViewportFocusElement() {
   return best;
 }
 
-function extractActiveJob() {
+function getMostVisibleElement(options) {
+  const force = Boolean(options && options.force);
+  const drawer = getOpenDetailPane();
+  if (drawer) return drawer;
+
+  const pool = sovereignCollect(
+    SOVEREIGN_DETAIL_SELECTORS
+      .concat(SOVEREIGN_CARD_SELECTORS)
+      .concat(SOVEREIGN_CV_SELECTORS)
+      .concat(['[data-job-id]', '[data-jk]', 'article']),
+  );
+  let best = null;
+  let bestScore = -1;
+  for (const el of pool) {
+    if (!sovereignVisible(el) || !sovereignInViewport(el)) continue;
+    if (!force && sovereignIsLayoutShell(el)) continue;
+    const score = sovereignCenterScore(el);
+    if (score > bestScore) {
+      bestScore = score;
+      best = el;
+    }
+  }
+  return best;
+}
+
+function pickViewportFocusElement() {
+  return getMostVisibleElement();
+}
+
+function extractActiveJob(options) {
+  const force = Boolean(options && (options.force || options.bypassFilters));
   const MAX_TEXT = 12_000;
   const MAX_FIELD = 2_000;
 
@@ -382,17 +431,13 @@ function extractActiveJob() {
     return textOf(el, 500);
   };
 
-  let focus = pickViewportFocusElement();
-  if (focus && sovereignIsLayoutShell(focus)) focus = null;
-
-  let detail = pickBest(SOVEREIGN_DETAIL_SELECTORS);
-  if (detail && sovereignClosestAny(detail, SOVEREIGN_FEED_WRAPPERS) && !detail.closest('[data-sovereign-active-job="1"]')) {
-    detail = null;
-  }
-
-  const card = pickBest(SOVEREIGN_CARD_SELECTORS.concat(SOVEREIGN_CV_SELECTORS));
-  const root = focus || detail || card || pickBest(DESC_SELECTORS)
-    || document.querySelector('main, [role="main"]') || document.body;
+  clearSovereignMarks();
+  const focus = getMostVisibleElement({ force });
+  const root = focus
+    || getOpenDetailPane()
+    || document.querySelector('main, [role="main"]')
+    || document.body;
+  if (root instanceof Element) root.setAttribute('data-sovereign-active-job', '1');
 
   const titleEl = pickBest(TITLE_SELECTORS, root);
   const descEl = pickBest(DESC_SELECTORS, root);
@@ -402,7 +447,8 @@ function extractActiveJob() {
     180,
   );
   if (!jobTitle || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
-    jobTitle = cleanText(textOf(pickBest(TITLE_SELECTORS, root), 180) || document.title, 180);
+    const firstLine = cleanText((textOf(root, 180).split('\n').find((line) => line.trim().length > 8) || ''), 180);
+    jobTitle = firstLine || cleanText(document.title, 180);
   }
 
   let jobDescription = textOf(descEl || root, MAX_TEXT);
@@ -410,15 +456,7 @@ function extractActiveJob() {
     jobDescription = textOf(root, MAX_TEXT);
   }
 
-  if (!jobDescription || looksLikeFeed(jobDescription)) {
-    const pane = pickBest(SOVEREIGN_DETAIL_SELECTORS) || root;
-    const paneText = textOf(pane, MAX_TEXT);
-    if (paneText && !looksLikeFeed(paneText) && paneText.length >= 80) {
-      jobDescription = paneText;
-    }
-  }
-
-  const isolated = Boolean(focus || detail || descEl) && !looksLikeFeed(jobDescription);
+  const isolated = Boolean(focus || descEl) && (force || !looksLikeFeed(jobDescription));
   const requiredSkills = skillsFrom(root);
   const budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
   const clientHistory = clientFrom(root);

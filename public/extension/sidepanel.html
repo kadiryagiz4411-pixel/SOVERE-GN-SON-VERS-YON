@@ -431,14 +431,16 @@
       }
       .mode-slider button.on { color: var(--gold-2); }
       .rescan {
-        font-size: 9px;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        padding: 5px 8px;
-        background: transparent;
-        color: var(--gold-2);
-        border: 1px solid var(--line);
+        font-size: 11px;
+        letter-spacing: .04em;
+        text-transform: none;
+        font-weight: 800;
+        padding: 8px 10px;
+        background: linear-gradient(90deg, var(--gold), #b8860b);
+        color: #111;
+        border: 1px solid rgba(212, 175, 55, 0.45);
         white-space: nowrap;
+        box-shadow: 0 0 14px rgba(212, 175, 55, 0.28);
       }
       .target-badge {
         display: flex;
@@ -555,7 +557,7 @@
             <button type="button" data-mode="b2b">🏢 B2B Agency</button>
           </div>
         </div>
-        <button id="rescan" class="rescan" type="button">Force Re-Scan Viewport</button>
+        <button id="rescan" class="rescan" type="button">🔍 Scan Active Screen</button>
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>

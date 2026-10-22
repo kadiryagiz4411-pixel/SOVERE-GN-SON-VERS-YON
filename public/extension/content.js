@@ -1,24 +1,21 @@
 /**
- * Live viewport observer: isolates the single job or CV nearest the
- * center of the screen, then tells the side panel when that target changes.
+ * Live viewport observer. Never reuses a previous job node or scraped
+ * text. Every scroll/click/tab-switch re-queries the screen-center DOM.
  * Auto-Fill never submits the form.
  */
 
-const ACTIVE_JOB_ATTR = 'data-sovereign-active-job';
 const isTopFrame = window === window.top;
 
-let markTimer = 0;
+let evaluateTimer = 0;
 let scanTimer = 0;
 let viewportObserver = null;
 let mutationObserver = null;
 let watchingViewport = false;
-let lastHash = '';
-let lastNotifyAt = 0;
-let publishing = false;
+let lastPublishedHash = '';
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.5';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.6';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {
@@ -57,30 +54,28 @@ function captureSovereignSession() {
   }
 }
 
-function markActiveJob(el) {
-  if (!el || !(el instanceof Element)) return;
-  document.querySelectorAll(`[${ACTIVE_JOB_ATTR}="1"]`).forEach((node) => {
-    if (node !== el) node.removeAttribute(ACTIVE_JOB_ATTR);
-  });
-  el.setAttribute(ACTIVE_JOB_ATTR, '1');
-}
-
 function candidateSelectors() {
+  const drawers = typeof SOVEREIGN_DRAWER_SELECTORS !== 'undefined' ? SOVEREIGN_DRAWER_SELECTORS : [];
   const details = typeof SOVEREIGN_DETAIL_SELECTORS !== 'undefined' ? SOVEREIGN_DETAIL_SELECTORS : [];
   const cards = typeof SOVEREIGN_CARD_SELECTORS !== 'undefined' ? SOVEREIGN_CARD_SELECTORS : [];
   const cvs = typeof SOVEREIGN_CV_SELECTORS !== 'undefined' ? SOVEREIGN_CV_SELECTORS : [];
-  return details.concat(cards).concat(cvs);
+  return drawers.concat(details).concat(cards).concat(cvs).concat([
+    '[data-job-id]',
+    '[data-jk]',
+    'a[href*="/jobs/"]',
+    'a[href*="/job/"]',
+  ]);
 }
 
-function pickFocusedElement() {
-  if (typeof pickViewportFocusElement === 'function') return pickViewportFocusElement();
-  return document.querySelector(`[${ACTIVE_JOB_ATTR}="1"]`);
+function invalidateViewportState() {
+  if (typeof clearSovereignMarks === 'function') clearSovereignMarks();
 }
 
-function scrapeCurrentJob() {
-  const focus = pickFocusedElement();
-  if (focus) markActiveJob(focus);
-  if (typeof extractActiveJob === 'function') return extractActiveJob();
+function scrapeFresh(force) {
+  invalidateViewportState();
+  if (typeof extractActiveJob === 'function') {
+    return extractActiveJob({ force: Boolean(force), bypassFilters: Boolean(force) });
+  }
   return null;
 }
 
@@ -99,58 +94,47 @@ function notifyScanning() {
   clearTimeout(scanTimer);
   scanTimer = setTimeout(() => {
     postRuntime({ type: 'VIEWPORT_SCANNING', at: Date.now() });
-  }, 80);
+  }, 60);
 }
 
-function publishFocus(force) {
-  if (!isTopFrame || publishing) return;
-  publishing = true;
-  try {
-    const data = scrapeCurrentJob();
-    if (!data?.pageText) return;
-    const hash = data.hash || data.signature
-      || (typeof hashScrapedText === 'function' ? hashScrapedText(data.pageText) : '');
-    const now = Date.now();
-    if (!force && hash && hash === lastHash && now - lastNotifyAt < 12000) return;
-    lastHash = hash;
-    lastNotifyAt = now;
-    postRuntime({
-      type: 'VIEWPORT_FOCUS',
-      data: {
-        ...data,
-        hash,
-        kind: data.kind || (typeof detectIsolatedKind === 'function'
-          ? detectIsolatedKind(data.pageUrl, data.jobTitle, data.pageText)
-          : 'job'),
-      },
-    });
-  } catch {
-    // Isolation can fail on transient DOM swaps.
-  } finally {
-    publishing = false;
-  }
+function publishTarget(data, force) {
+  if (!isTopFrame || !data?.pageText) return;
+  const hash = data.hash || data.signature
+    || (typeof hashScrapedText === 'function' ? hashScrapedText(data.pageText) : `${Date.now()}`);
+  if (!force && hash && hash === lastPublishedHash) return;
+  lastPublishedHash = hash;
+  const payload = {
+    ...data,
+    hash,
+    kind: data.kind || (typeof detectIsolatedKind === 'function'
+      ? detectIsolatedKind(data.pageUrl, data.jobTitle, data.pageText)
+      : 'job'),
+    scannedAt: Date.now(),
+  };
+  postRuntime({ type: 'JOB_TARGET_CHANGED', data: payload });
+  postRuntime({ type: 'VIEWPORT_FOCUS', data: payload });
 }
 
 function evaluateViewport(force) {
-  const focus = pickFocusedElement();
-  if (focus) markActiveJob(focus);
-  publishFocus(Boolean(force));
+  const data = scrapeFresh(force);
+  publishTarget(data, force);
 }
 
-function scheduleEvaluate(force) {
-  clearTimeout(markTimer);
-  markTimer = setTimeout(() => evaluateViewport(force), force ? 40 : 140);
+function scheduleEvaluate(delay, force) {
+  clearTimeout(evaluateTimer);
+  evaluateTimer = setTimeout(() => evaluateViewport(Boolean(force)), delay);
 }
 
-function onUserPick(event) {
+function onJobInteraction(event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const selectors = candidateSelectors();
-  const card = selectors.length ? target.closest(selectors.join(',')) : null;
-  if (card) {
-    markActiveJob(card);
-    scheduleEvaluate(true);
-  }
+  const card = selectors.length ? target.closest(selectors.join(',')) : target.closest('a, article, li, section');
+  if (!card) return;
+  invalidateViewportState();
+  notifyScanning();
+  scheduleEvaluate(150, true);
+  setTimeout(() => evaluateViewport(true), 400);
 }
 
 function observeCandidates() {
@@ -167,36 +151,50 @@ function observeCandidates() {
 function startViewportWatch() {
   if (watchingViewport || !isTopFrame) return;
   watchingViewport = true;
-  document.addEventListener('click', onUserPick, true);
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') onUserPick(event);
-  }, true);
+  document.addEventListener('click', onJobInteraction, true);
+  document.addEventListener('keyup', onJobInteraction, true);
   const onMove = () => {
+    invalidateViewportState();
     notifyScanning();
-    scheduleEvaluate(false);
+    scheduleEvaluate(150, false);
   };
   window.addEventListener('scroll', onMove, { passive: true, capture: true });
   window.addEventListener('wheel', onMove, { passive: true, capture: true });
   window.addEventListener('resize', onMove, { passive: true });
-  window.addEventListener('hashchange', () => scheduleEvaluate(true));
-  window.addEventListener('popstate', () => scheduleEvaluate(true));
+  window.addEventListener('hashchange', () => {
+    invalidateViewportState();
+    scheduleEvaluate(150, true);
+  });
+  window.addEventListener('popstate', () => {
+    invalidateViewportState();
+    scheduleEvaluate(150, true);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    invalidateViewportState();
+    scheduleEvaluate(150, true);
+  });
+  window.addEventListener('pageshow', () => {
+    invalidateViewportState();
+    scheduleEvaluate(150, true);
+  });
 
   viewportObserver = new IntersectionObserver(() => {
     notifyScanning();
-    scheduleEvaluate(false);
+    scheduleEvaluate(150, false);
   }, {
-    threshold: [0, 0.15, 0.3, 0.5, 0.7, 0.9],
-    rootMargin: '-8% 0px -12% 0px',
+    threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
+    rootMargin: '-6% 0px -10% 0px',
   });
   observeCandidates();
 
   mutationObserver = new MutationObserver(() => {
     observeCandidates();
-    scheduleEvaluate(false);
+    scheduleEvaluate(160, false);
   });
   mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
   notifyScanning();
-  scheduleEvaluate(true);
+  scheduleEvaluate(150, true);
 }
 
 markSovereignHost();
@@ -212,15 +210,11 @@ if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
 }
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE') {
+  if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE' || request?.type === 'SCAN_ACTIVE_SCREEN') {
     try {
-      if (request.type === 'RESCAN_PAGE') lastHash = '';
-      const data = scrapeCurrentJob();
-      if (isTopFrame && data?.pageText) {
-        lastHash = data.hash || data.signature || lastHash;
-        lastNotifyAt = Date.now();
-        postRuntime({ type: 'VIEWPORT_FOCUS', data });
-      }
+      const force = request.type !== 'SCRAPE_PAGE';
+      const data = scrapeFresh(force);
+      publishTarget(data, true);
       sendResponse({ success: Boolean(data?.pageText), data });
     } catch (err) {
       sendResponse({ success: false, error: err?.message || String(err) });

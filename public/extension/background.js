@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
-  if (request.type === 'VIEWPORT_FOCUS' && request.data) {
+  if ((request.type === 'VIEWPORT_FOCUS' || request.type === 'JOB_TARGET_CHANGED') && request.data) {
     persistViewportTarget(request.data, false);
     return false;
   }
@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return false;
   }
 
-  if (request.type === 'FORCE_VIEWPORT_SCAN') {
+  if (request.type === 'FORCE_VIEWPORT_SCAN' || request.type === 'SCAN_ACTIVE_SCREEN') {
     forceViewportScan()
       .then((data) => sendResponse({ success: true, data }))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
@@ -156,7 +156,7 @@ function persistViewportTarget(data, scanning) {
 }
 
 async function forceViewportScan() {
-  const data = await scrapeActiveTab('RESCAN_PAGE');
+  const data = await scrapeActiveTab('SCAN_ACTIVE_SCREEN');
   persistViewportTarget(data, false);
   return data;
 }

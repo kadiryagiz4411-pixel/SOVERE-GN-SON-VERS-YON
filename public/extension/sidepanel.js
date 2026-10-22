@@ -856,7 +856,7 @@ function onViewportFocus(raw) {
   if (!raw?.pageText && !raw?.jobDescription) return;
   const pageData = normalizePageData(raw);
   const hash = pageData.hash || '';
-  if (hash && hash === lastTargetHash) {
+  if (hash && hash === lastTargetHash && (pageData.jobTitle || '') === (lastJob.title || '')) {
     setTargetBadge('live', pageData.jobTitle || lastJob.title, pageData.kind);
     return;
   }
@@ -1062,9 +1062,10 @@ async function rescanActiveScreen() {
   if (!assertAccountOpen()) return;
   hideErrorBadge();
   setTargetBadge('scanning');
-  setBusy(true, 'Force re-scanning the viewport…');
+  setBusy(true, 'Scanning the active screen…');
   try {
-    const forced = await chrome.runtime.sendMessage({ type: 'FORCE_VIEWPORT_SCAN' }).catch(() => null);
+    lastTargetHash = '';
+    const forced = await chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null);
     const pageData = forced?.success && forced.data
       ? normalizePageData(forced.data)
       : await getActiveTabDOM();
@@ -1767,7 +1768,7 @@ chrome.runtime.onMessage.addListener((request) => {
     if (!analyzing && !generatingCv) setTargetBadge('scanning');
     return false;
   }
-  if (request?.type === 'VIEWPORT_FOCUS' && request.data) {
+  if ((request?.type === 'VIEWPORT_FOCUS' || request?.type === 'JOB_TARGET_CHANGED') && request.data) {
     onViewportFocus(request.data);
     return false;
   }
