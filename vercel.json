@@ -9,7 +9,7 @@
     },
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "(?<host>.+)\\.vercel\\.app" }],
+      "missing": [{ "type": "host", "value": "sovereignapp.pro" }],
       "destination": "https://sovereignapp.pro/:path*",
       "permanent": true
     }
