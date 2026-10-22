@@ -1,4 +1,4 @@
-const CANONICAL_API = 'https://www.sovereignapp.pro';
+const CANONICAL_API = 'https://sovereignapp.pro';
 const PARSE_DOM_URL = `${CANONICAL_API}/api/extension/parse-dom`;
 const STORE = {
   SETTINGS: 'sovereign.settings.v1',
@@ -81,21 +81,21 @@ function showPaywall(kind) {
     if (body) body.textContent = APPSUMO_ZERO_MESSAGE;
     if (cta) {
       cta.textContent = 'Upgrade AppSumo Tier';
-      cta.href = 'https://www.sovereignapp.pro/pricing#appsumo';
+      cta.href = 'https://sovereignapp.pro/pricing#appsumo';
     }
   } else if (kind === 'renew') {
     if (title) title.textContent = 'Renew your subscription';
     if (body) body.textContent = 'Your plan has expired or payment did not go through. Renew to restore CV, proposal, and extension access.';
     if (cta) {
       cta.textContent = 'Renew Subscription';
-      cta.href = 'https://www.sovereignapp.pro/pricing';
+      cta.href = 'https://sovereignapp.pro/pricing';
     }
   } else {
     if (title) title.textContent = 'Upgrade your account';
     if (body) body.textContent = 'Your monthly credits are used up. Upgrade to keep generating CVs, proposals, and scrapes.';
     if (cta) {
       cta.textContent = 'Upgrade Account';
-      cta.href = 'https://www.sovereignapp.pro/pricing';
+      cta.href = 'https://sovereignapp.pro/pricing';
     }
   }
   document.getElementById('paywall')?.classList.add('on');

@@ -61,9 +61,9 @@ function unwrapMarkdownUrl(raw: string): string {
 
 export function getSupportUrl(): string {
   const support = unwrapMarkdownUrl(
-    firstEnv('VITE_SUPPORT_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL') || 'https://www.sovereignapp.pro/pricing',
+    firstEnv('VITE_SUPPORT_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL') || 'https://sovereignapp.pro/pricing',
   );
-  return isHttpUrl(support) ? support : 'https://www.sovereignapp.pro/pricing';
+  return isHttpUrl(support) ? support : 'https://sovereignapp.pro/pricing';
 }
 
 export function getLemonStoreUrl(): string {

@@ -1,5 +1,19 @@
 {
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.sovereignapp.pro" }],
+      "destination": "https://sovereignapp.pro/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "(?<host>.+)\\.vercel\\.app" }],
+      "destination": "https://sovereignapp.pro/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/api/smart-match", "destination": "/api/generate-cv" },
     { "source": "/api/optimize-proposal", "destination": "/api/generate-cv" },

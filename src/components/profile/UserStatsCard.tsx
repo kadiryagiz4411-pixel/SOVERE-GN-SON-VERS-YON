@@ -122,8 +122,8 @@ export const UserStatsCard = ({ userId, fullName, plan, avatarUrl, skills }: Use
 
   const handleShare = async () => {
     const shareText = language === 'tr'
-      ? `🚀 ${fullName || 'User'} Sovereign'da ${levelLabel} seviyesinde!\n📝 ${stats.totalProposals} teklif\n✅ ${stats.acceptedProposals} kabul\n🏅 ${earnedBadges.length} rozet\n📅 ${stats.memberSinceMonths} aydır üye\n\nhttps://www.sovereignapp.pro`
-      : `🚀 ${fullName || 'User'} is a ${levelLabel} on Sovereign!\n📝 ${stats.totalProposals} proposals\n✅ ${stats.acceptedProposals} accepted\n🏅 ${earnedBadges.length} badges\n📅 Member for ${stats.memberSinceMonths} months\n\nhttps://www.sovereignapp.pro`;
+      ? `🚀 ${fullName || 'User'} Sovereign'da ${levelLabel} seviyesinde!\n📝 ${stats.totalProposals} teklif\n✅ ${stats.acceptedProposals} kabul\n🏅 ${earnedBadges.length} rozet\n📅 ${stats.memberSinceMonths} aydır üye\n\nhttps://sovereignapp.pro`
+      : `🚀 ${fullName || 'User'} is a ${levelLabel} on Sovereign!\n📝 ${stats.totalProposals} proposals\n✅ ${stats.acceptedProposals} accepted\n🏅 ${earnedBadges.length} badges\n📅 Member for ${stats.memberSinceMonths} months\n\nhttps://sovereignapp.pro`;
 
     if (navigator.share) {
       try { await navigator.share({ text: shareText }); return; } catch { /* fallback */ }

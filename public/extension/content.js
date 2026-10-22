@@ -5,7 +5,7 @@
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.2';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.3';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {

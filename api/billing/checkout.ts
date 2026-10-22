@@ -14,7 +14,7 @@ const LS_API = 'https://api.lemonsqueezy.com/v1/checkouts';
 function originFrom(req: Request): string {
   const url = new URL(req.url);
   let host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || url.host).split(',')[0].trim();
-  if (host === 'sovereignapp.pro') host = 'www.sovereignapp.pro';
+  if (host === 'www.sovereignapp.pro') host = 'sovereignapp.pro';
   return `https://${host}`;
 }
 
