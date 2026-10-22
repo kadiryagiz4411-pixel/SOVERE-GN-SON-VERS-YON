@@ -300,6 +300,7 @@ export async function runFullPipeline(input: AISynthesisInput): Promise<{
 // ─── Sovereign Core-Generation Wrapper ───────────────────────────────────────
 
 import { invokeEdgeJson, invokeCvFunction, EDGE_FUNCTIONS } from '@/lib/edgeFunctions';
+import { postLiveCv, postLiveProposal, readGeneratedText } from '@/lib/liveGenerate';
 
 const FALLBACK_CONTENT =
   'Service is currently experiencing high load. Please try again in a few moments.';
@@ -361,12 +362,20 @@ export interface CVFallbackInput {
  * Returns null when no API key is available.
  */
 export async function generateCVFallback(input: CVFallbackInput): Promise<string | null> {
+  const live = await postLiveCv({
+    mode: input.mode,
+    existingCvText: input.existingCvText,
+    targetRole: input.targetRole,
+    targetCompany: input.targetCompany,
+    jobDescription: input.jobDescription,
+    outputLanguage: input.outputLanguage,
+    formData: input.formData,
+  });
+  const liveCv = readGeneratedText(live.data, ['cv', 'proposal', 'proposalText']);
+  if (live.ok && liveCv) return liveCv;
+
   const key = getActiveApiKey();
   if (!key) {
-    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", {
-      id: 'sovereign-no-api-key',
-      duration: 8000,
-    });
     return null;
   }
 
@@ -538,12 +547,16 @@ export async function generateProposalFallback(
   } | null,
   profession?: string,
 ): Promise<string | null> {
+  const live = await postLiveProposal({
+    jobDescription,
+    userProfile: profile || undefined,
+    customProfession: profession,
+  });
+  const liveText = readGeneratedText(live.data, ['proposal', 'proposalText', 'text']);
+  if (live.ok && liveText) return liveText;
+
   const key = getActiveApiKey();
   if (!key) {
-    toast.error("AI Servisi Yanıt Vermedi - Lütfen API Anahtarınızı ve Kotanızı Kontrol Edin", {
-      id: 'sovereign-no-api-key',
-      duration: 8000,
-    });
     return null;
   }
 
@@ -646,14 +659,21 @@ export async function generateSovereignContent(
       return { success: true, fallback: false, data: result.data };
     }
 
-    // type === 'proposal' — try edge function first
+    // type === 'proposal' — live Vercel /api/proposal first, then edge
     const { userId: _u, prompt, type: _t, ...rest } = payload;
+    const live = await postLiveProposal({ jobDescription: prompt, ...rest });
+    const liveText = readGeneratedText(live.data, ['proposal', 'proposalText', 'text']);
+    if (live.ok && liveText) {
+      return { success: true, fallback: false, data: { proposal: liveText } };
+    }
+
     const result = await invokeEdgeJson<{ proposal?: string; error?: string }>(
       EDGE_FUNCTIONS.proposal,
       { jobDescription: prompt, ...rest },
     );
-    if (!result.error && result.data) {
-      return { success: true, fallback: false, data: result.data };
+    const edgeText = readGeneratedText(result.data, ['proposal', 'proposalText', 'text']);
+    if (!result.error && edgeText) {
+      return { success: true, fallback: false, data: { ...(result.data as object), proposal: edgeText } };
     }
 
     // Edge function failed — try client-side OpenAI fallback

@@ -35,6 +35,13 @@ export function getOpenAIApiKey(): string {
   return '';
 }
 
+/** Prefer a valid BYOK `customApiKey` from the request, then the server env. */
+export function resolveRequestApiKey(body?: { customApiKey?: unknown } | null): string {
+  const custom = cleanKey(body?.customApiKey);
+  if (custom && custom !== OPENAI_DUMMY_KEY && custom.length > 10) return custom;
+  return getOpenAIApiKey();
+}
+
 export function isOpenAIApiKeyConfigured(key = getOpenAIApiKey()): boolean {
   return Boolean(key) && key !== OPENAI_DUMMY_KEY && key.length > 10;
 }

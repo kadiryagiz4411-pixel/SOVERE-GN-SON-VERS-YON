@@ -11,6 +11,7 @@ import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine
 import type { RankedCandidate } from '@/lib/schemas/candidate';
 import type { RankedJob, JobPosting } from '@/lib/schemas/job';
 import type { SkillProfile } from '@/lib/ai/proposalEngine';
+import { postLiveProposal, readGeneratedText } from '@/lib/liveGenerate';
 
 const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
 
@@ -88,6 +89,19 @@ export async function generateAutoFillPayload(
   memory?: SovereignMemory | null,
 ): Promise<{ proposal: string; payload: string }> {
   const ranked = job as RankedJob;
+  const live = await postLiveProposal({
+    jobDescription: [job.title, job.painPoint, job.summary].filter(Boolean).join('\n'),
+    userProfile: {
+      skills: profile.skills,
+      experience: profile.experience || profile.bio,
+    },
+  });
+  const liveText = readGeneratedText(live.data, ['proposal', 'proposalText', 'text']);
+  if (live.ok && liveText) {
+    const proposal = sanitizeAiText(liveText);
+    return { proposal, payload: proposal };
+  }
+
   const raw = await chat(
     `You are a freelancer writing a 3-sentence technical proposal.
 Sentence 1: name the client's main pain.

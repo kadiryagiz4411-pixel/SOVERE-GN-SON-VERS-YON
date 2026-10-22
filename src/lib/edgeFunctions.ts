@@ -1,5 +1,6 @@
 import { supabase, getSupabaseUrl, getSupabaseAnonKey } from '@/integrations/supabase/client';
 import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
+import { postLiveCv, readGeneratedText } from '@/lib/liveGenerate';
 
 /**
  * Dashboard display name is "Sovereign"; slug may be `sovereign` or `generate-cv`.
@@ -108,8 +109,8 @@ export async function invokeEdgeJson<T>(
   return { data: null, error: lastError, status: lastStatus, functionName: lastName };
 }
 
-/** CV generation: try `sovereign`, then `generate-cv`. Body matches generate-cv. */
-export function invokeCvFunction<T>(body: {
+/** CV generation: live Vercel `/api/generate-cv` first, then Supabase edge fallbacks. */
+export async function invokeCvFunction<T>(body: {
   mode: string;
   targetRole?: string;
   targetCompany?: string;
@@ -117,6 +118,25 @@ export function invokeCvFunction<T>(body: {
   outputLanguage?: string;
   existingCvText?: string;
   formData?: unknown;
-}) {
-  return invokeEdgeJson<T>(EDGE_FUNCTIONS.cv, body, [EDGE_FUNCTIONS.cvFallback]);
+}): Promise<EdgeInvokeResult<T>> {
+  const live = await postLiveCv(body as Record<string, unknown>);
+  const cvText = readGeneratedText(live.data, ['cv', 'proposal', 'proposalText']);
+  if (live.ok && cvText) {
+    return {
+      data: { ...(live.data as object), cv: cvText } as T,
+      error: null,
+      status: live.status,
+      functionName: 'api/generate-cv',
+    };
+  }
+
+  const edge = await invokeEdgeJson<T>(EDGE_FUNCTIONS.cv, body, [EDGE_FUNCTIONS.cvFallback]);
+  if (!edge.error && edge.data) return edge;
+
+  return {
+    data: null,
+    error: live.error || edge.error || 'CV generation failed',
+    status: live.status || edge.status,
+    functionName: live.status ? 'api/generate-cv' : edge.functionName,
+  };
 }

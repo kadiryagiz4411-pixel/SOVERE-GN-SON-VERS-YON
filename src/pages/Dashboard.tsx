@@ -18,6 +18,7 @@ import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateSovereignContent, generateProposalFallback } from '@/services/aiService';
 import { supabaseAnonKey } from '@/integrations/supabase/client';
+import { postLiveProposal, readGeneratedText } from '@/lib/liveGenerate';
 import { exportProposalAsPDF, exportProposalAsDOCX } from '@/lib/cvExport';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads } from '@/lib/downloads';
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
@@ -704,59 +705,59 @@ const Dashboard = () => {
         return;
       }
 
-      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
-      if (!supabaseUrl) {
-        toast.error('Configuration error: Supabase URL missing. Contact support.');
-        return;
-      }
+      const proposalPayload = {
+        jobDescription,
+        tone: isPaidPlan(currentPlan) ? selectedTone : undefined,
+        userProfile: profile ? {
+          skills: profile.skills,
+          experience: profile.experience,
+          hourly_rate: profile.hourly_rate,
+        } : undefined,
+        customProfession: customProfession.trim() || undefined,
+        userSegment,
+        platformType: userSegment === 'freelancer' ? platformType : undefined,
+        professionCluster: userSegment === 'freelancer' ? professionCluster : undefined,
+        selectedProfession: userSegment === 'freelancer' ? selectedProfession : undefined,
+        outputLanguage: outputLanguage !== 'en' ? outputLanguage : undefined,
+        culturalTone: culturalTone !== 'neutral' ? culturalTone : undefined,
+      };
 
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/generate-proposal`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // Include both apikey and Authorization for maximum Edge Function compatibility
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            jobDescription,
-            tone: isPaidPlan(currentPlan) ? selectedTone : undefined,
-            userProfile: profile ? {
-              skills: profile.skills,
-              experience: profile.experience,
-              hourly_rate: profile.hourly_rate,
-            } : undefined,
-            // Profession / specialty — injected into system prompt
-            customProfession: customProfession.trim() || undefined,
-            // Freelance-specific params
-            userSegment,
-            platformType: userSegment === 'freelancer' ? platformType : undefined,
-            professionCluster: userSegment === 'freelancer' ? professionCluster : undefined,
-            selectedProfession: userSegment === 'freelancer' ? selectedProfession : undefined,
-            // Output language
-            outputLanguage: outputLanguage !== 'en' ? outputLanguage : undefined,
-            culturalTone: culturalTone !== 'neutral' ? culturalTone : undefined,
-          }),
+      const live = await postLiveProposal(proposalPayload);
+      let result: any = live.data;
+      let responseOk = live.ok;
+      let responseStatus = live.status;
+
+      if (!responseOk || !readGeneratedText(result, ['proposal', 'proposalText', 'text'])) {
+        const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+        if (supabaseUrl) {
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/generate-proposal`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: supabaseAnonKey,
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify(proposalPayload),
+            },
+          );
+          try {
+            result = JSON.parse(await response.text());
+          } catch (parseErr) {
+            console.error('Response parse error:', parseErr, 'Status:', response.status);
+            result = null;
+          }
+          responseOk = response.ok;
+          responseStatus = response.status;
         }
-      );
-
-      let result: any;
-      try {
-        const text = await response.text();
-        result = JSON.parse(text);
-      } catch (parseErr) {
-        console.error('Response parse error:', parseErr, 'Status:', response.status);
-        toast.error(language === 'tr' ? 'Sunucu geçersiz yanıt döndü. Tekrar deneyin.' : 'Server returned an invalid response. Please try again.');
-        return;
       }
       
-      if (!response.ok) {
-        console.error('Proposal API error:', response.status, result);
-        if (response.status === 429) {
+      if (!responseOk) {
+        console.error('Proposal API error:', responseStatus, result);
+        if (responseStatus === 429) {
           toast.error(language === 'tr' ? 'Hız limiti aşıldı. Bir süre bekleyip tekrar deneyin.' : 'Rate limit exceeded. Please wait a moment and try again.');
-        } else if (response.status === 402) {
+        } else if (responseStatus === 402) {
           // Unlimited / BYOK users should NEVER be blocked by a backend 402.
           // The backend may not recognise them; fall through to client-side fallback.
           if (should402BypassForUnlimited(user?.email, profile, isSuperAdmin || isByokUnlimited || hasBYOKAccess)) {
@@ -765,24 +766,26 @@ const Dashboard = () => {
             throw new Error('__bypass_402__');
           }
           toast.error(language === 'tr' ? 'AI kredileri tükendi. Daha sonra tekrar deneyin.' : 'AI credits exhausted. Please try again later.');
-        } else if (result.error?.includes('Daily limit')) {
+        } else if (String(result?.error || '').includes('Daily limit')) {
           setUpgradeFeature('Unlimited Proposals');
           setShowUpgradeModal(true);
+          return;
         } else {
-          toast.error(result.error || (language === 'tr' ? 'Proposal üretilemedi. Tekrar deneyin.' : 'Failed to generate proposal. Please try again.'));
+          throw new Error(result?.error || 'Proposal generation failed');
         }
         return;
       }
 
-      if (!result.proposal) {
+      const proposalText = readGeneratedText(result, ['proposal', 'proposalText', 'text']);
+      if (!proposalText) {
         console.error('No proposal in response:', result);
         toast.error(language === 'tr' ? 'Proposal üretilemedi. Tekrar deneyin.' : 'No proposal was generated. Please try again.');
         return;
       }
 
-      setGeneratedProposal(result.proposal);
+      setGeneratedProposal(proposalText);
       // LocalStorage backup — user never loses content even if Supabase is down.
-      try { localStorage.setItem('sovereign_last_proposal', result.proposal); } catch {}
+      try { localStorage.setItem('sovereign_last_proposal', proposalText); } catch {}
 
       // For free users: track view count
       if (isFreePlan) {

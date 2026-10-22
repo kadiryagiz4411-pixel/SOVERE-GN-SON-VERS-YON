@@ -17,6 +17,7 @@ import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCV
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateCVFallback } from '@/services/aiService';
+import { readGeneratedText } from '@/lib/liveGenerate';
 import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWatermark, incrementFreePremiumDownloads, getFreePremiumDownloadsRemaining } from '@/lib/downloads';
 import { exportCVAsPDF, exportCVAsDOCX } from '@/lib/cvExport';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
@@ -354,14 +355,15 @@ const CVBuilder = () => {
         return;
       }
 
-      if (!result.cv) {
+      const cvText = readGeneratedText(result, ['cv', 'proposal', 'proposalText']);
+      if (!cvText) {
         console.error('[sovereign] empty payload', result);
         toast.error('CV generation failed. Please retry.');
         return;
       }
-      setGeneratedCV(result.cv);
+      setGeneratedCV(cvText);
       // LocalStorage backup — user never loses content even if Supabase is down.
-      try { localStorage.setItem('sovereign_last_cv', result.cv); } catch {}
+      try { localStorage.setItem('sovereign_last_cv', cvText); } catch {}
       if (result.acceptanceScore) setAcceptanceScore(result.acceptanceScore);
       if (typeof result.creditsRemaining === 'number') {
         setCreditsBalance(result.creditsRemaining);

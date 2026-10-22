@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EDGE_FUNCTIONS, invokeEdgeJson } from '@/lib/edgeFunctions';
+import { postLiveProposal, readGeneratedText } from '@/lib/liveGenerate';
 
 interface GenerateProposalParams {
   jobDescription: string;
@@ -22,6 +23,15 @@ interface GenerateProposalResponse {
 export const generateProposal = async (
   params: GenerateProposalParams
 ): Promise<GenerateProposalResponse> => {
+  const live = await postLiveProposal(params as unknown as Record<string, unknown>);
+  const liveText = readGeneratedText(live.data, ['proposal', 'proposalText', 'text']);
+  if (live.ok && liveText) {
+    return {
+      proposal: liveText,
+      usage: { used: 0, limit: 0, remaining: 0 },
+    };
+  }
+
   const { data, error, status } = await invokeEdgeJson<GenerateProposalResponse & { error?: string; upgradeMessage?: string; limit?: number; used?: number }>(
     EDGE_FUNCTIONS.proposal,
     params,
@@ -44,7 +54,11 @@ export const generateProposal = async (
     throw err;
   }
 
-  return data;
+  const edgeText = readGeneratedText(data, ['proposal', 'proposalText', 'text']);
+  if (!edgeText) {
+    throw new Error(live.error || 'Failed to generate proposal');
+  }
+  return { ...data, proposal: edgeText };
 };
 
 export const saveProposal = async (
