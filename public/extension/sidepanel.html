@@ -407,6 +407,61 @@
       }
       .mode-slider button.on { background: rgba(212, 175, 55, 0.18); color: var(--gold-2); }
       .nav.hidden { display: none !important; }
+      .credit-badge {
+        margin-left: auto;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        border-radius: 999px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        color: var(--ok);
+        background: rgba(6, 78, 59, 0.4);
+        white-space: nowrap;
+      }
+      .credit-badge.empty { color: var(--danger); border-color: rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.35); }
+      .paywall {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(12px);
+      }
+      .paywall.on { display: flex; }
+      .paywall-card {
+        width: 100%;
+        max-width: 320px;
+        border: 1px solid var(--line);
+        background: #111113;
+        border-radius: 16px;
+        padding: 18px;
+        text-align: center;
+      }
+      .paywall-card h2 { margin: 0 0 8px; font-size: 16px; color: var(--gold-2); }
+      .paywall-card p { margin: 0 0 14px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+      .paywall-card a {
+        display: inline-flex;
+        justify-content: center;
+        width: 100%;
+        background: linear-gradient(90deg, var(--gold), #b8860b);
+        color: #111;
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .paywall-card button {
+        margin-top: 8px;
+        width: 100%;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
     </style>
   </head>
   <body data-theme="obsidian">
@@ -417,6 +472,7 @@
         <p>Reads the open job · never the feed</p>
       </div>
       <div class="header-tools">
+        <div id="creditBadge" class="credit-badge hidden">Credits —</div>
         <div id="planBadge" class="plan-pill b2c">B2C</div>
         <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode">
           <button type="button" data-mode="b2c" class="on">B2C Mode</button>
@@ -425,6 +481,14 @@
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>
+    <div id="paywall" class="paywall" role="dialog" aria-modal="true">
+      <div class="paywall-card">
+        <h2 id="paywallTitle">Upgrade Account</h2>
+        <p id="paywallBody">Renew or upgrade to keep generating CVs, proposals, and scrapes.</p>
+        <a id="paywallCta" href="https://www.sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Upgrade Account</a>
+        <button id="paywallDismiss" type="button">Not now</button>
+      </div>
+    </div>
     <nav class="nav" id="navB2c">
       <button type="button" data-tab="proposal" class="on"><span>⚡</span>Proposal</button>
       <button type="button" data-tab="cv"><span>📄</span>CV Builder</button>

@@ -53,7 +53,7 @@ export function OutOfCreditsModal({
           <h2 className="text-xl font-bold text-slate-100">Out of Monthly Credits</h2>
           <p className="text-sm text-slate-400 mt-1">
             {isAppSumo
-              ? `Your ${days} will reset your credits. Need more now?`
+              ? 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.'
               : 'Upgrade to keep generating AI-powered CVs and proposals.'}
           </p>
         </div>

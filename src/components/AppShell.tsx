@@ -21,6 +21,8 @@ import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL } from '@/lib/superadmin';
 import { AppSumoUpsellBanner } from '@/components/banners/AppSumoUpsellBanner';
 import { TrialCountdownBadge } from '@/components/dashboard/TrialCountdownBadge';
 import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequiredModal';
+import { PaywallModal } from '@/components/modals/PaywallModal';
+import { resolvePaywall, shouldAutoLockPaywall } from '@/lib/paywall';
 import { useB2BTrial } from '@/hooks/useB2BTrial';
 import { isB2BEnterprisePath } from '@/lib/b2bTrial';
 import { TierBadge } from '@/components/ui/TierBadge';
@@ -80,10 +82,16 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     remainingCredits,
     monthlyCreditLimit,
     appsumoTier,
+    appsumoPlan,
     isByokUnlimited,
     hasB2BAccess: sessionB2B,
     hasBYOKAccess: sessionBYOK,
     planType,
+    isAppsumoUser,
+    subscriptionStatus,
+    isTrialActive,
+    trialEndsAt,
+    b2bSubscriptionStatus,
   } = session;
   const { isAdmin } = useAdmin(user);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -231,6 +239,31 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           open={!isSuperAdmin && b2bTrial.trialExpiredUnpaid && isB2BEnterprisePath(location.pathname)}
         />
       </ErrorBoundary>
+      {(() => {
+        const paywallInput = {
+          isOwner: isSuperAdmin,
+          isUnlimited: isSuperAdmin || isByokUnlimited || hasBYOKAccess,
+          appsumoTier,
+          appsumoPlan,
+          planType,
+          subscriptionTier: planType,
+          subscriptionStatus,
+          b2bSubscriptionStatus,
+          remainingCredits: currentCredits,
+          isTrialActive,
+          trialEndsAt,
+          isAppsumoUser,
+        };
+        const resolved = resolvePaywall(paywallInput);
+        if (!shouldAutoLockPaywall(paywallInput) || resolved.kind === 'none') return null;
+        return (
+          <PaywallModal
+            open
+            kind={resolved.kind}
+            dismissible={resolved.kind === 'appsumo_credits'}
+          />
+        );
+      })()}
 
       {/* ── SuperAdmin Unlimited Access Banner ─────────────────────────────── */}
       {isSuperAdmin && (

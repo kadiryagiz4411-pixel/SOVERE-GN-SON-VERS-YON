@@ -2,9 +2,9 @@
  * Redeem.tsx — AppSumo multi-tier code redemption page (/redeem)
  *
  * Shows a distinct tier-specific success screen for:
- *   Tier 1 ($49)   — 50 credits / ATS core
- *   Tier 2 ($99)   — 200 credits / advanced B2C
- *   B2B Tier ($149) — 1,000 credits / bulk screening
+ *   Tier 1 ($49)   — 50 credits / ATS core / B2C extension
+ *   Tier 2 ($149)  — 200 credits / advanced B2C + match analytics
+ *   B2B Tier ($299) — 1,000 credits / B2B+B2C extension + bulk screening
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

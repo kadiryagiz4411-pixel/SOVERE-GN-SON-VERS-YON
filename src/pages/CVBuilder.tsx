@@ -33,6 +33,8 @@ import { publicUserError } from '@/lib/openaiErrors';
 import type { User } from '@supabase/supabase-js';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
+import { PaywallModal } from '@/components/modals/PaywallModal';
+import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 import UniversalBatchUpload, { type BatchCompleteData } from '@/components/upload/UniversalBatchUpload';
 
 const OUTPUT_LANGUAGES = [
@@ -104,6 +106,7 @@ const CVBuilder = () => {
   const [activeTab, setActiveTab] = useState('form');
   const [showCVLimitModal, setShowCVLimitModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [paywallKind, setPaywallKind] = useState<Exclude<PaywallKind, 'none'> | null>(null);
   const [outputLanguage, setOutputLanguage] = useState('en');
 
   // Target fields
@@ -197,6 +200,24 @@ const CVBuilder = () => {
       appSession.isByokUnlimited ||
       appSession.hasBYOKAccess;
     const effectiveCVBalance = isCVSuperAdmin ? 999999 : (appSession.remainingCredits > 0 ? appSession.remainingCredits : creditsBalance);
+    const blocked = paywallFromSession({
+      isOwner: isCVSuperAdmin,
+      isUnlimited: isCVSuperAdmin,
+      appsumoTier: appSession.appsumoTier,
+      appsumoPlan: appSession.appsumoPlan,
+      planType: appSession.planType,
+      subscriptionTier: appSession.subscriptionTier,
+      subscriptionStatus: appSession.subscriptionStatus,
+      b2bSubscriptionStatus: appSession.b2bSubscriptionStatus,
+      remainingCredits: effectiveCVBalance,
+      isTrialActive: appSession.isTrialActive,
+      trialEndsAt: appSession.trialEndsAt,
+      user: appSession.user,
+    });
+    if (blocked.kind !== 'none') {
+      setPaywallKind(blocked.kind);
+      return;
+    }
     if (!hasCreditsOrUnlimited(effectiveCVBalance, isCVSuperAdmin)) {
       setShowCreditsModal(true);
       return;
@@ -1014,6 +1035,11 @@ const CVBuilder = () => {
         onOpenChange={setShowCreditsModal}
         balance={creditsBalance}
         actionLabel="CV creation / optimization"
+      />
+      <PaywallModal
+        open={!!paywallKind}
+        kind={paywallKind ?? 'saas_upgrade'}
+        onOpenChange={(next) => { if (!next) setPaywallKind(null); }}
       />
     </SwipeablePageWrapper>
   );

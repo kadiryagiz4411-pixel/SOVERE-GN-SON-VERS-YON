@@ -20,6 +20,11 @@ const DEFAULT_SETTINGS = {
   workspaceMode: 'b2c',
   b2bAccess: false,
   isAdmin: false,
+  isAppsumoUser: false,
+  remainingCredits: 0,
+  monthlyCreditLimit: 0,
+  subscriptionStatus: 'unknown',
+  canGenerate: true,
 };
 
 function isExtensionAdmin() {
@@ -30,6 +35,91 @@ function isExtensionAdmin() {
 
 function canUseB2B() {
   return isExtensionAdmin() || settings.b2bAccess === true;
+}
+
+const APPSUMO_ZERO_MESSAGE = 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.';
+
+function hidePaywall() {
+  document.getElementById('paywall')?.classList.remove('on');
+}
+
+function showPaywall(kind) {
+  const title = document.getElementById('paywallTitle');
+  const body = document.getElementById('paywallBody');
+  const cta = document.getElementById('paywallCta');
+  if (kind === 'appsumo') {
+    if (title) title.textContent = 'Monthly AppSumo credits reached';
+    if (body) body.textContent = APPSUMO_ZERO_MESSAGE;
+    if (cta) {
+      cta.textContent = 'Upgrade AppSumo Tier';
+      cta.href = 'https://www.sovereignapp.pro/pricing#appsumo';
+    }
+  } else if (kind === 'renew') {
+    if (title) title.textContent = 'Renew your subscription';
+    if (body) body.textContent = 'Your plan has expired or payment did not go through. Renew to restore CV, proposal, and extension access.';
+    if (cta) {
+      cta.textContent = 'Renew Subscription';
+      cta.href = 'https://www.sovereignapp.pro/pricing';
+    }
+  } else {
+    if (title) title.textContent = 'Upgrade your account';
+    if (body) body.textContent = 'Your monthly credits are used up. Upgrade to keep generating CVs, proposals, and scrapes.';
+    if (cta) {
+      cta.textContent = 'Upgrade Account';
+      cta.href = 'https://www.sovereignapp.pro/pricing';
+    }
+  }
+  document.getElementById('paywall')?.classList.add('on');
+}
+
+function applyCreditBadge() {
+  const el = document.getElementById('creditBadge');
+  if (!el) return;
+  if (isExtensionAdmin()) {
+    el.classList.add('hidden');
+    return;
+  }
+  if (!settings.isAppsumoUser && settings.subscriptionStatus === 'unknown' && !settings.accountEmail) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  const remaining = Number(settings.remainingCredits || 0);
+  const limit = Number(settings.monthlyCreditLimit || 0);
+  el.classList.toggle('empty', remaining <= 0);
+  if (settings.isAppsumoUser) {
+    el.textContent = limit > 0
+      ? `AppSumo ${remaining}/${limit}`
+      : `AppSumo credits ${remaining}`;
+    return;
+  }
+  el.textContent = limit > 0 ? `Credits ${remaining}/${limit}` : `Credits ${remaining}`;
+}
+
+function assertGenerationAllowed() {
+  if (isExtensionAdmin()) return true;
+  if (!settings.accountEmail) return true;
+  const remaining = Number(settings.remainingCredits || 0);
+  if (settings.isAppsumoUser) {
+    if (remaining <= 0) {
+      showPaywall('appsumo');
+      setBusy(false, APPSUMO_ZERO_MESSAGE);
+      return false;
+    }
+    return true;
+  }
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  if (['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(status)) {
+    showPaywall('renew');
+    setBusy(false, 'Renew your subscription to keep using the extension.');
+    return false;
+  }
+  if (settings.canGenerate === false || remaining <= 0) {
+    showPaywall('upgrade');
+    setBusy(false, 'Upgrade your account to keep generating.');
+    return false;
+  }
+  return true;
 }
 
 function effectiveMode() {
@@ -641,6 +731,7 @@ async function postParseDom(pageData) {
 
 async function analyzeActivePage() {
   if (analyzing) return;
+  if (!assertGenerationAllowed()) return;
   card?.classList.remove('on');
   lastProposal = '';
   lastOutreach = '';
@@ -733,6 +824,7 @@ function applyWorkspaceUi() {
   });
   document.getElementById('navB2c')?.classList.toggle('hidden', mode !== 'b2c');
   document.getElementById('navB2b')?.classList.toggle('hidden', mode !== 'b2b');
+  applyCreditBadge();
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
     ? ['lead', 'dispatch', 'team', 'settings']
@@ -1114,7 +1206,18 @@ async function resolveWorkspaceAccess() {
       role: data?.role || settings.role,
       isAdmin: Boolean(data?.is_admin || data?.isAdmin),
       b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess),
+      isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
+      remainingCredits: Number(data?.remainingCredits ?? settings.remainingCredits ?? 0),
+      monthlyCreditLimit: Number(data?.monthlyCreditLimit ?? settings.monthlyCreditLimit ?? 0),
+      subscriptionStatus: data?.subscriptionStatus || settings.subscriptionStatus,
+      canGenerate: data?.canGenerate !== false,
     });
+    applyCreditBadge();
+    if (data?.is_appsumo_user && Number(data?.remainingCredits ?? 0) <= 0) {
+      showPaywall('appsumo');
+    } else if (data?.saasExpired) {
+      showPaywall('renew');
+    }
   } catch {
     applyWorkspaceUi();
   }
@@ -1129,6 +1232,7 @@ async function saveCvRecord(record) {
 
 async function generateTailoredCv() {
   if (generatingCv) return;
+  if (!assertGenerationAllowed()) return;
   if (skillListFromSettings().length < 2) {
     setCvBusy(false, 'Add at least two skills in Settings before generating a CV.');
     switchTab('settings');
@@ -1221,6 +1325,10 @@ document.getElementById('autofillDispatch')?.addEventListener('click', async () 
   } catch (err) {
     showError(err.message || String(err));
   }
+});
+
+document.getElementById('paywallDismiss')?.addEventListener('click', () => {
+  hidePaywall();
 });
 
 document.getElementById('generateCv')?.addEventListener('click', () => {

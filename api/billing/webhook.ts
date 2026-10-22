@@ -83,6 +83,26 @@ async function updateProfile(base: string, key: string, userId: string, patch: R
   });
 }
 
+async function isAppsumoLifetime(base: string, key: string, userId: string): Promise<boolean> {
+  const qs = new URLSearchParams({
+    select: 'appsumo_tier,appsumo_plan,appsumo_codes_count,plan_type,subscription_tier',
+    or: `(id.eq.${userId},user_id.eq.${userId})`,
+    limit: '1',
+  });
+  const res = await fetch(`${base}/rest/v1/profiles?${qs.toString()}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
+  });
+  if (!res.ok) return false;
+  const rows = await res.json().catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  if (!row || typeof row !== 'object') return false;
+  const profile = row as Record<string, unknown>;
+  if (Number(profile.appsumo_tier || 0) >= 1) return true;
+  if (Number(profile.appsumo_codes_count || 0) >= 1) return true;
+  const blob = `${profile.appsumo_plan || ''} ${profile.plan_type || ''} ${profile.subscription_tier || ''}`.toLowerCase();
+  return blob.includes('appsumo');
+}
+
 async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -211,12 +231,14 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (eventName === 'subscription_cancelled') {
-      await updateProfile(supabaseUrl, serviceKey, userId, {
-        subscription_status: 'canceled',
-        ls_subscription_id: lsId || undefined,
-        ls_customer_id: customerId,
-        b2b_subscription_status: planTier === 'B2B_ENTERPRISE' ? 'canceled' : undefined,
-      });
+      if (!(await isAppsumoLifetime(supabaseUrl, serviceKey, userId))) {
+        await updateProfile(supabaseUrl, serviceKey, userId, {
+          subscription_status: 'canceled',
+          ls_subscription_id: lsId || undefined,
+          ls_customer_id: customerId,
+          b2b_subscription_status: planTier === 'B2B_ENTERPRISE' ? 'canceled' : undefined,
+        });
+      }
       await upsertSubscription(supabaseUrl, serviceKey, {
         ...ledger,
         status: 'cancelled',

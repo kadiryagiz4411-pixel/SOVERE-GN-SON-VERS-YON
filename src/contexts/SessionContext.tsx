@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
-import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
+import { isAppsumoLtdUser, isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
 import { firstPaidPlanLabel, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 
 const LOG = '[Sovereign Load Error]:';
@@ -36,6 +36,8 @@ interface SessionState {
   hasUsedTrial: boolean;
   b2bSubscriptionStatus: string;
   appsumoPlan: string;
+  isAppsumoUser: boolean;
+  subscriptionStatus: string;
   displayTier: DisplayTier;
   trialEndsAt: string | null;
   refreshCredits: () => Promise<void>;
@@ -62,6 +64,8 @@ const SessionContext = createContext<SessionState>({
   hasUsedTrial: false,
   b2bSubscriptionStatus: 'none',
   appsumoPlan: 'none',
+  isAppsumoUser: false,
+  subscriptionStatus: 'active',
   displayTier: resolveDisplayTier({}),
   trialEndsAt: null,
   refreshCredits: async () => {},
@@ -84,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [b2bSubscriptionStatus, setB2bSubscriptionStatus] = useState('none');
   const [appsumoPlan, setAppsumoPlan] = useState('none');
+  const [subscriptionStatus, setSubscriptionStatus] = useState('active');
   const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
   const [applyQueueAccess, setApplyQueueAccess] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
@@ -121,6 +126,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setHasUsedTrial(false);
         setB2bSubscriptionStatus('active');
         setAppsumoPlan('tier_3');
+        setSubscriptionStatus('active');
         setTrialEndsAt(null);
       } else {
         const slice = data as TrialProfileSlice;
@@ -143,6 +149,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setHasUsedTrial(access.hasUsedTrial);
         setB2bSubscriptionStatus(access.b2bStatus);
         setAppsumoPlan(toAppsumoPlanEnum(slice?.appsumo_plan, numericTier));
+        setSubscriptionStatus(String(data?.subscription_status || 'active'));
         setTrialEndsAt(slice?.trial_ends_at ?? null);
         setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
         setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
@@ -368,6 +375,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         hasUsedTrial: owner ? false : hasUsedTrial,
         b2bSubscriptionStatus: owner ? 'active' : b2bSubscriptionStatus,
         appsumoPlan: owner ? 'tier_3' : appsumoPlan,
+        isAppsumoUser: owner || Number(appsumoTier) >= 1 || isAppsumoLtdUser(toAppsumoPlanEnum(appsumoPlan, appsumoTier)),
+        subscriptionStatus: owner ? 'active' : subscriptionStatus,
         displayTier,
         trialEndsAt,
         refreshCredits,

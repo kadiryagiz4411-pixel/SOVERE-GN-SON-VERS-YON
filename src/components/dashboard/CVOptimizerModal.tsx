@@ -28,6 +28,8 @@ import {
 import { toast } from 'sonner';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
+import { PaywallModal } from '@/components/modals/PaywallModal';
+import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 
 type Step = 'input' | 'teaser' | 'full' | 'diff';
 
@@ -72,9 +74,11 @@ export const CVOptimizerModal = ({
   const [optimizeError, setOptimizeError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [paywallKind, setPaywallKind] = useState<Exclude<PaywallKind, 'none'> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { isByokUnlimited, hasBYOKAccess, user: sessionUser } = useSession();
+  const session = useSession();
+  const { isByokUnlimited, hasBYOKAccess, user: sessionUser } = session;
   const isModalUnlimited = isByokUnlimited || hasBYOKAccess || sessionUser?.email === OWNER_EMAIL;
   const isPaid = userPlan !== 'free';
   // Bypass credit check for superadmin / BYOK users.
@@ -216,6 +220,24 @@ export const CVOptimizerModal = ({
 
   const handleUnlockFull = async () => {
     if (!canUnlock) {
+      const blocked = paywallFromSession({
+        isOwner: isModalUnlimited,
+        isUnlimited: isModalUnlimited,
+        appsumoTier: session.appsumoTier,
+        appsumoPlan: session.appsumoPlan,
+        planType: session.planType,
+        subscriptionTier: session.subscriptionTier,
+        subscriptionStatus: session.subscriptionStatus,
+        b2bSubscriptionStatus: session.b2bSubscriptionStatus,
+        remainingCredits: creditsBalance,
+        isTrialActive: session.isTrialActive,
+        trialEndsAt: session.trialEndsAt,
+        user: sessionUser,
+      });
+      if (blocked.kind !== 'none') {
+        setPaywallKind(blocked.kind);
+        return;
+      }
       setShowCreditsModal(true);
       return;
     }
@@ -630,6 +652,11 @@ export const CVOptimizerModal = ({
       onOpenChange={setShowCreditsModal}
       balance={creditsBalance}
       actionLabel="CV Optimization"
+    />
+    <PaywallModal
+      open={!!paywallKind}
+      kind={paywallKind ?? 'saas_upgrade'}
+      onOpenChange={(next) => { if (!next) setPaywallKind(null); }}
     />
     </>
   );

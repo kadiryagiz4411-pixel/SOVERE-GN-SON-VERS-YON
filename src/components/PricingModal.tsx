@@ -7,7 +7,7 @@
  *   <PricingModal open={show} onClose={() => setShow(false)} highlightTier="appsumo_tier2" />
  *
  * Features:
- *  - Tier cards: Tier 1 ($49), Tier 2 ($99), B2B Tier ($149)
+ *  - Tier cards: Starter ($49), Pro ($149), B2B / Agency ($299)
  *  - Highlighted features per tier (bolded)
  *  - CTA button → Lemon Squeezy / AppSumo checkout URL from env vars
  *  - "Already have a code?" → navigate to /redeem

@@ -12,14 +12,16 @@
  */
 
 import { getCheckoutUrl } from '@/lib/lemonsqueezy';
+import { APPSUMO_LTD_TIERS } from '@/config/appsumo';
 
 // ─── Core AppSumo tier type ───────────────────────────────────────────────────
 
 export type AppSumoTier =
   | 'free'
   | 'appsumo_tier1'   // $49 LTD — 50 credits/mo
-  | 'appsumo_tier2'   // $99 LTD — 200 credits/mo
-  | 'appsumo_b2b'     // $149 LTD — 1,000 credits/mo + B2B features
+  | 'appsumo_tier2'   // $149 LTD — 200 credits/mo
+  | 'appsumo_b2b'     // $299 LTD — 1,000 credits/mo + B2B + B2C extension
+  | 'appsumo_tier3'   // alias of B2B / Agency LTD
   | 'enterprise';     // Full enterprise (internal/sales)
 
 /** All recognised subscription_tier / subscription_plan values → AppSumoTier rank */
@@ -36,6 +38,7 @@ const TIER_RANK: Record<string, number> = {
   elite:          2,
   // B2B tiers
   appsumo_b2b:    3,
+  appsumo_tier3:  3,
   B2B_ENTERPRISE: 3,
   enterprise:     4,
 };
@@ -140,69 +143,43 @@ export interface AppSumoTierConfig {
 export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
   {
     tier:       'appsumo_tier1',
-    label:      'Tier 1',
-    price:      49,
-    credits:    50,
+    label:      'Starter',
+    price:      APPSUMO_LTD_TIERS[0].priceUsd,
+    credits:    APPSUMO_LTD_TIERS[0].monthlyCredits,
     badge:      'Starter LTD',
     color:      'text-blue-400',
     borderColor:'border-blue-500/40',
     bgColor:    'bg-blue-500/5',
-    features: [
-      '50 AI credits / month (lifetime)',
-      'ATS Gap Analysis & Match Score',
-      '1-Click ATS Tailoring (bullet rewrite)',
-      'Core Proposal & Cover Letter Engine',
-      'PDF & plain-text export',
-      'Credits auto-reset every 30 days',
-    ],
-    highlighted: ['ATS Gap Analysis & Match Score', '1-Click ATS Tailoring (bullet rewrite)'],
+    features: APPSUMO_LTD_TIERS[0].features,
+    highlighted: ['Chrome extension access (B2C Mode)', 'CV & proposal generation'],
     checkoutUrl: getCheckoutUrl('tier_1'),
   },
   {
     tier:       'appsumo_tier2',
-    label:      'Tier 2',
-    price:      99,
-    credits:    200,
-    badge:      'Pro LTD  — Most Popular',
+    label:      'Pro',
+    price:      APPSUMO_LTD_TIERS[1].priceUsd,
+    credits:    APPSUMO_LTD_TIERS[1].monthlyCredits,
+    badge:      'Pro LTD — Most Popular',
     color:      'text-violet-400',
     borderColor:'border-violet-500/60',
     bgColor:    'bg-violet-500/5',
-    features: [
-      '200 AI credits / month (lifetime)',
-      'Everything in Tier 1',
-      'Company DNA Decoder',
-      '6-Second Recruiter Hook Generator',
-      'Red-Flag Neutralizer',
-      'AI ATS Narrative gap analysis (GPT-4o-mini)',
-      'Multi-language CV support',
-      'ATS Score trend history',
-    ],
-    highlighted: ['Company DNA Decoder', '6-Second Recruiter Hook Generator', 'Red-Flag Neutralizer'],
+    features: APPSUMO_LTD_TIERS[1].features,
+    highlighted: ['Advanced match scoring & analytics', 'Chrome extension (B2C, priority queue)'],
     checkoutUrl: getCheckoutUrl('tier_2'),
   },
   {
     tier:       'appsumo_b2b',
-    label:      'B2B Tier',
-    price:      149,
-    credits:    1000,
-    badge:      'B2B Powerhouse',
+    label:      'B2B / Agency',
+    price:      APPSUMO_LTD_TIERS[2].priceUsd,
+    credits:    APPSUMO_LTD_TIERS[2].monthlyCredits,
+    badge:      'Agency LTD',
     color:      'text-amber-400',
     borderColor:'border-amber-500/50',
     bgColor:    'bg-amber-500/5',
-    features: [
-      '1,000 AI credits / month (lifetime)',
-      'Everything in Tier 2',
-      'Bulk CV Screening (up to 100 PDFs at once)',
-      'Ranked Applicant Table with ATS scores',
-      'Bulk Rejection Email Generator',
-      'Candidate status labels: Interview / Hold / Reject',
-      'CSV export of ranked results',
-      'B2B Dashboard access',
-    ],
+    features: APPSUMO_LTD_TIERS[2].features,
     highlighted: [
-      'Bulk CV Screening (up to 100 PDFs at once)',
-      'Ranked Applicant Table with ATS scores',
-      'Bulk Rejection Email Generator',
+      'Full B2B + B2C Chrome extension',
+      'Agency lead extraction & bulk pitch generation',
     ],
     checkoutUrl: getCheckoutUrl('tier_3'),
   },
@@ -244,11 +221,23 @@ export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
       'Red-Flag Neutralizer',
     ],
   },
+  appsumo_tier3: {
+    headline:    'B2B / Agency $299 Tier Activated!',
+    subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
+    badge:       'Agency LTD',
+    creditsLine: '1,000 credits / month — refreshes every month',
+    features:    [
+      'Everything in Pro',
+      'Full B2B + B2C Chrome extension',
+      'Bulk CV Screening (up to 100 CVs at once)',
+      'Agency lead extraction',
+    ],
+  },
   appsumo_b2b: {
-    headline:    'B2B $149 Tier Activated!',
-    subline:     '1,000 Credits + 100-PDF Bulk Screening & Candidate Ranking Suite',
-    badge:       'B2B Powerhouse',
-    creditsLine: '1,000 credits / month — resets every 30 days',
+    headline:    'B2B / Agency $299 Tier Activated!',
+    subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
+    badge:       'Agency LTD',
+    creditsLine: '1,000 credits / month — refreshes every month',
     features:    [
       'Everything in Tier 2',
       'Bulk CV Screening (up to 100 CVs at once)',

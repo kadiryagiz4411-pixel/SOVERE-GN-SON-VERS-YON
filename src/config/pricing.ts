@@ -16,6 +16,7 @@
 
 import { createCheckout, type CheckoutPlanId } from "./plans";
 import { getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
+export { APPSUMO_LTD_TIERS, APPSUMO_MONTHLY_CREDITS } from "./appsumo";
 
 // ─── URL helper (safe env read) ───────────────────────────────────────────────
 

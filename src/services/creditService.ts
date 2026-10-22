@@ -334,11 +334,10 @@ export function daysUntilReset(resetDate: Date | null): string {
 export function tierLabel(tier: string): string {
   const map: Record<string, string> = {
     free:           'Free',
-    appsumo_tier1:  'AppSumo Tier 1 ($49 LTD)',
-    appsumo_tier2:  'AppSumo Tier 2 ($99 LTD)',
-    appsumo_b2b:    'AppSumo B2B Tier ($149 LTD)',
-    // Legacy aliases kept for backward compat
-    appsumo_tier3:  'AppSumo B2B Tier ($149 LTD)',
+    appsumo_tier1:  'AppSumo Starter ($49 LTD)',
+    appsumo_tier2:  'AppSumo Pro ($149 LTD)',
+    appsumo_b2b:    'AppSumo B2B / Agency ($299 LTD)',
+    appsumo_tier3:  'AppSumo B2B / Agency ($299 LTD)',
     pro_monthly:    'Pro Monthly',
     enterprise:     'Enterprise',
     standard:       'Standard',

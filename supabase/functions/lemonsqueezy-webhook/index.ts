@@ -227,11 +227,33 @@ async function upgradePlan(
   }
 }
 
+async function isAppsumoLifetime(
+  db: ReturnType<typeof makeAdminClient>,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await db
+    .from("profiles")
+    .select("appsumo_tier, appsumo_plan, appsumo_codes_count, plan_type, subscription_tier")
+    .or(`user_id.eq.${userId},id.eq.${userId}`)
+    .limit(1)
+    .maybeSingle();
+  if (!data) return false;
+  if (Number(data.appsumo_tier || 0) >= 1) return true;
+  if (Number(data.appsumo_codes_count || 0) >= 1) return true;
+  const blob = `${data.appsumo_plan || ""} ${data.plan_type || ""} ${data.subscription_tier || ""}`.toLowerCase();
+  return blob.includes("appsumo");
+}
+
 /** Downgrade: revert to free (on cancellation / expiry / payment failure). */
 async function downgradePlan(
   db: ReturnType<typeof makeAdminClient>,
   userId: string,
 ) {
+  // AppSumo LTDs keep lifetime access. SaaS subscription checks must not revoke them.
+  if (await isAppsumoLifetime(db, userId)) {
+    console.log(`[LS webhook] Skipping SaaS downgrade for AppSumo lifetime user ${userId}`);
+    return;
+  }
   await db.from("profiles").update({
     plan_type: "free",
     subscription_plan: "free",
@@ -253,6 +275,10 @@ async function markPaused(
   lsId: string,
   resumesAt?: string | null,
 ) {
+  if (await isAppsumoLifetime(db, userId)) {
+    console.log(`[LS webhook] Skipping SaaS pause for AppSumo lifetime user ${userId}`);
+    return;
+  }
   await db.from("profiles").update({
     subscription_status: "paused",
     ls_subscription_id: lsId || undefined,
@@ -407,7 +433,7 @@ Deno.serve(async (req) => {
     case "subscription_cancelled": {
       // Mark cancelled in LS; keep plan active — expiry date will handle downgrade.
       // Optionally log for analytics; do not immediately downgrade.
-      if (userId) {
+      if (userId && !(await isAppsumoLifetime(db, userId))) {
         await db.from("profiles").update({
           ls_subscription_id: lsId,
           ls_customer_id: lsCustomerId || undefined,

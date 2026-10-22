@@ -25,6 +25,8 @@ import { getDownloadsUsedToday, incrementDownloadsUsed, canDownloadWithoutWaterm
 import { getProposalViewsUsed, incrementProposalViews, canViewProposal, getProposalViewsRemaining, FREE_VIEW_LIMIT } from '@/lib/proposalViews';
 import { FeatureUpgradeModal } from '@/components/FeatureUpgradeModal';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
+import { PaywallModal } from '@/components/modals/PaywallModal';
+import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 import { EliteAnalytics } from '@/components/dashboard/EliteAnalytics';
 import { JobRecommendations } from '@/components/dashboard/JobRecommendations';
 import { DetailedAnalysisReport } from '@/components/dashboard/DetailedAnalysisReport';
@@ -105,7 +107,7 @@ const Dashboard = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, hasB2BAccess, user: sessionUser, displayTier } = useSession();
+  const { session, sessionReady, remainingCredits, isByokUnlimited, hasBYOKAccess, hasB2BAccess, user: sessionUser, displayTier, appsumoTier, appsumoPlan, planType, subscriptionStatus, b2bSubscriptionStatus, isTrialActive, trialEndsAt } = useSession();
   const { planLabel: contextPlanLabel, isSuperAdmin: contextSuperAdmin } = usePlan();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -121,6 +123,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [paywallKind, setPaywallKind] = useState<Exclude<PaywallKind, 'none'> | null>(null);
   const [downloadsUsed, setDownloadsUsed] = useState(() => getDownloadsUsedToday());
   const [proposalViewsUsed, setProposalViewsUsed] = useState(() => getProposalViewsUsed());
   const [upgradeFeature, setUpgradeFeature] = useState<string>('');
@@ -187,6 +190,21 @@ const Dashboard = () => {
   const bonusCredits = profile?.bonus_credits || 0;
   const proposalsLeft = dailyLimit === Infinity ? 'Unlimited' : Math.max(0, dailyLimit - proposalsUsed + bonusCredits);
   const hasUnlimitedProposals = dailyLimit === Infinity;
+
+  const generationPaywall = () => paywallFromSession({
+    isOwner: isSuperAdmin,
+    isUnlimited: isSuperAdmin || isByokUnlimited || hasBYOKAccess,
+    appsumoTier: appsumoTier ?? profile?.appsumo_tier,
+    appsumoPlan,
+    planType,
+    subscriptionTier: currentPlan,
+    subscriptionStatus,
+    b2bSubscriptionStatus,
+    remainingCredits: remainingCredits ?? profile?.credits_balance ?? 0,
+    isTrialActive,
+    trialEndsAt,
+    user: sessionUser,
+  });
 
   const txt = t.dashboard;
 
@@ -705,6 +723,11 @@ const Dashboard = () => {
     // SessionContext's 999999 superadmin override is always respected.
     const isUnlimited = isSuperAdmin || isByokUnlimited || hasBYOKAccess;
     const effectiveBalance = isUnlimited ? 999999 : (remainingCredits ?? profile?.credits_balance ?? 0);
+    const blocked = generationPaywall();
+    if (blocked.kind !== 'none') {
+      setPaywallKind(blocked.kind);
+      return;
+    }
     if (!hasCreditsOrUnlimited(effectiveBalance, isUnlimited)) {
       setShowCreditsModal(true);
       return;
@@ -1464,6 +1487,11 @@ const Dashboard = () => {
             variant="outline"
             size="sm"
             onClick={() => {
+              const blockedOptimize = generationPaywall();
+              if (blockedOptimize.kind !== 'none') {
+                setPaywallKind(blockedOptimize.kind);
+                return;
+              }
               if (!hasCreditsOrUnlimited(profile?.credits_balance ?? 0, isSuperAdmin || isByokUnlimited || hasBYOKAccess)) {
                 setShowCreditsModal(true);
                 return;
@@ -2061,6 +2089,11 @@ const Dashboard = () => {
         onOpenChange={setShowCreditsModal}
         balance={profile?.credits_balance ?? 0}
         actionLabel="This AI action"
+      />
+      <PaywallModal
+        open={!!paywallKind}
+        kind={paywallKind ?? 'saas_upgrade'}
+        onOpenChange={(next) => { if (!next) setPaywallKind(null); }}
       />
 
       {/* CV Optimizer Modal */}
