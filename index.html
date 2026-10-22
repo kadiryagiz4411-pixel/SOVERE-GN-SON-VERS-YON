@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        var host = String(location.hostname || '');
+        if (host === 'sovereignapp.pro' || host === 'localhost' || host === '127.0.0.1') return;
+        location.replace('https://sovereignapp.pro' + location.pathname + location.search + location.hash);
+      })();
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17960806883"></script>
     <script>
