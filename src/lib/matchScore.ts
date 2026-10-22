@@ -53,6 +53,13 @@ export function isOnboardingComplete(profile?: MatchProfile | null): boolean {
   return normalizeSkillList(profile?.skills).length >= 2;
 }
 
+export function matchBand(score: number): string {
+  if (score >= 80) return 'High Probability';
+  if (score >= 60) return 'Strong Fit';
+  if (score >= 40) return 'Partial Fit';
+  return 'Low Fit';
+}
+
 export function extractRequiredSkills(jobText: string, listedSkills: string[] = []): string[] {
   const hay = `${jobText} ${listedSkills.join(' ')}`.toLowerCase();
   const found = SKILL_CATALOG.filter((skill) => {

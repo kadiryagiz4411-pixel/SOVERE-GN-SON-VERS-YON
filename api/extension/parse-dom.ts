@@ -1,7 +1,7 @@
 import { preflight, jsonNoStore, readJsonBody } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
-import { scoreOpportunity } from '../_lib/matchScore.js';
+import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
 
 // Node runtime + no-store JSON is the Vite equivalent of Next.js
@@ -22,6 +22,7 @@ function platformLabel(url: string, mode: DetectedMode): string {
   if (u.includes('upwork.com')) return mode === 'JOB_PROPOSAL' ? 'Upwork Job Post' : 'Upwork Page';
   if (u.includes('fiverr.com')) return mode === 'JOB_PROPOSAL' ? 'Fiverr Brief' : 'Fiverr Page';
   if (u.includes('freelancer.com')) return mode === 'JOB_PROPOSAL' ? 'Freelancer Project' : 'Freelancer Page';
+  if (u.includes('indeed.com')) return 'Indeed Job Post';
   if (u.includes('linkedin.com/in')) return 'LinkedIn Profile';
   if (u.includes('linkedin.com/jobs')) return 'LinkedIn Job Post';
   if (u.includes('linkedin.com/company')) return 'LinkedIn Company';
@@ -38,7 +39,8 @@ export function detectMode(pageUrl: string, pageTitle: string, pageText: string)
   if (/upwork\.com\/(jobs|nx\/search\/jobs|ab\/proposals)/i.test(url)
     || /fiverr\.com\/.*(request|brief|buyer)/i.test(url)
     || /freelancer\.com\/projects/i.test(url)
-    || /linkedin\.com\/jobs/i.test(url)) {
+    || /linkedin\.com\/jobs/i.test(url)
+    || /indeed\.com\/(viewjob|jobs)/i.test(url)) {
     return 'JOB_PROPOSAL';
   }
   if (/linkedin\.com\/in\//i.test(url) || /\/resume|\/cv\b/i.test(url)) {
@@ -146,14 +148,26 @@ async function handleRequest(req: Request): Promise<Response> {
       pageUrl?: string;
       text?: string;
       sourceUrl?: string;
+      jobTitle?: string;
+      jobDescription?: string;
+      requiredSkills?: string[];
+      budget?: string;
+      clientHistory?: string;
       skills?: string[];
       experience?: string;
       profession?: string;
       hourlyRate?: number;
     }>(req);
 
-    const pageText = String(body.pageText || body.text || '').trim();
-    const pageTitle = String(body.pageTitle || '').trim();
+    const jobTitle = String(body.jobTitle || body.pageTitle || '').trim();
+    const jobDescription = String(body.jobDescription || '').trim();
+    const listedSkills = Array.isArray(body.requiredSkills)
+      ? body.requiredSkills.map((item) => String(item)).filter(Boolean).slice(0, 16)
+      : [];
+    const budget = String(body.budget || '').trim();
+    const clientHistory = String(body.clientHistory || '').trim();
+    const pageText = String(jobDescription || body.pageText || body.text || '').trim();
+    const pageTitle = jobTitle || String(body.pageTitle || '').trim();
     const pageUrl = String(body.pageUrl || body.sourceUrl || '').trim();
 
     if (!pageText || pageText.length < 20) {
@@ -162,7 +176,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
     const detectedMode = detectMode(pageUrl, pageTitle, pageText);
     const label = platformLabel(pageUrl, detectedMode);
-    const context = `Title: ${pageTitle}\nURL: ${pageUrl}\nContent:\n${pageText.slice(0, 4000)}`;
+    const context = [
+      `Title: ${pageTitle}`,
+      pageUrl ? `URL: ${pageUrl}` : '',
+      budget ? `Budget / rate: ${budget}` : '',
+      listedSkills.length ? `Listed skills: ${listedSkills.join(', ')}` : '',
+      clientHistory ? `Client: ${clientHistory.slice(0, 400)}` : '',
+      `Content:\n${pageText.slice(0, 4000)}`,
+    ].filter(Boolean).join('\n');
     const match = scoreOpportunity(
       {
         skills: Array.isArray(body.skills) ? body.skills : [],
@@ -172,12 +193,27 @@ async function handleRequest(req: Request): Promise<Response> {
       },
       pageTitle,
       pageText,
+      budget,
+      listedSkills,
     );
+    const score = match.complete ? match.matchScore : 0;
+    const matchPayload = {
+      match_score: score,
+      matchScore: score,
+      matchLabel: match.complete ? matchBand(score) : 'Add skills',
+      strengths: match.matchedSkills.slice(0, 6),
+      gaps: match.missingSkills.slice(0, 6),
+      requiredSkills: match.requiredSkills,
+      matchedSkills: match.matchedSkills,
+      missingSkills: match.missingSkills,
+      onboardingRequired: !match.complete,
+      matchMessage: match.message || '',
+    };
 
     if (detectedMode === 'JOB_PROPOSAL') {
       const parsed = await completeJson(
         apiKey,
-        'You are the freelancer writing this yourself. Name the client pain in sentence 1, your fix in sentence 2, one proof point in sentence 3. No markdown, no AI disclaimers, no synergy/leverage/spearhead. Return JSON: proposal, painPoint, score (0-100), title.',
+        'You are the freelancer writing this yourself. Open with the client\'s specific problem in the first two sentences, then how you will fix it, then one proof point. No markdown, no AI disclaimers, no Dear Hiring Manager, no "I am writing to express my enthusiasm". Never use synergy, spearhead, dynamic, leverage, delve, hit the ground running. Return JSON: proposal, painPoint, title.',
         context,
       );
       const proposalText = sanitizeAiText(
@@ -185,7 +221,6 @@ async function handleRequest(req: Request): Promise<Response> {
         || `I can take this on. ${pageTitle || 'This brief'} is a clear execution job. I'll start with the core requirement and send a first working pass quickly.`,
       );
       const painPoint = sanitizeAiText(String(parsed.painPoint || 'Technical implementation required'));
-      const score = match.complete ? match.matchScore : 0;
       const title = sanitizeAiText(String(parsed.title || pageTitle || 'Job posting'));
       return jsonNoStore({
         success: true,
@@ -195,14 +230,16 @@ async function handleRequest(req: Request): Promise<Response> {
         platformLabel: label,
         title,
         url: pageUrl,
+        jobTitle: title,
+        jobDescription: pageText.slice(0, 4000),
+        budget,
+        clientHistory: clientHistory.slice(0, 500),
         painPoint,
         compatibilityScore: score,
         overallScore: match.complete ? match.acceptanceScore : 0,
-        onboardingRequired: !match.complete,
-        matchMessage: match.message,
-        matchedSkills: match.matchedSkills,
         proposalText,
         summary: painPoint,
+        ...matchPayload,
       });
     }
 
@@ -217,7 +254,7 @@ async function handleRequest(req: Request): Promise<Response> {
         String(parsed.outreach || '')
         || `Quick note on ${pageTitle || 'your team'}: I can run a focused technical pass on the problem in this brief and send a concrete first result this week.`,
       );
-      const score = match.complete ? match.matchScore : Math.max(0, Math.min(100, Number(parsed.score ?? 0)));
+      const leadScore = match.complete ? match.matchScore : 0;
       return jsonNoStore({
         success: true,
         detectedMode,
@@ -231,9 +268,12 @@ async function handleRequest(req: Request): Promise<Response> {
         outreach,
         proposalText: outreach,
         painPoint: executiveSummary,
-        compatibilityScore: score,
-        overallScore: score,
+        compatibilityScore: leadScore,
+        overallScore: leadScore,
         summary: executiveSummary,
+        ...matchPayload,
+        match_score: leadScore,
+        matchScore: leadScore,
       });
     }
 
@@ -251,7 +291,7 @@ async function handleRequest(req: Request): Promise<Response> {
     );
     summary = sanitizeAiText(String(parsed.summary || summary));
     whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
-    overallScore = Math.max(0, Math.min(100, Number(parsed.overallScore ?? 70)));
+    overallScore = match.complete ? match.matchScore : 0;
     title = sanitizeAiText(String(parsed.fullName || title));
     role = sanitizeAiText(String(parsed.title || ''));
     pros = listField(parsed.pros);
@@ -274,6 +314,9 @@ async function handleRequest(req: Request): Promise<Response> {
       overallScore,
       compatibilityScore: overallScore,
       proposalText: [summary, whyThisCandidate, pros.length ? `Pros: ${pros.join('; ')}` : '', cons.length ? `Watch: ${cons.join('; ')}` : ''].filter(Boolean).join('\n\n'),
+      ...matchPayload,
+      match_score: overallScore,
+      matchScore: overallScore,
     });
   } catch (error: unknown) {
     const details = openaiErrorDetails(error);

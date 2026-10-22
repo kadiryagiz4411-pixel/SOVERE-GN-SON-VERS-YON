@@ -309,7 +309,7 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 0;
-        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
         background: #09090B;
         flex-shrink: 0;
       }
@@ -321,14 +321,58 @@
         font-size: 10px;
         letter-spacing: .02em;
         padding: 10px 4px 12px;
-        border-top: 2px solid transparent;
+        border-bottom: 2px solid transparent;
       }
       .nav button.on {
         color: var(--gold-2);
-        border-top-color: var(--gold);
+        border-bottom-color: var(--gold);
         text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
       }
       .nav span { display: block; font-size: 14px; margin-bottom: 2px; }
+      .match-banner {
+        display: none;
+        margin: 10px 16px 0;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        align-items: center;
+        gap: 10px;
+      }
+      .match-banner.on { display: flex; }
+      .match-banner strong { color: var(--gold-2); font-size: 13px; }
+      .match-banner span { font-size: 11px; color: var(--muted); }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip {
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: #e7e5e4;
+      }
+      .chip.gap { border-color: rgba(239, 68, 68, 0.35); color: var(--danger); }
+      .chip.ok { border-color: rgba(16, 185, 129, 0.35); color: var(--ok); }
+      .cv-preview {
+        background: #0B0F17;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 16px;
+        max-height: 360px;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #E2E8F0;
+        white-space: pre-wrap;
+      }
+      .cv-preview h3 {
+        margin: 14px 0 6px;
+        font-size: 11px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: #F59E0B;
+      }
+      .cv-preview h3:first-child { margin-top: 0; }
+      .cv-preview .name { color: #fff; font-size: 16px; font-weight: 800; margin: 0 0 8px; letter-spacing: .04em; }
     </style>
   </head>
   <body data-theme="obsidian">
@@ -336,16 +380,26 @@
       <img class="logo" src="assets/logo.png" alt="Sovereign" />
       <div>
         <h1>Sovereign</h1>
-        <p>Zero-friction · reads the active tab</p>
+        <p>Reads the open job · never the feed</p>
       </div>
       <div id="apiBadge" class="api-badge">API…</div>
     </header>
+    <nav class="nav" id="nav">
+      <button type="button" data-tab="proposal" class="on"><span>⚡</span>Proposal</button>
+      <button type="button" data-tab="cv"><span>📄</span>CV Builder</button>
+      <button type="button" data-tab="match"><span>◎</span>Match</button>
+      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
+    </nav>
+    <div id="matchBanner" class="match-banner">
+      <strong id="matchBannerScore">—</strong>
+      <span id="matchBannerLabel">Analyze the open job to score fit.</span>
+    </div>
     <main>
-      <section id="tab-analyze" class="tab-view on">
+      <section id="tab-proposal" class="tab-view on">
         <div id="errorBadge" class="error-badge hidden"></div>
         <button id="analyze" class="primary" type="button">Generate Proposal</button>
         <div id="spinner" class="spinner"></div>
-        <p id="status">Opening this panel reads the active tab automatically.</p>
+        <p id="status">Opening this panel reads the active job automatically.</p>
         <div id="card" class="card">
           <div id="modeBadge" class="mode-badge">⚡ Detected: Page</div>
           <div class="score-row">
@@ -357,7 +411,7 @@
               <p id="meta" class="meta"></p>
             </div>
           </div>
-          <div class="k" id="scoreHeading">Score</div>
+          <div class="k" id="scoreHeading">Match score</div>
           <p id="scoreLabel" class="pain"></p>
           <div class="k" id="painHeading">Insight</div>
           <p id="pain" class="pain"></p>
@@ -377,16 +431,45 @@
             <button id="outreach" class="b2b" type="button">Copy Cold Outreach</button>
           </div>
         </div>
-      </section>
-
-      <section id="tab-proposals" class="tab-view">
-        <p class="hint">Previously generated proposals stay on this device. One click copies them back to the clipboard.</p>
+        <div class="k">Saved proposals</div>
+        <p class="hint">Kept on this device. One click copies them back.</p>
         <div id="proposalList"></div>
       </section>
 
-      <section id="tab-cvs" class="tab-view">
-        <p class="hint">Saved candidate evaluations and resume cards for instant matching.</p>
+      <section id="tab-cv" class="tab-view">
+        <p class="hint">Builds a CV from your profile against the job currently open in the tab — not the feed.</p>
+        <p id="cvJobMeta" class="meta">No job isolated yet.</p>
+        <button id="generateCv" class="primary" type="button">Generate Tailored CV</button>
+        <div id="cvSpinner" class="spinner"></div>
+        <p id="cvStatus" class="hint">Add at least two skills in Settings, then generate.</p>
+        <div id="cvCard" class="card">
+          <div id="cvPreview" class="cv-preview"></div>
+          <div class="row" style="margin-top:12px">
+            <button id="copyCv" class="ghost" type="button">Copy Text</button>
+            <button id="downloadCv" class="cv" type="button">Download PDF</button>
+          </div>
+        </div>
+        <div class="k">Saved CVs</div>
         <div id="cvList"></div>
+      </section>
+
+      <section id="tab-match" class="tab-view">
+        <p class="hint">Skill-overlap fit for the isolated job. Scores are never guessed.</p>
+        <div id="matchEmpty" class="empty">Generate a proposal or CV on the open job to see strengths and gaps.</div>
+        <div id="matchCard" class="card">
+          <div class="score-row">
+            <div id="matchRing" class="score" style="--p:0"><span id="matchBadge">—</span></div>
+            <div>
+              <p id="matchTitle" class="title">Match analytics</p>
+              <p id="matchLabel" class="meta"></p>
+            </div>
+          </div>
+          <div class="k">Strengths</div>
+          <div id="matchStrengths" class="chips"></div>
+          <div class="k">Gaps</div>
+          <div id="matchGaps" class="chips"></div>
+          <p id="matchNote" class="hint"></p>
+        </div>
       </section>
 
       <section id="tab-settings" class="tab-view">
@@ -453,12 +536,6 @@
         </div>
       </section>
     </main>
-    <nav class="nav" id="nav">
-      <button type="button" data-tab="analyze" class="on"><span>⚡</span>Analyze</button>
-      <button type="button" data-tab="proposals"><span>📝</span>Proposals</button>
-      <button type="button" data-tab="cvs"><span>📄</span>CVs</button>
-      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
-    </nav>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
   </body>

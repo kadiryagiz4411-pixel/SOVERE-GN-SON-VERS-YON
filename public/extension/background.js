@@ -2,7 +2,7 @@
  * Sovereign extension service worker — click-only scrape.
  * Auto-fill inserts text into editors. It never submits the form.
  */
-importScripts('config.js');
+importScripts('config.js', 'scraper.js');
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
@@ -25,7 +25,14 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   }
 
   if (request.type === 'PARSE_DOM') {
-    parseDomViaApi(request.apiBase, request.payload)
+    postJson(PARSE_DOM_PATH, request.payload)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+
+  if (request.type === 'GENERATE_CV') {
+    postJson(GENERATE_CV_PATH, request.payload)
       .then((data) => sendResponse({ success: true, data }))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;
@@ -41,8 +48,14 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   return false;
 });
 
+function apiUrl(path) {
+  const base = canonicalizeApiBase(API_BASE_URL);
+  const suffix = String(path || PARSE_DOM_PATH);
+  return `${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
+}
+
 function parseDomEndpoint() {
-  return `${canonicalizeApiBase(API_BASE_URL)}/api/extension/parse-dom`;
+  return apiUrl(PARSE_DOM_PATH);
 }
 
 function extensionHeaders() {
@@ -74,8 +87,8 @@ async function pingParseDom() {
   throw new Error(`API HTTP ${getRes.status || optionsRes.status}`);
 }
 
-async function parseDomViaApi(_apiBase, payload) {
-  const res = await fetchNoRedirect(`${parseDomEndpoint()}?t=${Date.now()}`, {
+async function postJson(path, payload) {
+  const res = await fetchNoRedirect(`${apiUrl(path)}?t=${Date.now()}`, {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   });
@@ -107,9 +120,16 @@ async function scrapeActiveTab() {
   }
 
   try {
+    const viaContent = await chrome.tabs.sendMessage(tab.id, { type: 'SCRAPE_PAGE' }).catch(() => null);
+    if (viaContent?.success && viaContent.data?.pageText) return viaContent.data;
+  } catch {
+    // Content script may not be loaded yet.
+  }
+
+  try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: extractPageContent,
+      func: extractActiveJob,
     });
     if (!results?.[0]?.result) throw new Error('Failed to extract page content.');
     return results[0].result;
@@ -120,13 +140,6 @@ async function scrapeActiveTab() {
     }
     throw err;
   }
-}
-
-function extractPageContent() {
-  const pageText = document.body?.innerText || '';
-  const pageTitle = document.title || '';
-  const pageUrl = window.location.href || '';
-  return { pageText: pageText.slice(0, 80_000), pageTitle, pageUrl };
 }
 
 async function injectActiveTab(proposalText) {

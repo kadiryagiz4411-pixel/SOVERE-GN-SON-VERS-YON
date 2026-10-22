@@ -53,6 +53,15 @@ function injectProposalToDOM(proposalText) {
 }
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request?.type === 'SCRAPE_PAGE') {
+    try {
+      const data = typeof extractActiveJob === 'function' ? extractActiveJob() : null;
+      sendResponse({ success: Boolean(data?.pageText), data });
+    } catch (err) {
+      sendResponse({ success: false, error: err?.message || String(err) });
+    }
+    return true;
+  }
   if (request?.type !== 'INJECT_PROPOSAL') return false;
   try {
     sendResponse({ success: injectProposalToDOM(request.proposalText || '') });

@@ -8,6 +8,7 @@ import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES } from './_lib/tone.js';
+import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -59,6 +60,9 @@ async function handleRequest(req: Request): Promise<Response> {
     text?: string;
     domContent?: unknown;
     formData?: FormData;
+    skills?: string[];
+    experience?: string;
+    hourlyRate?: number;
     customApiKey?: unknown;
   }>(req);
 
@@ -132,10 +136,34 @@ ${CV_SECTION_FORMAT}`;
       return jsonNoStore({ success: false, error: AI_BUSY_MESSAGE }, 500);
     }
 
+    const skillList = Array.isArray(body.skills)
+      ? body.skills.map((item) => String(item)).filter(Boolean)
+      : String(formData.skills || '').split(/[,|\n]+/).map((item) => item.trim()).filter(Boolean);
+    const match = scoreOpportunity(
+      {
+        skills: skillList,
+        experience: textOf(body.experience || formData.experience, 80),
+        hourlyRate: Number(body.hourlyRate) || undefined,
+      },
+      targetRole,
+      jobDescription || existingCvText,
+    );
+    const score = match.complete ? match.matchScore : 0;
+
     return jsonNoStore({
       success: true,
       cv,
       proposal: cv,
+      match_score: score,
+      matchScore: score,
+      matchLabel: match.complete ? matchBand(score) : 'Add skills',
+      strengths: match.matchedSkills.slice(0, 6),
+      gaps: match.missingSkills.slice(0, 6),
+      matchedSkills: match.matchedSkills,
+      missingSkills: match.missingSkills,
+      requiredSkills: match.requiredSkills,
+      onboardingRequired: !match.complete,
+      matchMessage: match.message || '',
     });
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: unknown } };

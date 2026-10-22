@@ -4,6 +4,7 @@ const STORE = {
   SETTINGS: 'sovereign.settings.v1',
   PROPOSALS: 'sovereign.proposals.v1',
   CANDIDATES: 'sovereign.candidates.v1',
+  CVS: 'sovereign.tailored-cvs.v1',
 };
 const DEFAULT_SETTINGS = {
   skills: '',
@@ -26,7 +27,7 @@ function publicError(raw) {
   const text = String(raw || '');
   if (isExtensionAdmin()) return text || 'Unknown error';
   if (/too short|open a job|Open a job post/i.test(text)) {
-    return 'Open a job post or profile, then try Analyze again.';
+    return 'Open a job post or profile, then try again.';
   }
   if (/readable text|enough readable/i.test(text)) {
     return 'Open a job post or profile, then try Analyze again.';
@@ -75,10 +76,27 @@ const planStatus = document.getElementById('planStatus');
 let lastProposal = '';
 let lastOutreach = '';
 let lastCandidate = null;
+let lastCv = '';
 let lastJobUrl = '';
 let lastTitle = '';
 let lastScore = 0;
+let lastMatch = {
+  label: '',
+  strengths: [],
+  gaps: [],
+  message: '',
+  onboardingRequired: false,
+};
+let lastJob = {
+  title: '',
+  url: '',
+  description: '',
+  skills: [],
+  budget: '',
+  clientHistory: '',
+};
 let analyzing = false;
+let generatingCv = false;
 let settings = { ...DEFAULT_SETTINGS };
 
 function apiBase() {
@@ -188,6 +206,7 @@ function detectOpportunityPlatform(url) {
   if (u.includes('upwork.com')) return 'Upwork';
   if (u.includes('freelancer.com')) return 'Freelancer';
   if (u.includes('linkedin.com')) return 'LinkedIn';
+  if (u.includes('indeed.com')) return 'Indeed';
   return 'Upwork';
 }
 
@@ -258,7 +277,6 @@ async function saveCandidateRecord(record) {
   const list = await storageGet(STORE.CANDIDATES, []);
   const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
   await storageSet(STORE.CANDIDATES, next);
-  renderCvList(next);
 }
 
 function renderProposalList(list) {
@@ -283,14 +301,14 @@ function renderProposalList(list) {
 function renderCvList(list) {
   if (!cvListEl) return;
   if (!list?.length) {
-    cvListEl.innerHTML = '<div class="empty">No candidate cards yet. Analyze a resume or LinkedIn profile, then save it.</div>';
+    cvListEl.innerHTML = '<div class="empty">No tailored CVs yet. Generate one from the open job.</div>';
     return;
   }
   cvListEl.innerHTML = list.map((item) => `
     <article class="list-item" data-id="${escapeHtml(item.id)}">
-      <h3>${escapeHtml(item.title || 'Candidate')}</h3>
-      <div class="when">${escapeHtml(item.role || 'Profile')} · ${escapeHtml(item.score || 0)}% fit · ${escapeHtml(formatWhen(item.at))}</div>
-      <p>${escapeHtml(item.summary || '')}</p>
+      <h3>${escapeHtml(item.title || 'Tailored CV')}</h3>
+      <div class="when">${escapeHtml(item.score || 0)}% match · ${escapeHtml(formatWhen(item.at))}</div>
+      <p>${escapeHtml(item.text || item.summary || '')}</p>
       <div class="row">
         <button class="ghost" type="button" data-copy="${escapeHtml(item.id)}">Copy</button>
         <button class="danger" type="button" data-delete="${escapeHtml(item.id)}">Remove</button>
@@ -299,15 +317,107 @@ function renderCvList(list) {
   `).join('');
 }
 
+function matchBand(score) {
+  if (score >= 80) return 'High Probability';
+  if (score >= 60) return 'Strong Fit';
+  if (score >= 40) return 'Partial Fit';
+  return 'Low Fit';
+}
+
+function chipHtml(items, kind) {
+  if (!items?.length) return `<span class="hint">None yet.</span>`;
+  return items.map((item) => `<span class="chip ${kind}">${escapeHtml(item)}</span>`).join('');
+}
+
+function updateMatchUi(analysis, title) {
+  const score = Number(analysis?.match_score ?? analysis?.matchScore ?? analysis?.compatibilityScore ?? lastScore ?? 0);
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+  const label = analysis?.matchLabel || (analysis?.onboardingRequired ? 'Add skills' : matchBand(safeScore));
+  lastScore = safeScore;
+  lastMatch = {
+    label,
+    strengths: Array.isArray(analysis?.strengths) ? analysis.strengths : (analysis?.matchedSkills || []),
+    gaps: Array.isArray(analysis?.gaps) ? analysis.gaps : (analysis?.missingSkills || []),
+    message: analysis?.matchMessage || '',
+    onboardingRequired: Boolean(analysis?.onboardingRequired),
+  };
+
+  const banner = document.getElementById('matchBanner');
+  const bannerScore = document.getElementById('matchBannerScore');
+  const bannerLabel = document.getElementById('matchBannerLabel');
+  if (banner) banner.classList.add('on');
+  if (bannerScore) bannerScore.textContent = lastMatch.onboardingRequired ? '—' : `${safeScore}% Match`;
+  if (bannerLabel) {
+    bannerLabel.textContent = lastMatch.onboardingRequired
+      ? (lastMatch.message || 'Add at least two skills in Settings.')
+      : `${label}${title ? ` · ${title}` : ''}`;
+  }
+
+  const matchEmpty = document.getElementById('matchEmpty');
+  const matchCard = document.getElementById('matchCard');
+  matchEmpty?.classList.add('hidden');
+  matchCard?.classList.add('on');
+  const ring = document.getElementById('matchRing');
+  const badgeEl = document.getElementById('matchBadge');
+  if (badgeEl) badgeEl.textContent = lastMatch.onboardingRequired ? '—' : String(safeScore);
+  ring?.style.setProperty('--p', String(lastMatch.onboardingRequired ? 0 : safeScore));
+  const matchTitle = document.getElementById('matchTitle');
+  const matchLabel = document.getElementById('matchLabel');
+  if (matchTitle) matchTitle.textContent = title || lastTitle || 'Open job';
+  if (matchLabel) matchLabel.textContent = lastMatch.onboardingRequired ? lastMatch.message : `${safeScore}% · ${label}`;
+  const strengths = document.getElementById('matchStrengths');
+  const gaps = document.getElementById('matchGaps');
+  if (strengths) strengths.innerHTML = chipHtml(lastMatch.strengths, 'ok');
+  if (gaps) gaps.innerHTML = chipHtml(lastMatch.gaps, 'gap');
+  const note = document.getElementById('matchNote');
+  if (note) {
+    note.textContent = lastMatch.onboardingRequired
+      ? (lastMatch.message || 'Add at least two skills in Settings to unlock a real match score.')
+      : (lastMatch.gaps.length
+        ? 'Cover the gaps in the first lines of the proposal and CV.'
+        : 'Core requirements overlap. Lead with those skills.');
+  }
+}
+
+function renderCvPreview(text) {
+  const preview = document.getElementById('cvPreview');
+  if (!preview) return;
+  const raw = String(text || '').replace(/^\s*[-*_]{3,}\s*$/gm, '').trim();
+  const lines = raw.split('\n');
+  const html = lines.map((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return '';
+    if (index === 0 && trimmed.length < 80 && !/^(professional summary|experience|education|skills)/i.test(trimmed)) {
+      return `<div class="name">${escapeHtml(trimmed)}</div>`;
+    }
+    if (/^[A-Z][A-Z0-9 &/.-]{2,}$/.test(trimmed) || /^(professional summary|experience|education|skills|certifications)/i.test(trimmed)) {
+      return `<h3>${escapeHtml(trimmed)}</h3>`;
+    }
+    return `${escapeHtml(line)}\n`;
+  }).join('');
+  preview.innerHTML = html || escapeHtml(raw);
+}
+
 function renderAnalysisResults(data, pageTitle, pageUrl) {
   const mode = data.detectedMode || data.type || 'JOB_PROPOSAL';
   const isJob = mode === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
   const isCv = mode === 'CV_EVALUATION' || data.intent === 'CANDIDATE_POOL';
   const isB2b = mode === 'B2B_COMMAND';
-  const score = Number(data.compatibilityScore ?? data.overallScore ?? 0);
+  const score = Number(data.match_score ?? data.matchScore ?? data.compatibilityScore ?? data.overallScore ?? 0);
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
-  lastTitle = data.title || pageTitle || '';
+  lastTitle = data.title || data.jobTitle || pageTitle || '';
   lastScore = safeScore;
+  lastJob = {
+    title: lastTitle,
+    url: data.url || pageUrl || '',
+    description: data.jobDescription || lastJob.description || '',
+    skills: Array.isArray(data.requiredSkills) ? data.requiredSkills : lastJob.skills,
+    budget: data.budget || lastJob.budget || '',
+    clientHistory: data.clientHistory || lastJob.clientHistory || '',
+  };
+  const cvJobMeta = document.getElementById('cvJobMeta');
+  if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
+  updateMatchUi(data, lastTitle);
 
   if (modeBadge) modeBadge.textContent = `⚡ Detected: ${data.platformLabel || (isJob ? 'Job Post' : isCv ? 'Candidate Profile' : 'B2B Lead')}`;
   if (badge) badge.textContent = `${safeScore}`;
@@ -316,11 +426,11 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (metaEl) metaEl.textContent = data.url || pageUrl || '';
 
   if (isJob) {
-    if (scoreHeading) scoreHeading.textContent = 'Compatibility score';
+    if (scoreHeading) scoreHeading.textContent = 'Match score';
     if (scoreLabel) {
       scoreLabel.textContent = data.onboardingRequired
         ? (data.matchMessage || 'Add at least two skills in Settings to unlock a real match score.')
-        : `${safeScore}% fit with this brief`;
+        : `${safeScore}% Match — ${data.matchLabel || matchBand(safeScore)}`;
     }
     if (painHeading) painHeading.textContent = 'Technical pain point';
     if (bodyHeading) bodyHeading.textContent = 'Generated proposal';
@@ -398,69 +508,43 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   setBusy(false, isJob ? 'Job analysis ready.' : isCv ? 'Candidate evaluation ready.' : 'B2B brief ready.');
 }
 
-function extractPageContent() {
-  const pageText = document.body?.innerText || '';
-  const pageTitle = document.title || '';
-  const pageUrl = window.location.href || '';
-  return { pageText: pageText.slice(0, 80_000), pageTitle, pageUrl };
+function emptyPageData() {
+  return {
+    pageText: '',
+    pageTitle: '',
+    pageUrl: '',
+    jobTitle: '',
+    jobDescription: '',
+    requiredSkills: [],
+    budget: '',
+    clientHistory: '',
+    isolated: false,
+  };
+}
+
+function normalizePageData(raw, fallback = emptyPageData()) {
+  const skills = Array.isArray(raw?.requiredSkills)
+    ? raw.requiredSkills.map((item) => String(item)).filter(Boolean).slice(0, 16)
+    : [];
+  return {
+    pageText: String(raw?.pageText || raw?.jobDescription || fallback.pageText || ''),
+    pageTitle: String(raw?.jobTitle || raw?.pageTitle || fallback.pageTitle || ''),
+    pageUrl: String(raw?.pageUrl || fallback.pageUrl || ''),
+    jobTitle: String(raw?.jobTitle || raw?.pageTitle || fallback.jobTitle || ''),
+    jobDescription: String(raw?.jobDescription || raw?.pageText || fallback.jobDescription || ''),
+    requiredSkills: skills,
+    budget: String(raw?.budget || fallback.budget || ''),
+    clientHistory: String(raw?.clientHistory || fallback.clientHistory || ''),
+    isolated: Boolean(raw?.isolated),
+  };
 }
 
 async function getActiveTabDOM() {
-  let tab;
-  try {
-    const current = await chrome.tabs.query({ active: true, currentWindow: true });
-    tab = current?.[0];
-    if (!tab?.id) {
-      const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      tab = focused?.[0];
-    }
-  } catch (err) {
-    console.warn('Tab query failed:', err);
-    return { pageText: '', pageTitle: '', pageUrl: '' };
-  }
-
-  if (!tab || !tab.id) {
-    return { pageText: '', pageTitle: '', pageUrl: tab?.url || '' };
-  }
-  if (isRestrictedUrl(tab.url)) {
-    throw new Error('Open a public web page, then click Analyze. Chrome system pages cannot be read.');
-  }
-
-  const fallback = {
-    pageText: '',
-    pageTitle: tab.title || '',
-    pageUrl: tab.url || '',
-  };
-
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractPageContent,
-    });
-    const extracted = results?.[0]?.result;
-    return {
-      pageText: String(extracted?.pageText || fallback.pageText),
-      pageTitle: String(extracted?.pageTitle || fallback.pageTitle),
-      pageUrl: String(extracted?.pageUrl || fallback.pageUrl),
-    };
-  } catch (err) {
-    const msg = err?.message || String(err);
-    if (/permission to access the respective host|Cannot access contents|Cannot access a chrome/i.test(msg)) {
-      try {
-        const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' });
-        if (scraped?.success && scraped.data) {
-          return {
-            pageText: String(scraped.data.pageText || ''),
-            pageTitle: String(scraped.data.pageTitle || fallback.pageTitle),
-            pageUrl: String(scraped.data.pageUrl || fallback.pageUrl),
-          };
-        }
-      } catch (workerErr) {
-        console.warn('Background scrape failed:', workerErr);
-      }
-    }
-    return fallback;
-  }
+  const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' }).catch((err) => {
+    throw new Error(err?.message || 'Could not read the active tab.');
+  });
+  if (scraped?.success && scraped.data) return normalizePageData(scraped.data);
+  throw new Error(scraped?.error || 'Could not isolate the open job.');
 }
 
 async function postParseDom(pageData) {
@@ -470,6 +554,11 @@ async function postParseDom(pageData) {
     pageUrl: pageData.pageUrl,
     text: pageData.pageText,
     sourceUrl: pageData.pageUrl,
+    jobTitle: pageData.jobTitle,
+    jobDescription: pageData.jobDescription || pageData.pageText,
+    requiredSkills: pageData.requiredSkills || [],
+    budget: pageData.budget,
+    clientHistory: pageData.clientHistory,
     skills: skillListFromSettings(),
     experience: settings.experience,
     hourlyRate: Number(settings.hourlyRate) || undefined,
@@ -513,12 +602,20 @@ async function analyzeActivePage() {
 
   try {
     const pageData = await getActiveTabDOM();
-    const pageText = String(pageData.pageText || '').trim();
+    lastJob = {
+      title: pageData.jobTitle || pageData.pageTitle,
+      url: pageData.pageUrl,
+      description: pageData.jobDescription || pageData.pageText,
+      skills: pageData.requiredSkills || [],
+      budget: pageData.budget || '',
+      clientHistory: pageData.clientHistory || '',
+    };
+    const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
     if (pageText.length < 20) {
       throw new Error('This tab does not have enough readable text to analyze.');
     }
 
-    setBusy(true, 'Analyzing page…');
+    setBusy(true, pageData.isolated ? 'Analyzing the open job…' : 'Analyzing page…');
     const data = await postParseDom(pageData);
     ingestOpportunity(pageData, data);
     renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
@@ -632,7 +729,7 @@ async function pingApi() {
 }
 
 function switchTab(tab) {
-  const id = ['analyze', 'proposals', 'cvs', 'settings'].includes(tab) ? tab : 'analyze';
+  const id = ['proposal', 'cv', 'match', 'settings'].includes(tab) ? tab : 'proposal';
   document.querySelectorAll('.tab-view').forEach((view) => {
     view.classList.toggle('on', view.id === `tab-${id}`);
   });
@@ -723,17 +820,18 @@ proposalListEl?.addEventListener('click', async (event) => {
 cvListEl?.addEventListener('click', async (event) => {
   const copyId = event.target.closest('[data-copy]')?.getAttribute('data-copy');
   const deleteId = event.target.closest('[data-delete]')?.getAttribute('data-delete');
-  const list = await storageGet(STORE.CANDIDATES, []);
+  const list = await storageGet(STORE.CVS, []);
   if (copyId) {
     const item = list.find((row) => row.id === copyId);
-    if (item?.summary) {
-      await copyText(item.summary);
-      setBusy(false, 'Candidate card copied.');
+    const text = item?.text || item?.summary || '';
+    if (text) {
+      await copyText(text);
+      setBusy(false, 'CV copied.');
     }
   }
   if (deleteId) {
     const next = list.filter((row) => row.id !== deleteId);
-    await storageSet(STORE.CANDIDATES, next);
+    await storageSet(STORE.CVS, next);
     renderCvList(next);
   }
 });
@@ -770,13 +868,195 @@ document.getElementById('pingApi')?.addEventListener('click', () => {
   void pingApi();
 });
 
+function setCvBusy(on, message) {
+  generatingCv = on;
+  const generateCvBtn = document.getElementById('generateCv');
+  const copyCvBtn = document.getElementById('copyCv');
+  const downloadCvBtn = document.getElementById('downloadCv');
+  const cvSpinner = document.getElementById('cvSpinner');
+  const cvStatus = document.getElementById('cvStatus');
+  if (generateCvBtn) generateCvBtn.disabled = on;
+  if (copyCvBtn) copyCvBtn.disabled = on || !lastCv;
+  if (downloadCvBtn) downloadCvBtn.disabled = on || !lastCv;
+  cvSpinner?.classList.toggle('on', on);
+  if (cvStatus) cvStatus.textContent = message;
+}
+
+function profileNotes() {
+  const skills = skillListFromSettings();
+  return [
+    skills.length ? `Skills: ${skills.join(', ')}` : '',
+    settings.experience ? `Experience: ${settings.experience}` : '',
+    settings.hourlyRate ? `Hourly rate: $${settings.hourlyRate}` : '',
+    settings.fixedRate ? `Target project rate: $${settings.fixedRate}` : '',
+    settings.accountEmail ? `Email: ${settings.accountEmail}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function pdfEscape(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+}
+
+function toWinAnsi(value) {
+  const map = {
+    ş: 's', Ş: 'S', ı: 'i', İ: 'I', ğ: 'g', Ğ: 'G', ü: 'u', Ü: 'U', ö: 'o', Ö: 'O', ç: 'c', Ç: 'C',
+    '—': '-', '–': '-', '’': "'", '“': '"', '”': '"',
+  };
+  return String(value || '').replace(/[^\x20-\x7E\n]/g, (ch) => map[ch] || ' ');
+}
+
+function wrapPdfLines(text, width) {
+  const out = [];
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.trimEnd();
+    if (!line) {
+      out.push('');
+      continue;
+    }
+    let rest = line;
+    while (rest.length > width) {
+      let cut = rest.lastIndexOf(' ', width);
+      if (cut < 20) cut = width;
+      out.push(rest.slice(0, cut));
+      rest = rest.slice(cut).trim();
+    }
+    out.push(rest);
+  }
+  return out.slice(0, 80);
+}
+
+function downloadTextPdf(filename, title, body) {
+  const lines = wrapPdfLines(toWinAnsi(`${title}\n\n${body}`), 86);
+  const leading = 14;
+  const startY = 800;
+  const commands = ['BT', '/F1 11 Tf', '14 TL', `72 ${startY} Td`];
+  lines.forEach((line, index) => {
+    if (index) commands.push('T*');
+    commands.push(`(${pdfEscape(line)}) Tj`);
+  });
+  commands.push('ET');
+  const stream = commands.join('\n');
+  const objects = [
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+    '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj',
+    `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+  ];
+  let offset = 9;
+  const offsets = [0];
+  let pdf = '%PDF-1.4\n';
+  for (const obj of objects) {
+    offsets.push(offset);
+    pdf += `${obj}\n`;
+    offset += obj.length + 1;
+  }
+  const xrefStart = offset;
+  pdf += `xref\n0 6\n0000000000 65535 f \n`;
+  for (let i = 1; i <= 5; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+
+async function saveCvRecord(record) {
+  const list = await storageGet(STORE.CVS, []);
+  const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
+  await storageSet(STORE.CVS, next);
+  renderCvList(next);
+}
+
+async function generateTailoredCv() {
+  if (generatingCv) return;
+  if (skillListFromSettings().length < 2) {
+    setCvBusy(false, 'Add at least two skills in Settings before generating a CV.');
+    switchTab('settings');
+    return;
+  }
+  setCvBusy(true, 'Reading the open job…');
+  try {
+    const pageData = await getActiveTabDOM();
+    lastJob = {
+      title: pageData.jobTitle || pageData.pageTitle || lastJob.title,
+      url: pageData.pageUrl || lastJob.url,
+      description: pageData.jobDescription || pageData.pageText || lastJob.description,
+      skills: pageData.requiredSkills || lastJob.skills,
+      budget: pageData.budget || lastJob.budget,
+      clientHistory: pageData.clientHistory || lastJob.clientHistory,
+    };
+    const cvJobMeta = document.getElementById('cvJobMeta');
+    if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
+    if (String(lastJob.description || '').trim().length < 20) {
+      throw new Error('Open a job post, then generate the CV.');
+    }
+    setCvBusy(true, 'Writing a tailored CV…');
+    const viaWorker = await chrome.runtime.sendMessage({
+      type: 'GENERATE_CV',
+      payload: {
+        mode: 'generate-from-text',
+        targetRole: lastJob.title,
+        jobDescription: lastJob.description,
+        existingCvText: profileNotes(),
+        skills: skillListFromSettings(),
+        experience: settings.experience,
+        hourlyRate: Number(settings.hourlyRate) || undefined,
+        outputLanguage: 'en',
+      },
+    }).catch(() => null);
+    if (viaWorker?.error) throw new Error(viaWorker.error);
+    const data = viaWorker?.success ? viaWorker.data : null;
+    const cvText = String(data?.cv || data?.proposal || '').replace(/^\s*[-*_]{3,}\s*$/gm, '').trim();
+    if (!cvText) throw new Error('Service temporarily busy. Please try again in a few moments.');
+    lastCv = cvText;
+    document.getElementById('cvCard')?.classList.add('on');
+    renderCvPreview(cvText);
+    updateMatchUi(data || {}, lastJob.title);
+    await saveCvRecord({
+      id: `${Date.now()}`,
+      title: lastJob.title || 'Tailored CV',
+      url: lastJob.url,
+      text: cvText,
+      score: Number(data?.match_score ?? data?.matchScore ?? lastScore ?? 0),
+      at: Date.now(),
+    });
+    setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');
+  } catch (err) {
+    const msg = publicError(err?.message || err);
+    setCvBusy(false, msg);
+  }
+}
+
+document.getElementById('generateCv')?.addEventListener('click', () => {
+  void generateTailoredCv();
+});
+document.getElementById('copyCv')?.addEventListener('click', async () => {
+  if (!lastCv) return;
+  await copyText(lastCv);
+  setCvBusy(false, 'CV copied.');
+});
+document.getElementById('downloadCv')?.addEventListener('click', () => {
+  if (!lastCv) return;
+  const slug = String(lastJob.title || 'sovereign-cv').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+  downloadTextPdf(`${slug || 'sovereign-cv'}.pdf`, lastJob.title || 'Curriculum Vitae', lastCv);
+  setCvBusy(false, 'PDF downloaded.');
+});
+
 async function boot() {
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
     settings = { ...DEFAULT_SETTINGS, ...(stored || {}) };
     fillSettingsForm();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
-    renderCvList(await storageGet(STORE.CANDIDATES, []));
+    renderCvList(await storageGet(STORE.CVS, []));
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
