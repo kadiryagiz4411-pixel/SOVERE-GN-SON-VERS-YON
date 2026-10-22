@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { Clock, Copy, Check, Loader2, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
+import { postLiveFollowup } from '@/lib/liveGenerate';
 
 interface FollowUpKitProps {
   proposal: string;
@@ -22,6 +22,8 @@ const translations = {
     day3Desc: 'Light check-in — shows initiative without pressure',
     day7Desc: 'Value-add message — provides additional context',
     copied: 'Copied!',
+    retry: 'Retry',
+    failed: 'Follow-ups could not be written right now. Try again in a moment.',
   },
   tr: {
     title: 'Takip Kiti',
@@ -33,6 +35,8 @@ const translations = {
     day3Desc: 'Hafif hatırlatma — baskı yapmadan inisiyatif gösterir',
     day7Desc: 'Değer katan mesaj — ek bağlam sağlar',
     copied: 'Kopyalandı!',
+    retry: 'Tekrar dene',
+    failed: 'Takip mesajları şu anda yazılamadı. Biraz sonra tekrar deneyin.',
   },
   de: {
     title: 'Follow-up-Kit',
@@ -44,6 +48,8 @@ const translations = {
     day3Desc: 'Leichte Nachfrage — zeigt Initiative ohne Druck',
     day7Desc: 'Mehrwert-Nachricht — bietet zusätzlichen Kontext',
     copied: 'Kopiert!',
+    retry: 'Erneut versuchen',
+    failed: 'Follow-ups konnten gerade nicht erstellt werden. Versuchen Sie es gleich noch einmal.',
   },
   fr: {
     title: 'Kit de suivi',
@@ -55,6 +61,8 @@ const translations = {
     day3Desc: 'Vérification légère — montre de l\'initiative sans pression',
     day7Desc: 'Message à valeur ajoutée — fournit un contexte supplémentaire',
     copied: 'Copié !',
+    retry: 'Réessayer',
+    failed: 'Les relances n\'ont pas pu être rédigées. Réessayez dans un instant.',
   },
 };
 
@@ -66,39 +74,35 @@ export const FollowUpKit = ({ proposal, jobDescription, plan }: FollowUpKitProps
   const [followUp3, setFollowUp3] = useState('');
   const [followUp7, setFollowUp7] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Please log in'); return; }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-followup`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ proposal, jobDescription, language }),
-        }
-      );
-
-      if (!response.ok) {
-        if (response.status === 429) toast.error('Rate limited. Try again shortly.');
-        else if (response.status === 402) toast.error('Credits exhausted.');
-        else toast.error('Failed to generate follow-ups');
+      const live = await postLiveFollowup({
+        type: 'followup',
+        proposal,
+        jobDescription,
+        jobContext: jobDescription,
+        proposalHistory: proposal,
+        previousMessages: proposal,
+        language,
+        plan,
+      });
+      const day3 = String(live.data?.followUp3 || '').trim();
+      const day7 = String(live.data?.followUp7 || '').trim();
+      if (!day3 || !day7) {
+        setError(t.failed);
+        toast.error(t.failed);
         return;
       }
-
-      const result = await response.json();
-      setFollowUp3(result.followUp3 || '');
-      setFollowUp7(result.followUp7 || '');
+      setFollowUp3(day3);
+      setFollowUp7(day7);
       setIsExpanded(true);
-    } catch (err) {
-      console.error('Follow-up error:', err);
-      toast.error('Failed to generate follow-ups');
+    } catch {
+      setError(t.failed);
+      toast.error(t.failed);
     } finally {
       setIsGenerating(false);
     }
@@ -118,20 +122,36 @@ export const FollowUpKit = ({ proposal, jobDescription, plan }: FollowUpKitProps
 
   if (!followUp3 && !followUp7) {
     return (
-      <div className="mt-3 pt-3 border-t border-border">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-        >
-          {isGenerating ? (
-            <><Loader2 className="w-3 h-3 animate-spin" /> {t.generating}</>
-          ) : (
-            <><Clock className="w-3 h-3" /> {t.title}</>
-          )}
-        </Button>
+      <div className="mt-3 pt-3 border-t border-border space-y-2">
+        {error ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-xs text-foreground mb-2">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="w-full gap-2"
+            >
+              {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Clock className="w-3 h-3" />}
+              {isGenerating ? t.generating : t.retry}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+          >
+            {isGenerating ? (
+              <><Loader2 className="w-3 h-3 animate-spin" /> {t.generating}</>
+            ) : (
+              <><Clock className="w-3 h-3" /> {t.title}</>
+            )}
+          </Button>
+        )}
       </div>
     );
   }

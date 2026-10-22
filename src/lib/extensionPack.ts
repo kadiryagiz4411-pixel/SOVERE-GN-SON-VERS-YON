@@ -3,6 +3,7 @@ const EXTENSION_FILES = [
   'background.js',
   'config.js',
   'content.js',
+  'autofill.js',
   'inject.js',
   'scraper.js',
   'sidepanel.html',

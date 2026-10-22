@@ -92,3 +92,14 @@ export function postLiveCv(body: Record<string, unknown>) {
 export function postLiveProposal(body: Record<string, unknown>) {
   return postLiveJson<{ proposal?: string; proposalText?: string; error?: string }>('/api/proposal', body);
 }
+
+export function postLiveFollowup(body: Record<string, unknown>) {
+  return postLiveJson<{
+    followUp3?: string;
+    followUp7?: string;
+    questions?: Array<{ question?: string; suggestedAnswer?: string; tip?: string }>;
+    error?: string;
+    message?: string;
+    fallback?: boolean;
+  }>('/api/generate-followup', body);
+}

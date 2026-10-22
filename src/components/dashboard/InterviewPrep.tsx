@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { MessageSquare, Loader2, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
+import { postLiveFollowup } from '@/lib/liveGenerate';
 
 interface InterviewPrepProps {
   jobDescription: string;
@@ -29,6 +29,8 @@ const translations = {
     generating: 'Analyzing job...',
     tip: 'Pro Tip',
     suggestedAnswer: 'Suggested Answer',
+    retry: 'Retry',
+    failed: 'Interview questions could not be written right now. Try again in a moment.',
   },
   tr: {
     title: 'Mülakat Stratejisi',
@@ -37,6 +39,8 @@ const translations = {
     generating: 'İş analiz ediliyor...',
     tip: 'İpucu',
     suggestedAnswer: 'Önerilen Cevap',
+    retry: 'Tekrar dene',
+    failed: 'Mülakat soruları şu anda yazılamadı. Biraz sonra tekrar deneyin.',
   },
   de: {
     title: 'Interview-Strategie',
@@ -45,6 +49,8 @@ const translations = {
     generating: 'Stelle wird analysiert...',
     tip: 'Profi-Tipp',
     suggestedAnswer: 'Vorgeschlagene Antwort',
+    retry: 'Erneut versuchen',
+    failed: 'Interviewfragen konnten gerade nicht erstellt werden. Versuchen Sie es gleich noch einmal.',
   },
   fr: {
     title: "Stratégie d'entretien",
@@ -53,6 +59,8 @@ const translations = {
     generating: 'Analyse du poste...',
     tip: 'Conseil pro',
     suggestedAnswer: 'Réponse suggérée',
+    retry: 'Réessayer',
+    failed: 'Les questions n\'ont pas pu être rédigées. Réessayez dans un instant.',
   },
 };
 
@@ -62,47 +70,43 @@ export const InterviewPrep = ({ jobDescription, proposal, plan, userProfile }: I
   const [isGenerating, setIsGenerating] = useState(false);
   const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
   const [expandedQ, setExpandedQ] = useState<number | null>(null);
+  const [error, setError] = useState('');
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Please log in'); return; }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-followup`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            type: 'interview',
-            jobDescription,
-            proposal,
-            language,
-            userProfile: userProfile ? {
-              skills: userProfile.skills,
-              experience: userProfile.experience,
-            } : undefined,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        if (response.status === 429) toast.error('Rate limited. Try again shortly.');
-        else if (response.status === 402) toast.error('Credits exhausted.');
-        else toast.error('Failed to generate questions');
+      const live = await postLiveFollowup({
+        type: 'interview',
+        jobDescription,
+        jobContext: jobDescription,
+        proposal,
+        proposalHistory: proposal,
+        previousMessages: proposal,
+        language,
+        plan,
+        userProfile: userProfile ? {
+          skills: userProfile.skills,
+          experience: userProfile.experience,
+        } : undefined,
+      });
+      const next = (live.data?.questions || [])
+        .map((item) => ({
+          question: String(item.question || '').trim(),
+          suggestedAnswer: String(item.suggestedAnswer || '').trim(),
+          tip: String(item.tip || '').trim(),
+        }))
+        .filter((item) => item.question && item.suggestedAnswer);
+      if (!next.length) {
+        setError(t.failed);
+        toast.error(t.failed);
         return;
       }
-
-      const result = await response.json();
-      setQuestions(result.questions || []);
-      if (result.questions?.length > 0) setExpandedQ(0);
-    } catch (err) {
-      console.error('Interview prep error:', err);
-      toast.error('Failed to generate questions');
+      setQuestions(next);
+      setExpandedQ(0);
+    } catch {
+      setError(t.failed);
+      toast.error(t.failed);
     } finally {
       setIsGenerating(false);
     }
@@ -116,6 +120,11 @@ export const InterviewPrep = ({ jobDescription, proposal, plan, userProfile }: I
           <h3 className="text-sm font-semibold text-foreground">{t.title}</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">{t.subtitle}</p>
+        {error ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 mb-2">
+            <p className="text-xs text-foreground mb-2">{error}</p>
+          </div>
+        ) : null}
         <Button
           variant="outline"
           size="sm"
@@ -126,7 +135,7 @@ export const InterviewPrep = ({ jobDescription, proposal, plan, userProfile }: I
           {isGenerating ? (
             <><Loader2 className="w-3 h-3 animate-spin" /> {t.generating}</>
           ) : (
-            <><MessageSquare className="w-3 h-3" /> {t.generate}</>
+            <><MessageSquare className="w-3 h-3" /> {error ? t.retry : t.generate}</>
           )}
         </Button>
       </div>

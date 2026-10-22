@@ -1,53 +1,10 @@
 /**
- * Shared insert helper. Never auto-submits a proposal.
+ * Legacy Auto-Fill entry. Prefer autofill.js.
+ * Never auto-submits a proposal.
  */
 function injectProposalToDOM(proposalText) {
-  const text = String(proposalText || '');
-  if (!text) return false;
-
-  const isVisible = (el) => {
-    const r = el.getBoundingClientRect();
-    const style = window.getComputedStyle(el);
-    return r.width > 40 && r.height > 24 && style.visibility !== 'hidden' && style.display !== 'none';
-  };
-
-  const selectors = [
-    'textarea[aria-labelledby*="cover-letter"]',
-    'textarea[aria-label*="cover letter" i]',
-    'textarea[placeholder*="cover" i]',
-    'textarea[name*="cover" i]',
-    'textarea.up-textarea',
-    'textarea[data-test="cover-letter"]',
-    '.msg-form__contenteditable',
-    'div.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][aria-label*="message" i]',
-    'div[contenteditable="true"][role="textbox"]',
-    'textarea',
-  ];
-
-  let field = null;
-  for (const selector of selectors) {
-    const found = [...document.querySelectorAll(selector)].find(isVisible);
-    if (found) {
-      field = found;
-      break;
-    }
+  if (typeof globalThis.sovereignInjectProposal === 'function') {
+    return globalThis.sovereignInjectProposal(proposalText);
   }
-  if (!field) return false;
-
-  field.focus();
-  if (field.isContentEditable) {
-    field.textContent = text;
-    field.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
-    field.dispatchEvent(new Event('change', { bubbles: true }));
-  } else {
-    const proto = field.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-    if (setter) setter.call(field, text);
-    else field.value = text;
-    field.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-    field.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-  return true;
+  return false;
 }

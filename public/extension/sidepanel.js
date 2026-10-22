@@ -177,6 +177,9 @@ function publicError(raw) {
   if (/system pages|chrome system/i.test(text)) {
     return 'Open a public web page, then try Analyze again.';
   }
+  if (/no proposal editor|no editor found|Auto-Fill is not loaded/i.test(text)) {
+    return 'Open the cover letter or proposal box on this page, then tap Auto-Fill again.';
+  }
   return 'Service temporarily busy. Please try again in a few moments.';
 }
 
@@ -1016,10 +1019,13 @@ autofillBtn?.addEventListener('click', async () => {
       type: 'INJECT_PROPOSAL',
       proposalText: lastProposal,
     });
-    if (!result?.success) throw new Error(result?.error || 'No proposal editor found on this page.');
+    if (!result?.success) {
+      setBusy(false, 'Open the cover letter box on this page, then tap Auto-Fill again. Sovereign never auto-submits.');
+      return;
+    }
     setBusy(false, 'Proposal inserted. Review it, then submit yourself — Sovereign never auto-sends.');
   } catch (err) {
-    showError(err.message || String(err));
+    setBusy(false, publicError(err.message || String(err)));
   }
 });
 
@@ -1382,16 +1388,19 @@ document.getElementById('copyDispatch')?.addEventListener('click', async () => {
 });
 document.getElementById('autofillDispatch')?.addEventListener('click', async () => {
   if (!lastProposal) return;
+  const dispatchStatus = document.getElementById('dispatchStatus');
   try {
     const result = await chrome.runtime.sendMessage({
       type: 'INJECT_PROPOSAL',
       proposalText: lastProposal,
     });
-    if (!result?.success) throw new Error(result?.error || 'No editor found on this page.');
-    const dispatchStatus = document.getElementById('dispatchStatus');
-    if (dispatchStatus) dispatchStatus.textContent = 'Inserted. Review it, then submit yourself.';
+    if (dispatchStatus) {
+      dispatchStatus.textContent = result?.success
+        ? 'Inserted. Review it, then submit yourself.'
+        : 'Open the editor on this page, then tap Auto-Fill again.';
+    }
   } catch (err) {
-    showError(err.message || String(err));
+    if (dispatchStatus) dispatchStatus.textContent = publicError(err.message || String(err));
   }
 });
 
