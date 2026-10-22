@@ -54,7 +54,7 @@ function injectProposalToDOM(proposalText) {
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.5.0';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.1';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {
@@ -73,11 +73,19 @@ function captureSovereignSession() {
       if (!raw) continue;
       const parsed = JSON.parse(raw);
       const accessToken = parsed?.access_token || parsed?.currentSession?.access_token || '';
-      const email = parsed?.user?.email || parsed?.currentSession?.user?.email || '';
+      const email = parsed?.user?.email
+        || parsed?.currentSession?.user?.email
+        || parsed?.user?.user_metadata?.email
+        || '';
       if (!accessToken) continue;
       chrome.storage.local.set({
         'sovereign.session.v1': { accessToken, email, at: Date.now() },
       });
+      try {
+        chrome.runtime.sendMessage({ type: 'SYNC_SESSION', accessToken, email });
+      } catch {
+        /* background may be asleep */
+      }
       break;
     }
   } catch {
@@ -87,6 +95,14 @@ function captureSovereignSession() {
 
 markSovereignHost();
 captureSovereignSession();
+if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
+  window.addEventListener('focus', captureSovereignSession);
+  window.addEventListener('storage', captureSovereignSession);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') captureSovereignSession();
+  });
+  setInterval(captureSovereignSession, 15000);
+}
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request?.type === 'SCRAPE_PAGE') {

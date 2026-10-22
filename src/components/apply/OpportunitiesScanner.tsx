@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, ExternalLink } from 'lucide-react';
+import { Loader2, Sparkles, ExternalLink, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OPPORTUNITY_PLATFORMS, resolveOpportunityHref, type OpportunityPlatform } from '@/lib/opportunities';
 
@@ -27,6 +27,9 @@ interface OpportunitiesScannerProps {
   creditLabel: string;
   disabled?: boolean;
   counts?: Partial<Record<'All' | OpportunityPlatform, number>>;
+  onRefresh?: () => void | Promise<void>;
+  refreshLabel?: string;
+  refreshing?: boolean;
 }
 
 const PLATFORM_TONE: Record<string, string> = {
@@ -78,6 +81,9 @@ export function OpportunitiesScanner({
   creditLabel,
   disabled,
   counts,
+  onRefresh,
+  refreshLabel = 'Refresh Queue',
+  refreshing,
 }: OpportunitiesScannerProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -94,6 +100,21 @@ export function OpportunitiesScanner({
         {scanning ? scanningLabel : scanLabel}
         <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full border border-black/20 bg-black/10">{creditLabel}</span>
       </Button>
+      {onRefresh ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={Boolean(refreshing) || scanning || disabled}
+          onClick={() => {
+            void Promise.resolve(onRefresh()).catch(() => undefined);
+          }}
+        >
+          {refreshing
+            ? <SafeIcon icon={Loader2} className="w-4 h-4 animate-spin mr-2" />
+            : <SafeIcon icon={RefreshCw} className="w-4 h-4 mr-2" />}
+          {refreshLabel}
+        </Button>
+      ) : null}
       <div className="flex flex-wrap gap-1">
         {OPPORTUNITY_PLATFORMS.map((name) => {
           const active = platform === name;

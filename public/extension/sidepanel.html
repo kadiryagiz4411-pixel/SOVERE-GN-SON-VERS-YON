@@ -420,6 +420,18 @@
         white-space: nowrap;
       }
       .credit-badge.empty { color: var(--danger); border-color: rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.35); }
+      .credit-reset {
+        display: none;
+        margin: 0 16px 10px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(245, 158, 11, 0.45);
+        background: rgba(120, 53, 15, 0.38);
+        color: #fbbf24;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .credit-reset.on { display: block; }
       .paywall {
         display: none;
         position: fixed;
@@ -481,6 +493,9 @@
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>
+    <div id="creditResetBanner" class="credit-reset" role="status">
+      Monthly AppSumo credits reached. Credits refresh next month — your workspace stays open.
+    </div>
     <div id="paywall" class="paywall" role="dialog" aria-modal="true">
       <div class="paywall-card">
         <h2 id="paywallTitle">Upgrade Account</h2>

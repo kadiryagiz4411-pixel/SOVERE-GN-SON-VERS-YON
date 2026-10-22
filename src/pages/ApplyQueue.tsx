@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/AppShell';
@@ -15,35 +15,12 @@ import { opportunityToQueueRow } from '@/lib/opportunityFallback';
 import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
 import { isOnboardingComplete, normalizeSkillList } from '@/lib/matchScore';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
+import { useApplyQueue } from '@/hooks/useApplyQueue';
 import {
   Loader2, Crown, Copy,
   ChevronDown, Target, TrendingUp,
   Shield, Users, Sparkles,
 } from 'lucide-react';
-
-interface QueueItem {
-  id: string;
-  job_title: string;
-  company: string;
-  platform: string;
-  budget: string;
-  job_url: string;
-  job_description: string;
-  match_score: number;
-  acceptance_probability: number;
-  match_reasoning: string[];
-  rejection_reason: string | null;
-  generated_proposal: string;
-  status: string;
-  user_notes: string;
-  skills_matched: string[];
-  competition_level: string;
-  client_quality_score: number;
-  urgency: string;
-  batch_id: string;
-  scanned_at: string;
-  created_at: string;
-}
 
 const PLATFORM_COLORS: Record<string, string> = {
   Upwork: 'bg-green-500/15 text-green-500 border-green-500/30',
@@ -74,9 +51,9 @@ const ApplyQueue = () => {
     'tier_1', 'tier_2', 'tier_3',
   ]);
 
-  const [items, setItems] = useState<QueueItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, loading, refresh, invalidate } = useApplyQueue(user?.id);
   const [scanning, setScanning] = useState(false);
+  const [queueRefreshing, setQueueRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProposal, setEditingProposal] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'all' | 'pending'>('all');
@@ -85,6 +62,7 @@ const ApplyQueue = () => {
   const txt = {
     title: language === 'tr' ? 'Akıllı Başvuru Kuyruğu' : language === 'de' ? 'Intelligente Bewerbungswarteschlange' : language === 'fr' ? 'File de candidature intelligente' : 'Preloaded Apply Queue',
     subtitle: language === 'tr' ? 'Sovereign siz yokken en iyi fırsatları buldu' : language === 'de' ? 'Sovereign hat die besten Chancen gefunden' : language === 'fr' ? 'Sovereign a trouvé les meilleures opportunités' : 'Sovereign found your best opportunities while you were away',
+    refresh: language === 'tr' ? 'Kuyruğu Yenile' : language === 'de' ? 'Warteschlange aktualisieren' : language === 'fr' ? 'Actualiser la file' : 'Refresh Queue',
     scan: language === 'tr' ? 'Yeni Fırsatları Tara' : language === 'de' ? 'Neue Chancen scannen' : language === 'fr' ? 'Rechercher des opportunités' : 'Scan New Opportunities',
     scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning...',
     copyProposal: language === 'tr' ? 'Teklifi kopyala' : language === 'de' ? 'Vorschlag kopieren' : language === 'fr' ? 'Copier la proposition' : 'Copy Proposal',
@@ -100,30 +78,6 @@ const ApplyQueue = () => {
     pending: language === 'tr' ? 'Bekleyen' : language === 'de' ? 'Ausstehend' : language === 'fr' ? 'En attente' : 'Pending',
     upgradeNeeded: language === 'tr' ? 'Bu özellik Pro veya Elite plan gerektirir' : language === 'de' ? 'Pro- oder Elite-Plan erforderlich' : language === 'fr' ? 'Plan Pro ou Elite requis' : 'Upgrade to Pro or Elite to use Apply Queue',
   };
-
-  const fetchQueue = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('apply_queue')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (!error && data) {
-        setItems(data as unknown as QueueItem[]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchQueue(); }, [user]);
 
   const handleScan = async () => {
     if (!isUnlimitedUser && credits < 30) {
@@ -193,7 +147,7 @@ const ApplyQueue = () => {
       } else {
         toast.success(`${fresh.length} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
       }
-      await fetchQueue();
+      await invalidate();
     } catch (err) {
       console.error('[ApplyQueue scan]', err);
       const aborted = err instanceof DOMException && err.name === 'AbortError';
@@ -274,6 +228,21 @@ const ApplyQueue = () => {
                 scanningLabel={txt.scanning}
                 creditLabel={txt.credits30}
                 counts={platformCounts}
+                refreshLabel={txt.refresh}
+                refreshing={queueRefreshing}
+                onRefresh={async () => {
+                  setQueueRefreshing(true);
+                  try {
+                    const result = await refresh();
+                    if (result.error) {
+                      toast.error(language === 'tr' ? 'Kuyruk yenilenemedi.' : 'Queue could not refresh.');
+                      return;
+                    }
+                    toast.success(language === 'tr' ? 'Kuyruk güncellendi.' : 'Queue refreshed.');
+                  } finally {
+                    setQueueRefreshing(false);
+                  }
+                }}
               />
               <div className="flex gap-1 ml-auto">
                 {(['all', 'pending'] as const).map(f => (

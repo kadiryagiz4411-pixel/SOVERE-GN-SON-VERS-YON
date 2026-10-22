@@ -1,5 +1,6 @@
 import { jsonNoStore, preflightNoStore, readJsonBody } from './_lib/cors.js';
 import { exposeApi } from './_lib/http.js';
+import { firstEnv } from './_lib/env.js';
 import { scoreOpportunity, type MatchProfile } from './_lib/matchScore.js';
 import {
   collectLiveOpportunities,
@@ -16,6 +17,105 @@ export type { OpportunityItem, OpportunityPlatform };
 // Vite/Vercel handler: always live-fetch. jsonNoStore + outbound cache:no-store
 // are the equivalent of force-dynamic, revalidate 0, and fetchCache no-store.
 export const config = { runtime: 'nodejs', maxDuration: 25 };
+
+function bearerToken(req: Request): string {
+  const header = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+  return header.replace(/^Bearer\s+/i, '').trim();
+}
+
+function normalizeQueueUrl(url: string): string {
+  return String(url || '').trim().replace(/\/+$/, '').toLowerCase();
+}
+
+async function persistIngestedJobs(req: Request, items: OpportunityItem[]): Promise<void> {
+  if (!items.length) return;
+  const token = bearerToken(req);
+  if (!token) return;
+  const supabaseUrl = firstEnv('SUPABASE_URL', 'VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
+  const anon = firstEnv('SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY');
+  if (!supabaseUrl || !anon) return;
+
+  try {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: anon },
+    });
+    if (!userRes.ok) return;
+    const user = await userRes.json().catch(() => ({})) as { id?: string };
+    const userId = String(user.id || '');
+    if (!userId) return;
+
+    const existingRes = await fetch(
+      `${supabaseUrl}/rest/v1/apply_queue?select=job_url&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=80`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: anon,
+          Accept: 'application/json',
+        },
+      },
+    );
+    const existingRows = existingRes.ok ? await existingRes.json().catch(() => []) : [];
+    const existing = new Set(
+      (Array.isArray(existingRows) ? existingRows : []).map((row: { job_url?: string }) => normalizeQueueUrl(String(row.job_url || ''))),
+    );
+
+    const batchId = crypto.randomUUID();
+    const rows = items
+      .filter((item) => {
+        const url = normalizeQueueUrl(item.url);
+        return url && !existing.has(url);
+      })
+      .map((item) => {
+        const scored = scoreOpportunity(
+          { skills: item.skills || [] },
+          item.title,
+          item.description,
+          item.budget,
+          item.skills,
+        );
+        const score = Number(item.compatibilityScore) || (scored.complete ? scored.matchScore : 0);
+        return {
+          user_id: userId,
+          batch_id: batchId,
+          job_title: String(item.title || 'Job').slice(0, 200),
+          company: item.clientCountry ? `${item.platform} · ${item.clientCountry}` : item.platform,
+          platform: item.platform,
+          budget: item.budget || '',
+          job_url: item.url,
+          job_description: String(item.description || '').slice(0, 8000),
+          match_score: score,
+          acceptance_probability: Number((item as { acceptanceScore?: number }).acceptanceScore) || (scored.complete ? scored.acceptanceScore : 0),
+          match_reasoning: scored.complete
+            ? [
+                scored.matchedSkills.length
+                  ? `Matched skills: ${scored.matchedSkills.slice(0, 4).join(', ')}`
+                  : 'Limited overlap with your onboarding skills',
+              ]
+            : [scored.message || 'Complete onboarding to calculate match scores'],
+          generated_proposal: '',
+          skills_matched: scored.matchedSkills.length ? scored.matchedSkills : (item.skills || []),
+          competition_level: score >= 80 ? 'low' : score >= 45 ? 'medium' : 'high',
+          client_quality_score: score,
+          urgency: 'medium',
+          status: 'pending',
+        };
+      });
+
+    if (!rows.length) return;
+    await fetch(`${supabaseUrl}/rest/v1/apply_queue`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: anon,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+  } catch {
+    /* Apply Queue persist is best-effort; never fail the live scan. */
+  }
+}
 
 function platformParam(raw: string | null): OpportunityPlatform | 'All' {
   const value = String(raw || '').trim();
@@ -64,6 +164,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     const live = await collectLiveOpportunities(profile.skills.length ? profile.skills : keywords, platform);
     const items = dedupeOpportunities([...ingested, ...live.items]);
+    const ingestedUrls = new Set(ingested.map((item) => String(item.url || '').trim()).filter(Boolean));
     const filtered = (platform !== 'All'
       ? items.filter((item) => item.platform === platform)
       : items).map(withValidUrl).map((item) => {
@@ -77,6 +178,13 @@ async function handleRequest(req: Request): Promise<Response> {
         matchMessage: scored.message,
       };
     });
+
+    if (req.method === 'POST' && ingestedUrls.size) {
+      await persistIngestedJobs(
+        req,
+        filtered.filter((item) => ingestedUrls.has(String(item.url || '').trim())),
+      );
+    }
 
     return jsonNoStore({
       success: true,

@@ -18,9 +18,11 @@ const DEFAULT_SETTINGS = {
   accountEmail: '',
   role: '',
   workspaceMode: 'b2c',
+  workspace: 'b2c',
   b2bAccess: false,
   isAdmin: false,
   isAppsumoUser: false,
+  appsumoTier: 0,
   remainingCredits: 0,
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
@@ -30,17 +32,44 @@ const DEFAULT_SETTINGS = {
 function isExtensionAdmin() {
   const email = String(settings.accountEmail || '').trim().toLowerCase();
   const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
-  return settings.isAdmin === true || settings.role === 'admin' || allow.includes(email);
+  return settings.isAdmin === true
+    || settings.role === 'admin'
+    || settings.role === 'superadmin'
+    || allow.includes(email);
+}
+
+function appsumoTier() {
+  return Number(settings.appsumoTier || 0);
 }
 
 function canUseB2B() {
-  return isExtensionAdmin() || settings.b2bAccess === true;
+  if (isExtensionAdmin()) return true;
+  if (appsumoTier() >= 3) return true;
+  if (appsumoTier() === 1 || appsumoTier() === 2) return false;
+  return settings.b2bAccess === true
+    || settings.workspace === 'dual'
+    || settings.workspace === 'b2b';
+}
+
+function canUseDualWorkspace() {
+  return isExtensionAdmin()
+    || appsumoTier() >= 3
+    || settings.workspace === 'dual'
+    || (canUseB2B() && appsumoTier() !== 1 && appsumoTier() !== 2);
 }
 
 const APPSUMO_ZERO_MESSAGE = 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.';
 
 function hidePaywall() {
   document.getElementById('paywall')?.classList.remove('on');
+}
+
+function showCreditResetBanner() {
+  document.getElementById('creditResetBanner')?.classList.add('on');
+}
+
+function hideCreditResetBanner() {
+  document.getElementById('creditResetBanner')?.classList.remove('on');
 }
 
 function showPaywall(kind) {
@@ -87,10 +116,14 @@ function applyCreditBadge() {
   const remaining = Number(settings.remainingCredits || 0);
   const limit = Number(settings.monthlyCreditLimit || 0);
   el.classList.toggle('empty', remaining <= 0);
+  if (settings.isAppsumoUser && remaining <= 0) showCreditResetBanner();
+  else hideCreditResetBanner();
   if (settings.isAppsumoUser) {
-    el.textContent = limit > 0
-      ? `AppSumo ${remaining}/${limit}`
-      : `AppSumo credits ${remaining}`;
+    const tier = appsumoTier();
+    const label = tier >= 3 ? 'T3' : tier === 2 ? 'T2' : tier === 1 ? 'T1' : '';
+    el.textContent = remaining <= 0
+      ? (label ? `AppSumo ${label} · resets next month` : 'Credits reset next month')
+      : (limit > 0 ? `AppSumo ${label} ${remaining}/${limit}`.replace('  ', ' ') : `AppSumo credits ${remaining}`);
     return;
   }
   el.textContent = limit > 0 ? `Credits ${remaining}/${limit}` : `Credits ${remaining}`;
@@ -102,10 +135,12 @@ function assertGenerationAllowed() {
   const remaining = Number(settings.remainingCredits || 0);
   if (settings.isAppsumoUser) {
     if (remaining <= 0) {
-      showPaywall('appsumo');
+      hidePaywall();
+      showCreditResetBanner();
       setBusy(false, APPSUMO_ZERO_MESSAGE);
       return false;
     }
+    hideCreditResetBanner();
     return true;
   }
   const status = String(settings.subscriptionStatus || '').toLowerCase();
@@ -123,8 +158,8 @@ function assertGenerationAllowed() {
 }
 
 function effectiveMode() {
-  if (isExtensionAdmin()) return settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c';
-  return canUseB2B() ? 'b2b' : 'b2c';
+  if (canUseDualWorkspace()) return settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c';
+  return 'b2c';
 }
 
 function publicError(raw) {
@@ -314,17 +349,21 @@ function detectOpportunityPlatform(url) {
   return 'Upwork';
 }
 
-function ingestOpportunity(pageData, analysis) {
+async function ingestOpportunity(pageData, analysis) {
   const mode = analysis?.detectedMode || analysis?.type;
   if (mode !== 'JOB_PROPOSAL' && analysis?.intent !== 'JOB_POSTINGS') return;
   const platform = detectOpportunityPlatform(pageData.pageUrl);
+  const sessionBag = await storageGet(STORE.SESSION, null);
+  const accessToken = sessionBag?.accessToken || '';
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-extension-id': chrome.runtime.id || '',
+  };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   fetch(`${apiBase()}/api/opportunities?t=${Date.now()}`, {
     method: 'POST',
     cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-extension-id': chrome.runtime.id || '',
-    },
+    headers,
     body: JSON.stringify({
       pageText: pageData.pageText,
       pageTitle: analysis.title || pageData.pageTitle,
@@ -729,9 +768,25 @@ async function postParseDom(pageData) {
   return data;
 }
 
+function assertAccountOpen() {
+  if (isExtensionAdmin()) return true;
+  if (!settings.accountEmail) return true;
+  if (settings.isAppsumoUser) {
+    if (Number(settings.remainingCredits || 0) <= 0) showCreditResetBanner();
+    return true;
+  }
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  if (['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(status)) {
+    showPaywall('renew');
+    setBusy(false, 'Renew your subscription to keep using the extension.');
+    return false;
+  }
+  return true;
+}
+
 async function analyzeActivePage() {
   if (analyzing) return;
-  if (!assertGenerationAllowed()) return;
+  if (!assertAccountOpen()) return;
   card?.classList.remove('on');
   lastProposal = '';
   lastOutreach = '';
@@ -757,7 +812,7 @@ async function analyzeActivePage() {
 
     setBusy(true, pageData.isolated ? 'Analyzing the open job…' : 'Analyzing page…');
     const data = await postParseDom(pageData);
-    ingestOpportunity(pageData, data);
+    void ingestOpportunity(pageData, data);
     renderAnalysisResults(data, pageData.pageTitle, pageData.pageUrl);
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
@@ -803,12 +858,13 @@ function applyAdminUi() {
 function applyWorkspaceUi() {
   const mode = effectiveMode();
   const admin = isExtensionAdmin();
+  const dual = canUseDualWorkspace();
   const pill = document.getElementById('planBadge');
   const slider = document.getElementById('adminSlider');
   if (pill) {
     pill.classList.remove('b2c', 'b2b', 'admin');
     if (admin) {
-      pill.textContent = 'ADMIN (DUAL)';
+      pill.textContent = mode === 'b2b' ? 'ADMIN · B2B' : 'ADMIN · B2C';
       pill.classList.add('admin');
     } else if (mode === 'b2b') {
       pill.textContent = 'B2B';
@@ -818,7 +874,7 @@ function applyWorkspaceUi() {
       pill.classList.add('b2c');
     }
   }
-  slider?.classList.toggle('on', admin);
+  slider?.classList.toggle('on', dual);
   slider?.querySelectorAll('button[data-mode]').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.mode === mode);
   });
@@ -938,7 +994,7 @@ document.getElementById('navB2b')?.addEventListener('click', (event) => {
 });
 document.getElementById('adminSlider')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-mode]');
-  if (!btn || !isExtensionAdmin()) return;
+  if (!btn || !canUseDualWorkspace()) return;
   void persistSettings({ workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c' });
 });
 
@@ -1188,7 +1244,10 @@ function renderTeamLeads(list) {
   `).join('');
 }
 
+let resolvingAccess = false;
 async function resolveWorkspaceAccess() {
+  if (resolvingAccess) return;
+  resolvingAccess = true;
   try {
     const sessionBag = await storageGet(STORE.SESSION, null);
     const accessToken = sessionBag?.accessToken || '';
@@ -1201,25 +1260,34 @@ async function resolveWorkspaceAccess() {
       applyWorkspaceUi();
       return;
     }
+    const nextTier = Number(data?.appsumo_tier ?? settings.appsumoTier ?? 0);
+    const nextWorkspace = data?.workspace || settings.workspace || 'b2c';
+    const dual = Boolean(data?.is_admin || data?.isAdmin) || nextWorkspace === 'dual' || nextTier >= 3;
     await persistSettings({
       accountEmail: data?.email || settings.accountEmail,
       role: data?.role || settings.role,
       isAdmin: Boolean(data?.is_admin || data?.isAdmin),
       b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess),
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
+      appsumoTier: nextTier,
       remainingCredits: Number(data?.remainingCredits ?? settings.remainingCredits ?? 0),
-      monthlyCreditLimit: Number(data?.monthlyCreditLimit ?? settings.monthlyCreditLimit ?? 0),
+      monthlyCreditLimit: Number(data?.monthlyCreditLimit ?? data?.monthlyCredits ?? settings.monthlyCreditLimit ?? 0),
       subscriptionStatus: data?.subscriptionStatus || settings.subscriptionStatus,
       canGenerate: data?.canGenerate !== false,
+      workspace: nextWorkspace,
+      workspaceMode: dual ? (settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c') : 'b2c',
     });
     applyCreditBadge();
+    hidePaywall();
     if (data?.is_appsumo_user && Number(data?.remainingCredits ?? 0) <= 0) {
-      showPaywall('appsumo');
+      showCreditResetBanner();
     } else if (data?.saasExpired) {
       showPaywall('renew');
     }
   } catch {
     applyWorkspaceUi();
+  } finally {
+    resolvingAccess = false;
   }
 }
 
@@ -1361,5 +1429,16 @@ async function boot() {
   void pingApi();
   void analyzeActivePage();
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (changes[STORE.SETTINGS]?.newValue) {
+    settings = { ...DEFAULT_SETTINGS, ...changes[STORE.SETTINGS].newValue };
+    fillSettingsForm();
+  }
+  if (changes[STORE.SESSION]?.newValue) {
+    void resolveWorkspaceAccess();
+  }
+});
 
 boot();

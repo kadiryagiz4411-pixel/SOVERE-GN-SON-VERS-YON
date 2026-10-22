@@ -138,18 +138,22 @@ async function handleRequest(req: Request): Promise<Response> {
     const planType = String(profile.plan_type || '').toLowerCase();
     const b2bStatus = String(profile.b2b_subscription_status || '').toLowerCase();
     const appsumo = isAdmin || isAppsumoUser(profile);
+    const appsumoTier = Number(profile.appsumo_tier || 0);
     const remainingCredits = Number(
       profile.credits_remaining ?? profile.remaining_credits ?? 0,
     );
     const monthlyCreditLimit = Number(profile.monthly_credit_limit ?? 0);
     const subscriptionStatus = String(profile.subscription_status || 'active').toLowerCase();
-    const hasB2BAccess = isAdmin
+    const forcedB2C = appsumoTier === 1 || appsumoTier === 2;
+    const hasB2BAccess = !forcedB2C && (
+      isAdmin
+      || appsumoTier >= 3
       || profile.b2b_access === true
       || b2bStatus === 'active'
       || planType.includes('enterprise')
       || planType.includes('b2b')
-      || Number(profile.appsumo_tier || 0) >= 3;
-    const workspace = isAdmin ? 'dual' : hasB2BAccess ? 'b2b' : 'b2c';
+    );
+    const workspace = isAdmin || hasB2BAccess ? 'dual' : 'b2c';
     const saasExpired = !appsumo && ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(subscriptionStatus);
     const creditsDepleted = !isAdmin && remainingCredits <= 0;
     const canGenerate = isAdmin || (appsumo ? remainingCredits > 0 : !saasExpired && remainingCredits > 0);
@@ -168,12 +172,14 @@ async function handleRequest(req: Request): Promise<Response> {
       workspace,
       is_appsumo_user: appsumo,
       isAppsumoUser: appsumo,
-      appsumo_tier: Number(profile.appsumo_tier || 0),
+      appsumo_tier: appsumoTier,
       remainingCredits,
+      monthlyCredits: monthlyCreditLimit,
       monthlyCreditLimit,
       subscriptionStatus: appsumo ? 'lifetime' : subscriptionStatus,
       canGenerate,
       creditsDepleted,
+      accountLocked: false,
       saasExpired,
       creditPrompt: appsumo && creditsDepleted ? APPSUMO_ZERO_MESSAGE : null,
     });

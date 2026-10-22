@@ -155,10 +155,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
       }
 
+      const nextTier = superAdmin ? OWNER_PRIVILEGES.appsumo_tier : numericTier;
+      const nextLimit = superAdmin ? OWNER_PRIVILEGES.monthly_credit_limit : (limit || remaining);
+      if (nextTier >= 1 || superAdmin) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const meta = authData.user?.user_metadata || {};
+          if (
+            Number(meta.appsumo_tier || 0) !== nextTier
+            || Number(meta.monthly_credits || 0) !== nextLimit
+            || Number(meta.monthly_credit_limit || 0) !== nextLimit
+          ) {
+            await supabase.auth.updateUser({
+              data: {
+                appsumo_tier: nextTier,
+                monthly_credits: nextLimit,
+                monthly_credit_limit: nextLimit,
+              },
+            });
+          }
+        } catch {
+          /* session metadata is best-effort for extension inherit */
+        }
+      }
+
       console.log('[Sovereign Auth]', {
         email: email ?? null,
         tier: superAdmin ? OWNER_PRIVILEGES.appsumo_tier : numericTier,
-        hasB2B: superAdmin || numericTier >= 2,
+        hasB2B: superAdmin || numericTier >= 3,
         dbTier: data?.appsumo_tier ?? null,
       });
     } catch (err) {
