@@ -746,6 +746,7 @@ function emptyPageData() {
     kind: 'job',
     contentType: '',
     discarded: false,
+    discardReason: '',
     hash: '',
   };
 }
@@ -767,6 +768,7 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     kind: raw?.kind || fallback.kind || 'job',
     contentType: raw?.contentType || fallback.contentType || '',
     discarded: Boolean(raw?.discarded),
+    discardReason: String(raw?.discardReason || raw?.reason || fallback.discardReason || ''),
     hash: String(raw?.hash || raw?.signature || fallback.hash || ''),
     analysis: raw?.analysis || null,
     autoAnalyzed: Boolean(raw?.autoAnalyzed),
@@ -937,8 +939,14 @@ function onViewportFocus(raw) {
     flushJobContext();
     lastTargetHash = pageData.hash || 'list';
     setTargetBadge('scanning', '', 'list', 'CANDIDATE_LIST');
-    if (proposalEl) proposalEl.textContent = 'This looks like a list. Open one job or profile to score it.';
-    setBusy(false, 'Open a single job or profile in the viewport.');
+    if (proposalEl) {
+      proposalEl.textContent = pageData.discardReason === 'chrome'
+        ? 'Ignored UI chrome (menus, translate, banners). Focus a job or profile.'
+        : 'This looks like a list. Open one job or profile to score it.';
+    }
+    setBusy(false, pageData.discardReason === 'chrome'
+      ? 'Focus the job description, not the page chrome.'
+      : 'Open a single job or profile in the viewport.');
     return;
   }
   if (!pageData.pageText && !pageData.jobDescription) return;

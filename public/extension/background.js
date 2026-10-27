@@ -257,29 +257,34 @@ async function autoAnalyzeViewport(data, force) {
       deepMatch: deep,
       scoreOnly: true,
     });
-    let merged = analysis;
-    if (deep && skills.length >= 2 && !analysis?.onboardingRequired) {
-      try {
-        const smart = await postJson(typeof SMART_MATCH_PATH === 'string' ? SMART_MATCH_PATH : '/api/smart-match', {
-          intent: 'smart-match',
-          jobDescription: data.jobDescription || data.pageText,
-          jobTitle: data.jobTitle || data.pageTitle,
-          skills,
-          experience: settings.experience,
-          hourlyRate: Number(settings.hourlyRate) || undefined,
-          budget: data.budget,
-          requiredSkills: data.requiredSkills || [],
-          clientHistory: data.clientHistory,
-          matchDepth: 'deep',
-          deepMatch: true,
-        });
-        merged = mergeSmartMatch(analysis, smart);
-      } catch {
-        merged = analysis;
-      }
-    }
     if (seq !== analyzeSeq) return;
-    const next = { ...data, analysis: merged, autoAnalyzed: true, flushed: false };
+    if (analysis?.discarded) {
+      persistViewportTarget({
+        ...data,
+        discarded: true,
+        discardReason: analysis.discardReason || 'chrome',
+        analysis: null,
+        autoAnalyzed: true,
+        flushed: true,
+      }, false);
+      try {
+        chrome.runtime.sendMessage({
+          type: 'ANALYSIS_READY',
+          data: {
+            discarded: true,
+            flushed: true,
+            discardReason: analysis.discardReason || 'chrome',
+            hash,
+          },
+        }, () => {
+          void chrome.runtime.lastError;
+        });
+      } catch {
+        // Side panel may be closed.
+      }
+      return;
+    }
+    const next = { ...data, analysis, autoAnalyzed: true, flushed: false };
     persistViewportTarget(next, false);
     try {
       chrome.runtime.sendMessage({ type: 'ANALYSIS_READY', data: next }, () => {

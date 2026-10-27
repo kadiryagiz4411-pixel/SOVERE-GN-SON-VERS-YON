@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sovereign — AI Candidate & Proposal Intelligence",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "B2C job pitch & CV tools, B2B lead routing for agencies. Tracks the job or CV in the viewport. Never auto-submits.",
   "permissions": [
     "activeTab",

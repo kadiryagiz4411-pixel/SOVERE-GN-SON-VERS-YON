@@ -93,6 +93,49 @@ const SOVEREIGN_CV_SELECTORS = [
   'section.pv-profile-section',
 ];
 
+const SOVEREIGN_NOISE_SELECTORS = [
+  'nav', 'footer', 'header', 'aside',
+  '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]', '[role="complementary"]',
+  'script', 'style', 'iframe', 'noscript', '[aria-hidden="true"]', '.sr-only',
+  '#onetrust-banner-sdk', '.cookie-banner', '.cookies', '.cookie-consent',
+  '#goog-gt-tt', '.VIpgJd-yAWNEb-hvhgNd', '.gtx-trans', '.skiptranslate',
+  '[data-purpose="translate"]', '[aria-label*="Translate"]', '[aria-label*="translate"]',
+  '.global-nav', '.msg-overlay-list-bubble', '.artdeco-toast',
+];
+
+const SOVEREIGN_MAIN_SELECTORS = [
+  'main', '[role="main"]', 'article',
+  '.job-details', '.jobs-description', '.jobs-description__content',
+  '[data-test*="job"]', '[data-test*="Job"]',
+  '[data-test="JobDetails"]', '[data-test="Description"]',
+  '.jobsearch-JobComponent', '.jobs-search__job-details',
+];
+
+const UI_CHROME_LINE = /^(translate(?: this page)?|türkçe|turkce|english|español|deutsch|français|sign in|log in|join now|menu|home|jobs|messaging|notifications|network|post a job|cookie(?:s)?(?: settings)?|accept(?: all)?|reject(?: all)?|see more|show more|follow|share|report(?: job)?|save(?: job)?|skip to (?:main )?content)$/i;
+
+function isChromePhrase(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  return !t || UI_CHROME_LINE.test(t);
+}
+
+function looksLikeUiChrome(title, text) {
+  const compact = `${title || ''}\n${text || ''}`.replace(/\s+/g, ' ').trim();
+  if (compact.length < 40) return true;
+  const chromeHits = (compact.match(/translate this page|google çeviri|chrome.?çeviri|\btürkçe\b|cookie settings|sign in|join now|skip to main content/gi) || []).length;
+  const jobHits = (compact.match(/responsibilities|requirements|job description|hourly|fixed[- ]price|must have|beatmaker|mixing|mastering|sound design|producer|react|python|design/gi) || []).length;
+  if (chromeHits >= 1 && jobHits === 0 && compact.length < 240) return true;
+  return chromeHits >= 2 && jobHits === 0;
+}
+
+function filterNoiseLines(text, allowShortTitle) {
+  return String(text || '').split('\n').filter((line) => {
+    const t = line.replace(/\s+/g, ' ').trim();
+    if (!t || isChromePhrase(t)) return false;
+    if (t.length < 40 && !(allowShortTitle && t.length >= 8 && t.length <= 90)) return false;
+    return true;
+  }).join('\n');
+}
+
 function hashScrapedText(text) {
   const s = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 5000);
   let h = 2166136261;
@@ -107,8 +150,8 @@ function classifyScrapedContent(url, title, text, isolated) {
   const href = String(url || '').toLowerCase();
   const sample = `${title || ''}\n${text || ''}`.toLowerCase();
   const compact = sample.replace(/\s+/g, ' ').trim();
-  if (compact.length < 40) {
-    return { contentType: '', kind: 'job', discarded: true, reason: 'empty' };
+  if (compact.length < 40 || looksLikeUiChrome(title, text)) {
+    return { contentType: '', kind: 'job', discarded: true, reason: compact.length < 40 ? 'empty' : 'chrome' };
   }
 
   const nameHits = (sample.match(/\n[A-Z][a-z]+ [A-Z][a-z]+\n/g) || []).length;
@@ -118,7 +161,7 @@ function classifyScrapedContent(url, title, text, isolated) {
     return { contentType: 'CANDIDATE_LIST', kind: 'list', discarded: true, reason: 'list' };
   }
 
-  const jobHits = (sample.match(/job description|responsibilities|qualifications|requirements|apply now|hourly rate|fixed[- ]price|salary|proposals? bid|we're hiring|we are looking|must have/g) || []).length;
+  const jobHits = (sample.match(/job description|responsibilities|qualifications|requirements|apply now|hourly rate|fixed[- ]price|salary|proposals? bid|we're hiring|we are looking|must have|beatmaker|mixing|mastering|sound design|producer|audio engineer|music production/g) || []).length;
   const cvHits = (sample.match(/work experience|professional experience|education|curriculum vitae|\bcv\b|professional summary|certifications|skills\b/g) || []).length;
 
   if (/linkedin\.com\/in\//.test(href) || /\/resume|\/cv(?:\/|$)/.test(href) || (cvHits > jobHits && cvHits >= 2)) {
@@ -196,6 +239,17 @@ function sovereignCenterScore(el) {
     + Math.min(visH, 900) * 6;
 }
 
+function sovereignIsNoiseElement(el) {
+  if (!el || !(el instanceof Element)) return true;
+  if (sovereignMatchesAny(el, SOVEREIGN_NOISE_SELECTORS)) return true;
+  const inNoise = sovereignClosestAny(el, SOVEREIGN_NOISE_SELECTORS);
+  const inMain = sovereignClosestAny(el, SOVEREIGN_MAIN_SELECTORS.concat(SOVEREIGN_DRAWER_SELECTORS).concat(SOVEREIGN_DETAIL_SELECTORS));
+  if (inNoise && !inMain) return true;
+  const t = String(el.innerText || '').replace(/\s+/g, ' ').trim();
+  if (t.length > 0 && t.length < 40 && isChromePhrase(t)) return true;
+  return false;
+}
+
 function sovereignIsLayoutShell(el) {
   if (!el || el === document.body || el === document.documentElement) return true;
   if (sovereignMatchesAny(el, SOVEREIGN_FEED_WRAPPERS)) return true;
@@ -260,18 +314,18 @@ function getOpenDetailPane() {
 function getMostVisibleElement(options) {
   const force = Boolean(options && options.force);
   const drawer = getOpenDetailPane();
-  if (drawer) return drawer;
+  if (drawer && !sovereignIsNoiseElement(drawer)) return drawer;
 
-  const pool = sovereignCollect(
-    SOVEREIGN_DETAIL_SELECTORS
-      .concat(SOVEREIGN_CARD_SELECTORS)
+  const prefer = sovereignCollect(SOVEREIGN_MAIN_SELECTORS.concat(SOVEREIGN_DETAIL_SELECTORS));
+  const pool = prefer.concat(sovereignCollect(
+    SOVEREIGN_CARD_SELECTORS
       .concat(SOVEREIGN_CV_SELECTORS)
       .concat(['[data-job-id]', '[data-jk]', 'article']),
-  );
+  ));
   let best = null;
   let bestScore = -1;
   for (const el of pool) {
-    if (!sovereignVisible(el) || !sovereignInViewport(el)) continue;
+    if (!sovereignVisible(el) || !sovereignInViewport(el) || sovereignIsNoiseElement(el)) continue;
     if (!force && sovereignIsLayoutShell(el)) continue;
     const score = sovereignCenterScore(el);
     if (score > bestScore) {
@@ -298,7 +352,7 @@ function extractActiveJob(options) {
   const viewportScore = sovereignCenterScore;
 
   const pickBest = (selectors, root) => {
-    const nodes = collect(selectors, root).filter((el) => visible(el) && !sovereignIsLayoutShell(el));
+    const nodes = collect(selectors, root).filter((el) => visible(el) && !sovereignIsLayoutShell(el) && !sovereignIsNoiseElement(el));
     if (!nodes.length) return null;
     let best = null;
     let bestScore = -1;
@@ -320,13 +374,15 @@ function extractActiveJob(options) {
     .trim()
     .slice(0, max);
 
-  const textOf = (el, max) => {
+  const textOf = (el, max, allowShortTitle) => {
     if (!el) return '';
     const clone = el.cloneNode(true);
-    clone.querySelectorAll?.(
-      'nav, footer, script, style, iframe, noscript, [aria-hidden="true"], .sr-only',
-    ).forEach((node) => node.remove());
-    return cleanText(clone.innerText || clone.textContent || '', max);
+    clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((node) => node.remove());
+    clone.querySelectorAll?.('button, a, span, li').forEach((node) => {
+      if (isChromePhrase(node.textContent || '')) node.remove();
+    });
+    const raw = cleanText(clone.innerText || clone.textContent || '', max);
+    return cleanText(filterNoiseLines(raw, allowShortTitle), max);
   };
 
   const attrText = (el, names) => {
@@ -422,7 +478,7 @@ function extractActiveJob(options) {
     for (const node of nodes) {
       const label = cleanText(node.textContent || '', 48);
       const key = label.toLowerCase();
-      if (label.length < 2 || label.length > 40 || seen.has(key)) continue;
+      if (label.length < 2 || label.length > 40 || seen.has(key) || isChromePhrase(label)) continue;
       if (/see more|show more|view all|apply now/i.test(label)) continue;
       seen.add(key);
       out.push(label);
@@ -450,7 +506,8 @@ function extractActiveJob(options) {
   const focus = getMostVisibleElement({ force });
   const root = focus
     || getOpenDetailPane()
-    || document.querySelector('main, [role="main"]')
+    || pickBest(SOVEREIGN_MAIN_SELECTORS)
+    || document.querySelector('main, [role="main"], article')
     || document.body;
   if (root instanceof Element) root.setAttribute('data-sovereign-active-job', '1');
 
@@ -458,17 +515,20 @@ function extractActiveJob(options) {
   const descEl = pickBest(DESC_SELECTORS, root);
 
   let jobTitle = cleanText(
-    attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180) || '',
+    attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180, true) || '',
     180,
   );
-  if (!jobTitle || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
-    const firstLine = cleanText((textOf(root, 180).split('\n').find((line) => line.trim().length > 8) || ''), 180);
-    jobTitle = firstLine || cleanText(document.title, 180);
+  if (isChromePhrase(jobTitle) || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
+    const firstLine = (textOf(root, 400, true).split('\n').find((line) => {
+      const t = line.trim();
+      return t.length >= 8 && t.length <= 90 && !isChromePhrase(t);
+    }) || '');
+    jobTitle = cleanText(firstLine, 180);
   }
 
-  let jobDescription = textOf(descEl || root, MAX_TEXT);
+  let jobDescription = textOf(descEl || root, MAX_TEXT, false);
   if (!jobDescription || jobDescription.length < 80) {
-    jobDescription = textOf(root, MAX_TEXT);
+    jobDescription = textOf(root, MAX_TEXT, false);
   }
 
   const isolated = Boolean(focus || descEl) && (force || !looksLikeFeed(jobDescription));
@@ -486,7 +546,7 @@ function extractActiveJob(options) {
 
   return {
     pageText,
-    pageTitle: jobTitle || document.title || '',
+    pageTitle: jobTitle || (isChromePhrase(document.title) ? '' : document.title) || '',
     pageUrl: href,
     jobTitle: jobTitle || '',
     jobDescription: cleanText(jobDescription, MAX_TEXT),

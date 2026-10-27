@@ -5,7 +5,7 @@ import { jsonNoStore } from './cors.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
 import { completeChat, parseJsonObject } from './complete.js';
 import { sanitizeAiText } from './sanitize.js';
-import { HUMAN_WRITING_RULES } from './tone.js';
+import { HUMAN_WRITING_RULES, SCREEN_ANALYST_RULES } from './tone.js';
 import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
 function textOf(value: unknown, max = 8000): string {
@@ -36,6 +36,15 @@ function clamp(value: unknown, fallback = 50): number {
 
 function titleFrom(text: string): string {
   return String(text || '').split(/\n/)[0].replace(/[#*_`-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'this role';
+}
+
+function looksLikeUiChrome(title: string, text: string): boolean {
+  const compact = `${title || ''}\n${text || ''}`.replace(/\s+/g, ' ').trim();
+  if (compact.length < 40) return true;
+  const chromeHits = (compact.match(/translate this page|google çeviri|chrome.?çeviri|\btürkçe\b|cookie settings|sign in|join now|skip to main content/gi) || []).length;
+  const jobHits = (compact.match(/responsibilities|requirements|job description|hourly|fixed[- ]price|must have|beatmaker|mixing|mastering|sound design|producer|react|python|design/gi) || []).length;
+  if (chromeHits >= 1 && jobHits === 0 && compact.length < 240) return true;
+  return chromeHits >= 2 && jobHits === 0;
 }
 
 function fallbackSmartMatch(
@@ -179,6 +188,22 @@ export async function handleSmartMatchPost(body: Record<string, unknown>): Promi
   };
   const fallback = fallbackSmartMatch(jobDescription, skills, extras);
 
+  if (looksLikeUiChrome(extras.jobTitle, jobDescription)) {
+    return jsonNoStore({
+      success: true,
+      discarded: true,
+      fallback: true,
+      ...fallback,
+      matchScore: 0,
+      acceptanceScore: 0,
+      matchNarrative: 'This screen is UI chrome, not a job posting or CV.',
+      coverLetter: '',
+      linkedInOutreach: '',
+      topAlignmentPoints: [],
+      applicationTips: [],
+    });
+  }
+
   if (jobDescription.length < 12 || fallback.onboardingRequired) {
     return jsonNoStore({ success: true, fallback: true, ...fallback });
   }
@@ -189,14 +214,15 @@ export async function handleSmartMatchPost(body: Record<string, unknown>): Promi
   const lang = outputLanguage === 'tr' ? 'Turkish' : outputLanguage === 'de' ? 'German' : outputLanguage === 'fr' ? 'French' : 'English';
   try {
     const raw = await completeChat(apiKey, {
-      system: `You analyze a job brief and a candidate. Return ONLY JSON with keys:
+      system: `${SCREEN_ANALYST_RULES}
+You analyze a job brief and a candidate. Return ONLY JSON with keys:
 jobParsing, matchScore, matchBreakdown, platformAcceptance, gapAnalysis, coverLetter, linkedInOutreach, sampleJobListings, topAlignmentPoints, applicationTips, status.
 status must be analysis_complete. ${HUMAN_WRITING_RULES}
-Write user-facing text in ${lang}. No markdown.`,
+Write user-facing text in ${lang}. No markdown. If the brief is UI chrome, return empty arrays and scores of 0.`,
       user: `JOB:\n${jobDescription}\n\nCANDIDATE SKILLS:\n${skills.join(', ') || 'not listed'}`,
       json: true,
-      temperature: 0.35,
-      maxTokens: 1400,
+      temperature: 0.2,
+      maxTokens: 600,
     });
     const parsed = parseJsonObject(raw);
     return jsonNoStore({ success: true, ...normalize(parsed, fallback) });

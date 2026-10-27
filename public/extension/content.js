@@ -5,9 +5,9 @@
  */
 
 const isTopFrame = window === window.top;
-const SCROLL_DEBOUNCE_MS = 180;
-const MUTATION_DEBOUNCE_MS = 220;
-const CLICK_DEBOUNCE_MS = 150;
+const SCROLL_DEBOUNCE_MS = 70;
+const MUTATION_DEBOUNCE_MS = 120;
+const CLICK_DEBOUNCE_MS = 40;
 
 let evaluateTimer = 0;
 let scanTimer = 0;
@@ -19,7 +19,7 @@ let lastPublishedHash = '';
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.7';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.8';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {
@@ -63,7 +63,8 @@ function candidateSelectors() {
   const details = typeof SOVEREIGN_DETAIL_SELECTORS !== 'undefined' ? SOVEREIGN_DETAIL_SELECTORS : [];
   const cards = typeof SOVEREIGN_CARD_SELECTORS !== 'undefined' ? SOVEREIGN_CARD_SELECTORS : [];
   const cvs = typeof SOVEREIGN_CV_SELECTORS !== 'undefined' ? SOVEREIGN_CV_SELECTORS : [];
-  return drawers.concat(details).concat(cards).concat(cvs).concat([
+  const mains = typeof SOVEREIGN_MAIN_SELECTORS !== 'undefined' ? SOVEREIGN_MAIN_SELECTORS : [];
+  return drawers.concat(details).concat(cards).concat(cvs).concat(mains).concat([
     '[data-job-id]',
     '[data-jk]',
     'a[href*="/jobs/"]',
@@ -102,11 +103,12 @@ function notifyScanning() {
 }
 
 function classifyPayload(data) {
-  if (data?.contentType) {
+  if (data?.contentType || data?.discarded) {
     return {
-      contentType: data.contentType,
+      contentType: data.contentType || '',
       kind: data.kind || 'job',
       discarded: Boolean(data.discarded),
+      reason: data.discardReason || data.reason || '',
     };
   }
   if (typeof classifyScrapedContent === 'function') {
@@ -118,7 +120,7 @@ function classifyPayload(data) {
 function publishTarget(data, force) {
   if (!isTopFrame || !data) return;
   const classified = classifyPayload(data);
-  if (!force && classified.discarded) {
+  if (classified.discarded) {
     if (lastPublishedHash === `discard:${classified.reason || classified.contentType}`) return;
     lastPublishedHash = `discard:${classified.reason || classified.contentType}`;
     postRuntime({
@@ -126,8 +128,9 @@ function publishTarget(data, force) {
       data: {
         discarded: true,
         flushed: true,
-        contentType: classified.contentType || 'CANDIDATE_LIST',
-        kind: 'list',
+        contentType: classified.contentType || '',
+        discardReason: classified.reason || 'chrome',
+        kind: classified.reason === 'chrome' ? 'job' : 'list',
         hash: lastPublishedHash,
         scannedAt: Date.now(),
       },
@@ -172,7 +175,7 @@ function onJobInteraction(event) {
   invalidateViewportState();
   notifyScanning();
   scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
-  setTimeout(() => evaluateViewport(true), 400);
+  setTimeout(() => evaluateViewport(true), 160);
 }
 
 function observeCandidates() {

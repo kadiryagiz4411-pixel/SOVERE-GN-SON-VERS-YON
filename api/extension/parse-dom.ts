@@ -3,6 +3,7 @@ import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
+import { SCREEN_ANALYST_RULES } from '../_lib/tone.js';
 
 // Node runtime + no-store JSON is the Vite equivalent of Next.js
 // force-dynamic / revalidate 0 / fetchCache force-no-store.
@@ -11,7 +12,7 @@ export const config = { runtime: 'nodejs', maxDuration: 30 };
 export type DetectedMode = 'JOB_PROPOSAL' | 'CV_EVALUATION' | 'B2B_COMMAND';
 
 const JOB_PATTERN =
-  /job description|responsibilities|qualifications|requirements|budget|hourly rate|fixed[- ]price|project scope|we are (?:looking|seeking|hiring)|apply now|must have|nice to have|cover letter|proposals? bid|buyer request/gi;
+  /job description|responsibilities|qualifications|requirements|budget|hourly rate|fixed[- ]price|project scope|we are (?:looking|seeking|hiring)|apply now|must have|nice to have|cover letter|proposals? bid|buyer request|beatmaker|mixing|mastering|sound design|audio engineer|music production/gi;
 const RESUME_PATTERN =
   /curriculum vitae|\bcv\b|work experience|professional experience|education|skills|languages|summary|references|certifications|linkedin\.com\/in|i am a |years of experience/gi;
 const B2B_PATTERN =
@@ -58,6 +59,15 @@ export function detectMode(pageUrl: string, pageTitle: string, pageText: string)
   return 'JOB_PROPOSAL';
 }
 
+function looksLikeUiChrome(title: string, text: string): boolean {
+  const compact = `${title || ''}\n${text || ''}`.replace(/\s+/g, ' ').trim();
+  if (compact.length < 40) return true;
+  const chromeHits = (compact.match(/translate this page|google çeviri|chrome.?çeviri|\btürkçe\b|cookie settings|sign in|join now|skip to main content/gi) || []).length;
+  const jobHits = (compact.match(/responsibilities|requirements|job description|hourly|fixed[- ]price|must have|beatmaker|mixing|mastering|sound design|producer|react|python|design/gi) || []).length;
+  if (chromeHits >= 1 && jobHits === 0 && compact.length < 240) return true;
+  return chromeHits >= 2 && jobHits === 0;
+}
+
 function parseJsonObject(raw: string): Record<string, unknown> {
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -88,8 +98,8 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      temperature: 0.35,
-      max_tokens: 700,
+      temperature: 0.2,
+      max_tokens: 480,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
@@ -171,6 +181,34 @@ async function handleRequest(req: Request): Promise<Response> {
       return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);
     }
 
+    if (looksLikeUiChrome(pageTitle, pageText)) {
+      return jsonNoStore({
+        success: true,
+        discarded: true,
+        discardReason: 'chrome',
+        detectedMode: 'JOB_PROPOSAL',
+        type: 'JOB_PROPOSAL',
+        title: pageTitle,
+        url: pageUrl,
+        jobTitle: pageTitle,
+        jobDescription: '',
+        compatibilityScore: 0,
+        overallScore: 0,
+        match_score: 0,
+        matchScore: 0,
+        acceptanceScore: 0,
+        matchLabel: 'Not a job',
+        strengths: [],
+        gaps: [],
+        requiredSkills: [],
+        matchedSkills: [],
+        missingSkills: [],
+        matchNarrative: 'This screen is UI chrome, not a job posting or CV.',
+        matchMessage: 'This screen is UI chrome, not a job posting or CV.',
+        scoreOnly: Boolean(body.scoreOnly),
+      });
+    }
+
     const detectedMode = detectMode(pageUrl, pageTitle, pageText);
     const label = platformLabel(pageUrl, detectedMode);
     const context = [
@@ -243,7 +281,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (detectedMode === 'JOB_PROPOSAL') {
       const parsed = await completeJson(
         apiKey,
-        'You are the freelancer writing this yourself. Open with the client\'s specific problem in the first two sentences, then how you will fix it, then one proof point. No markdown, no AI disclaimers, no Dear Hiring Manager, no "I am writing to express my enthusiasm". Never use synergy, spearhead, dynamic, leverage, delve, hit the ground running. Return JSON: proposal, painPoint, title.',
+        `${SCREEN_ANALYST_RULES} You are the freelancer writing this yourself. Open with the client's specific problem in the first two sentences, then how you will fix it, then one proof point. No markdown, no AI disclaimers, no Dear Hiring Manager, no "I am writing to express my enthusiasm". Never use synergy, spearhead, dynamic, leverage, delve, hit the ground running. Return JSON: proposal, painPoint, title, contentDomain (job|cv|audio|chrome).`,
         context,
       );
       const proposalText = sanitizeAiText(
@@ -276,7 +314,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (detectedMode === 'B2B_COMMAND') {
       const parsed = await completeJson(
         apiKey,
-        'You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).',
+        `${SCREEN_ANALYST_RULES} You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).`,
         context,
       );
       const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
@@ -316,7 +354,7 @@ async function handleRequest(req: Request): Promise<Response> {
     let cons: string[] = [];
     const parsed = await completeJson(
       apiKey,
-      'You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler.',
+      `${SCREEN_ANALYST_RULES} You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler. If the text is UI chrome, return empty strings and overallScore 0.`,
       context,
     );
     summary = sanitizeAiText(String(parsed.summary || summary));
