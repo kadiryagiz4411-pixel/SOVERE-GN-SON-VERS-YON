@@ -6,6 +6,12 @@
  *
  * Run via: node scripts/buildExtensionZip.mjs
  * Wired automatically as "prebuild" in package.json.
+ *
+ * Cache-bust strategy:
+ *   Before zipping, a BUILD_AT timestamp is injected into config.js so Chrome
+ *   always sees a content change between builds — even when the manifest version
+ *   hasn't been manually bumped. This prevents Chrome from serving a stale
+ *   background.js or content.js from its internal extension cache.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, relative } from 'path';
@@ -18,6 +24,7 @@ const JSZip    = __require('jszip');
 const ROOT      = process.cwd();
 const EXT_DIR   = join(ROOT, 'public', 'extension');
 const OUT_FILE  = join(ROOT, 'public', 'sovereign-extension.zip');
+const CONFIG_JS = join(EXT_DIR, 'config.js');
 
 function collectFiles(dir, base = dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -36,6 +43,32 @@ function collectFiles(dir, base = dir) {
 if (!existsSync(EXT_DIR)) {
   console.warn('[buildExtensionZip] public/extension/ not found — skipping.');
   process.exit(0);
+}
+
+// Inject a BUILD_AT timestamp into config.js before reading files into the zip.
+// This guarantees every zip has unique content so Chrome always reloads all
+// extension scripts when the user installs/updates the packed .zip.
+const buildAt = new Date().toISOString();
+if (existsSync(CONFIG_JS)) {
+  let configSrc = readFileSync(CONFIG_JS, 'utf8');
+  // Replace an existing BUILD_AT line or append it if missing.
+  const stampLine = `const BUILD_AT = '${buildAt}'; // auto-injected by buildExtensionZip.mjs`;
+  if (/^const BUILD_AT\s*=/.test(configSrc)) {
+    configSrc = configSrc.replace(/^const BUILD_AT\s*=.*$/m, stampLine);
+  } else {
+    // Insert after the first line (usually a comment block header).
+    const lines = configSrc.split('\n');
+    // Find the end of any leading block comment, or just prepend after line 0.
+    let insertAt = 0;
+    for (let i = 0; i < lines.length; i++) {
+      insertAt = i;
+      if (lines[i].trim() && !lines[i].trim().startsWith('//') && !lines[i].trim().startsWith('/*') && !lines[i].trim().startsWith('*')) break;
+    }
+    lines.splice(insertAt + 1, 0, stampLine);
+    configSrc = lines.join('\n');
+  }
+  writeFileSync(CONFIG_JS, configSrc, 'utf8');
+  console.log(`[buildExtensionZip] Stamped BUILD_AT=${buildAt} into config.js`);
 }
 
 const zip    = new JSZip();

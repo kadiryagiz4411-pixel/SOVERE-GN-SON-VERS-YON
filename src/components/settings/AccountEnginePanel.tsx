@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Key, PauseCircle, Ticket, Loader2 } from 'lucide-react';
+import { Key, PauseCircle, Ticket, Loader2, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useSession } from '@/contexts/SessionContext';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { getCheckoutUrl } from '@/lib/lemonsqueezy';
+import { APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
 
 export function AccountEnginePanel({ userId }: { userId: string }) {
   const { hasBYOKAccess, user } = useSession();
@@ -37,8 +38,23 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
   useEffect(() => { void load(); }, [userId]);
 
   const showByok = hasBYOKAccess || canUseFeature(tier, 'byok_setup');
-  const upgradeTier = tier >= 3 ? 'enterprise' : tier >= 2 ? 'tier_3' : tier >= 1 ? 'tier_2' : 'tier_1';
-  const upgradeHref = getCheckoutUrl(upgradeTier, user?.email, user?.id ?? userId);
+
+  // LINK ROUTING RULES:
+  // AppSumo LTD users  → exclusive AppSumo.com marketplace URLs (never LS checkout)
+  // SaaS / non-AppSumo → exclusive Lemon Squeezy checkout URLs (never AppSumo)
+  const isAppsumoUser = tier > 0;
+
+  // AppSumo upgrade: direct them to the next AppSumo tier product page.
+  // tier 1 → tier 2 (Pro), tier 2 → tier 3 (B2B/Agency), tier 3 → same max tier.
+  const appsumoUpgradeHref = tier >= 2
+    ? APPSUMO_PRODUCT_URLS.tier3
+    : tier >= 1
+      ? APPSUMO_PRODUCT_URLS.tier2
+      : APPSUMO_PRODUCT_URLS.tier1;
+
+  // SaaS upgrade: resolve from Lemon Squeezy checkout config.
+  const saasUpgradeTier = 'tier_3'; // always direct SaaS users to the Elite tier default
+  const saasUpgradeHref = getCheckoutUrl(saasUpgradeTier, user?.email, user?.id ?? userId);
 
   return (
     <div id="byok" className="mt-6 space-y-6">
@@ -49,17 +65,45 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         onSuccess={() => { void load(); }}
       />
 
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Upgrade plan</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Open a Lemon Squeezy checkout with your account email prefilled for webhook matching.
-          </p>
+      {/* AppSumo LTD users: always link to AppSumo.com — never LS checkout */}
+      {isAppsumoUser ? (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Upgrade AppSumo tier</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              AppSumo LTD upgrades are purchased exclusively on AppSumo.com — not through Lemon Squeezy.
+            </p>
+          </div>
+          {tier < 3 ? (
+            <a
+              href={appsumoUpgradeHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              {tier >= 2 ? 'Upgrade to B2B / Agency on AppSumo' : 'Upgrade to Pro on AppSumo'}
+            </a>
+          ) : (
+            <p className="text-xs text-emerald-400 font-medium">
+              ✓ You are on the highest AppSumo tier (B2B / Agency).
+            </p>
+          )}
         </div>
-        <CheckoutButton href={upgradeHref} overlay className="w-full">
-          {tier >= 3 ? 'Upgrade to Enterprise B2B' : 'Upgrade subscription'}
-        </CheckoutButton>
-      </div>
+      ) : (
+        /* SaaS users: always use Lemon Squeezy checkout — never AppSumo */
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Upgrade plan</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Opens a Lemon Squeezy checkout with your account email pre-filled for webhook matching.
+            </p>
+          </div>
+          <CheckoutButton href={saasUpgradeHref} overlay className="w-full">
+            Upgrade subscription
+          </CheckoutButton>
+        </div>
+      )}
 
       {showByok ? (
         <div className="rounded-xl border border-amber-500/30 bg-card p-5 space-y-3">

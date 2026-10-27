@@ -106,6 +106,9 @@ export default defineConfig(({ mode }) => ({
     include: ['react', 'react-dom'],
   },
   build: {
+    // Always wipe dist/ before writing new bundles so stale hashed chunks never
+    // accumulate alongside the fresh ones (Vite's default, made explicit here).
+    emptyOutDir: true,
     // Raise the warning threshold to 1 MiB so the large Dashboard chunk doesn't
     // emit noise (it's already code-split; the warning is informational only).
     chunkSizeWarningLimit: 1000,

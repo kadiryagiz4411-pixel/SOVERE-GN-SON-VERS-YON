@@ -2,39 +2,21 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useLanguage } from '@/i18n/LanguageContext';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// English-only banner text — no dynamic translation to prevent mixed-language UI.
+const ONBOARDING_BANNER = {
+  title: '🎉 Profile setup complete!',
+  subtitle: 'Your AI is ready. Choose a plan to unlock your personalized strategy.',
+  skip: 'Continue with Free plan',
+} as const;
 
 const Pricing = () => {
   const [searchParams] = useSearchParams();
   const fromOnboarding = searchParams.get('from') === 'onboarding';
-  const { language } = useLanguage();
   const navigate = useNavigate();
-
-  const bannerText = {
-    en: {
-      title: '🎉 Profile setup complete!',
-      subtitle: 'Your AI is ready. Choose a plan to unlock your personalized strategy.',
-      skip: 'Continue with Free plan',
-    },
-    tr: {
-      title: '🎉 Profil kurulumu tamamlandı!',
-      subtitle: 'Yapay zekanız hazır. Kişiselleştirilmiş stratejinizi açmak için bir plan seçin.',
-      skip: 'Ücretsiz planla devam et',
-    },
-    de: {
-      title: '🎉 Profil-Setup abgeschlossen!',
-      subtitle: 'Ihre KI ist bereit. Wählen Sie einen Plan.',
-      skip: 'Mit kostenlosem Plan fortfahren',
-    },
-    fr: {
-      title: '🎉 Profil configuré !',
-      subtitle: 'Votre IA est prête. Choisissez un plan.',
-      skip: 'Continuer avec le plan gratuit',
-    },
-  };
-  const b = bannerText[language as keyof typeof bannerText] || bannerText.en;
+  const b = ONBOARDING_BANNER;
 
   return (
     <div className="min-h-screen bg-background">
