@@ -13,9 +13,16 @@ export function profileByAuthId<T>(query: T, userId: string): T {
   return q.or(`id.eq.${userId},user_id.eq.${userId}`);
 }
 
-/** Always include appsumo_tier so B2B/BYOK gating can hydrate even if `*` typing omits it. */
-export const PROFILE_SELECT_WITH_TIER =
-  '*, appsumo_tier, appsumo_plan, trial_ends_at, is_trial_active, has_used_trial, b2b_subscription_status, b2b_access, apply_queue_access';
+/**
+ * Profile select string used throughout the app.
+ *
+ * Uses '*' only — PostgREST returns every column that exists on the table.
+ * Listing explicit column names alongside '*' causes a 400 Bad Request if any
+ * named column doesn't exist on the live Supabase instance (PostgREST validates
+ * all named columns, even when '*' is present). Using plain '*' is robust
+ * against future schema gaps and still returns appsumo_tier, trial_ends_at, etc.
+ */
+export const PROFILE_SELECT_WITH_TIER = '*';
 
 export async function fetchProfileByAuthId<Row extends Record<string, unknown> = Record<string, unknown>>(
   userId: string | undefined | null,

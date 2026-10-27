@@ -42,20 +42,40 @@ export const LEMON_SQUEEZY_STORE_URL = getLemonStoreUrl();
  * Canonical Lemon Squeezy variant IDs.
  * Env vars override these defaults when set.
  */
+/**
+ * Lemon Squeezy variant IDs mapped per plan + billing cycle.
+ *
+ * IMPORTANT: Numeric IDs (e.g. 2020873) are ONLY for the server-side
+ * /api/billing/checkout endpoint which uses the LS API to mint a hosted
+ * checkout session. They CANNOT be used as direct buy-path slugs
+ * (/checkout/buy/nnnn 404s).
+ *
+ * Numeric defaults are stored as empty strings here so that
+ * resolveCheckoutUrl() falls through silently to the UUID FALLBACK_CHECKOUT_URLS
+ * or getLemonStoreUrl() without logging a console warning.
+ *
+ * To wire up the API checkout for Standard / Enterprise, set:
+ *   VITE_STANDARD_MONTHLY_VARIANT_ID=2020873  (Vercel env only — not VITE_ prefix)
+ *   VITE_ENTERPRISE_MONTHLY_VARIANT_ID=2020877
+ * and pass them to CheckoutButton as lsVariantId — the component calls
+ * /api/billing/checkout when it receives a numeric lsVariantId.
+ */
 export const LEMON_SQUEEZY_VARIANTS = {
   standard: {
+    // Numeric API variant IDs intentionally stored as empty — they are API-only.
+    // CheckoutButton.lsVariantId handles the API path when env vars are set.
     monthly: firstEnv(
       'VITE_STANDARD_MONTHLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_STANDARD_VARIANT_ID',
       'VITE_LS_VARIANT_STANDARD_MONTHLY',
-    ) || '2020873',
+    ),
     yearly: firstEnv(
       'VITE_STANDARD_YEARLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_STANDARD_ANNUAL_VARIANT_ID',
       'VITE_LEMONSQUEEZY_STANDARD_YEARLY_VARIANT_ID',
       'VITE_LS_VARIANT_STANDARD_ANNUAL',
-    ) || '2020643',
+    ),
   },
   pro: {
     monthly: firstEnv(
@@ -63,13 +83,13 @@ export const LEMON_SQUEEZY_VARIANTS = {
       'VITE_LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_PRO_VARIANT_ID',
       'VITE_LS_VARIANT_PRO_MONTHLY',
-    ) || '2020868',
+    ),
     yearly: firstEnv(
       'VITE_PRO_YEARLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_PRO_ANNUAL_VARIANT_ID',
       'VITE_LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID',
       'VITE_LS_VARIANT_PRO_ANNUAL',
-    ) || '2020735',
+    ),
   },
   elite: {
     monthly: firstEnv(
@@ -77,13 +97,13 @@ export const LEMON_SQUEEZY_VARIANTS = {
       'VITE_LEMONSQUEEZY_ELITE_MONTHLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ELITE_VARIANT_ID',
       'VITE_LS_VARIANT_ELITE_MONTHLY',
-    ) || '2020866',
+    ),
     yearly: firstEnv(
       'VITE_ELITE_YEARLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ELITE_ANNUAL_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ELITE_YEARLY_VARIANT_ID',
       'VITE_LS_VARIANT_ELITE_ANNUAL',
-    ) || '2020838',
+    ),
   },
   enterprise: {
     monthly: firstEnv(
@@ -91,13 +111,13 @@ export const LEMON_SQUEEZY_VARIANTS = {
       'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ENTERPRISE_VARIANT_ID',
       'VITE_LS_VARIANT_ENTERPRISE_MONTHLY',
-    ) || '2020877',
+    ),
     yearly: firstEnv(
       'VITE_ENTERPRISE_YEARLY_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_VARIANT_ID',
       'VITE_LEMONSQUEEZY_ENTERPRISE_YEARLY_VARIANT_ID',
       'VITE_LS_VARIANT_ENTERPRISE_ANNUAL',
-    ) || '2020842',
+    ),
   },
 } as const;
 

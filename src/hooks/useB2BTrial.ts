@@ -37,7 +37,7 @@ export function useB2BTrial() {
     try {
       const { data } = await fetchProfileByAuthId<TrialProfileSlice>(
         user.id,
-        'trial_started_at, trial_ends_at, is_trial_active, has_used_trial, trial_claimed, b2b_subscription_status, appsumo_plan, appsumo_tier, plan_type, subscription_plan',
+        '*',
       );
       let next = data;
       const access = resolveB2BAccess({ email: user.email, user, profile: data });

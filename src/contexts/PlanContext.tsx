@@ -116,7 +116,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile, error } = await fetchProfileByAuthId<TrialProfileSlice>(
         userId,
-        '*, appsumo_tier, appsumo_plan, trial_ends_at, is_trial_active, has_used_trial, b2b_subscription_status',
+        '*',
       );
 
       if (error) {
