@@ -643,7 +643,11 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
     clientHistory: data.clientHistory || lastJob.clientHistory || '',
   };
   const cvJobMeta = document.getElementById('cvJobMeta');
-  if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
+  if (cvJobMeta) {
+    cvJobMeta.textContent = lastJob.title
+      ? `Tailoring for: ${lastJob.title}`
+      : 'No job detected — open a job posting and scan.';
+  }
   updateMatchUi(data, lastTitle);
 
   if (modeBadge) modeBadge.textContent = `⚡ Detected: ${data.platformLabel || (isJob ? 'Job Post' : isCv ? 'Candidate Profile' : 'B2B Lead')}`;
@@ -1419,8 +1423,15 @@ function fillSettingsForm() {
   if (accountEmail) accountEmail.value = settings.accountEmail || '';
   if (outputLanguage) outputLanguage.value = settings.outputLanguage || 'auto';
   const canB2b = canUseDualWorkspace();
-  if (b2bToggleRow) b2bToggleRow.style.display = canB2b ? '' : 'none';
-  if (b2bToggle) b2bToggle.checked = settings.workspaceMode === 'b2b';
+  // Always show the B2B toggle — disabled with an upgrade note for ineligible users.
+  if (b2bToggle) {
+    b2bToggle.checked = canB2b && settings.workspaceMode === 'b2b';
+    b2bToggle.disabled = !canB2b;
+  }
+  const b2bHint = document.getElementById('b2bToggleHint');
+  const b2bNote = document.getElementById('b2bUpgradeNote');
+  if (b2bHint) b2bHint.style.display = canB2b ? '' : 'none';
+  if (b2bNote) b2bNote.style.display = canB2b ? 'none' : '';
   applyTheme(settings.theme);
   applyMembership(settings.membership);
   applyAdminUi();
@@ -1863,6 +1874,9 @@ async function generateTailoredCv() {
   if (skillListFromSettings().length < 2) {
     setCvBusy(false, 'Tip: Add your skills in Settings for a fully personalized CV. Generating with defaults now…');
   }
+  const cvJobMeta = document.getElementById('cvJobMeta');
+
+  // Auto-scan the active tab first to get the freshest job context.
   setCvBusy(true, 'Reading the open job…');
   try {
     const pageData = await getActiveTabDOM();
@@ -1874,10 +1888,14 @@ async function generateTailoredCv() {
       budget: pageData.budget || lastJob.budget,
       clientHistory: pageData.clientHistory || lastJob.clientHistory,
     };
-    const cvJobMeta = document.getElementById('cvJobMeta');
-    if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
+    if (cvJobMeta) {
+      cvJobMeta.textContent = lastJob.title
+        ? `Tailoring for: ${lastJob.title}`
+        : 'No job detected on active tab.';
+    }
     if (String(lastJob.description || '').trim().length < 20) {
-      throw new Error('Open a job post, then generate the CV.');
+      // Last resort: ask user to navigate to a job posting.
+      throw new Error('No job description found. Open a job posting in the active tab, then try again.');
     }
     setCvBusy(true, 'Writing a tailored CV…');
     const viaWorker = await chrome.runtime.sendMessage({

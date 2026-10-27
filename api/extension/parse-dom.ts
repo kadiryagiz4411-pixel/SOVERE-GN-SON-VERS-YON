@@ -297,11 +297,19 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (detectedMode === 'JOB_PROPOSAL') {
-      const parsed = await completeJson(
-        apiKey,
-        `${SCREEN_ANALYST_RULES} You are the freelancer writing this yourself. Open with the client's specific problem in the first two sentences, then how you will fix it, then one proof point. No markdown, no AI disclaimers, no Dear Hiring Manager, no "I am writing to express my enthusiasm". Never use synergy, spearhead, dynamic, leverage, delve, hit the ground running. Return JSON: proposal, painPoint, title, contentDomain (job|cv|audio|chrome).`,
-        context,
-      );
+      const proposalSystemPrompt = [
+        SCREEN_ANALYST_RULES,
+        `You are the freelancer writing this proposal in first person. Follow this exact structure:`,
+        `- Sentence 1: Name the client's specific problem from the JOB DESCRIPTION (no generic opener).`,
+        `- Sentence 2: Exactly how you will solve it using the stated tech stack or approach.`,
+        `- Sentence 3: One concrete proof point (a number, outcome, or past project — from your experience, not invented).`,
+        `- Sentence 4 (optional): Turnaround time or next step.`,
+        `Total: 3-5 sentences. No markdown. No headers. No "Dear Hiring Manager". No "I am excited to apply".`,
+        `If the job description is unclear, ask one specific clarifying question instead of guessing.`,
+        `Write in the SAME language as the JOB DESCRIPTION (match exactly — Turkish for Turkish, German for German, etc.).`,
+        `Return JSON: { proposal, painPoint, title, contentDomain }`,
+      ].join('\n');
+      const parsed = await completeJson(apiKey, proposalSystemPrompt, context);
       const proposalText = sanitizeAiText(
         String(parsed.proposal || parsed.coverLetter || '')
         || `I can take this on. ${pageTitle || 'This brief'} is a clear execution job. I'll start with the core requirement and send a first working pass quickly.`,
@@ -330,11 +338,16 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (detectedMode === 'B2B_COMMAND') {
-      const parsed = await completeJson(
-        apiKey,
-        `${SCREEN_ANALYST_RULES} You are a B2B command analyst. From this company or lead page, return JSON: company, executiveSummary (3 sentences), decisionMakers (array of roles), outreach (short cold email, no AI filler), score (0-100).`,
-        context,
-      );
+      const b2bSystemPrompt = [
+        SCREEN_ANALYST_RULES,
+        `You are a B2B lead analyst for an agency. Using ONLY the content in the structured sections:`,
+        `- executiveSummary: 3 sentences on what the company does and the specific pain point you can solve.`,
+        `- decisionMakers: array of likely decision-maker roles (e.g. "Head of Engineering", "CTO") — infer from context, do not fabricate names.`,
+        `- outreach: a cold email under 80 words. First sentence: reference something specific from the page. No AI filler.`,
+        `- score: 0-100 outreach priority based on company size, stated pain, and fit.`,
+        `Return JSON: { company, executiveSummary, decisionMakers, outreach, score }`,
+      ].join('\n');
+      const parsed = await completeJson(apiKey, b2bSystemPrompt, context);
       const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
       const outreach = sanitizeAiText(
         String(parsed.outreach || '')
@@ -370,11 +383,20 @@ async function handleRequest(req: Request): Promise<Response> {
     let role = '';
     let pros: string[] = [];
     let cons: string[] = [];
-    const parsed = await completeJson(
-      apiKey,
-      `${SCREEN_ANALYST_RULES} You are a blunt hiring manager. Evaluate this candidate profile. Return JSON: fullName, title, summary, overallScore (0-100), whyThisCandidate (2 sentences), pros (array), cons (array). No AI filler. If the text is UI chrome, return empty strings and overallScore 0.`,
-      context,
-    );
+    const cvSystemPrompt = [
+      SCREEN_ANALYST_RULES,
+      `You are a blunt hiring manager evaluating a candidate profile. Use ONLY the structured content provided.`,
+      `- fullName: candidate's full name (or empty string if not found).`,
+      `- title: their current or most recent role.`,
+      `- summary: 2 sentences on their profile. Be specific — reference actual skills or companies mentioned.`,
+      `- whyThisCandidate: 2 sentences on their unique strengths for this type of role.`,
+      `- pros: array of 3 concrete strengths from their profile.`,
+      `- cons: array of 2 honest gaps.`,
+      `- overallScore: 0-100 based on the actual content.`,
+      `If the text is UI chrome (no resume content), return all empty strings and overallScore 0.`,
+      `Return JSON: { fullName, title, summary, overallScore, whyThisCandidate, pros, cons }`,
+    ].join('\n');
+    const parsed = await completeJson(apiKey, cvSystemPrompt, context);
     summary = sanitizeAiText(String(parsed.summary || summary));
     whyThisCandidate = sanitizeAiText(String(parsed.whyThisCandidate || ''));
     overallScore = match.complete ? match.matchScore : 0;

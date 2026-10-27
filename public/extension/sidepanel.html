@@ -643,11 +643,11 @@
       </section>
 
       <section id="tab-cv" class="tab-view">
-        <p class="hint">Builds a CV from your profile against the job currently open in the tab — not the feed.</p>
-        <p id="cvJobMeta" class="meta">No job isolated yet.</p>
+        <p class="hint">Tailors your profile to the exact job open in the active tab. Open a job posting, then generate.</p>
+        <p id="cvJobMeta" class="meta" style="margin-bottom:10px">No job detected — open a job post and scan it first.</p>
         <button id="generateCv" class="primary" type="button">Generate Tailored CV</button>
         <div id="cvSpinner" class="spinner"></div>
-        <p id="cvStatus" class="hint">Add at least two skills in Settings, then generate.</p>
+        <p id="cvStatus" class="hint">Scan a job posting first, then generate your CV.</p>
         <div id="cvCard" class="card">
           <div id="cvPreview" class="cv-preview"></div>
           <div class="row" style="margin-top:12px">
@@ -752,16 +752,20 @@
           <label for="accountEmail">Account email</label>
           <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="email" />
         </div>
-        <div class="field" id="b2bToggleRow" style="display:none">
+        <div class="field" id="b2bToggleRow">
           <div class="toggle-row">
-            <span class="toggle-label">B2B Agency Mode</span>
+            <span class="toggle-label">B2B / Agency Mode</span>
             <label class="toggle-wrap">
               <input type="checkbox" id="b2bToggle" />
               <span class="toggle-track"></span>
               <span class="toggle-thumb"></span>
             </label>
           </div>
-          <p class="hint" style="margin-top:2px">Route jobs through B2B lead extraction and team dispatch.</p>
+          <p id="b2bToggleHint" class="hint" style="margin-top:2px">Route jobs through B2B lead extraction and team dispatch.</p>
+          <p id="b2bUpgradeNote" class="hint" style="margin-top:2px;display:none">
+            Requires AppSumo Tier 3 or an active Pro/Elite plan.
+            <a href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Upgrade ↗</a>
+          </p>
         </div>
 
         <div class="field">
