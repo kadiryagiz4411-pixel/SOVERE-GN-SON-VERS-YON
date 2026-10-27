@@ -1205,6 +1205,14 @@ async function rescanActiveScreen() {
     title: '', url: '', description: '', skills: [],
     budget: '', clientHistory: '', kind: 'job', hash: '', contentType: '',
   };
+  // Wipe the cached viewport from storage immediately — this prevents the
+  // chrome.storage.onChanged listener from re-hydrating stale data while
+  // the fresh DOM scrape is in-flight.
+  try {
+    void chrome.storage.local.set({
+      [STORE.VIEWPORT]: { scanning: true, flushed: true, at: Date.now() },
+    });
+  } catch {/**/ }
 
   hideErrorBadge();
   setTargetBadge('scanning');
