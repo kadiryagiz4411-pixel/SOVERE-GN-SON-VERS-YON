@@ -311,10 +311,89 @@ function getOpenDetailPane() {
   return best;
 }
 
+/**
+ * STRICT VIEWPORT-CENTER TARGETING
+ *
+ * Algorithm (exactly as spec'd):
+ *   1. Query every job-card, detail-pane, and drawer element on the page.
+ *   2. Get getBoundingClientRect() for each.
+ *   3. Keep only elements whose vertical span STRICTLY encloses the absolute
+ *      screen midpoint (window.innerHeight / 2) — i.e. rect.top <= centerY
+ *      AND rect.bottom >= centerY.
+ *   4. If multiple cards cross the midpoint, pick the one whose own vertical
+ *      center is closest to centerY. Detail panes / drawers win ties.
+ *   5. Return null when nothing crosses the midpoint — callers must NOT fall
+ *      back to stale cached data; they should ask the user to center a card.
+ *
+ * Returns the enclosing job-card wrapper (via closestJobCard) or the element
+ * itself when no wrapper ancestor is found.
+ */
+function getViewportCenterCard() {
+  const centerY = window.innerHeight / 2;
+
+  // Build a de-duplicated pool of every candidate element type.
+  const allSelectors = SOVEREIGN_CARD_SELECTORS
+    .concat(SOVEREIGN_DETAIL_SELECTORS)
+    .concat(SOVEREIGN_DRAWER_SELECTORS)
+    .concat(SOVEREIGN_CV_SELECTORS)
+    .concat(['[data-job-id]', '[data-jk]', 'article[data-test]', 'article']);
+  const candidates = sovereignCollect(allSelectors);
+
+  // Step 3: strict vertical-midpoint intersection check.
+  const crossing = candidates.filter((el) => {
+    if (!sovereignVisible(el)) return false;
+    if (sovereignIsLayoutShell(el)) return false;
+    if (sovereignIsNoiseElement(el)) return false;
+    const r = el.getBoundingClientRect();
+    // Must span the exact screen midpoint — not just be anywhere in the viewport.
+    return r.top <= centerY && r.bottom >= centerY;
+  });
+
+  if (!crossing.length) return null;
+  if (crossing.length === 1) {
+    return closestJobCard(crossing[0]) || crossing[0];
+  }
+
+  // Step 4: break ties — prefer detail/drawer panels, then smallest vertical
+  // distance from the card's own center to screen center.
+  const isDetailEl = (el) =>
+    SOVEREIGN_DETAIL_SELECTORS.some((s) => { try { return el.matches(s); } catch { return false; } })
+    || SOVEREIGN_DRAWER_SELECTORS.some((s) => { try { return el.matches(s); } catch { return false; } })
+    || SOVEREIGN_DRAWER_SELECTORS.some((s) => { try { return Boolean(el.closest?.(s)); } catch { return false; } });
+
+  let best = null;
+  let bestDist = Infinity;
+  for (const el of crossing) {
+    const r = el.getBoundingClientRect();
+    const cardCenterY = (r.top + r.bottom) / 2;
+    // Give detail/drawer panels a 50 000 px virtual boost so they always win
+    // over a partially-visible card tile in the left-hand feed list.
+    const dist = Math.abs(cardCenterY - centerY) - (isDetailEl(el) ? 50000 : 0);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el;
+    }
+  }
+  return best ? (closestJobCard(best) || best) : null;
+}
+
 function getMostVisibleElement(options) {
   const force = Boolean(options && options.force);
+
+  // Step 1 (strict): find the element whose vertical bounds cross screen-center.
+  // This is the most reliable signal that the user is actively looking at a card.
+  const centered = getViewportCenterCard();
+  if (centered && !sovereignIsNoiseElement(centered)) return centered;
+
+  // Step 2 (fallback): an open drawer/modal is visible even if it doesn't
+  // strictly cross the midpoint (e.g. it may be pinned to the right half).
   const drawer = getOpenDetailPane();
   if (drawer && !sovereignIsNoiseElement(drawer)) return drawer;
+
+  // Step 3 (last resort, force-only): score-based selection from the full pool.
+  // Only reaches here when the user has forced a scan on a non-job page or
+  // when the card hasn't scrolled far enough to cross the midpoint.
+  if (!force) return null;
 
   const prefer = sovereignCollect(SOVEREIGN_MAIN_SELECTORS.concat(SOVEREIGN_DETAIL_SELECTORS));
   const pool = prefer.concat(sovereignCollect(
@@ -326,7 +405,7 @@ function getMostVisibleElement(options) {
   let bestScore = -1;
   for (const el of pool) {
     if (!sovereignVisible(el) || !sovereignInViewport(el) || sovereignIsNoiseElement(el)) continue;
-    if (!force && sovereignIsLayoutShell(el)) continue;
+    if (sovereignIsLayoutShell(el)) continue;
     const score = sovereignCenterScore(el);
     if (score > bestScore) {
       bestScore = score;
