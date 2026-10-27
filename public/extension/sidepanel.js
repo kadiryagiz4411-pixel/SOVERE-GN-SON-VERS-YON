@@ -255,6 +255,7 @@ let lastJob = {
 let lastTargetHash = '';
 let viewportScoreTimer = 0;
 let analyzing = false;
+let scanSeq = 0;
 let generatingCv = false;
 let settings = { ...DEFAULT_SETTINGS };
 
@@ -1152,36 +1153,75 @@ async function analyzeActivePage() {
 }
 
 async function rescanActiveScreen() {
-  if (analyzing) return;
+  // Release any stuck lock — a deliberate click always wins.
+  analyzing = false;
+  const thisSeq = ++scanSeq;
+
   if (!assertAccountOpen()) return;
+
+  // Flush ALL stale state so nothing from a previous job bleeds in.
+  clearTimeout(viewportScoreTimer);
+  lastTargetHash = '';
+  lastJob = {
+    title: '', url: '', description: '', skills: [],
+    budget: '', clientHistory: '', kind: 'job', hash: '', contentType: '',
+  };
+
   hideErrorBadge();
   setTargetBadge('scanning');
-  setBusy(true, 'Scanning the active screen…');
+  setBusy(true, 'Scanning active screen…');
+  analyzing = true;
+
   try {
-    lastTargetHash = '';
+    // Background scrapes (force + noise-filter) and bakes in a scoreOnly parse-dom.
+    // If the LLM finished in time we get { ...rawScrape, analysis }; otherwise rawScrape only.
     const forced = await chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null);
+
+    if (thisSeq !== scanSeq) return; // newer click superseded this scan
+
     const pageData = forced?.success && forced.data
       ? normalizePageData(forced.data)
       : await getActiveTabDOM();
-    lastTargetHash = '';
+
+    if (thisSeq !== scanSeq) return;
+
+    // Discarded (chrome noise, list, empty).
+    if (pageData.discarded) {
+      flushJobContext();
+      setTargetBadge('scanning');
+      setBusy(false, pageData.discardReason === 'chrome'
+        ? 'Focus the job description — the translate widget or nav was ignored.'
+        : 'This looks like a list. Open one job to score it.');
+      analyzing = false;
+      return;
+    }
+
+    const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
+    if (pageText.length < 20) {
+      analyzing = false;
+      throw new Error('This tab does not have enough readable text to analyze.');
+    }
+
+    // Commit the scraped job context immediately so the UI reflects the new target.
     lastJob = {
-      title: pageData.jobTitle || pageData.pageTitle,
-      url: pageData.pageUrl,
-      description: pageData.jobDescription || pageData.pageText,
+      title: pageData.jobTitle || pageData.pageTitle || '',
+      url: pageData.pageUrl || '',
+      description: pageData.jobDescription || pageData.pageText || '',
       skills: pageData.requiredSkills || [],
       budget: pageData.budget || '',
       clientHistory: pageData.clientHistory || '',
       kind: pageData.kind || 'job',
       hash: pageData.hash || '',
+      contentType: pageData.contentType || '',
     };
-    lastTargetHash = pageData.hash || lastTargetHash;
+    lastTargetHash = pageData.hash || '';
     setTargetBadge('live', lastJob.title, lastJob.kind);
     const cvJobMeta = document.getElementById('cvJobMeta');
-    if (cvJobMeta) cvJobMeta.textContent = lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.';
-    const pageText = String(pageData.jobDescription || pageData.pageText || '').trim();
-    if (pageText.length < 20) {
-      throw new Error('This tab does not have enough readable text to analyze.');
-    }
+    if (cvJobMeta) cvJobMeta.textContent = lastJob.kind === 'cv'
+      ? (lastJob.title ? `Profile on screen: ${lastJob.title}` : 'Profile isolated.')
+      : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
+    if (titleEl) titleEl.textContent = lastJob.title || '';
+
     if (skillListFromSettings().length < 2) {
       updateMatchUi({
         onboardingRequired: true,
@@ -1189,11 +1229,25 @@ async function rescanActiveScreen() {
         match_score: 0,
         acceptanceScore: 0,
       }, lastJob.title);
-      setBusy(false, 'Isolated the job on screen. Add at least two skills in Settings to score it.');
+      setBusy(false, 'Isolated the job. Add at least two skills in Settings to score it.');
+      analyzing = false;
       return;
     }
-    const data = await postParseDom(pageData, { scoreOnly: true });
-    const merged = await enrichWithSmartMatch(pageData, data);
+
+    // Use the analysis the background already computed — ZERO extra network calls.
+    // Fall back to a single scoreOnly parse-dom if background timed out.
+    // Never call enrichWithSmartMatch here; keeps total latency under ~800ms.
+    let merged;
+    const pre = forced?.data?.analysis;
+    if (pre && !pre.discarded && (pre.matchScore !== undefined || pre.match_score !== undefined)) {
+      merged = pre;
+    } else {
+      if (thisSeq !== scanSeq) return;
+      merged = await postParseDom(pageData, { scoreOnly: true });
+    }
+
+    if (thisSeq !== scanSeq) return;
+
     updateMatchUi(merged, lastJob.title || pageData.pageTitle);
     if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
     if (scoreLabel) scoreLabel.textContent = humanMatchCopy(merged, lastJob.title);
@@ -1201,15 +1255,20 @@ async function rescanActiveScreen() {
     if (badge) badge.textContent = String(Math.max(0, Math.min(100, Math.round(score))));
     scoreRing?.style.setProperty('--p', String(Math.max(0, Math.min(100, Math.round(score)))));
     setBusy(false, pageData.isolated
-      ? `Now scoring “${String(lastJob.title || 'this job').slice(0, 52)}” — the pane currently on screen.`
-      : 'Scanned the visible page. Open a job detail pane, then Re-Scan for a tighter match.');
+      ? `Scoring "${String(lastJob.title || 'this job').slice(0, 52)}" — the pane on screen.`
+      : 'Scanned. Open the job detail pane and Re-Scan for a tighter read.');
   } catch (err) {
+    if (thisSeq !== scanSeq) return;
     const msg = err?.message || String(err);
     if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
-      showError('Service temporarily busy. Please try again in a few moments.');
-      return;
+      showError('Service temporarily busy — try again in a moment.');
+    } else if (/permission to access the respective host/i.test(msg)) {
+      showError('Reload the extension, then scan again.');
+    } else {
+      showError(msg);
     }
-    showError(msg);
+  } finally {
+    if (thisSeq === scanSeq) analyzing = false;
   }
 }
 
@@ -1406,6 +1465,9 @@ document.getElementById('adminSlider')?.addEventListener('click', (event) => {
 })();
 
 document.getElementById('rescan')?.addEventListener('click', () => {
+  // Cancel any queued viewport timer so a previous slow scan can't race this one.
+  clearTimeout(viewportScoreTimer);
+  analyzing = false;
   void rescanActiveScreen();
 });
 

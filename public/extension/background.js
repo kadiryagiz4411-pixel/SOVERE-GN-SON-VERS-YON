@@ -166,10 +166,57 @@ function persistViewportTarget(data, scanning) {
 
 async function forceViewportScan() {
   lastAnalyzedHash = '';
+  analyzeSeq += 1;
+  const seq = analyzeSeq;
+
+  // 1. Scrape — content script handles force + noise-filter.
   const data = await scrapeActiveTab('SCAN_ACTIVE_SCREEN');
   persistViewportTarget(data, false);
-  await autoAnalyzeViewport(data, true);
-  return data;
+
+  if (!data || data.discarded || !data.pageText || data.pageText.length < 20) {
+    // Discard path — notify sidepanel immediately, no LLM call.
+    try {
+      chrome.runtime.sendMessage({
+        type: 'ANALYSIS_READY',
+        data: { ...(data || {}), discarded: true, flushed: true, analysis: null },
+      }, () => { void chrome.runtime.lastError; });
+    } catch { /**/ }
+    return data;
+  }
+
+  // 2. Parse-dom in the background so the sidepanel gets one pre-baked response.
+  const bag = await chrome.storage.local.get('sovereign.settings.v1');
+  const setts = bag['sovereign.settings.v1'] || {};
+  const skills = skillListFromSettings(setts);
+  const deep = settingsAllowDeep(setts);
+  try {
+    const analysis = await postJson(PARSE_DOM_PATH, {
+      pageText: data.pageText || data.jobDescription,
+      pageTitle: data.pageTitle || data.jobTitle,
+      pageUrl: data.pageUrl,
+      jobTitle: data.jobTitle,
+      jobDescription: data.jobDescription || data.pageText,
+      requiredSkills: data.requiredSkills || [],
+      budget: data.budget,
+      clientHistory: data.clientHistory,
+      skills,
+      experience: setts.experience,
+      hourlyRate: Number(setts.hourlyRate) || undefined,
+      matchDepth: deep ? 'deep' : 'basic',
+      deepMatch: deep,
+      scoreOnly: true,
+    });
+    if (seq !== analyzeSeq) return data; // newer scan superseded this one
+    const enriched = { ...data, analysis };
+    persistViewportTarget(enriched, false);
+    try {
+      chrome.runtime.sendMessage({ type: 'ANALYSIS_READY', data: enriched }, () => { void chrome.runtime.lastError; });
+    } catch { /**/ }
+    return enriched;
+  } catch {
+    // Parse-dom failed — return raw scrape so sidepanel can retry inline.
+    return data;
+  }
 }
 
 function skillListFromSettings(settings) {
