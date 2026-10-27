@@ -336,6 +336,38 @@ function getMostVisibleElement(options) {
   return best;
 }
 
+/**
+ * Walks UP the DOM from a candidate element to find the enclosing job-card
+ * wrapper using .closest() — exactly as the task spec requires.
+ * Prevents the scraper from returning a nested text node or icon span.
+ */
+const CLOSEST_CARD_SELECTORS = [
+  'article',
+  'section[data-test]',
+  'div[data-test*="job"]',
+  'div[data-test*="Job"]',
+  'li[data-test*="job"]',
+  '[class*="job-tile"]',
+  '[class*="job-card"]',
+  '[class*="JobTile"]',
+  '[class*="jobCard"]',
+  '[data-job-id]',
+  '[data-jk]',
+];
+
+function closestJobCard(el) {
+  if (!el || !(el instanceof Element)) return el;
+  for (const selector of CLOSEST_CARD_SELECTORS) {
+    try {
+      const hit = el.closest(selector);
+      if (hit && hit !== document.body && hit !== document.documentElement) return hit;
+    } catch {
+      // ignore invalid selector on this host
+    }
+  }
+  return el;
+}
+
 function pickViewportFocusElement() {
   return getMostVisibleElement();
 }
@@ -503,7 +535,11 @@ function extractActiveJob(options) {
   };
 
   clearSovereignMarks();
-  const focus = getMostVisibleElement({ force });
+  // Try to isolate the actual job card wrapper first using closestJobCard().
+  // This prevents returning a deeply nested span/div and ensures we scope
+  // title/description extraction to the real card element.
+  const rawFocus = getMostVisibleElement({ force });
+  const focus = rawFocus ? (closestJobCard(rawFocus) || rawFocus) : rawFocus;
   const root = focus
     || getOpenDetailPane()
     || pickBest(SOVEREIGN_MAIN_SELECTORS)
@@ -535,29 +571,42 @@ function extractActiveJob(options) {
   const requiredSkills = skillsFrom(root);
   const budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
   const clientHistory = clientFrom(root);
+
+  // pageText must NOT mash budget/skills/clientHistory into the job description.
+  // Keep it as title + clean body only — metadata is sent in dedicated fields so
+  // the LLM never confuses "8 proposals" with a skill or "$35/hr" with job copy.
   const pageText = cleanText(
-    [jobTitle, budget, requiredSkills.join(', '), clientHistory, jobDescription]
-      .filter(Boolean)
-      .join('\n\n'),
+    [jobTitle, jobDescription].filter(Boolean).join('\n\n'),
     MAX_TEXT,
   );
+
+  // Full structured object for the backend — every field is isolated.
+  const structuredJob = {
+    title:       jobTitle,
+    description: cleanText(jobDescription, MAX_TEXT),
+    skills:      requiredSkills,
+    budget:      cleanText(budget, 160),
+    clientInfo:  cleanText(clientHistory, MAX_FIELD),
+  };
+
   const classified = classifyScrapedContent(href, jobTitle, pageText, isolated);
   const hash = hashScrapedText(`${classified.contentType}|${jobTitle}|${jobDescription}`);
 
   return {
     pageText,
-    pageTitle: jobTitle || (isChromePhrase(document.title) ? '' : document.title) || '',
-    pageUrl: href,
-    jobTitle: jobTitle || '',
+    pageTitle:     jobTitle || (isChromePhrase(document.title) ? '' : document.title) || '',
+    pageUrl:       href,
+    jobTitle:      jobTitle || '',
     jobDescription: cleanText(jobDescription, MAX_TEXT),
     requiredSkills,
-    budget: cleanText(budget, 160),
+    budget:        cleanText(budget, 160),
     clientHistory: cleanText(clientHistory, MAX_FIELD),
+    structuredJob,
     isolated,
     host,
-    kind: classified.kind,
-    contentType: classified.contentType,
-    discarded: classified.discarded,
+    kind:          classified.kind,
+    contentType:   classified.contentType,
+    discarded:     classified.discarded,
     discardReason: classified.reason,
     hash,
     signature: hash,

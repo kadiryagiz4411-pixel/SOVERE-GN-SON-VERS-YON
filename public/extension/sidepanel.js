@@ -338,6 +338,18 @@ function skillListFromSettings() {
     .slice(0, 24);
 }
 
+/**
+ * Returns the user's skill list when they have completed onboarding (≥2 skills),
+ * or a temporary default set so the AI can produce a real proposal and match score
+ * even before onboarding is finished. The UI always shows the onboarding hint
+ * separately — this only prevents a hard block on the analysis path.
+ */
+function effectiveSkillList() {
+  const skills = skillListFromSettings();
+  if (skills.length >= 2) return skills;
+  return ['Full-Stack Development', 'Freelance Execution'];
+}
+
 function hideErrorBadge() {
   if (!errorBadge) return;
   errorBadge.classList.add('hidden');
@@ -881,19 +893,13 @@ async function refreshViewportAnalysis(pageData) {
   if (!assertAccountOpen()) return;
   applyIsolatedJob(pageData);
   setTargetBadge('live', lastJob.title, lastJob.kind);
-  if (skillListFromSettings().length < 2) {
-    updateMatchUi({
-      onboardingRequired: true,
-      matchMessage: 'Add at least two skills in Settings so this brief can be scored against your profile.',
-      match_score: 0,
-      acceptanceScore: 0,
-    }, lastJob.title);
-    setBusy(false, lastJob.kind === 'cv'
-      ? 'Profile isolated. Add at least two skills to score it.'
-      : 'Job isolated. Add at least two skills to score it.');
-    return;
-  }
-  setBusy(true, lastJob.kind === 'cv' ? 'Scoring the profile on screen…' : 'Scoring the job on screen…');
+
+  // Non-blocking onboarding hint: show a gentle nudge but continue with
+  // effectiveSkillList() so the AI can still generate a proposal and score.
+  const hasUserSkills = skillListFromSettings().length >= 2;
+  const busyMsg = lastJob.kind === 'cv' ? 'Scoring the profile on screen…' : 'Scoring the job on screen…';
+  setBusy(true, hasUserSkills ? busyMsg : `${busyMsg} (Add skills in Settings for a personal score.)`);
+
   try {
     const data = await postParseDom(pageData, { scoreOnly: true });
     const merged = await enrichWithSmartMatch(pageData, data);
@@ -1022,7 +1028,10 @@ async function postParseDom(pageData, options = {}) {
     requiredSkills: pageData.requiredSkills || [],
     budget: pageData.budget,
     clientHistory: pageData.clientHistory,
-    skills: skillListFromSettings(),
+    // structuredJob carries the clean, field-isolated extraction from scraper.js.
+    structuredJob: pageData.structuredJob || null,
+    // effectiveSkillList() provides a graceful default when onboarding < 2 skills.
+    skills: effectiveSkillList(),
     experience: settings.experience,
     hourlyRate: Number(settings.hourlyRate) || undefined,
     matchDepth: deep ? 'deep' : 'basic',
@@ -1071,7 +1080,7 @@ async function enrichWithSmartMatch(pageData, data) {
     intent: 'smart-match',
     jobDescription: pageData.jobDescription || pageData.pageText,
     jobTitle: pageData.jobTitle || pageData.pageTitle,
-    skills: skillListFromSettings(),
+    skills: effectiveSkillList(),
     experience: settings.experience,
     hourlyRate: Number(settings.hourlyRate) || undefined,
     budget: pageData.budget,
@@ -1266,17 +1275,15 @@ async function rescanActiveScreen() {
       : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
     if (titleEl) titleEl.textContent = lastJob.title || '';
 
-    // Onboarding: show the target but skip the LLM and show a non-blocking hint.
+    // Non-blocking onboarding: show a hint but proceed with effectiveSkillList().
+    // Never hard-return here — the user deserves a proposal even on first run.
     if (skillListFromSettings().length < 2) {
       updateMatchUi({
-        onboardingRequired: true,
-        matchMessage: 'Add at least two skills in Settings so this brief can be scored against your profile.',
+        onboardingRequired: false,
+        matchMessage: 'Add your skills in Settings for a personalized score. Showing generic analysis now.',
         match_score: 0,
         acceptanceScore: 0,
       }, lastJob.title);
-      setBusy(false, 'Job isolated. Open Settings and add at least two skills to unlock scores.');
-      analyzing = false;
-      return;
     }
 
     // Use the analysis the background already computed — ZERO extra network calls.
@@ -1851,10 +1858,10 @@ async function saveCvRecord(record) {
 async function generateTailoredCv() {
   if (generatingCv) return;
   if (!assertGenerationAllowed()) return;
+  // Non-blocking: effectiveSkillList() provides fallback skills if user hasn't
+  // completed onboarding yet, so the CV generator always produces a result.
   if (skillListFromSettings().length < 2) {
-    setCvBusy(false, 'Add at least two skills in Settings before generating a CV.');
-    switchTab('settings');
-    return;
+    setCvBusy(false, 'Tip: Add your skills in Settings for a fully personalized CV. Generating with defaults now…');
   }
   setCvBusy(true, 'Reading the open job…');
   try {
@@ -1880,7 +1887,7 @@ async function generateTailoredCv() {
         targetRole: lastJob.title,
         jobDescription: lastJob.description,
         existingCvText: profileNotes(),
-        skills: skillListFromSettings(),
+        skills: effectiveSkillList(),
         experience: settings.experience,
         hourlyRate: Number(settings.hourlyRate) || undefined,
         outputLanguage: resolveOutputLanguage(),

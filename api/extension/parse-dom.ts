@@ -157,6 +157,14 @@ async function handleRequest(req: Request): Promise<Response> {
       requiredSkills?: string[];
       budget?: string;
       clientHistory?: string;
+      /** Clean, field-isolated extraction from scraper.js — preferred over raw pageText. */
+      structuredJob?: {
+        title?: string;
+        description?: string;
+        skills?: string[];
+        budget?: string;
+        clientInfo?: string;
+      };
       skills?: string[];
       experience?: string;
       profession?: string;
@@ -166,16 +174,23 @@ async function handleRequest(req: Request): Promise<Response> {
       scoreOnly?: boolean;
     }>(req);
 
-    const jobTitle = String(body.jobTitle || body.pageTitle || '').trim();
-    const jobDescription = String(body.jobDescription || '').trim();
-    const listedSkills = Array.isArray(body.requiredSkills)
-      ? body.requiredSkills.map((item) => String(item)).filter(Boolean).slice(0, 16)
-      : [];
-    const budget = String(body.budget || '').trim();
-    const clientHistory = String(body.clientHistory || '').trim();
-    const pageText = String(jobDescription || body.pageText || body.text || '').trim();
-    const pageTitle = jobTitle || String(body.pageTitle || '').trim();
-    const pageUrl = String(body.pageUrl || body.sourceUrl || '').trim();
+    // Prefer structuredJob fields when present — they are field-isolated and
+    // never have metadata (budget/proposals/time) mashed into the description.
+    const sj = body.structuredJob;
+    const jobTitle    = String(sj?.title    || body.jobTitle    || body.pageTitle  || '').trim();
+    const jobDescription = String(sj?.description || body.jobDescription || '').trim();
+    const listedSkills = [
+      ...(Array.isArray(sj?.skills) ? sj.skills : []),
+      ...(Array.isArray(body.requiredSkills) ? body.requiredSkills : []),
+    ]
+      .map((item) => String(item)).filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i)   // deduplicate
+      .slice(0, 16);
+    const budget       = String(sj?.budget   || body.budget         || '').trim();
+    const clientHistory = String(sj?.clientInfo || body.clientHistory || '').trim();
+    const pageText     = String(jobDescription  || body.pageText || body.text || '').trim();
+    const pageTitle    = jobTitle  || String(body.pageTitle  || '').trim();
+    const pageUrl      = String(body.pageUrl   || body.sourceUrl   || '').trim();
 
     if (!pageText || pageText.length < 20) {
       return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);
@@ -211,14 +226,17 @@ async function handleRequest(req: Request): Promise<Response> {
 
     const detectedMode = detectMode(pageUrl, pageTitle, pageText);
     const label = platformLabel(pageUrl, detectedMode);
+
+    // Structured context: each field is clearly labelled so the LLM never
+    // confuses "8 proposals · 3 hrs ago" with a requirement or skill.
     const context = [
-      `Title: ${pageTitle}`,
-      pageUrl ? `URL: ${pageUrl}` : '',
-      budget ? `Budget / rate: ${budget}` : '',
-      listedSkills.length ? `Listed skills: ${listedSkills.join(', ')}` : '',
-      clientHistory ? `Client: ${clientHistory.slice(0, 400)}` : '',
-      `Content:\n${pageText.slice(0, 4000)}`,
-    ].filter(Boolean).join('\n');
+      `=== JOB TITLE ===\n${pageTitle}`,
+      pageUrl ? `=== URL ===\n${pageUrl}` : '',
+      budget ? `=== BUDGET / RATE ===\n${budget}` : '',
+      listedSkills.length ? `=== SKILLS REQUIRED ===\n${listedSkills.join(', ')}` : '',
+      clientHistory ? `=== CLIENT INFO ===\n${clientHistory.slice(0, 400)}` : '',
+      `=== JOB DESCRIPTION ===\n${pageText.slice(0, 4000)}`,
+    ].filter(Boolean).join('\n\n');
     const depth = body.matchDepth === 'deep' || body.deepMatch ? 'deep' : 'basic';
     const match = scoreOpportunity(
       {
