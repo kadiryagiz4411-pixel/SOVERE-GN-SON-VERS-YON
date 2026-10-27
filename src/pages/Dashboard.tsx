@@ -535,9 +535,7 @@ const Dashboard = () => {
         if (paymentParam === 'success') {
           setTimeout(() => {
             toast.success(
-              language === 'tr'
-                ? '🎉 Ödeme alındı! Planın güncelleniyor — birkaç saniye bekle.'
-                : '🎉 Payment confirmed! Your plan is being activated — refresh in a moment.',
+              '🎉 Payment confirmed! Your plan is being activated — refresh in a moment.',
               { duration: 8000 },
             );
           }, 800);
@@ -561,7 +559,7 @@ const Dashboard = () => {
         if (profileData && (profileData.daily_proposals_used ?? 0) > 0 && profileData.daily_proposals_used % 10 === 0) {
           const newBonus = (profileData.bonus_credits || 0) + 5;
           await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', session.user.id);
-          toast.success(language === 'tr' ? '🎁 Kilometre taşı! +5 bonus proposal hakkı kazandın!' : language === 'de' ? '🎁 Meilenstein! +5 Bonus-Proposals erhalten!' : language === 'fr' ? '🎁 Jalon atteint ! +5 proposals bonus accordées !' : '🎁 Milestone reached! +5 bonus proposals awarded!');
+          toast.success('🎁 Milestone reached! +5 bonus proposals awarded!');
           profileData.bonus_credits = newBonus;
         }
 
@@ -627,7 +625,7 @@ const Dashboard = () => {
   // Auto-fill: AI analyzes job description and fills platform/cluster/tone
   const handleAutoFill = async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
-      toast.error(language === 'tr' ? 'Önce bir iş ilanı yapıştırın (min 20 karakter)' : language === 'de' ? 'Zuerst eine Stellenbeschreibung einfügen (min. 20 Zeichen)' : language === 'fr' ? 'Collez d\'abord une description (min 20 caractères)' : 'Paste a job description first (min 20 characters)');
+      toast.error('Paste a job description first (min 20 characters)');
       return;
     }
     if (!isPaidPlan(currentPlan)) {
@@ -639,7 +637,7 @@ const Dashboard = () => {
     setIsAutoFilling(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error(language === 'tr' ? 'Lütfen giriş yapın' : 'Please log in'); return; }
+      if (!session) { toast.error('Please log in'); return; }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-fill-job`,
@@ -655,7 +653,7 @@ const Dashboard = () => {
 
       const result = await response.json();
       if (!response.ok) {
-        toast.error(result.error || (language === 'tr' ? 'Otomatik doldurma başarısız' : 'Auto-fill failed'));
+        toast.error(result.error || 'Auto-fill failed');
         return;
       }
 
@@ -697,7 +695,7 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Auto-fill error:', err);
-      toast.error(language === 'tr' ? 'Otomatik doldurma başarısız. Tekrar deneyin.' : 'Auto-fill failed. Please try again.');
+      toast.error('Auto-fill failed. Please try again.');
     } finally {
       setIsAutoFilling(false);
     }
@@ -705,7 +703,7 @@ const Dashboard = () => {
 
   const handleGenerate = async () => {
     if (!jobDescription.trim()) {
-      toast.error(language === 'tr' ? 'Lütfen bir iş ilanı girin' : language === 'de' ? 'Bitte eine Stellenbeschreibung eingeben' : language === 'fr' ? 'Veuillez saisir une description de poste' : 'Please enter a job description');
+      toast.error('Please enter a job description');
       return;
     }
 
@@ -715,7 +713,7 @@ const Dashboard = () => {
     // for already-authenticated users.
     if (!user && !sessionUser) {
       toast.error(
-        language === 'tr' ? 'Proposal üretmek için giriş yapın' : 'Please sign in to generate proposals',
+        'Please sign in to generate proposals',
         { action: { label: 'Sign in', onClick: () => navigate('/auth?mode=signup') } },
       );
       return;
@@ -759,7 +757,7 @@ const Dashboard = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error(language === 'tr' ? 'Lütfen giriş yapın' : 'Please log in');
+        toast.error('Please log in');
         return;
       }
 
@@ -814,7 +812,7 @@ const Dashboard = () => {
       if (!responseOk) {
         console.error('Proposal API error:', responseStatus, result);
         if (responseStatus === 429) {
-          toast.error(language === 'tr' ? 'Hız limiti aşıldı. Bir süre bekleyip tekrar deneyin.' : 'Rate limit exceeded. Please wait a moment and try again.');
+          toast.error('Rate limit exceeded. Please wait a moment and try again.');
         } else if (responseStatus === 402) {
           // Unlimited / BYOK users should NEVER be blocked by a backend 402.
           // The backend may not recognise them; fall through to client-side fallback.
@@ -823,7 +821,7 @@ const Dashboard = () => {
             // Let the code fall through; the catch block will handle it.
             throw new Error('__bypass_402__');
           }
-          toast.error(language === 'tr' ? 'AI kredileri tükendi. Daha sonra tekrar deneyin.' : 'AI credits exhausted. Please try again later.');
+          toast.error('AI credits exhausted. Please try again later.');
         } else if (String(result?.error || '').includes('Daily limit')) {
           setUpgradeFeature('Unlimited Proposals');
           setShowUpgradeModal(true);
@@ -837,7 +835,7 @@ const Dashboard = () => {
       const proposalText = readGeneratedText(result, ['proposal', 'proposalText', 'text']);
       if (!proposalText) {
         console.error('No proposal in response:', result);
-        toast.error(language === 'tr' ? 'Proposal üretilemedi. Tekrar deneyin.' : 'No proposal was generated. Please try again.');
+        toast.error('No proposal was generated. Please try again.');
         return;
       }
 
@@ -890,7 +888,7 @@ const Dashboard = () => {
           const newBonus = (profile.bonus_credits || 0) + 5;
           await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', user.id);
           updatedProfile.bonus_credits = newBonus;
-          toast.success(language === 'tr' ? '🎁 Kilometre taşı! +5 bonus proposal kazandın!' : '🎁 Milestone! You\'ve earned +5 bonus proposals!', { duration: 5000 });
+          toast.success('🎁 Milestone! You\'ve earned +5 bonus proposals!', { duration: 5000 });
         }
 
         setProfile(updatedProfile);
@@ -917,11 +915,7 @@ const Dashboard = () => {
           if (isBypass402) {
             console.info('[CREDIT_BYPASS_OVERRIDE] Client-side generation succeeded for unlimited user.');
           }
-          toast.success(
-            language === 'tr'
-              ? '✅ Teklif doğrudan bağlantıyla üretildi.'
-              : '✅ Proposal generated via direct connection.',
-          );
+          toast.success('✅ Proposal generated via direct connection.');
           return; // Fallback succeeded — skip the error display below.
         }
       } catch (fallbackErr: any) {
@@ -1066,7 +1060,7 @@ const Dashboard = () => {
       type: 'proposal',
     });
     setDownloadsUsed(incrementDownloadsUsed());
-    toast.success(language === 'tr' ? 'PDF indirildi!' : 'PDF downloaded!');
+    toast.success('PDF downloaded!');
   };
 
   const handleExportDOCX = async () => {
@@ -1081,7 +1075,7 @@ const Dashboard = () => {
       type: 'proposal',
     });
     setDownloadsUsed(incrementDownloadsUsed());
-    toast.success(language === 'tr' ? 'DOCX indirildi!' : 'DOCX downloaded!');
+    toast.success('DOCX downloaded!');
   };
 
   if (loading || !user) {

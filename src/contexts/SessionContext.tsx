@@ -239,11 +239,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Failsafe: if neither getSession() nor onAuthStateChange resolves within
+    // 3 s, unblock the UI so the user is never stuck on the loading spinner.
+    // Reduced from 4 s → 3 s for snappier perceived performance.
     const sessionTimeout = window.setTimeout(() => {
       if (!mounted.current || hydrated.current) return;
       hydrated.current = true;
       setSessionReady(true);
-    }, 4000);
+    }, 3000);
 
     supabase.auth.getSession()
       .then(async ({ data: { session: next }, error }) => {

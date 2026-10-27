@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useSession } from '@/contexts/SessionContext';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +38,10 @@ const USERS_PER_PAGE = 10;
 
 const Admin = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  // Use SessionContext (always resolved before render) so the admin gate
+  // never fires a false redirect while a parallel useAuth() loading state
+  // briefly sets user=null for an already-authenticated session.
+  const { user, isLoading: authLoading } = useSession();
   const { isAdmin, loading: adminLoading } = useAdmin(user);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);

@@ -18,9 +18,11 @@ export const useAuth = () => {
       setLoading(false);
     };
 
+    // 3 s watchdog — unblocks any component still using the legacy useAuth()
+    // hook so the UI never waits forever for Supabase on a slow network.
     const watchdog = window.setTimeout(() => {
       if (!cancelled) setLoading(false);
-    }, 4000);
+    }, 3000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, nextSession) => {
