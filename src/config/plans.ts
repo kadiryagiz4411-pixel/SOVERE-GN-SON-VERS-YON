@@ -219,6 +219,30 @@ function urlFromVariantId(variantId: string): string {
   return checkoutUrlFromVariant(variantId);
 }
 
+/**
+ * Convert a variant ID to a checkout URL WITHOUT logging a warning for numeric
+ * IDs. Numeric variant IDs are API-only credentials used by /api/billing/checkout
+ * to mint a hosted checkout session — they cannot be used as direct /buy/ slugs.
+ *
+ * Returns undefined instead of the store URL when the ID is numeric so that
+ * callers can silently fall through to the next candidate.
+ */
+function urlFromVariantIdSilent(variantId: string): string | undefined {
+  if (!variantId) return undefined;
+  // Purely numeric → API-only, not a buy-path slug. Return undefined so the
+  // caller falls through to the store URL without a console warning.
+  if (/^\d+$/.test(variantId)) return undefined;
+  // HTTP URLs pass through sanitization.
+  if (/^https?:\/\//i.test(variantId)) return sanitizeCheckoutUrl(variantId);
+  // UUID slug — convert to full checkout URL.
+  const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (UUID_PATTERN.test(variantId)) {
+    const url = `${getLemonStoreUrl()}/checkout/buy/${variantId}`;
+    return isBrokenCheckoutUrl(url) ? undefined : url;
+  }
+  return undefined;
+}
+
 function firstValidCheckout(...candidates: Array<string | undefined | null>): string {
   for (const candidate of candidates) {
     if (candidate && !isBrokenCheckoutUrl(candidate)) {
@@ -233,6 +257,7 @@ export function resolveCheckoutUrl(
   cycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
   if (planId === 'single_pass') {
+    // single_pass variant ID may be a UUID slug — use the warning-enabled path.
     return firstValidCheckout(
       LEMON_SQUEEZY_CHECKOUT_URLS.single_pass,
       urlFromVariantId(getVariantId('single_pass')),
@@ -244,7 +269,10 @@ export function resolveCheckoutUrl(
   const uuidFallback = FALLBACK_CHECKOUT_URLS[planId]?.[billing];
   const variantId = getVariantId(planId, billing);
 
-  return firstValidCheckout(configured, uuidFallback, urlFromVariantId(variantId));
+  // Use the silent variant: numeric IDs (Standard/Enterprise) fall through to
+  // the store URL without a console warning. UUID IDs (Pro/Elite) produce a
+  // valid checkout URL. If the env has a complete checkout URL set, that wins.
+  return firstValidCheckout(configured, uuidFallback, urlFromVariantIdSilent(variantId));
 }
 
 export function describeCheckoutTarget(
