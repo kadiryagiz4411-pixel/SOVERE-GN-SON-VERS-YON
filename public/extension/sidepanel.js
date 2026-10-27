@@ -983,7 +983,11 @@ function onViewportFocus(raw) {
   }
   if (!pageData.pageText && !pageData.jobDescription) return;
   const hash = pageData.hash || '';
-  if (hash && hash === lastTargetHash && (pageData.jobTitle || '') === (lastJob.title || '')) {
+  // Only deduplicate if the hash AND title BOTH match and this is not a freshly
+  // flushed payload. A title mismatch means the page changed even if the hash
+  // somehow collided (e.g. same hash across SPA navigations).
+  if (hash && hash === lastTargetHash && !raw.flushed
+    && (pageData.jobTitle || '') === (lastJob.title || '')) {
     clearTimeout(viewportScoreTimer);
     if (raw.analysis) applyReadyAnalysis(pageData, raw.analysis);
     else setTargetBadge('live', pageData.jobTitle || lastJob.title, pageData.kind, pageData.contentType);

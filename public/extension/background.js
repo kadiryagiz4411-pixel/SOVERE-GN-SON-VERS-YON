@@ -6,6 +6,10 @@ importScripts('config.js', 'scraper.js');
 
 let lastAnalyzedHash = '';
 let analyzeSeq = 0;
+// Set to true while forceViewportScan() is running so autoAnalyzeViewport()
+// doesn't steal the analyzeSeq counter and cause forceViewportScan's own
+// ANALYSIS_READY to be silently dropped by the seq guard.
+let forcingScan = false;
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
@@ -154,12 +158,19 @@ async function pingParseDom() {
 }
 
 function persistViewportTarget(data, scanning) {
+  if (data) {
+    // We have fresh data — write directly without reading first to avoid the
+    // async read-then-write race that lets a stale concurrent write win.
+    chrome.storage.local.set({
+      'sovereign.viewport.v1': { ...data, scanning: false, at: Date.now() },
+    });
+    return;
+  }
+  // No data — only update the scanning flag on the existing record.
   chrome.storage.local.get('sovereign.viewport.v1', (bag) => {
     const prev = bag['sovereign.viewport.v1'] || {};
     chrome.storage.local.set({
-      'sovereign.viewport.v1': data
-        ? { ...data, scanning: false, at: Date.now() }
-        : { ...prev, scanning: Boolean(scanning), at: Date.now() },
+      'sovereign.viewport.v1': { ...prev, scanning: Boolean(scanning), at: Date.now() },
     });
   });
 }
@@ -168,9 +179,24 @@ async function forceViewportScan() {
   lastAnalyzedHash = '';
   analyzeSeq += 1;
   const seq = analyzeSeq;
+  forcingScan = true;
 
-  // 1. Scrape — content script handles force + noise-filter.
-  const data = await scrapeActiveTab('SCAN_ACTIVE_SCREEN');
+  // Wipe stale viewport from storage BEFORE scraping so the sidepanel cannot
+  // read old job data from sovereign.viewport.v1 while the fresh scrape races.
+  try {
+    chrome.storage.local.set({
+      'sovereign.viewport.v1': { scanning: true, flushed: true, at: Date.now() },
+    });
+  } catch {/**/ }
+
+  let data;
+  try {
+    // 1. Scrape — content script handles force + noise-filter.
+    data = await scrapeActiveTab('SCAN_ACTIVE_SCREEN');
+  } finally {
+    // Always release the lock so autoAnalyzeViewport can resume after this scan.
+    forcingScan = false;
+  }
   persistViewportTarget(data, false);
 
   if (!data || data.discarded || !data.pageText || data.pageText.length < 20) {
@@ -274,6 +300,9 @@ function mergeSmartMatch(data, smart) {
 
 async function autoAnalyzeViewport(data, force) {
   if (!data) return;
+  // If a manual forced scan is running, yield entirely — forceViewportScan owns
+  // the analyzeSeq counter for this cycle. Let it win.
+  if (forcingScan) return;
   if (data.discarded) {
     lastAnalyzedHash = data.hash || lastAnalyzedHash;
     persistViewportTarget({ ...data, analysis: null, flushed: true, autoAnalyzed: true }, false);

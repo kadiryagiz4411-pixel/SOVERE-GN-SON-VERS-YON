@@ -258,7 +258,9 @@ if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE' || request?.type === 'SCAN_ACTIVE_SCREEN' || request?.type === 'FLUSH_VIEWPORT') {
     try {
-      if (request.type === 'FLUSH_VIEWPORT') lastPublishedHash = '';
+      // For any forced/flush scan, wipe the hash cache so publishTarget's
+      // dedup guard never short-circuits on a matching hash from the old page.
+      if (request.type !== 'SCRAPE_PAGE') lastPublishedHash = '';
       const force = request.type !== 'SCRAPE_PAGE';
       const data = scrapeFresh(force);
       publishTarget(data, true);
