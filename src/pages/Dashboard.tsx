@@ -709,8 +709,11 @@ const Dashboard = () => {
       return;
     }
 
-    if (!user) {
-      // Show auth modal rather than navigating away so the user doesn't lose their draft.
+    // Use sessionUser (from SessionContext — always resolved before render) as
+    // the canonical auth check. Local `user` state may still be null while the
+    // profile fetch is in-flight, which would trigger a false "sign in" wall
+    // for already-authenticated users.
+    if (!user && !sessionUser) {
       toast.error(
         language === 'tr' ? 'Proposal üretmek için giriş yapın' : 'Please sign in to generate proposals',
         { action: { label: 'Sign in', onClick: () => navigate('/auth?mode=signup') } },

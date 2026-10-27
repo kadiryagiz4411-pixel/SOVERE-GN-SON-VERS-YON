@@ -49,20 +49,28 @@ export function openLemonSqueezyCheckout(
   const safeBase = isBrokenCheckoutUrl(checkoutUrl) ? getLemonStoreUrl() : sanitizeCheckoutUrl(checkoutUrl);
   const enrichedUrl = buildLemonSqueezyUrl(safeBase, userEmail, userId);
 
+  // Final absolute-URL guard — React Router only intercepts relative paths;
+  // if somehow a non-http URL slips through, open the store instead.
+  const finalUrl = /^https?:\/\//i.test(enrichedUrl) ? enrichedUrl : getLemonStoreUrl();
+
+  const openNewTab = (url: string) => {
+    // Always window.open, never window.location.href — prevents React Router
+    // from capturing the navigation and 404-ing on the SPA.
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   try {
     const ready = ensureLemonSqueezyReady();
     if (ready && window.LemonSqueezy?.Url?.Open) {
-      window.LemonSqueezy.Url.Open(enrichedUrl);
+      window.LemonSqueezy.Url.Open(finalUrl);
       return;
     }
-    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in new tab', { enrichedUrl });
-    // Use window.open instead of location.href to prevent React Router from
-    // capturing a URL that could be misread as a relative SPA path.
-    window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
+    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in new tab', { finalUrl });
+    openNewTab(finalUrl);
   } catch (err) {
-    console.error('[LemonSqueezy] Checkout open failed', err, { enrichedUrl });
+    console.error('[LemonSqueezy] Checkout open failed', err, { finalUrl });
     try {
-      window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
+      openNewTab(finalUrl);
     } catch (fallbackErr) {
       console.error('[LemonSqueezy] Fallback open also failed', fallbackErr);
       toast.error('Could not open checkout. Please disable your ad blocker and try again.');
@@ -96,6 +104,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
       onClick?.(event);
       if (event.defaultPrevented) return;
       if (!overlay) return;
+      // Always intercept left-clicks so React Router never processes the href.
       event.preventDefault();
 
       const open = (url: string) => openLemonSqueezyCheckout(url, user?.email, user?.id);

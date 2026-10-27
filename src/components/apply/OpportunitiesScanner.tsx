@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OPPORTUNITY_PLATFORMS, resolveOpportunityHref, type OpportunityPlatform } from '@/lib/opportunities';
 
@@ -27,8 +27,11 @@ interface OpportunitiesScannerProps {
   creditLabel: string;
   disabled?: boolean;
   counts?: Partial<Record<'All' | OpportunityPlatform, number>>;
+  /** @deprecated Refresh is merged into the scan action — prop is accepted but not rendered. */
   onRefresh?: () => void | Promise<void>;
+  /** @deprecated Label ignored — merged into scan button. */
   refreshLabel?: string;
+  /** @deprecated State ignored — unified with scanning. */
   refreshing?: boolean;
 }
 
@@ -81,40 +84,23 @@ export function OpportunitiesScanner({
   creditLabel,
   disabled,
   counts,
-  onRefresh,
-  refreshLabel = 'Refresh Queue',
-  refreshing,
 }: OpportunitiesScannerProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4">
+      {/* Single merged Scan + Refresh action button */}
       <Button
         onClick={() => {
           void Promise.resolve(onScan()).catch(() => undefined);
         }}
         disabled={scanning || disabled}
-        className="bg-gradient-to-r from-amber-500 to-primary text-primary-foreground"
+        className="bg-gradient-to-r from-amber-500 to-primary text-primary-foreground gap-2"
       >
         {scanning
-          ? <SafeIcon icon={Loader2} className="w-4 h-4 animate-spin mr-2" />
-          : <SafeIcon icon={Sparkles} className="w-4 h-4 mr-2" />}
+          ? <SafeIcon icon={Loader2} className="w-4 h-4 animate-spin" />
+          : <SafeIcon icon={Sparkles} className="w-4 h-4" />}
         {scanning ? scanningLabel : scanLabel}
-        <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full border border-black/20 bg-black/10">{creditLabel}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded-full border border-black/20 bg-black/10">{creditLabel}</span>
       </Button>
-      {onRefresh ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={Boolean(refreshing) || scanning || disabled}
-          onClick={() => {
-            void Promise.resolve(onRefresh()).catch(() => undefined);
-          }}
-        >
-          {refreshing
-            ? <SafeIcon icon={Loader2} className="w-4 h-4 animate-spin mr-2" />
-            : <SafeIcon icon={RefreshCw} className="w-4 h-4 mr-2" />}
-          {refreshLabel}
-        </Button>
-      ) : null}
       <div className="flex flex-wrap gap-1">
         {OPPORTUNITY_PLATFORMS.map((name) => {
           const active = platform === name;

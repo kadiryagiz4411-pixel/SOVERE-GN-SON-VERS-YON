@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { useSession } from '@/contexts/SessionContext';
@@ -30,7 +29,11 @@ const PLATFORM_COLORS: Record<string, string> = {
 };
 
 const ApplyQueue = () => {
-  const { user } = useAuth();
+  // Use the global SessionContext user — it is always resolved before the
+  // page renders (SessionProvider waits for getSession). This prevents the
+  // false "Please sign in" toast that fires when useAuth()'s own loading
+  // state initialises with user=null before getSession() completes.
+  const { user } = useSession();
   const { profile } = useProfile(user);
   const { language } = useLanguage();
   const plan = profile?.subscription_plan || 'basic';
@@ -53,7 +56,6 @@ const ApplyQueue = () => {
 
   const { items, loading, refresh, invalidate } = useApplyQueue(user?.id);
   const [scanning, setScanning] = useState(false);
-  const [queueRefreshing, setQueueRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProposal, setEditingProposal] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'all' | 'pending'>('all');
@@ -62,9 +64,8 @@ const ApplyQueue = () => {
   const txt = {
     title: language === 'tr' ? 'Akıllı Başvuru Kuyruğu' : language === 'de' ? 'Intelligente Bewerbungswarteschlange' : language === 'fr' ? 'File de candidature intelligente' : 'Preloaded Apply Queue',
     subtitle: language === 'tr' ? 'Sovereign siz yokken en iyi fırsatları buldu' : language === 'de' ? 'Sovereign hat die besten Chancen gefunden' : language === 'fr' ? 'Sovereign a trouvé les meilleures opportunités' : 'Sovereign found your best opportunities while you were away',
-    refresh: language === 'tr' ? 'Kuyruğu Yenile' : language === 'de' ? 'Warteschlange aktualisieren' : language === 'fr' ? 'Actualiser la file' : 'Refresh Queue',
-    scan: language === 'tr' ? 'Yeni Fırsatları Tara' : language === 'de' ? 'Neue Chancen scannen' : language === 'fr' ? 'Rechercher des opportunités' : 'Scan New Opportunities',
-    scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning...',
+    scan: language === 'tr' ? 'Tara ve Yenile' : language === 'de' ? 'Scannen & Aktualisieren' : language === 'fr' ? 'Analyser & Actualiser' : 'Scan & Refresh',
+    scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning…',
     copyProposal: language === 'tr' ? 'Teklifi kopyala' : language === 'de' ? 'Vorschlag kopieren' : language === 'fr' ? 'Copier la proposition' : 'Copy Proposal',
     viewOriginal: language === 'tr' ? 'Platformda gör / başvur ↗' : language === 'de' ? 'Auf der Plattform öffnen ↗' : language === 'fr' ? 'Voir / postuler ↗' : 'View / Apply on Platform ↗',
     onboardingFirst: language === 'tr' ? 'Eşleşme skoru için onboarding’de en az iki beceri ekleyin.' : 'Add at least two skills in onboarding before Sovereign can calculate match scores.',
@@ -147,7 +148,9 @@ const ApplyQueue = () => {
       } else {
         toast.success(`${fresh.length} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
       }
+      // Auto-refresh queue from Supabase after scan — no separate Refresh button needed.
       await invalidate();
+      await refresh().catch(() => undefined);
     } catch (err) {
       console.error('[ApplyQueue scan]', err);
       const aborted = err instanceof DOMException && err.name === 'AbortError';
@@ -228,21 +231,6 @@ const ApplyQueue = () => {
                 scanningLabel={txt.scanning}
                 creditLabel={txt.credits30}
                 counts={platformCounts}
-                refreshLabel={txt.refresh}
-                refreshing={queueRefreshing}
-                onRefresh={async () => {
-                  setQueueRefreshing(true);
-                  try {
-                    const result = await refresh();
-                    if (result.error) {
-                      toast.error(language === 'tr' ? 'Kuyruk yenilenemedi.' : 'Queue could not refresh.');
-                      return;
-                    }
-                    toast.success(language === 'tr' ? 'Kuyruk güncellendi.' : 'Queue refreshed.');
-                  } finally {
-                    setQueueRefreshing(false);
-                  }
-                }}
               />
               <div className="flex gap-1 ml-auto">
                 {(['all', 'pending'] as const).map(f => (
