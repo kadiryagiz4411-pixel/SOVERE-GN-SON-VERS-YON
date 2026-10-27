@@ -5,9 +5,13 @@
  */
 
 const isTopFrame = window === window.top;
+const SCROLL_DEBOUNCE_MS = 180;
+const MUTATION_DEBOUNCE_MS = 220;
+const CLICK_DEBOUNCE_MS = 150;
 
 let evaluateTimer = 0;
 let scanTimer = 0;
+let observeTimer = 0;
 let viewportObserver = null;
 let mutationObserver = null;
 let watchingViewport = false;
@@ -15,7 +19,7 @@ let lastPublishedHash = '';
 
 function markSovereignHost() {
   try {
-    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.6';
+    const version = typeof EXTENSION_VERSION !== 'undefined' ? EXTENSION_VERSION : '1.6.7';
     document.documentElement.setAttribute('data-sovereign-extension', version);
     window.postMessage({ type: 'SOVEREIGN_EXTENSION_READY', version }, '*');
   } catch {
@@ -97,8 +101,40 @@ function notifyScanning() {
   }, 60);
 }
 
+function classifyPayload(data) {
+  if (data?.contentType) {
+    return {
+      contentType: data.contentType,
+      kind: data.kind || 'job',
+      discarded: Boolean(data.discarded),
+    };
+  }
+  if (typeof classifyScrapedContent === 'function') {
+    return classifyScrapedContent(data?.pageUrl, data?.jobTitle, data?.pageText, data?.isolated);
+  }
+  return { contentType: 'JOB_POSTING', kind: data?.kind || 'job', discarded: false };
+}
+
 function publishTarget(data, force) {
-  if (!isTopFrame || !data?.pageText) return;
+  if (!isTopFrame || !data) return;
+  const classified = classifyPayload(data);
+  if (!force && classified.discarded) {
+    if (lastPublishedHash === `discard:${classified.reason || classified.contentType}`) return;
+    lastPublishedHash = `discard:${classified.reason || classified.contentType}`;
+    postRuntime({
+      type: 'JOB_TARGET_CHANGED',
+      data: {
+        discarded: true,
+        flushed: true,
+        contentType: classified.contentType || 'CANDIDATE_LIST',
+        kind: 'list',
+        hash: lastPublishedHash,
+        scannedAt: Date.now(),
+      },
+    });
+    return;
+  }
+  if (!data.pageText && !data.jobDescription) return;
   const hash = data.hash || data.signature
     || (typeof hashScrapedText === 'function' ? hashScrapedText(data.pageText) : `${Date.now()}`);
   if (!force && hash && hash === lastPublishedHash) return;
@@ -106,10 +142,11 @@ function publishTarget(data, force) {
   const payload = {
     ...data,
     hash,
-    kind: data.kind || (typeof detectIsolatedKind === 'function'
-      ? detectIsolatedKind(data.pageUrl, data.jobTitle, data.pageText)
-      : 'job'),
+    kind: classified.kind,
+    contentType: classified.contentType || data.contentType || 'JOB_POSTING',
+    discarded: false,
     scannedAt: Date.now(),
+    autoAnalyze: true,
   };
   postRuntime({ type: 'JOB_TARGET_CHANGED', data: payload });
   postRuntime({ type: 'VIEWPORT_FOCUS', data: payload });
@@ -131,9 +168,10 @@ function onJobInteraction(event) {
   const selectors = candidateSelectors();
   const card = selectors.length ? target.closest(selectors.join(',')) : target.closest('a, article, li, section');
   if (!card) return;
+  lastPublishedHash = '';
   invalidateViewportState();
   notifyScanning();
-  scheduleEvaluate(150, true);
+  scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
   setTimeout(() => evaluateViewport(true), 400);
 }
 
@@ -156,32 +194,36 @@ function startViewportWatch() {
   const onMove = () => {
     invalidateViewportState();
     notifyScanning();
-    scheduleEvaluate(150, false);
+    scheduleEvaluate(SCROLL_DEBOUNCE_MS, false);
   };
   window.addEventListener('scroll', onMove, { passive: true, capture: true });
   window.addEventListener('wheel', onMove, { passive: true, capture: true });
   window.addEventListener('resize', onMove, { passive: true });
   window.addEventListener('hashchange', () => {
+    lastPublishedHash = '';
     invalidateViewportState();
-    scheduleEvaluate(150, true);
+    scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
   });
   window.addEventListener('popstate', () => {
+    lastPublishedHash = '';
     invalidateViewportState();
-    scheduleEvaluate(150, true);
+    scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
+    lastPublishedHash = '';
     invalidateViewportState();
-    scheduleEvaluate(150, true);
+    if (document.visibilityState !== 'visible') return;
+    scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
   });
   window.addEventListener('pageshow', () => {
+    lastPublishedHash = '';
     invalidateViewportState();
-    scheduleEvaluate(150, true);
+    scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
   });
 
   viewportObserver = new IntersectionObserver(() => {
     notifyScanning();
-    scheduleEvaluate(150, false);
+    scheduleEvaluate(SCROLL_DEBOUNCE_MS, false);
   }, {
     threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
     rootMargin: '-6% 0px -10% 0px',
@@ -189,12 +231,13 @@ function startViewportWatch() {
   observeCandidates();
 
   mutationObserver = new MutationObserver(() => {
-    observeCandidates();
-    scheduleEvaluate(160, false);
+    clearTimeout(observeTimer);
+    observeTimer = setTimeout(observeCandidates, 800);
+    scheduleEvaluate(MUTATION_DEBOUNCE_MS, false);
   });
   mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
   notifyScanning();
-  scheduleEvaluate(150, true);
+  scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
 }
 
 markSovereignHost();
@@ -210,8 +253,9 @@ if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
 }
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE' || request?.type === 'SCAN_ACTIVE_SCREEN') {
+  if (request?.type === 'SCRAPE_PAGE' || request?.type === 'RESCAN_PAGE' || request?.type === 'SCAN_ACTIVE_SCREEN' || request?.type === 'FLUSH_VIEWPORT') {
     try {
+      if (request.type === 'FLUSH_VIEWPORT') lastPublishedHash = '';
       const force = request.type !== 'SCRAPE_PAGE';
       const data = scrapeFresh(force);
       publishTarget(data, true);

@@ -103,20 +103,35 @@ function hashScrapedText(text) {
   return (h >>> 0).toString(16);
 }
 
-function detectIsolatedKind(url, title, text) {
+function classifyScrapedContent(url, title, text, isolated) {
   const href = String(url || '').toLowerCase();
   const sample = `${title || ''}\n${text || ''}`.toLowerCase();
-  if (/linkedin\.com\/in\//.test(href) || /\/resume|\/cv(?:\/|$)/.test(href)) return 'cv';
-  if (/linkedin\.com\/company|crunchbase\.com/.test(href)) return 'b2b';
-  if (/upwork\.com\/(jobs|nx\/search\/jobs|ab\/proposals)/.test(href)
-    || /linkedin\.com\/jobs/.test(href)
-    || /indeed\.com\/(viewjob|jobs)/.test(href)
-    || /freelancer\.com\/projects/.test(href)
-    || /fiverr\.com/.test(href)) return 'job';
-  const jobHits = (sample.match(/job description|responsibilities|qualifications|requirements|apply now|hourly rate|fixed[- ]price|proposals? bid/g) || []).length;
-  const cvHits = (sample.match(/work experience|professional experience|education|curriculum vitae|\bcv\b|professional summary|certifications/g) || []).length;
-  if (cvHits > jobHits && cvHits >= 2) return 'cv';
-  return 'job';
+  const compact = sample.replace(/\s+/g, ' ').trim();
+  if (compact.length < 40) {
+    return { contentType: '', kind: 'job', discarded: true, reason: 'empty' };
+  }
+
+  const nameHits = (sample.match(/\n[A-Z][a-z]+ [A-Z][a-z]+\n/g) || []).length;
+  const listHits = (sample.match(/applicants?|candidates?|talent pool|search results|jobs you may|similar jobs|people also viewed|showing \d+/g) || []).length;
+  const titles = (String(text || '').match(/\n[A-Z][^\n]{12,80}\n/g) || []).length;
+  if ((!isolated && titles >= 8) || nameHits >= 6 || (listHits >= 2 && titles >= 5)) {
+    return { contentType: 'CANDIDATE_LIST', kind: 'list', discarded: true, reason: 'list' };
+  }
+
+  const jobHits = (sample.match(/job description|responsibilities|qualifications|requirements|apply now|hourly rate|fixed[- ]price|salary|proposals? bid|we're hiring|we are looking|must have/g) || []).length;
+  const cvHits = (sample.match(/work experience|professional experience|education|curriculum vitae|\bcv\b|professional summary|certifications|skills\b/g) || []).length;
+
+  if (/linkedin\.com\/in\//.test(href) || /\/resume|\/cv(?:\/|$)/.test(href) || (cvHits > jobHits && cvHits >= 2)) {
+    return { contentType: 'PROFILE_CV', kind: 'cv', discarded: false, reason: '' };
+  }
+  if (/linkedin\.com\/company|crunchbase\.com/.test(href)) {
+    return { contentType: 'JOB_POSTING', kind: 'b2b', discarded: false, reason: '' };
+  }
+  return { contentType: 'JOB_POSTING', kind: 'job', discarded: false, reason: '' };
+}
+
+function detectIsolatedKind(url, title, text, isolated) {
+  return classifyScrapedContent(url, title, text, isolated).kind;
 }
 
 function sovereignVisible(el) {
@@ -466,8 +481,8 @@ function extractActiveJob(options) {
       .join('\n\n'),
     MAX_TEXT,
   );
-  const kind = detectIsolatedKind(href, jobTitle, pageText);
-  const hash = hashScrapedText(`${kind}|${jobTitle}|${jobDescription}`);
+  const classified = classifyScrapedContent(href, jobTitle, pageText, isolated);
+  const hash = hashScrapedText(`${classified.contentType}|${jobTitle}|${jobDescription}`);
 
   return {
     pageText,
@@ -480,7 +495,10 @@ function extractActiveJob(options) {
     clientHistory: cleanText(clientHistory, MAX_FIELD),
     isolated,
     host,
-    kind,
+    kind: classified.kind,
+    contentType: classified.contentType,
+    discarded: classified.discarded,
+    discardReason: classified.reason,
     hash,
     signature: hash,
   };

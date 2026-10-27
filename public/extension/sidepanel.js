@@ -744,6 +744,8 @@ function emptyPageData() {
     clientHistory: '',
     isolated: false,
     kind: 'job',
+    contentType: '',
+    discarded: false,
     hash: '',
   };
 }
@@ -763,35 +765,81 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     clientHistory: String(raw?.clientHistory || fallback.clientHistory || ''),
     isolated: Boolean(raw?.isolated),
     kind: raw?.kind || fallback.kind || 'job',
+    contentType: raw?.contentType || fallback.contentType || '',
+    discarded: Boolean(raw?.discarded),
     hash: String(raw?.hash || raw?.signature || fallback.hash || ''),
+    analysis: raw?.analysis || null,
+    autoAnalyzed: Boolean(raw?.autoAnalyzed),
+    flushed: Boolean(raw?.flushed),
   };
 }
 
-function setTargetBadge(state, title, kind) {
+function flushJobContext() {
+  lastProposal = '';
+  lastOutreach = '';
+  lastCv = '';
+  lastCandidate = null;
+  lastScore = 0;
+  lastMatch = {
+    label: '',
+    strengths: [],
+    gaps: [],
+    message: '',
+    onboardingRequired: false,
+    acceptanceScore: 0,
+  };
+  lastJob = {
+    title: '',
+    url: '',
+    description: '',
+    skills: [],
+    budget: '',
+    clientHistory: '',
+    kind: 'job',
+    hash: '',
+    contentType: '',
+  };
+  lastTitle = '';
+  lastJobUrl = '';
+  lastTargetHash = '';
+}
+
+function setTargetBadge(state, title, kind, contentType) {
   const el = document.getElementById('targetBadge');
   const text = document.getElementById('targetBadgeText');
   if (!el || !text) return;
   el.classList.toggle('live', state === 'live');
   el.classList.toggle('scanning', state !== 'live');
+  if (contentType === 'CANDIDATE_LIST' || kind === 'list') {
+    el.classList.remove('live');
+    el.classList.add('scanning');
+    text.textContent = '🟡 Open a single job or profile';
+    return;
+  }
   if (state !== 'live') {
     text.textContent = '🟡 Scanning Viewport...';
     return;
   }
-  const noun = kind === 'cv' ? 'CV' : kind === 'b2b' ? 'Lead' : 'Job';
+  const noun = kind === 'cv' || contentType === 'PROFILE_CV'
+    ? 'CV'
+    : kind === 'b2b'
+      ? 'Lead'
+      : 'Job';
   const name = String(title || noun).replace(/\s+/g, ' ').trim().slice(0, 72);
   text.textContent = `🟢 Active Target Identified: ${name}`;
 }
 
 function applyIsolatedJob(pageData) {
   lastJob = {
-    title: pageData.jobTitle || pageData.pageTitle || lastJob.title,
-    url: pageData.pageUrl || lastJob.url,
-    description: pageData.jobDescription || pageData.pageText || lastJob.description,
-    skills: pageData.requiredSkills || lastJob.skills,
-    budget: pageData.budget || lastJob.budget,
-    clientHistory: pageData.clientHistory || lastJob.clientHistory,
-    kind: pageData.kind || lastJob.kind || 'job',
-    hash: pageData.hash || lastJob.hash || '',
+    title: pageData.jobTitle || pageData.pageTitle || '',
+    url: pageData.pageUrl || '',
+    description: pageData.jobDescription || pageData.pageText || '',
+    skills: Array.isArray(pageData.requiredSkills) ? pageData.requiredSkills : [],
+    budget: pageData.budget || '',
+    clientHistory: pageData.clientHistory || '',
+    kind: pageData.kind || 'job',
+    hash: pageData.hash || '',
+    contentType: pageData.contentType || '',
   };
   lastTitle = lastJob.title;
   lastJobUrl = lastJob.url;
@@ -801,7 +849,7 @@ function applyIsolatedJob(pageData) {
       ? (lastJob.title ? `Profile on screen: ${lastJob.title}` : 'Profile isolated.')
       : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
   }
-  if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
+  if (titleEl) titleEl.textContent = lastJob.title || '';
   if (metaEl) metaEl.textContent = lastJob.url || '';
 }
 
@@ -852,24 +900,57 @@ async function refreshViewportAnalysis(pageData) {
   }
 }
 
+function applyReadyAnalysis(pageData, analysis) {
+  applyIsolatedJob(pageData);
+  setTargetBadge('live', lastJob.title, lastJob.kind, lastJob.contentType);
+  if (!analysis) return;
+  updateMatchUi(analysis, lastJob.title);
+  if (scoreLabel) scoreLabel.textContent = humanMatchCopy(analysis, lastJob.title);
+  const score = Number(analysis.match_score ?? analysis.matchScore ?? 0);
+  const safe = Math.max(0, Math.min(100, Math.round(score)));
+  if (badge) badge.textContent = String(safe);
+  scoreRing?.style.setProperty('--p', String(safe));
+  card?.classList.add('on');
+  if (modeBadge) {
+    modeBadge.textContent = lastJob.kind === 'cv' || pageData.contentType === 'PROFILE_CV'
+      ? '⚡ Detected: Candidate Profile'
+      : lastJob.kind === 'b2b'
+        ? '⚡ Detected: B2B Lead'
+        : '⚡ Detected: Job Post';
+  }
+  setBusy(false, lastJob.kind === 'cv'
+    ? 'Profile on screen is scored. Generate a tailored CV when you want a rewrite.'
+    : `Scoring “${String(lastJob.title || 'this job').slice(0, 52)}”. Generate Proposal to rewrite for this brief.`);
+}
+
 function onViewportFocus(raw) {
-  if (!raw?.pageText && !raw?.jobDescription) return;
-  const pageData = normalizePageData(raw);
-  const hash = pageData.hash || '';
-  if (hash && hash === lastTargetHash && (pageData.jobTitle || '') === (lastJob.title || '')) {
-    setTargetBadge('live', pageData.jobTitle || lastJob.title, pageData.kind);
+  if (!raw) return;
+  if (raw.flushed && !raw.pageText && !raw.jobDescription && !raw.analysis) {
+    clearTimeout(viewportScoreTimer);
+    flushJobContext();
+    setTargetBadge('scanning');
     return;
   }
-  if (analyzing || generatingCv) {
-    applyIsolatedJob(pageData);
-    setTargetBadge('live', pageData.jobTitle, pageData.kind);
-    lastTargetHash = hash || lastTargetHash;
+  const pageData = normalizePageData(raw);
+  if (pageData.discarded || pageData.contentType === 'CANDIDATE_LIST' || pageData.kind === 'list') {
+    clearTimeout(viewportScoreTimer);
+    flushJobContext();
+    lastTargetHash = pageData.hash || 'list';
+    setTargetBadge('scanning', '', 'list', 'CANDIDATE_LIST');
+    if (proposalEl) proposalEl.textContent = 'This looks like a list. Open one job or profile to score it.';
+    setBusy(false, 'Open a single job or profile in the viewport.');
+    return;
+  }
+  if (!pageData.pageText && !pageData.jobDescription) return;
+  const hash = pageData.hash || '';
+  if (hash && hash === lastTargetHash && (pageData.jobTitle || '') === (lastJob.title || '')) {
+    clearTimeout(viewportScoreTimer);
+    if (raw.analysis) applyReadyAnalysis(pageData, raw.analysis);
+    else setTargetBadge('live', pageData.jobTitle || lastJob.title, pageData.kind, pageData.contentType);
     return;
   }
   if (hash && lastTargetHash && hash !== lastTargetHash) {
-    lastProposal = '';
-    lastOutreach = '';
-    lastCv = '';
+    flushJobContext();
     if (proposalEl) {
       proposalEl.textContent = pageData.kind === 'cv'
         ? 'Profile changed. Generate a tailored CV for this document.'
@@ -878,11 +959,16 @@ function onViewportFocus(raw) {
   }
   lastTargetHash = hash;
   applyIsolatedJob(pageData);
-  setTargetBadge('live', pageData.jobTitle, pageData.kind);
+  setTargetBadge(raw.analysis ? 'live' : 'scanning', pageData.jobTitle, pageData.kind, pageData.contentType);
+  if (raw.analysis) {
+    applyReadyAnalysis(pageData, raw.analysis);
+    return;
+  }
+  if (analyzing || generatingCv) return;
   clearTimeout(viewportScoreTimer);
   viewportScoreTimer = setTimeout(() => {
     void refreshViewportAnalysis(pageData);
-  }, 380);
+  }, 420);
 }
 
 async function getActiveTabDOM() {
@@ -1760,12 +1846,16 @@ async function boot() {
     showError(err?.message || 'Could not load local settings.');
   }
   void pingApi();
-  void analyzeActivePage();
+  void rescanActiveScreen();
 }
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request?.type === 'VIEWPORT_SCANNING') {
     if (!analyzing && !generatingCv) setTargetBadge('scanning');
+    return false;
+  }
+  if (request?.type === 'ANALYSIS_READY' && request.data) {
+    onViewportFocus(request.data);
     return false;
   }
   if ((request?.type === 'VIEWPORT_FOCUS' || request?.type === 'JOB_TARGET_CHANGED') && request.data) {

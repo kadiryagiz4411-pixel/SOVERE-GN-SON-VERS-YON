@@ -4,6 +4,9 @@
  */
 importScripts('config.js', 'scraper.js');
 
+let lastAnalyzedHash = '';
+let analyzeSeq = 0;
+
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
   await chrome.sidePanel.open({ tabId: tab.id });
@@ -79,7 +82,13 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
-  if ((request.type === 'VIEWPORT_FOCUS' || request.type === 'JOB_TARGET_CHANGED') && request.data) {
+  if (request.type === 'JOB_TARGET_CHANGED' && request.data) {
+    persistViewportTarget(request.data, false);
+    autoAnalyzeViewport(request.data, true).catch(() => {});
+    return false;
+  }
+
+  if (request.type === 'VIEWPORT_FOCUS' && request.data) {
     persistViewportTarget(request.data, false);
     return false;
   }
@@ -156,10 +165,152 @@ function persistViewportTarget(data, scanning) {
 }
 
 async function forceViewportScan() {
+  lastAnalyzedHash = '';
   const data = await scrapeActiveTab('SCAN_ACTIVE_SCREEN');
   persistViewportTarget(data, false);
+  await autoAnalyzeViewport(data, true);
   return data;
 }
+
+function skillListFromSettings(settings) {
+  return String(settings?.skills || '')
+    .split(/[,|\n]+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2)
+    .slice(0, 24);
+}
+
+function settingsAllowDeep(settings) {
+  const email = String(settings?.accountEmail || '').trim().toLowerCase();
+  const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+  if (settings?.isAdmin === true || allow.includes(email)) return true;
+  const tier = Number(settings?.appsumoTier || 0);
+  if (tier >= 2) return true;
+  if (tier === 1) return false;
+  const status = String(settings?.subscriptionStatus || '').toLowerCase();
+  if (['active', 'trialing', 'paid'].includes(status)) return true;
+  const membership = String(settings?.membership || '').toLowerCase();
+  if (membership === 'pro' || membership === 'elite') return true;
+  return settings?.b2bAccess === true || settings?.workspace === 'dual' || settings?.workspace === 'b2b';
+}
+
+function gapLabels(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (typeof item === 'string') return item;
+    return String(item?.area || item?.detail || '').trim();
+  }).filter(Boolean).slice(0, 6);
+}
+
+function mergeSmartMatch(data, smart) {
+  if (!smart) return data;
+  const extraTip = Array.isArray(smart.applicationTips) ? String(smart.applicationTips[0] || '').trim() : '';
+  const banned = /here is your score|ai match result|your score is/i;
+  const narrative = String(data.matchNarrative || data.matchMessage || smart.matchNarrative || '').trim();
+  const withTip = extraTip && !banned.test(extraTip) ? `${narrative} ${extraTip}`.trim() : narrative;
+  return {
+    ...data,
+    match_score: data.match_score ?? data.matchScore,
+    matchScore: data.matchScore ?? data.match_score,
+    acceptanceScore: data.acceptanceScore,
+    overallScore: data.acceptanceScore ?? data.overallScore,
+    strengths: (Array.isArray(data.strengths) && data.strengths.length)
+      ? data.strengths
+      : gapLabels(smart.gapAnalysis?.strengths),
+    gaps: (Array.isArray(data.gaps) && data.gaps.length)
+      ? data.gaps
+      : gapLabels(smart.gapAnalysis?.gaps),
+    matchMessage: withTip,
+    matchNarrative: withTip,
+  };
+}
+
+async function autoAnalyzeViewport(data, force) {
+  if (!data) return;
+  if (data.discarded) {
+    lastAnalyzedHash = data.hash || lastAnalyzedHash;
+    persistViewportTarget({ ...data, analysis: null, flushed: true, autoAnalyzed: true }, false);
+    return;
+  }
+  const hash = data.hash || data.signature || '';
+  if (!force && hash && hash === lastAnalyzedHash && data.analysis) return;
+  const seq = ++analyzeSeq;
+  lastAnalyzedHash = hash || lastAnalyzedHash;
+  const bag = await chrome.storage.local.get('sovereign.settings.v1');
+  const settings = bag['sovereign.settings.v1'] || {};
+  const skills = skillListFromSettings(settings);
+  const deep = settingsAllowDeep(settings);
+  try {
+    const analysis = await postJson(PARSE_DOM_PATH, {
+      pageText: data.pageText || data.jobDescription,
+      pageTitle: data.pageTitle || data.jobTitle,
+      pageUrl: data.pageUrl,
+      jobTitle: data.jobTitle,
+      jobDescription: data.jobDescription || data.pageText,
+      requiredSkills: data.requiredSkills || [],
+      budget: data.budget,
+      clientHistory: data.clientHistory,
+      skills,
+      experience: settings.experience,
+      hourlyRate: Number(settings.hourlyRate) || undefined,
+      matchDepth: deep ? 'deep' : 'basic',
+      deepMatch: deep,
+      scoreOnly: true,
+    });
+    let merged = analysis;
+    if (deep && skills.length >= 2 && !analysis?.onboardingRequired) {
+      try {
+        const smart = await postJson(typeof SMART_MATCH_PATH === 'string' ? SMART_MATCH_PATH : '/api/smart-match', {
+          intent: 'smart-match',
+          jobDescription: data.jobDescription || data.pageText,
+          jobTitle: data.jobTitle || data.pageTitle,
+          skills,
+          experience: settings.experience,
+          hourlyRate: Number(settings.hourlyRate) || undefined,
+          budget: data.budget,
+          requiredSkills: data.requiredSkills || [],
+          clientHistory: data.clientHistory,
+          matchDepth: 'deep',
+          deepMatch: true,
+        });
+        merged = mergeSmartMatch(analysis, smart);
+      } catch {
+        merged = analysis;
+      }
+    }
+    if (seq !== analyzeSeq) return;
+    const next = { ...data, analysis: merged, autoAnalyzed: true, flushed: false };
+    persistViewportTarget(next, false);
+    try {
+      chrome.runtime.sendMessage({ type: 'ANALYSIS_READY', data: next }, () => {
+        void chrome.runtime.lastError;
+      });
+    } catch {
+      // Side panel may be closed.
+    }
+  } catch {
+    if (seq !== analyzeSeq) return;
+    persistViewportTarget({ ...data, autoAnalyzed: false }, false);
+  }
+}
+
+chrome.tabs.onActivated.addListener((info) => {
+  lastAnalyzedHash = '';
+  analyzeSeq += 1;
+  chrome.storage.local.set({
+    'sovereign.viewport.v1': { scanning: true, flushed: true, at: Date.now() },
+  });
+  if (!info?.tabId) return;
+  chrome.tabs.sendMessage(info.tabId, { type: 'FLUSH_VIEWPORT' }, () => {
+    void chrome.runtime.lastError;
+  });
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+  if (!changeInfo.url) return;
+  lastAnalyzedHash = '';
+  analyzeSeq += 1;
+});
 
 function persistPlanFromMe(data, fallbackEmail) {
   if (!data || data.success === false) return;
