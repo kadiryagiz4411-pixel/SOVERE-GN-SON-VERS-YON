@@ -123,15 +123,19 @@ function checkoutUrlFromEnvOrStore(keys: string[], fallbackPath?: string): strin
 
 export const TIER_CHECKOUT_CONFIG: TierCheckoutConfig = {
   get tier1Url() {
-    return checkoutUrlFromEnvOrStore([
-      'VITE_LEMONSQUEEZY_TIER1_URL',
-      'VITE_APPSUMO_TIER1_URL',
-      'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL',
-    ]);
+    // tier_1 = Standard plan. The /api/billing/checkout API uses the numeric variant ID.
+    // The href fallback is the LS store — it never 404s.
+    return checkoutUrlFromEnvOrStore(
+      [
+        'VITE_LEMONSQUEEZY_TIER1_URL',
+        'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL',
+      ],
+      getLemonStoreUrl(),
+    );
   },
   get tier2Url() {
     return checkoutUrlFromEnvOrStore(
-      ['VITE_LEMONSQUEEZY_TIER2_URL', 'VITE_APPSUMO_TIER2_URL', 'VITE_LEMONSQUEEZY_PRO_MONTHLY_URL'],
+      ['VITE_LEMONSQUEEZY_TIER2_URL', 'VITE_LEMONSQUEEZY_PRO_MONTHLY_URL'],
       'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
     );
   },
@@ -139,7 +143,6 @@ export const TIER_CHECKOUT_CONFIG: TierCheckoutConfig = {
     return checkoutUrlFromEnvOrStore(
       [
         'VITE_LEMONSQUEEZY_TIER3_URL',
-        'VITE_APPSUMO_B2B_URL',
         'VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL',
         'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL',
       ],

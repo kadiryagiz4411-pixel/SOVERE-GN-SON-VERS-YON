@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Check, Zap, Users, Sparkles, Star, ExternalLink, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APPSUMO_TIER_CONFIGS, type AppSumoTierConfig } from '@/utils/tierPermissions';
-import { redirectToCheckout } from '@/lib/lemonsqueezy';
+import { APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
 import { useSession } from '@/contexts/SessionContext';
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
@@ -32,20 +32,19 @@ function TierCard({
   isHighlighted: boolean;
   currentTier?: string;
 }) {
-  const { user } = useSession();
+  // user is kept for session context but not used in checkout anymore.
+  const { user: _user } = useSession();
   const isCurrent = currentTier === cfg.tier;
   const Icon = cfg.tier === 'appsumo_b2b' ? Users
              : cfg.tier === 'appsumo_tier2' ? Sparkles
              : Zap;
 
-  const lemonTier =
-    cfg.tier === 'appsumo_b2b' ? 'tier_3'
-    : cfg.tier === 'appsumo_tier2' ? 'tier_2'
-    : 'tier_1';
-
-  const openCheckout = () => {
-    redirectToCheckout(lemonTier, user?.email, user?.id);
-  };
+  // AppSumo LTD purchases happen on AppSumo.com, not on LemonSqueezy.
+  // Map each tier to its canonical AppSumo product listing URL.
+  const appsumoHref =
+    cfg.tier === 'appsumo_b2b'    ? APPSUMO_PRODUCT_URLS.tier3
+    : cfg.tier === 'appsumo_tier2' ? APPSUMO_PRODUCT_URLS.tier2
+    :                                APPSUMO_PRODUCT_URLS.tier1;
 
   return (
     <div
@@ -112,12 +111,15 @@ function TierCard({
           Current Plan
         </div>
       ) : (
-        <button
-          onClick={openCheckout}
-          disabled={false}
+        /* Plain <a> — never a button with onClick or an internal Link.
+           AppSumo purchases happen on AppSumo.com; target="_blank" prevents
+           React Router from capturing the navigation. */
+        <a
+          href={appsumoHref}
+          target="_blank"
+          rel="noopener noreferrer"
           className={cn(
             'w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
-            'disabled:opacity-40 disabled:cursor-not-allowed',
             cfg.tier === 'appsumo_b2b'
               ? 'bg-amber-500 hover:bg-amber-600 text-black'
               : cfg.tier === 'appsumo_tier2'
@@ -127,7 +129,7 @@ function TierCard({
         >
           Get {cfg.label} on AppSumo
           <ExternalLink className="w-3.5 h-3.5" />
-        </button>
+        </a>
       )}
     </div>
   );

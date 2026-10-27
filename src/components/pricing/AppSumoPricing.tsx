@@ -1,13 +1,23 @@
 import { Check, Ticket, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { APPSUMO_LTD_TIERS, appsumoLtdPriceLabel } from '@/config/appsumo';
-import { getCheckoutUrl } from '@/lib/lemonsqueezy';
+import { APPSUMO_LTD_TIERS, APPSUMO_PRODUCT_URLS, appsumoLtdPriceLabel } from '@/config/appsumo';
 import { cn } from '@/lib/utils';
 
 const TIER_THEME = [
   { color: 'text-blue-400', border: 'border-blue-500/40', bg: 'bg-blue-500/5', button: 'bg-blue-600 hover:bg-blue-500 text-white' },
   { color: 'text-violet-400', border: 'border-violet-500/50', bg: 'bg-violet-500/5', button: 'bg-violet-600 hover:bg-violet-500 text-white' },
   { color: 'text-amber-400', border: 'border-amber-500/50', bg: 'bg-amber-500/5', button: 'bg-amber-500 hover:bg-amber-400 text-slate-950' },
+] as const;
+
+/**
+ * Maps tier index (0 = Starter, 1 = Pro, 2 = B2B) to the correct AppSumo
+ * product listing URL. These are absolute https:// links to AppSumo.com —
+ * NOT LemonSqueezy — because the LTD is purchased on AppSumo.
+ */
+const APPSUMO_TIER_URLS = [
+  APPSUMO_PRODUCT_URLS.tier1,  // Starter  $49
+  APPSUMO_PRODUCT_URLS.tier2,  // Pro      $149
+  APPSUMO_PRODUCT_URLS.tier3,  // B2B/Agency $299
 ] as const;
 
 export function AppSumoPricing() {
@@ -29,8 +39,9 @@ export function AppSumoPricing() {
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-5 md:grid-cols-3">
           {APPSUMO_LTD_TIERS.map((tier, index) => {
             const theme = TIER_THEME[index] ?? TIER_THEME[0];
-            const lemonTier = index === 2 ? 'tier_3' : index === 1 ? 'tier_2' : 'tier_1';
             const popular = index === 1;
+            // Absolute AppSumo.com URL — never a relative path or LS checkout URL.
+            const appsumoHref = APPSUMO_TIER_URLS[index] ?? APPSUMO_PRODUCT_URLS.tier1;
             return (
               <article
                 key={tier.id}
@@ -66,11 +77,19 @@ export function AppSumoPricing() {
                     </li>
                   ))}
                 </ul>
+
+                {/*
+                  Plain <a> with target="_blank" — never an internal Link or onClick.
+                  AppSumo LTD purchases happen on AppSumo.com, not on LemonSqueezy.
+                */}
                 <a
-                  href={getCheckoutUrl(lemonTier)}
+                  href={appsumoHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={cn('mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors', theme.button)}
+                  className={cn(
+                    'mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+                    theme.button,
+                  )}
                 >
                   Get {tier.label} on AppSumo
                 </a>

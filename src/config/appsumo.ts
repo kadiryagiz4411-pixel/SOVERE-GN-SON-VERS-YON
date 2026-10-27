@@ -3,6 +3,28 @@
  * Recurring SaaS prices live in src/config/pricing.ts and must stay untouched.
  */
 
+function appsumoEnv(key: string): string {
+  try {
+    return String((import.meta.env as Record<string, string | undefined>)[key] ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * AppSumo.com product listing URLs — these are where users BUY the LTD.
+ * They are NOT LemonSqueezy checkout URLs.
+ *
+ * Override with env vars (e.g. VITE_APPSUMO_TIER1_PRODUCT_URL) when the
+ * exact per-tier product slugs are known. The hardcoded defaults land on the
+ * canonical AppSumo product page so users can see and select any tier there.
+ */
+export const APPSUMO_PRODUCT_URLS = {
+  tier1: appsumoEnv('VITE_APPSUMO_TIER1_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-starter',
+  tier2: appsumoEnv('VITE_APPSUMO_TIER2_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-pro',
+  tier3: appsumoEnv('VITE_APPSUMO_TIER3_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-agency',
+} as const;
+
 export type AppsumoLtdId = 'appsumo_tier1' | 'appsumo_tier2' | 'appsumo_tier3';
 
 export interface AppsumoLtdTier {

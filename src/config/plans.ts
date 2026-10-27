@@ -167,13 +167,14 @@ export const LEMON_SQUEEZY_CHECKOUT_URLS = {
  * Used only when the matching env URL / variant ID is empty so Monthly
  * still opens the monthly product instead of falling through to '#'.
  */
+/**
+ * Known-good LS buy-slug UUID fallbacks for plans that have them.
+ * ONLY include UUIDs that are real LS checkout slugs.
+ * Do NOT invent or copy-paste UUIDs — a fake UUID 404s; the store URL never does.
+ * Standard and Enterprise use the store as the safe href fallback;
+ * CheckoutButton still mints a real checkout via /api/billing/checkout.
+ */
 const FALLBACK_CHECKOUT_URLS: Partial<Record<CheckoutPlanId, { monthly?: string; yearly?: string; oneTime?: string }>> = {
-  // Hardcoded UUID buy-slugs — valid as long as these LS products exist.
-  // These are the final safety net when env vars are missing.
-  standard: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/a9b7e8c1-3d24-4f56-9a01-2b34c5d6e789',
-    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/b1c2d3e4-5f67-4890-ab12-cd34ef567890',
-  },
   pro: {
     monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
     yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
@@ -182,9 +183,10 @@ const FALLBACK_CHECKOUT_URLS: Partial<Record<CheckoutPlanId, { monthly?: string;
     monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
     yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
   },
-  enterprise: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/c3d4e5f6-7890-4abc-def0-123456789012',
-  },
+  // Standard and Enterprise have no known UUID slugs; CheckoutButton handles
+  // those via the /api/billing/checkout hosted-checkout API using the numeric
+  // variant ID.  The href on the <a> tag falls through to getLemonStoreUrl()
+  // which is always a valid absolute URL and never 404s.
 };
 
 const VARIANT_BY_PLAN: Record<CheckoutPlanId, { monthly?: string; yearly?: string; oneTime?: string }> = {
