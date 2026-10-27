@@ -1,10 +1,12 @@
 const API_BASE_URL = 'https://sovereignapp.pro';
+const BUILD_AT = '2026-10-27T21:13:38.456Z'; // auto-injected by buildExtensionZip.mjs
+const BUILD_AT = '2026-10-27T21:11:46.391Z'; // auto-injected by buildExtensionZip.mjs
 const BUILD_AT = '2026-10-27T20:49:07.275Z'; // auto-injected by buildExtensionZip.mjs
 const PARSE_DOM_PATH = '/api/extension/parse-dom';
 const GENERATE_CV_PATH = '/api/generate-cv';
 const SMART_MATCH_PATH = '/api/smart-match';
 const EXTENSION_ME_PATH = '/api/extension/me';
-const EXTENSION_VERSION = '1.7.4';
+const EXTENSION_VERSION = '1.7.5';
 const ADMIN_EMAILS = ['kadiryagiz4411@gmail.com'];
 
 function canonicalizeApiBase(raw) {

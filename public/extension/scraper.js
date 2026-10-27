@@ -97,11 +97,77 @@ const SOVEREIGN_NOISE_SELECTORS = [
   'nav', 'footer', 'header', 'aside',
   '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]', '[role="complementary"]',
   'script', 'style', 'iframe', 'noscript', '[aria-hidden="true"]', '.sr-only',
+  // Cookie / consent banners
   '#onetrust-banner-sdk', '.cookie-banner', '.cookies', '.cookie-consent',
-  '#goog-gt-tt', '.VIpgJd-yAWNEb-hvhgNd', '.gtx-trans', '.skiptranslate',
+  // Google Translate widgets — all known selectors as of 2026
+  '#goog-gt-tt', '#goog-gt-vandal-tip',
+  '.VIpgJd-yAWNEb-hvhgNd', '.VIpgJd-ZVi9od-aZ2wEe',
+  '.gtx-trans', '.skiptranslate', '.goog-te-banner-frame',
+  '.goog-te-gadget', '.goog-te-spinner-pos', '#google_translate_element',
+  '[id^="goog-gt-"]', '[class*="goog-te-"]',
   '[data-purpose="translate"]', '[aria-label*="Translate"]', '[aria-label*="translate"]',
+  // Upwork / LinkedIn UI chrome
   '.global-nav', '.msg-overlay-list-bubble', '.artdeco-toast',
+  // Upwork WebSocket status banners injected by dash-api.min.js
+  '[data-test="connection-status"]', '[class*="connection-banner"]',
+  // Nuxt hydration placeholders (Upwork SSR artefacts)
+  '[data-fetch-key]', '[nuxt-hydration]',
 ];
+
+/**
+ * GOOGLE TRANSLATE ARTIFACT SANITIZER
+ *
+ * When the user has Chrome's built-in translate bar active, Google Translate
+ * wraps every text node in nested <font style="vertical-align:inherit"> tags
+ * and can insert <span class="notranslate"> containers. This mutilates
+ * innerText reads, causing the scraper to see translated (non-English) copy
+ * or garbled whitespace.
+ *
+ * This function operates on a CLONED element (never the live DOM) and:
+ *   1. Removes all Google Translate control widgets.
+ *   2. Unwraps <font> elements whose style contains "vertical-align: inherit"
+ *      (GTranslate's unique fingerprint) by replacing them with a plain text
+ *      node built from their innerText — recovering the readable string
+ *      without the wrapper markup.
+ *   3. Strips any remaining empty <font> shells.
+ *
+ * Must be called BEFORE reading .innerText on any clone.
+ */
+function stripTranslationArtifacts(clone) {
+  if (!clone || !(clone instanceof Element)) return;
+
+  // 1. Remove GTranslate control widgets.
+  const GTRANS_WIDGET_SELECTORS = [
+    '#goog-gt-tt', '#goog-gt-vandal-tip',
+    '.goog-te-banner-frame', '.goog-te-spinner-pos', '.goog-te-gadget',
+    '#google_translate_element', '[id^="goog-gt-"]', '[class*="goog-te-"]',
+    '.skiptranslate', '.gtx-trans', '.VIpgJd-yAWNEb-hvhgNd', '.VIpgJd-ZVi9od-aZ2wEe',
+  ];
+  for (const sel of GTRANS_WIDGET_SELECTORS) {
+    try { clone.querySelectorAll(sel).forEach((n) => n.remove()); } catch {/**/ }
+  }
+
+  // 2. Unwrap <font vertical-align:inherit> — Google Translate's translation wrapper.
+  //    Iterate in reverse so inner <font> nodes are removed before their parents.
+  const fonts = Array.from(clone.querySelectorAll('font') || []).reverse();
+  for (const font of fonts) {
+    try {
+      const isGTransFont = /vertical-align\s*:\s*inherit/i.test(font.getAttribute('style') || '');
+      if (!isGTransFont) continue;
+      // Preserve readable text from the wrapper.
+      const text = (font.innerText || font.textContent || '').replace(/\s+/g, ' ').trim();
+      const replacement = document.createTextNode(text ? ` ${text} ` : '');
+      font.parentNode?.replaceChild(replacement, font);
+    } catch {/**/ }
+  }
+
+  // 3. Remove any leftover empty <font> shells (e.g. zero-width placeholders).
+  try {
+    clone.querySelectorAll('font').forEach((f) => {
+      if (!(f.textContent || '').trim()) f.remove();
+    });
+  } catch {/**/ }
+}
 
 const SOVEREIGN_MAIN_SELECTORS = [
   'main', '[role="main"]', 'article',
@@ -452,6 +518,46 @@ function pickViewportFocusElement() {
 }
 
 function extractActiveJob(options) {
+  // ISOLATION GUARD: if the host page (e.g. Upwork/Nuxt) is mid-hydration,
+  // the DOM is in a transitional state — body may be empty or partially
+  // replaced. Wait for an interactive readyState before reading anything.
+  // This prevents the scraper from returning a blank result that then gets
+  // cached and shown as "no job found" while the real content is loading.
+  const readyOk = document.readyState === 'interactive' || document.readyState === 'complete';
+  const force = Boolean(options && (options.force || options.bypassFilters));
+  if (!readyOk && !force) {
+    return {
+      pageText: '', pageTitle: '', pageUrl: String(location.href || ''),
+      jobTitle: '', jobDescription: '', requiredSkills: [], budget: '',
+      clientHistory: '',
+      structuredJob: { title: '', description: '', skills: [], budget: '', clientInfo: '' },
+      isolated: false, host: String(location.hostname || '').replace(/^www\./, ''),
+      kind: 'job', contentType: '', discarded: true, discardReason: 'loading',
+      hash: hashScrapedText(`loading|${location.href}|${Date.now()}`),
+      signature: hashScrapedText(`loading|${location.href}|${Date.now()}`),
+    };
+  }
+
+  try {
+  return _extractActiveJobImpl(options);
+  } catch (hostErr) {
+    // Silently absorb any exception thrown by host-page DOM mutations,
+    // WebSocket callbacks, or Nuxt hydration conflicts. Never propagate
+    // host-page errors into the extension's background/service-worker context.
+    return {
+      pageText: '', pageTitle: '', pageUrl: String(location.href || ''),
+      jobTitle: '', jobDescription: '', requiredSkills: [], budget: '',
+      clientHistory: '',
+      structuredJob: { title: '', description: '', skills: [], budget: '', clientInfo: '' },
+      isolated: false, host: String(location.hostname || '').replace(/^www\./, ''),
+      kind: 'job', contentType: '', discarded: true, discardReason: 'host-error',
+      hash: hashScrapedText(`error|${location.href}|${Date.now()}`),
+      signature: hashScrapedText(`error|${location.href}|${Date.now()}`),
+    };
+  }
+}
+
+function _extractActiveJobImpl(options) {
   const force = Boolean(options && (options.force || options.bypassFilters));
   const MAX_TEXT = 12_000;
   const MAX_FIELD = 2_000;
@@ -487,13 +593,20 @@ function extractActiveJob(options) {
 
   const textOf = (el, max, allowShortTitle) => {
     if (!el) return '';
-    const clone = el.cloneNode(true);
-    clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((node) => node.remove());
-    clone.querySelectorAll?.('button, a, span, li').forEach((node) => {
-      if (isChromePhrase(node.textContent || '')) node.remove();
-    });
-    const raw = cleanText(clone.innerText || clone.textContent || '', max);
-    return cleanText(filterNoiseLines(raw, allowShortTitle), max);
+    try {
+      const clone = el.cloneNode(true);
+      // Remove Google Translate font wrappers FIRST so innerText returns
+      // the original English text, not the translated overlay.
+      stripTranslationArtifacts(clone);
+      clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((node) => node.remove());
+      clone.querySelectorAll?.('button, a, span, li').forEach((node) => {
+        if (isChromePhrase(node.textContent || '')) node.remove();
+      });
+      const raw = cleanText(clone.innerText || clone.textContent || '', max);
+      return cleanText(filterNoiseLines(raw, allowShortTitle), max);
+    } catch {
+      return '';
+    }
   };
 
   /**
@@ -508,25 +621,31 @@ function extractActiveJob(options) {
    */
   const paragraphsOf = (el, max) => {
     if (!el) return '';
-    const clone = el.cloneNode(true);
-    // Strip noise and interactive chrome first.
-    clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((n) => n.remove());
-    clone.querySelectorAll?.('button, [role="button"], h1, h2, h3, h4').forEach((n) => n.remove());
-    clone.querySelectorAll?.('button, a, span').forEach((n) => {
-      if (isChromePhrase(n.textContent || '')) n.remove();
-    });
-    // Collect semantic block nodes that carry actual content.
-    const blocks = Array.from(clone.querySelectorAll?.('p, li, dd') || []);
-    if (blocks.length >= 2) {
-      const joined = blocks
-        .map((b) => cleanText(b.innerText || b.textContent || '', 2000))
-        .filter((t) => t.length > 15 && !isChromePhrase(t))
-        .join('\n');
-      const result = cleanText(filterNoiseLines(joined, false), max);
-      if (result.length >= 60) return result;
+    try {
+      const clone = el.cloneNode(true);
+      // Remove Google Translate font wrappers before any innerText read.
+      stripTranslationArtifacts(clone);
+      // Strip noise and interactive chrome.
+      clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((n) => n.remove());
+      clone.querySelectorAll?.('button, [role="button"], h1, h2, h3, h4').forEach((n) => n.remove());
+      clone.querySelectorAll?.('button, a, span').forEach((n) => {
+        if (isChromePhrase(n.textContent || '')) n.remove();
+      });
+      // Collect semantic block nodes that carry actual content.
+      const blocks = Array.from(clone.querySelectorAll?.('p, li, dd') || []);
+      if (blocks.length >= 2) {
+        const joined = blocks
+          .map((b) => cleanText(b.innerText || b.textContent || '', 2000))
+          .filter((t) => t.length > 15 && !isChromePhrase(t))
+          .join('\n');
+        const result = cleanText(filterNoiseLines(joined, false), max);
+        if (result.length >= 60) return result;
+      }
+      // No usable paragraphs — fall back to full text extraction.
+      return textOf(el, max, false);
+    } catch {
+      return '';
     }
-    // No usable paragraphs — fall back to full text extraction.
-    return textOf(el, max, false);
   };
 
   /**

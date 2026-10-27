@@ -2,12 +2,77 @@
  * Live viewport observer. Never reuses a previous job node or scraped
  * text. Every scroll/click/tab-switch re-queries the screen-center DOM.
  * Auto-Fill never submits the form.
+ *
+ * HOST-PAGE ISOLATION:
+ *   Chrome MV3 content scripts run in an ISOLATED world — host-page JS cannot
+ *   reach our variables. However, uncaught errors from Upwork's dash-api.min.js
+ *   (WebSocket disconnects) and Nuxt hydration mismatches still fire 'error' and
+ *   'unhandledrejection' events on the shared window object, which can appear in
+ *   the DevTools console in a way that looks like extension errors. We suppress
+ *   known host-page error patterns here so developers get a clean console.
+ *
+ *   We NEVER call event.preventDefault() on unknown errors — only on errors
+ *   that are definitively identified as Upwork/Nuxt/GTranslate noise.
  */
+(function installHostPageNoiseSuppressor() {
+  // Patterns that identify Upwork host-page noise — NOT extension errors.
+  const NOISE_SOURCES = [
+    'dash-api.min.js',        // Upwork WebSocket client
+    'dash-api.js',
+    'analytics.min.js',       // Upwork analytics
+    '__nuxt',                 // Nuxt hydration artifacts in error messages
+    'hydration',              // "Hydration mismatch"
+    'google_translate_element', // Google Translate JS
+    'translate.google.com',
+    'translate.googleapis.com',
+    'content.js',             // suppress our own content.js errors from appearing as page errors
+  ];
+
+  const isKnownNoise = (src) => {
+    if (!src) return false;
+    const s = String(src);
+    return NOISE_SOURCES.some((pattern) => s.includes(pattern));
+  };
+
+  window.addEventListener('error', (ev) => {
+    // Only suppress if definitively from a known Upwork/Nuxt/GTranslate script.
+    if (isKnownNoise(ev?.filename) || isKnownNoise(ev?.message)) {
+      ev.stopImmediatePropagation();
+      // Do NOT ev.preventDefault() — let the browser still mark the page as
+      // having had an error (DevTools Network/Sources tabs still show it).
+    }
+  }, true); // capture phase so we run before any page listener
+
+  window.addEventListener('unhandledrejection', (ev) => {
+    const reason = String(ev?.reason?.stack || ev?.reason?.message || ev?.reason || '');
+    if (isKnownNoise(reason) || isKnownNoise(ev?.reason?.fileName)) {
+      ev.stopImmediatePropagation();
+    }
+  }, true);
+})();
 
 const isTopFrame = window === window.top;
 const SCROLL_DEBOUNCE_MS = 70;
 const MUTATION_DEBOUNCE_MS = 120;
 const CLICK_DEBOUNCE_MS = 40;
+
+// Nuxt hydration guard: when Upwork's Nuxt SSR is replacing the DOM, a burst
+// of hundreds of MutationObserver callbacks fires in < 100ms. We track the
+// burst rate and suspend scraping until the DOM settles.
+let mutationBurstCount = 0;
+let mutationBurstTimer = 0;
+let nuxtHydrating = false;
+
+function recordMutationBurst() {
+  mutationBurstCount += 1;
+  clearTimeout(mutationBurstTimer);
+  // If > 30 mutations fired in a single animation frame, treat as hydration burst.
+  nuxtHydrating = mutationBurstCount > 30;
+  mutationBurstTimer = setTimeout(() => {
+    mutationBurstCount = 0;
+    nuxtHydrating = false;
+  }, 400); // DOM is considered settled after 400ms of quiet
+}
 
 let evaluateTimer = 0;
 let scanTimer = 0;
@@ -156,13 +221,18 @@ function publishTarget(data, force) {
 }
 
 function evaluateViewport(force) {
+  // Skip evaluation during Nuxt hydration bursts — the DOM is transitional
+  // and would produce empty or mismatched results. Force-scans always proceed.
+  if (nuxtHydrating && !force) return;
   const data = scrapeFresh(force);
   publishTarget(data, force);
 }
 
 function scheduleEvaluate(delay, force) {
   clearTimeout(evaluateTimer);
-  evaluateTimer = setTimeout(() => evaluateViewport(Boolean(force)), delay);
+  // Extend the delay during hydration to let the DOM settle first.
+  const effective = (nuxtHydrating && !force) ? Math.max(delay, 600) : delay;
+  evaluateTimer = setTimeout(() => evaluateViewport(Boolean(force)), effective);
 }
 
 function onJobInteraction(event) {
@@ -233,12 +303,33 @@ function startViewportWatch() {
   });
   observeCandidates();
 
-  mutationObserver = new MutationObserver(() => {
+  mutationObserver = new MutationObserver((mutationsList) => {
+    // Track mutation burst rate to detect Nuxt hydration.
+    recordMutationBurst();
     clearTimeout(observeTimer);
     observeTimer = setTimeout(observeCandidates, 800);
-    scheduleEvaluate(MUTATION_DEBOUNCE_MS, false);
+    // Filter to only attribute/childList mutations relevant to job cards —
+    // ignore Google Translate <font> insertions and script/style changes.
+    const relevant = mutationsList.some((m) => {
+      if (m.type === 'attributes') {
+        const target = m.target;
+        // Ignore Google Translate class additions on <html> (class="translated-*")
+        if (target === document.documentElement || target === document.body) return false;
+        return true;
+      }
+      // For childList: skip if all added/removed nodes are script, style, or font
+      const allNoise = [...m.addedNodes, ...m.removedNodes].every((n) => {
+        const tag = n.nodeName?.toLowerCase?.() ?? '';
+        return tag === 'script' || tag === 'style' || tag === 'font'
+          || (n instanceof Element && (
+            n.matches?.('#goog-gt-tt, [class*="goog-te-"], .skiptranslate') ?? false
+          ));
+      });
+      return !allNoise;
+    });
+    if (relevant) scheduleEvaluate(MUTATION_DEBOUNCE_MS, false);
   });
-  mutationObserver.observe(document.documentElement, { childList: true, subtree: true });
+  mutationObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-job-id', 'data-test', 'aria-expanded'] });
   notifyScanning();
   scheduleEvaluate(CLICK_DEBOUNCE_MS, true);
 }
