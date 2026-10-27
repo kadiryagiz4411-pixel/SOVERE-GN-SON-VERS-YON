@@ -28,17 +28,32 @@ const DEFAULT_SETTINGS = {
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
   canGenerate: true,
-  outputLanguage: 'auto',
+  // 'en' is the strict default — English-only UI until the user explicitly
+  // picks another language in Settings. 'auto' is still available as an option
+  // but must never be the shipping default because it causes the AI to write
+  // proposals in Turkish (or whatever browser locale) while all UI strings stay
+  // in English, producing a mixed-language experience.
+  outputLanguage: 'en',
 };
 
-/** Resolve the effective output language for AI calls. */
+/** Resolve the effective output language for AI calls.
+ *
+ * Strict English-first policy:
+ *  - If the user has explicitly selected a language in Settings, use it.
+ *  - If 'auto' was previously saved (legacy setting), treat it as 'en'.
+ *  - NEVER fall back to navigator.language: a Turkish browser locale would
+ *    cause AI proposals to be written in Turkish while all UI text stays
+ *    English, producing a broken mixed-language experience.
+ */
 function resolveOutputLanguage() {
-  const saved = String(settings.outputLanguage || 'auto').trim();
+  const saved = String(settings.outputLanguage || 'en').trim();
+  // 'auto' is kept as a user-selectable option for power users, but when
+  // no explicit page language was detected we always fall back to English —
+  // never to the browser's locale.
   if (saved && saved !== 'auto') return saved;
-  // Auto mode: use the most recently detected page language, then browser language.
   const detected = String(settings._detectedLang || '').split('-')[0].toLowerCase();
-  if (detected && detected.length >= 2) return detected;
-  return String(navigator.language || 'en').split('-')[0].toLowerCase() || 'en';
+  if (detected && detected.length >= 2 && detected !== 'auto') return detected;
+  return 'en'; // English default — no navigator.language fallback
 }
 
 /** Race a promise against a timeout (ms). Resolves/rejects with whichever fires first. */
@@ -1433,7 +1448,7 @@ function fillSettingsForm() {
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
   if (experience) experience.value = settings.experience || 'mid';
   if (accountEmail) accountEmail.value = settings.accountEmail || '';
-  if (outputLanguage) outputLanguage.value = settings.outputLanguage || 'auto';
+  if (outputLanguage) outputLanguage.value = settings.outputLanguage || 'en';
   const canB2b = canUseDualWorkspace();
   // Always show the B2B toggle — disabled with an upgrade note for ineligible users.
   if (b2bToggle) {
@@ -1662,7 +1677,7 @@ cvListEl?.addEventListener('click', async (event) => {
 });
 
 document.getElementById('saveProfile')?.addEventListener('click', async () => {
-  const selectedLang = document.getElementById('outputLanguage')?.value || 'auto';
+  const selectedLang = document.getElementById('outputLanguage')?.value || 'en';
   await persistSettings({
     skills: document.getElementById('skills')?.value || '',
     hourlyRate: document.getElementById('hourlyRate')?.value || '',

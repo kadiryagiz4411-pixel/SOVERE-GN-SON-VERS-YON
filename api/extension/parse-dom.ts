@@ -172,6 +172,8 @@ async function handleRequest(req: Request): Promise<Response> {
       matchDepth?: string;
       deepMatch?: boolean;
       scoreOnly?: boolean;
+      /** Explicit output language code ('en', 'tr', 'de', …). Default 'en'. */
+      outputLanguage?: string;
     }>(req);
 
     // Prefer structuredJob fields when present — they are field-isolated and
@@ -191,6 +193,18 @@ async function handleRequest(req: Request): Promise<Response> {
     const pageText     = String(jobDescription  || body.pageText || body.text || '').trim();
     const pageTitle    = jobTitle  || String(body.pageTitle  || '').trim();
     const pageUrl      = String(body.pageUrl   || body.sourceUrl   || '').trim();
+
+    // Resolve output language — strict English-first policy.
+    // 'auto' and undefined both fall through to English. Only a recognised
+    // ISO 639-1 code (e.g. 'tr', 'de', 'fr') overrides the default.
+    const rawLang = String(body.outputLanguage || 'en').trim().toLowerCase();
+    const outputLanguage = (rawLang && rawLang !== 'auto' && /^[a-z]{2}$/.test(rawLang))
+      ? rawLang
+      : 'en';
+    // Build a single, unambiguous language directive injected into every prompt.
+    const langDirective = outputLanguage === 'en'
+      ? 'Write the output in English.'
+      : `Write the ENTIRE output in ${outputLanguage.toUpperCase()} — do NOT default to English or mix languages.`;
 
     if (!pageText || pageText.length < 20) {
       return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);
@@ -299,6 +313,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (detectedMode === 'JOB_PROPOSAL') {
       const proposalSystemPrompt = [
         SCREEN_ANALYST_RULES,
+        langDirective,
         `You are the freelancer writing this proposal in first person. Follow this exact structure:`,
         `- Sentence 1: Name the client's specific problem from the JOB DESCRIPTION (no generic opener).`,
         `- Sentence 2: Exactly how you will solve it using the stated tech stack or approach.`,
@@ -306,7 +321,6 @@ async function handleRequest(req: Request): Promise<Response> {
         `- Sentence 4 (optional): Turnaround time or next step.`,
         `Total: 3-5 sentences. No markdown. No headers. No "Dear Hiring Manager". No "I am excited to apply".`,
         `If the job description is unclear, ask one specific clarifying question instead of guessing.`,
-        `Write in the SAME language as the JOB DESCRIPTION (match exactly — Turkish for Turkish, German for German, etc.).`,
         `Return JSON: { proposal, painPoint, title, contentDomain }`,
       ].join('\n');
       const parsed = await completeJson(apiKey, proposalSystemPrompt, context);
@@ -340,6 +354,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (detectedMode === 'B2B_COMMAND') {
       const b2bSystemPrompt = [
         SCREEN_ANALYST_RULES,
+        langDirective,
         `You are a B2B lead analyst for an agency. Using ONLY the content in the structured sections:`,
         `- executiveSummary: 3 sentences on what the company does and the specific pain point you can solve.`,
         `- decisionMakers: array of likely decision-maker roles (e.g. "Head of Engineering", "CTO") — infer from context, do not fabricate names.`,
@@ -385,6 +400,7 @@ async function handleRequest(req: Request): Promise<Response> {
     let cons: string[] = [];
     const cvSystemPrompt = [
       SCREEN_ANALYST_RULES,
+      langDirective,
       `You are a blunt hiring manager evaluating a candidate profile. Use ONLY the structured content provided.`,
       `- fullName: candidate's full name (or empty string if not found).`,
       `- title: their current or most recent role.`,
