@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,8 +6,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { downloadSovereignExtensionZip } from '@/lib/extensionPack';
-import { Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
+
+/** Pre-built zip served as a static asset from public/. */
+const ZIP_URL = '/sovereign-extension.zip';
 
 interface ExtensionSetupModalProps {
   open: boolean;
@@ -16,22 +17,6 @@ interface ExtensionSetupModalProps {
 }
 
 export function ExtensionSetupModal({ open, onOpenChange }: ExtensionSetupModalProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const download = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const ok = await downloadSovereignExtensionZip();
-      if (!ok) setError('Could not pack the extension. Refresh and try again.');
-    } catch {
-      setError('Could not pack the extension. Refresh and try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -52,17 +37,20 @@ export function ExtensionSetupModal({ open, onOpenChange }: ExtensionSetupModalP
           </li>
           <li className="flex gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">3</span>
-            <span>Turn on Developer mode, click Load unpacked, and select the unzipped folder.</span>
+            <span>Turn on Developer mode, click <strong className="text-foreground">Load unpacked</strong>, and select the unzipped <code className="text-foreground">sovereign-extension</code> folder.</span>
           </li>
           <li className="flex gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">4</span>
-            <span>Pin Sovereign, open a job post, and click the icon. Sign in on sovereignapp.pro so your B2C or B2B plan applies.</span>
+            <span>Pin Sovereign, open a job post, and click the icon. Sign in on sovereignapp.pro so your plan applies.</span>
           </li>
         </ol>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button onClick={() => void download()} disabled={busy} className="w-full">
-          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          Download ZIP for Chrome / Edge
+
+        {/* Plain HTML anchor — no JS, no async, no silent failure modes. */}
+        <Button asChild className="w-full">
+          <a href={ZIP_URL} download="sovereign-extension.zip">
+            <Download className="mr-2 h-4 w-4" />
+            Download ZIP for Chrome / Edge
+          </a>
         </Button>
       </DialogContent>
     </Dialog>

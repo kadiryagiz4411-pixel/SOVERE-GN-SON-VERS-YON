@@ -1,35 +1,20 @@
-import { useState } from 'react';
+import { Chrome, Download, Puzzle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExtensionSetupModal } from '@/components/extension/ExtensionSetupModal';
-import { downloadSovereignExtensionZip } from '@/lib/extensionPack';
-import { Chrome, Download, Loader2, Puzzle } from 'lucide-react';
+import { useState } from 'react';
 
-// Set this to your published Chrome Web Store URL once the extension is listed.
-// Until then, the button falls back to the ZIP download.
-const CWS_URL = '';
+/**
+ * Chrome Web Store URL — set once the extension is published.
+ * Until then the button serves the pre-built sovereign-extension.zip
+ * (generated at build-time by scripts/buildExtensionZip.mjs).
+ */
+const CWS_URL = import.meta.env.VITE_EXTENSION_CWS_URL ?? '';
+
+/** Direct link to the static zip produced at build-time. */
+const ZIP_URL = '/sovereign-extension.zip';
 
 export function ExtensionDownloadSection() {
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const download = async () => {
-    if (busy) return;
-    setError('');
-    setBusy(true);
-    try {
-      const ok = await downloadSovereignExtensionZip();
-      if (!ok) {
-        // ZIP builder failed — open setup guide which explains manual install.
-        setOpen(true);
-      }
-    } catch {
-      setError('Download failed — check your connection and try again, or use the Setup guide below.');
-      setOpen(true);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <section id="extension" className="relative scroll-mt-32 overflow-visible bg-slate-950 py-24">
@@ -39,6 +24,7 @@ export function ExtensionDownloadSection() {
             <Puzzle className="h-3.5 w-3.5" />
             Chrome Extension
           </div>
+
           <h2 className="text-3xl font-black leading-tight text-slate-100 md:text-5xl">
             Analyze the open job. Pitch in one click.
           </h2>
@@ -48,31 +34,28 @@ export function ExtensionDownloadSection() {
 
           <div className="mt-8 flex flex-wrap gap-3">
             {CWS_URL ? (
+              /* Published on Chrome Web Store */
               <Button size="lg" asChild className="gap-2">
                 <a href={CWS_URL} target="_blank" rel="noopener noreferrer">
                   <Chrome className="h-4 w-4" />
-                  Add to Chrome (Web Store)
+                  Add to Chrome — Web Store
                 </a>
               </Button>
             ) : (
-              <Button size="lg" onClick={() => void download()} disabled={busy} className="gap-2">
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
+              /* Pre-built ZIP — standard HTML download, zero JS failure modes */
+              <Button size="lg" asChild className="gap-2">
+                <a href={ZIP_URL} download="sovereign-extension.zip">
                   <Chrome className="h-4 w-4" />
-                )}
-                {busy ? 'Preparing download…' : 'Download Extension (.zip)'}
+                  Download Extension (.zip)
+                </a>
               </Button>
             )}
+
             <Button size="lg" variant="outline" onClick={() => setOpen(true)} className="gap-2">
               <Download className="h-4 w-4" />
               Setup guide
             </Button>
           </div>
-
-          {error && (
-            <p className="mt-3 text-sm text-red-400">{error}</p>
-          )}
 
           <p className="mt-4 text-xs text-slate-500">
             {CWS_URL
@@ -81,6 +64,7 @@ export function ExtensionDownloadSection() {
           </p>
         </div>
       </div>
+
       <ExtensionSetupModal open={open} onOpenChange={setOpen} />
     </section>
   );
