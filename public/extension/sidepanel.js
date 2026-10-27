@@ -1224,6 +1224,14 @@ async function rescanActiveScreen() {
     title: '', url: '', description: '', skills: [],
     budget: '', clientHistory: '', kind: 'job', hash: '', contentType: '',
   };
+  // CRITICAL: zero the match score immediately so the old value (e.g. 17%)
+  // never lingers on screen while the fresh analysis is in-flight.
+  lastScore = 0;
+  lastMatch = { label: '', strengths: [], gaps: [], message: '', onboardingRequired: false, acceptanceScore: 0 };
+  if (badge) { badge.textContent = '0'; }
+  if (scoreRing) scoreRing.style.setProperty('--p', '0');
+  if (card) card.classList.remove('on');
+  if (scoreLabel) scoreLabel.textContent = '';
   // Wipe the cached viewport from storage immediately — this prevents the
   // chrome.storage.onChanged listener from re-hydrating stale data while
   // the fresh DOM scrape is in-flight.
@@ -1326,11 +1334,21 @@ async function rescanActiveScreen() {
     }
 
     // Use the analysis the background already computed — ZERO extra network calls.
-    // Fall back to a single scoreOnly parse-dom if background timed out.
-    // Never call enrichWithSmartMatch here; keeps total latency under ~800ms.
+    // IMPORTANT: only recycle the background's pre-baked analysis when its hash
+    // matches the hash of the page we JUST scraped. A mismatch means the background
+    // returned a stale cached result for the previous job — discard it and call
+    // postParseDom fresh so we never show an old score (e.g. the stuck 17%).
     let merged;
     const pre = forced?.data?.analysis;
-    if (pre && !pre.discarded && (pre.matchScore !== undefined || pre.match_score !== undefined)) {
+    const preHash = String(forced?.data?.hash || forced?.data?.signature || '').trim();
+    const freshHash = String(pageData.hash || pageData.signature || '').trim();
+    const preIsValid = pre
+      && !pre.discarded
+      && preHash
+      && preHash === freshHash
+      && (pre.matchScore !== undefined || pre.match_score !== undefined);
+
+    if (preIsValid) {
       merged = pre;
     } else {
       if (thisSeq !== scanSeq) return;

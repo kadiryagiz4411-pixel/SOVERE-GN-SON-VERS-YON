@@ -496,6 +496,60 @@ function extractActiveJob(options) {
     return cleanText(filterNoiseLines(raw, allowShortTitle), max);
   };
 
+  /**
+   * GRANULAR PARAGRAPH EXTRACTION
+   *
+   * Extracts text exclusively from semantic block elements (<p>, <li>, <dd>)
+   * inside a container, preventing title text, badge labels, price metadata,
+   * and UI chrome from being mashed into the description body.
+   *
+   * Falls back to textOf() ONLY when the element has no paragraph children
+   * (e.g. plain-text job posts with no markup).
+   */
+  const paragraphsOf = (el, max) => {
+    if (!el) return '';
+    const clone = el.cloneNode(true);
+    // Strip noise and interactive chrome first.
+    clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((n) => n.remove());
+    clone.querySelectorAll?.('button, [role="button"], h1, h2, h3, h4').forEach((n) => n.remove());
+    clone.querySelectorAll?.('button, a, span').forEach((n) => {
+      if (isChromePhrase(n.textContent || '')) n.remove();
+    });
+    // Collect semantic block nodes that carry actual content.
+    const blocks = Array.from(clone.querySelectorAll?.('p, li, dd') || []);
+    if (blocks.length >= 2) {
+      const joined = blocks
+        .map((b) => cleanText(b.innerText || b.textContent || '', 2000))
+        .filter((t) => t.length > 15 && !isChromePhrase(t))
+        .join('\n');
+      const result = cleanText(filterNoiseLines(joined, false), max);
+      if (result.length >= 60) return result;
+    }
+    // No usable paragraphs — fall back to full text extraction.
+    return textOf(el, max, false);
+  };
+
+  /**
+   * H1-ONLY TITLE EXTRACTION
+   *
+   * Returns the innerText of the FIRST h1 inside the given root, or '' if
+   * none exists. Used to prevent the title from being pulled from h2/span
+   * elements that are actually section headers or metadata labels.
+   */
+  const strictTitleFrom = (root) => {
+    if (!root) return '';
+    // Try data-test attributes first — most reliable on Upwork/LinkedIn.
+    for (const sel of ['[data-test="job-title"]', '[data-test="JobTitle"]', 'h1', 'h2[data-test]']) {
+      try {
+        const el = root.querySelector(sel);
+        if (!el) continue;
+        const t = cleanText(el.innerText || el.textContent || '', 180);
+        if (t && t.length >= 4 && t.length <= 200 && !isChromePhrase(t)) return t;
+      } catch { /**/ }
+    }
+    return '';
+  };
+
   const attrText = (el, names) => {
     if (!el) return '';
     for (const name of names) {
@@ -658,19 +712,39 @@ function extractActiveJob(options) {
   const titleEl = pickBest(TITLE_SELECTORS, root);
   const descEl = pickBest(DESC_SELECTORS, root);
 
+  // TITLE: extracted strictly from h1 or known title selectors within the focused
+  // card — never from first-line of raw container text, which could be a badge label.
   let jobTitle = cleanText(
     attrText(titleEl, ['aria-label', 'title']) || textOf(titleEl, 180, true) || '',
     180,
   );
-  if (isChromePhrase(jobTitle) || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
-    const firstLine = (textOf(root, 400, true).split('\n').find((line) => {
-      const t = line.trim();
-      return t.length >= 8 && t.length <= 90 && !isChromePhrase(t);
-    }) || '');
-    jobTitle = cleanText(firstLine, 180);
+  // If the element-based title is garbage, try a strict h1 search scoped to the
+  // focused card (not the whole document) before touching any container text.
+  if (!jobTitle || isChromePhrase(jobTitle) || /^\s*(home|jobs|search|feed|linkedin)\s*$/i.test(jobTitle)) {
+    jobTitle = cleanText(strictTitleFrom(focus || root), 180);
+  }
+  // Final fallback: first non-chrome line of the document title attribute — but
+  // ONLY if it differs from the page's navigation title.
+  if (!jobTitle && !isChromePhrase(document.title)) {
+    const dt = cleanText(document.title.split('|')[0].split('-')[0].trim(), 180);
+    if (dt.length >= 8 && dt.length <= 120 && !isChromePhrase(dt)) jobTitle = dt;
   }
 
-  let jobDescription = textOf(descEl || root, MAX_TEXT, false);
+  // DESCRIPTION: extracted granularly from <p>/<li> elements inside the description
+  // container so badge labels, price metadata, and h1 text are not mashed in.
+  // Hierarchy: descEl paragraphs → descEl raw → root paragraphs → root raw.
+  let jobDescription = '';
+  if (descEl) {
+    jobDescription = paragraphsOf(descEl, MAX_TEXT);
+  }
+  if (!jobDescription || jobDescription.length < 80) {
+    if (descEl) jobDescription = textOf(descEl, MAX_TEXT, false);
+  }
+  if (!jobDescription || jobDescription.length < 80) {
+    // Root is the focused card — extract paragraphs from it, but exclude the
+    // title element content so it is not repeated in the description body.
+    jobDescription = paragraphsOf(root, MAX_TEXT);
+  }
   if (!jobDescription || jobDescription.length < 80) {
     jobDescription = textOf(root, MAX_TEXT, false);
   }
