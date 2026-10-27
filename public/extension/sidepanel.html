@@ -430,6 +430,14 @@
         padding: 7px 8px;
       }
       .mode-slider button.on { color: var(--gold-2); }
+      .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; }
+      .toggle-label { font-size:11px; color:var(--muted); letter-spacing:.04em; }
+      .toggle-wrap { position:relative; width:38px; height:20px; flex-shrink:0; }
+      .toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+      .toggle-track { position:absolute; inset:0; border-radius:999px; background:var(--line); transition:background .2s; cursor:pointer; }
+      .toggle-wrap input:checked + .toggle-track { background:var(--gold); }
+      .toggle-thumb { position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .2s; pointer-events:none; }
+      .toggle-wrap input:checked ~ .toggle-thumb { transform:translateX(18px); }
       .rescan {
         font-size: 11px;
         letter-spacing: .04em;
@@ -744,6 +752,40 @@
           <label for="accountEmail">Account email</label>
           <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="email" />
         </div>
+        <div class="field" id="b2bToggleRow" style="display:none">
+          <div class="toggle-row">
+            <span class="toggle-label">B2B Agency Mode</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="b2bToggle" />
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </div>
+          <p class="hint" style="margin-top:2px">Route jobs through B2B lead extraction and team dispatch.</p>
+        </div>
+
+        <div class="field">
+          <label for="outputLanguage">AI output language</label>
+          <select id="outputLanguage">
+            <option value="auto">Auto-detect from page</option>
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="pt">Português</option>
+            <option value="nl">Nederlands</option>
+            <option value="it">Italiano</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="pl">Polski</option>
+          </select>
+          <p class="hint" style="margin-top:2px">Auto-detect reads the page's language. Proposals and CVs are written in the selected language.</p>
+        </div>
+
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
         <p id="profileStatus" class="hint"></p>
 

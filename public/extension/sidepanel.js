@@ -28,7 +28,28 @@ const DEFAULT_SETTINGS = {
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
   canGenerate: true,
+  outputLanguage: 'auto',
 };
+
+/** Resolve the effective output language for AI calls. */
+function resolveOutputLanguage() {
+  const saved = String(settings.outputLanguage || 'auto').trim();
+  if (saved && saved !== 'auto') return saved;
+  // Auto mode: use the most recently detected page language, then browser language.
+  const detected = String(settings._detectedLang || '').split('-')[0].toLowerCase();
+  if (detected && detected.length >= 2) return detected;
+  return String(navigator.language || 'en').split('-')[0].toLowerCase() || 'en';
+}
+
+/** Race a promise against a timeout (ms). Resolves/rejects with whichever fires first. */
+function withTimeout(promise, ms) {
+  let t;
+  const race = new Promise((resolve, reject) => {
+    t = setTimeout(() => reject(new Error('timeout')), ms);
+    Promise.resolve(promise).then(resolve, reject);
+  });
+  return race.finally(() => clearTimeout(t));
+}
 
 function isExtensionAdmin() {
   const email = String(settings.accountEmail || '').trim().toLowerCase();
@@ -1007,6 +1028,7 @@ async function postParseDom(pageData, options = {}) {
     matchDepth: deep ? 'deep' : 'basic',
     deepMatch: deep,
     scoreOnly: Boolean(options.scoreOnly),
+    outputLanguage: resolveOutputLanguage(),
   };
 
   const viaWorker = await chrome.runtime.sendMessage({
@@ -1172,18 +1194,40 @@ async function rescanActiveScreen() {
   setBusy(true, 'Scanning active screen…');
   analyzing = true;
 
+  // Auto-detect page language for 'auto' mode — read the active tab's <html lang> attribute.
   try {
-    // Background scrapes (force + noise-filter) and bakes in a scoreOnly parse-dom.
-    // If the LLM finished in time we get { ...rawScrape, analysis }; otherwise rawScrape only.
-    const forced = await chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null);
+    const langResult = await chrome.scripting.executeScript({
+      target: { tabId: (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id || 0 },
+      func: () => String(document.documentElement.lang || navigator.language || 'en').split('-')[0].toLowerCase(),
+    }).catch(() => null);
+    const detected = langResult?.[0]?.result;
+    if (detected && detected.length >= 2 && settings.outputLanguage === 'auto') {
+      settings = { ...settings, _detectedLang: detected };
+    }
+  } catch { /**/ }
+
+  try {
+    // 3-second timeout on background scrape + baked parse-dom.
+    // If it times out, we fall through to a direct DOM scrape below.
+    const forced = await withTimeout(
+      chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null),
+      3000,
+    ).catch(() => null);
 
     if (thisSeq !== scanSeq) return; // newer click superseded this scan
 
+    // If background timed out or failed, do a direct scrape without LLM pre-baking.
     const pageData = forced?.success && forced.data
       ? normalizePageData(forced.data)
-      : await getActiveTabDOM();
+      : await withTimeout(getActiveTabDOM(), 5000).catch(() => null);
 
     if (thisSeq !== scanSeq) return;
+
+    if (!pageData) {
+      setBusy(false, 'Could not read the active tab. Open a job post, then click Scan again.');
+      analyzing = false;
+      return;
+    }
 
     // Discarded (chrome noise, list, empty).
     if (pageData.discarded) {
@@ -1222,6 +1266,7 @@ async function rescanActiveScreen() {
       : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
     if (titleEl) titleEl.textContent = lastJob.title || '';
 
+    // Onboarding: show the target but skip the LLM and show a non-blocking hint.
     if (skillListFromSettings().length < 2) {
       updateMatchUi({
         onboardingRequired: true,
@@ -1229,7 +1274,7 @@ async function rescanActiveScreen() {
         match_score: 0,
         acceptanceScore: 0,
       }, lastJob.title);
-      setBusy(false, 'Isolated the job. Add at least two skills in Settings to score it.');
+      setBusy(false, 'Job isolated. Open Settings and add at least two skills to unlock scores.');
       analyzing = false;
       return;
     }
@@ -1243,10 +1288,22 @@ async function rescanActiveScreen() {
       merged = pre;
     } else {
       if (thisSeq !== scanSeq) return;
-      merged = await postParseDom(pageData, { scoreOnly: true });
+      merged = await withTimeout(
+        postParseDom(pageData, { scoreOnly: true }),
+        10000,
+      ).catch((err) => {
+        if (err?.message === 'timeout') return null;
+        throw err;
+      });
     }
 
     if (thisSeq !== scanSeq) return;
+
+    if (!merged) {
+      setBusy(false, 'Analysis timed out. Check your connection and try again.');
+      analyzing = false;
+      return;
+    }
 
     updateMatchUi(merged, lastJob.title || pageData.pageTitle);
     if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
@@ -1260,12 +1317,14 @@ async function rescanActiveScreen() {
   } catch (err) {
     if (thisSeq !== scanSeq) return;
     const msg = err?.message || String(err);
-    if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
+    if (/timeout/i.test(msg)) {
+      setBusy(false, 'Scan timed out — open the job post and click Scan again.');
+    } else if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
       showError('Service temporarily busy — try again in a moment.');
     } else if (/permission to access the respective host/i.test(msg)) {
       showError('Reload the extension, then scan again.');
     } else {
-      showError(msg);
+      showError(publicError(msg));
     }
   } finally {
     if (thisSeq === scanSeq) analyzing = false;
@@ -1343,11 +1402,18 @@ function fillSettingsForm() {
   const fixedRate = document.getElementById('fixedRate');
   const experience = document.getElementById('experience');
   const accountEmail = document.getElementById('accountEmail');
+  const outputLanguage = document.getElementById('outputLanguage');
+  const b2bToggle = document.getElementById('b2bToggle');
+  const b2bToggleRow = document.getElementById('b2bToggleRow');
   if (skills) skills.value = settings.skills || '';
   if (hourlyRate) hourlyRate.value = settings.hourlyRate || '';
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
   if (experience) experience.value = settings.experience || 'mid';
   if (accountEmail) accountEmail.value = settings.accountEmail || '';
+  if (outputLanguage) outputLanguage.value = settings.outputLanguage || 'auto';
+  const canB2b = canUseDualWorkspace();
+  if (b2bToggleRow) b2bToggleRow.style.display = canB2b ? '' : 'none';
+  if (b2bToggle) b2bToggle.checked = settings.workspaceMode === 'b2b';
   applyTheme(settings.theme);
   applyMembership(settings.membership);
   applyAdminUi();
@@ -1566,19 +1632,27 @@ cvListEl?.addEventListener('click', async (event) => {
 });
 
 document.getElementById('saveProfile')?.addEventListener('click', async () => {
+  const selectedLang = document.getElementById('outputLanguage')?.value || 'auto';
   await persistSettings({
     skills: document.getElementById('skills')?.value || '',
     hourlyRate: document.getElementById('hourlyRate')?.value || '',
     fixedRate: document.getElementById('fixedRate')?.value || '',
     experience: document.getElementById('experience')?.value || 'mid',
     accountEmail: document.getElementById('accountEmail')?.value || '',
+    outputLanguage: selectedLang,
   });
   const count = skillListFromSettings().length;
+  const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
   if (profileStatus) {
     profileStatus.textContent = count < 2
-      ? 'Saved. Add at least two skills so match scores can be calculated.'
-      : `Saved ${count} skills for the match engine.`;
+      ? `Saved (${langLabel}). Add at least two skills so match scores can be calculated.`
+      : `Saved ${count} skills for the match engine. Language: ${langLabel}.`;
   }
+});
+
+document.getElementById('b2bToggle')?.addEventListener('change', (e) => {
+  if (!canUseDualWorkspace()) return;
+  void persistSettings({ workspaceMode: e.target.checked ? 'b2b' : 'b2c' });
 });
 
 document.getElementById('themeOled')?.addEventListener('click', () => {
@@ -1809,7 +1883,7 @@ async function generateTailoredCv() {
         skills: skillListFromSettings(),
         experience: settings.experience,
         hourlyRate: Number(settings.hourlyRate) || undefined,
-        outputLanguage: 'en',
+        outputLanguage: resolveOutputLanguage(),
       },
     }).catch(() => null);
     if (viaWorker?.error) throw new Error(viaWorker.error);
