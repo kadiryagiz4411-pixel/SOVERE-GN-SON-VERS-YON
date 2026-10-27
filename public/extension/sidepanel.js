@@ -987,13 +987,17 @@ function onViewportFocus(raw) {
     lastTargetHash = pageData.hash || 'list';
     setTargetBadge('scanning', '', 'list', 'CANDIDATE_LIST');
     if (proposalEl) {
-      proposalEl.textContent = pageData.discardReason === 'chrome'
-        ? 'Ignored UI chrome (menus, translate, banners). Focus a job or profile.'
-        : 'This looks like a list. Open one job or profile to score it.';
+      proposalEl.textContent = pageData.discardReason === 'no-center-card'
+        ? 'Scroll a job card to the center of the screen, then click Scan.'
+        : pageData.discardReason === 'chrome'
+          ? 'Ignored UI chrome (menus, translate, banners). Focus a job or profile.'
+          : 'This looks like a list. Open one job or profile to score it.';
     }
-    setBusy(false, pageData.discardReason === 'chrome'
-      ? 'Focus the job description, not the page chrome.'
-      : 'Open a single job or profile in the viewport.');
+    setBusy(false, pageData.discardReason === 'no-center-card'
+      ? 'No job card in viewport center — scroll so a job description fills the screen.'
+      : pageData.discardReason === 'chrome'
+        ? 'Focus the job description, not the page chrome.'
+        : 'Open a single job or profile in the viewport.');
     return;
   }
   if (!pageData.pageText && !pageData.jobDescription) return;
@@ -1269,13 +1273,17 @@ async function rescanActiveScreen() {
       return;
     }
 
-    // Discarded (chrome noise, list, empty).
+    // Discarded (no center card, chrome noise, list, empty).
     if (pageData.discarded) {
       flushJobContext();
       setTargetBadge('scanning');
-      setBusy(false, pageData.discardReason === 'chrome'
-        ? 'Focus the job description — the translate widget or nav was ignored.'
-        : 'This looks like a list. Open one job to score it.');
+      const discardMsg = pageData.discardReason === 'no-center-card'
+        ? 'Scroll a job card to the center of the screen, then click Scan again.'
+        : pageData.discardReason === 'chrome'
+          ? 'Focus the job description — the translate widget or nav was ignored.'
+          : 'This looks like a list. Open one job to score it.';
+      setBusy(false, discardMsg);
+      if (proposalEl) proposalEl.textContent = discardMsg;
       analyzing = false;
       return;
     }

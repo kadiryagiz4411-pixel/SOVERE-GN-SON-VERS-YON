@@ -614,11 +614,40 @@ function extractActiveJob(options) {
   };
 
   clearSovereignMarks();
-  // Try to isolate the actual job card wrapper first using closestJobCard().
-  // This prevents returning a deeply nested span/div and ensures we scope
-  // title/description extraction to the real card element.
+
+  // STRICT VIEWPORT CENTER TARGETING
+  // getMostVisibleElement uses getViewportCenterCard() first — it only returns an
+  // element whose rect.top <= centerY && rect.bottom >= centerY.
+  // When nothing crosses the midpoint on a passive (non-forced) scan, it returns
+  // null and we discard immediately so stale data is never shown.
   const rawFocus = getMostVisibleElement({ force });
   const focus = rawFocus ? (closestJobCard(rawFocus) || rawFocus) : rawFocus;
+
+  // If no card crosses the viewport center and this is not a forced scan,
+  // return an empty / discarded result that prompts the user to scroll a
+  // job card to the center of the screen.
+  if (!focus && !force) {
+    return {
+      pageText: '',
+      pageTitle: '',
+      pageUrl: href,
+      jobTitle: '',
+      jobDescription: '',
+      requiredSkills: [],
+      budget: '',
+      clientHistory: '',
+      structuredJob: { title: '', description: '', skills: [], budget: '', clientInfo: '' },
+      isolated: false,
+      host,
+      kind: 'job',
+      contentType: '',
+      discarded: true,
+      discardReason: 'no-center-card',
+      hash: hashScrapedText(`empty|${href}|${Date.now()}`),
+      signature: hashScrapedText(`empty|${href}|${Date.now()}`),
+    };
+  }
+
   const root = focus
     || getOpenDetailPane()
     || pickBest(SOVEREIGN_MAIN_SELECTORS)

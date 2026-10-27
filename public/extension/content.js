@@ -130,7 +130,7 @@ function publishTarget(data, force) {
         flushed: true,
         contentType: classified.contentType || '',
         discardReason: classified.reason || 'chrome',
-        kind: classified.reason === 'chrome' ? 'job' : 'list',
+        kind: classified.reason === 'chrome' || classified.reason === 'no-center-card' ? 'job' : 'list',
         hash: lastPublishedHash,
         scannedAt: Date.now(),
       },
