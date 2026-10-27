@@ -590,7 +590,9 @@ function extractActiveJob(options) {
   };
 
   const classified = classifyScrapedContent(href, jobTitle, pageText, isolated);
-  const hash = hashScrapedText(`${classified.contentType}|${jobTitle}|${jobDescription}`);
+  // Include the page URL in the hash so SPA navigations that swap the job detail
+  // pane always produce a different hash even if the title is re-used.
+  const hash = hashScrapedText(`${classified.contentType}|${href}|${jobTitle}|${jobDescription}`);
 
   return {
     pageText,

@@ -2008,7 +2008,11 @@ async function boot() {
     renderTeamLeads(await storageGet(STORE.LEADS, []));
     await resolveWorkspaceAccess();
     const viewport = await storageGet(STORE.VIEWPORT, null);
-    if (viewport?.jobTitle || viewport?.pageText) {
+    // Only restore viewport from storage if it is fresh (< 60 s old).
+    // Stale storage is the primary source of "old job still showing" bugs —
+    // rescanActiveScreen() below will immediately refresh with live DOM data.
+    const viewportAge = Date.now() - (viewport?.at || 0);
+    if ((viewport?.jobTitle || viewport?.pageText) && viewportAge < 60_000) {
       setTargetBadge('live', viewport.jobTitle || viewport.pageTitle, viewport.kind);
       applyIsolatedJob(normalizePageData(viewport));
       lastTargetHash = viewport.hash || viewport.signature || '';
