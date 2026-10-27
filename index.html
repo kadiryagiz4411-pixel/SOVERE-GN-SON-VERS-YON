@@ -72,9 +72,17 @@
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="https://sovereignapp.pro/sitemap.xml" />
 
-    <!-- Lemon Squeezy overlay (createLemonSqueezy is called from App.tsx) -->
+    <!-- Lemon Squeezy overlay — single canonical script; no duplicate load -->
     <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
-    <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+    <script>
+      // Initialise the LS overlay as soon as the script is ready.
+      // Wrapping in DOMContentLoaded handles both sync and defer cases.
+      document.addEventListener('DOMContentLoaded', function () {
+        if (typeof window.createLemonSqueezy === 'function') {
+          window.createLemonSqueezy();
+        }
+      });
+    </script>
 
     <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
     <!--

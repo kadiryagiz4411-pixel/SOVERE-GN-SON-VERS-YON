@@ -67,11 +67,16 @@ export function getSupportUrl(): string {
 }
 
 export function getLemonStoreUrl(): string {
-  const store = unwrapMarkdownUrl(
-    firstEnv('VITE_LEMONSQUEEZY_STORE_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL') || DEFAULT_STORE,
-  ).replace(/\/$/, '');
-  if (isHttpUrl(store)) return store;
-  return getSupportUrl();
+  const raw = firstEnv('VITE_LEMONSQUEEZY_STORE_URL', 'VITE_LEMONSQUEEZY_CONTACT_URL');
+  if (raw) {
+    const cleaned = unwrapMarkdownUrl(raw).replace(/\/$/, '');
+    // Only trust it if it's a proper https URL — reject 'undefined', 'null',
+    // relative paths and sovereignapp.pro URLs that would be captured by
+    // React Router and 404 on the SPA.
+    if (isHttpUrl(cleaned) && !cleaned.includes('sovereignapp.pro')) return cleaned;
+  }
+  // Hardcoded LS store is the immovable fallback. Never return an internal SPA path.
+  return DEFAULT_STORE;
 }
 
 function isHttpUrl(value: string): boolean {
@@ -226,9 +231,10 @@ export const redirectToCheckout = (tier: string, userEmail?: string, userId?: st
       window.LemonSqueezy.Url.Open(checkoutUrl);
       return;
     }
-    window.location.href = checkoutUrl;
+    // Open in new tab — prevents React Router from intercepting the navigation.
+    window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
   } catch (err) {
     console.error('[LemonSqueezy] Redirect error:', err);
-    window.location.href = getLemonStoreUrl();
+    window.open(getLemonStoreUrl(), '_blank', 'noopener,noreferrer');
   }
 };

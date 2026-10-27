@@ -1,7 +1,7 @@
 /**
  * UpgradeModal — Context-aware "Upgrade Required" overlay.
  * Shows the locked feature, the minimum required tier, pricing, and
- * top features of the required plan. CTA navigates to /settings/billing.
+ * top features of the required plan. CTA opens the LS checkout overlay.
  */
 import { useNavigate } from 'react-router-dom';
 import { X, Lock, Check, ArrowRight, Zap, Crown, Building2, Star, Ticket } from 'lucide-react';
@@ -10,6 +10,10 @@ import {
   type FeatureKey, type PlanTier,
   getGate, TIER_META,
 } from '@/lib/entitlements';
+import { openLemonSqueezyCheckout } from '@/components/checkout/CheckoutButton';
+import { useSession } from '@/contexts/SessionContext';
+import { createCheckout, type CheckoutPlanId } from '@/config/plans';
+import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
 
 // ─── Tier icon map ─────────────────────────────────────────────────────────────
 
@@ -34,6 +38,7 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
   const navigate = useNavigate();
+  const { user } = useSession();
   const gate = getGate(featureKey);
 
   if (!open || !gate) return null;
@@ -41,13 +46,24 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
   const requiredTier = gate.minTier;
   const meta = TIER_META[requiredTier];
 
+  const TIER_TO_PLAN_ID: Partial<Record<PlanTier, CheckoutPlanId>> = {
+    standard:   'standard',
+    pro:        'pro',
+    elite:      'elite',
+    enterprise: 'enterprise',
+  };
+
   const handleUpgrade = () => {
     onClose();
-    if (requiredTier === 'enterprise') {
+    const planId = TIER_TO_PLAN_ID[requiredTier];
+    if (!planId || requiredTier === 'enterprise') {
+      // Enterprise — show full pricing page so user can choose B2B tier.
       navigate('/pricing');
       return;
     }
-    navigate('/settings/billing');
+    // Open LS overlay directly — no internal route jump that could 404.
+    const checkoutUrl = sanitizeCheckoutUrl(createCheckout(planId, 'monthly'));
+    openLemonSqueezyCheckout(checkoutUrl, user?.email, user?.id);
   };
 
   return (

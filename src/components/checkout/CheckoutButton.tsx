@@ -55,14 +55,16 @@ export function openLemonSqueezyCheckout(
       window.LemonSqueezy.Url.Open(enrichedUrl);
       return;
     }
-    console.warn('[LemonSqueezy] Overlay not ready, redirecting to checkout', { enrichedUrl });
-    window.location.href = enrichedUrl;
+    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in new tab', { enrichedUrl });
+    // Use window.open instead of location.href to prevent React Router from
+    // capturing a URL that could be misread as a relative SPA path.
+    window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
   } catch (err) {
     console.error('[LemonSqueezy] Checkout open failed', err, { enrichedUrl });
     try {
-      window.location.href = enrichedUrl;
+      window.open(enrichedUrl, '_blank', 'noopener,noreferrer');
     } catch (fallbackErr) {
-      console.error('[LemonSqueezy] Fallback redirect also failed', fallbackErr);
+      console.error('[LemonSqueezy] Fallback open also failed', fallbackErr);
       toast.error('Could not open checkout. Please disable your ad blocker and try again.');
     }
   }
@@ -133,7 +135,9 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
       <a
         ref={ref}
         href={safeHref}
-        target={!overlay ? '_blank' : undefined}
+        // Always open in a new tab — prevents React Router from intercepting
+        // the LS checkout URL even on Cmd+click / middle-click.
+        target="_blank"
         rel="noopener noreferrer"
         className={cn('lemonsqueezy-button', buttonVariants({ variant, size }), className, busy && 'opacity-70 pointer-events-none')}
         aria-busy={busy}
