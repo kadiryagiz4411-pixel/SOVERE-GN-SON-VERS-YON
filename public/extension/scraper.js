@@ -99,19 +99,31 @@ const SOVEREIGN_NOISE_SELECTORS = [
   'script', 'style', 'iframe', 'noscript', '[aria-hidden="true"]', '.sr-only',
   // Cookie / consent banners
   '#onetrust-banner-sdk', '.cookie-banner', '.cookies', '.cookie-consent',
-  // Google Translate widgets — all known selectors as of 2026
+  // ── Google Translate — complete artifact catalogue ──────────────────────────
+  // Control widgets
   '#goog-gt-tt', '#goog-gt-vandal-tip',
   '.VIpgJd-yAWNEb-hvhgNd', '.VIpgJd-ZVi9od-aZ2wEe',
   '.gtx-trans', '.skiptranslate', '.goog-te-banner-frame',
   '.goog-te-gadget', '.goog-te-spinner-pos', '#google_translate_element',
   '[id^="goog-gt-"]', '[class*="goog-te-"]',
+  // Embedded translate combo box (injected inside page content)
+  '.goog-te-combo',
+  // Inline content highlights — GTranslate marks the hovered/selected source
+  // text with yellow background or a special class while the tooltip is open.
+  '.goog-text-highlight',
+  'font[style*="background-color"]',   // yellow selection highlight on source text
+  'font[style*="color: black"]',        // GTranslate resets color on translated spans
+  // Generic translate attributes
   '[data-purpose="translate"]', '[aria-label*="Translate"]', '[aria-label*="translate"]',
-  // Upwork / LinkedIn UI chrome
+  // ── Upwork / LinkedIn UI chrome ────────────────────────────────────────────
   '.global-nav', '.msg-overlay-list-bubble', '.artdeco-toast',
   // Upwork WebSocket status banners injected by dash-api.min.js
   '[data-test="connection-status"]', '[class*="connection-banner"]',
   // Nuxt hydration placeholders (Upwork SSR artefacts)
   '[data-fetch-key]', '[nuxt-hydration]',
+  // Any element explicitly hidden from assistive tech
+  '[hidden]', '[style*="display:none"]', '[style*="display: none"]',
+  '[style*="visibility:hidden"]', '[style*="visibility: hidden"]',
 ];
 
 /**
@@ -136,32 +148,52 @@ const SOVEREIGN_NOISE_SELECTORS = [
 function stripTranslationArtifacts(clone) {
   if (!clone || !(clone instanceof Element)) return;
 
-  // 1. Remove GTranslate control widgets.
+  // 1. Remove ALL GTranslate control widgets and inline artifact elements.
   const GTRANS_WIDGET_SELECTORS = [
     '#goog-gt-tt', '#goog-gt-vandal-tip',
     '.goog-te-banner-frame', '.goog-te-spinner-pos', '.goog-te-gadget',
     '#google_translate_element', '[id^="goog-gt-"]', '[class*="goog-te-"]',
     '.skiptranslate', '.gtx-trans', '.VIpgJd-yAWNEb-hvhgNd', '.VIpgJd-ZVi9od-aZ2wEe',
+    // Embedded combo widget inside page content
+    '.goog-te-combo',
+    // Inline source-text highlight: GTranslate marks the word/phrase being
+    // translated with a yellow background and this class.
+    '.goog-text-highlight',
   ];
   for (const sel of GTRANS_WIDGET_SELECTORS) {
     try { clone.querySelectorAll(sel).forEach((n) => n.remove()); } catch {/**/ }
   }
 
-  // 2. Unwrap <font vertical-align:inherit> — Google Translate's translation wrapper.
-  //    Iterate in reverse so inner <font> nodes are removed before their parents.
+  // 2. Strip all hidden elements (display:none / visibility:hidden inline style).
+  //    These are never readable content and can contain stale translated fragments.
+  try {
+    clone.querySelectorAll('[hidden],[style*="display:none"],[style*="display: none"],[style*="visibility:hidden"],[style*="visibility: hidden"]')
+      .forEach((n) => n.remove());
+  } catch {/**/ }
+
+  // 3. Unwrap ALL <font> elements — GTranslate uses them in two ways:
+  //    a) Translation wrappers: <font style="vertical-align:inherit"> — nested pair
+  //    b) Highlight wrappers: <font style="background-color:..."> over source text
+  //    In both cases we discard the element and preserve the underlying text.
+  //    Iterate in reverse-document-order so inner nodes are removed before parents.
   const fonts = Array.from(clone.querySelectorAll('font') || []).reverse();
   for (const font of fonts) {
     try {
-      const isGTransFont = /vertical-align\s*:\s*inherit/i.test(font.getAttribute('style') || '');
-      if (!isGTransFont) continue;
-      // Preserve readable text from the wrapper.
+      const style = font.getAttribute('style') || '';
+      const isGTranslateFont =
+        /vertical-align\s*:\s*inherit/i.test(style) ||
+        /background-color/i.test(style) ||
+        /color\s*:\s*black/i.test(style) ||
+        font.classList.contains('goog-text-highlight');
+      if (!isGTranslateFont) continue;
+      // Replace the <font> wrapper with a plain text node from its raw content.
       const text = (font.innerText || font.textContent || '').replace(/\s+/g, ' ').trim();
       const replacement = document.createTextNode(text ? ` ${text} ` : '');
       font.parentNode?.replaceChild(replacement, font);
     } catch {/**/ }
   }
 
-  // 3. Remove any leftover empty <font> shells (e.g. zero-width placeholders).
+  // 4. Remove any leftover empty <font> shells (zero-width translation placeholders).
   try {
     clone.querySelectorAll('font').forEach((f) => {
       if (!(f.textContent || '').trim()) f.remove();
@@ -245,6 +277,18 @@ function detectIsolatedKind(url, title, text, isolated) {
 
 function sovereignVisible(el) {
   if (!el || !(el instanceof Element)) return false;
+  // Fast hidden-ancestor check: offsetParent is null when any ancestor has
+  // display:none. getComputedStyle only reflects the element's own style and
+  // can miss a display:none set on a parent when CSS inheritance is involved.
+  // Exception: <body> and elements with position:fixed have offsetParent=null
+  // but are still visible, so we guard against those cases.
+  try {
+    const tag = el.tagName?.toLowerCase?.();
+    if (tag !== 'body' && tag !== 'html') {
+      const pos = window.getComputedStyle(el).position;
+      if (pos !== 'fixed' && pos !== 'sticky' && el.offsetParent === null) return false;
+    }
+  } catch {/**/ }
   const r = el.getBoundingClientRect();
   const style = window.getComputedStyle(el);
   return r.width > 48 && r.height > 36
@@ -610,6 +654,77 @@ function _extractActiveJobImpl(options) {
   };
 
   /**
+   * RAW TEXT-NODE WALKER
+   *
+   * Extracts text exclusively from DOM Text nodes (nodeType === 3) within
+   * semantic block elements. This is the most reliable method when Google
+   * Translate is active: GTranslate replaces element.textContent via the
+   * translated <font> wrappers, but the *original* Text nodes in the cloned
+   * tree still carry the pre-translation strings because we call
+   * stripTranslationArtifacts() first, which unwraps the <font> elements and
+   * replaces them with the text they contained.
+   *
+   * Elements explicitly skipped by the walker:
+   *   • script, style, noscript, iframe   — never content
+   *   • Any element matching SOVEREIGN_NOISE_SELECTORS — translation / chrome
+   *   • Elements with inline display:none or visibility:hidden
+   *   • Elements shorter than 3 chars after trimming
+   */
+  const BLOCK_TAGS = new Set(['p', 'li', 'dd', 'dt', 'blockquote', 'pre', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'td', 'th', 'caption']);
+  const SKIP_TAGS  = new Set(['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'video', 'audio', 'object', 'embed', 'template', 'font']);
+
+  const walkTextNodes = (root, max) => {
+    if (!root) return '';
+    try {
+      const clone = root.cloneNode(true);
+      // Strip translation artifacts and hidden elements before walking.
+      stripTranslationArtifacts(clone);
+      clone.querySelectorAll?.(SOVEREIGN_NOISE_SELECTORS.join(',')).forEach((n) => n.remove());
+
+      const lines = [];
+      let total = 0;
+
+      const walk = (node) => {
+        if (total >= max) return;
+        if (!node) return;
+        if (node.nodeType === 3) {
+          // Raw Text node — most reliable; unaffected by translate overlays.
+          const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+          if (t.length >= 3 && !isChromePhrase(t)) {
+            lines.push(t);
+            total += t.length;
+          }
+          return;
+        }
+        if (node.nodeType !== 1) return; // skip Comment, CDATASection etc.
+        const tag = (node.tagName || '').toLowerCase();
+        if (SKIP_TAGS.has(tag)) return;
+        // Skip inline-hidden elements.
+        const style = node.getAttribute?.('style') || '';
+        if (/display\s*:\s*none/i.test(style) || /visibility\s*:\s*hidden/i.test(style)) return;
+        // If this is a block-level container, add a separator so lines don't run together.
+        const isBlock = BLOCK_TAGS.has(tag);
+        if (isBlock && lines.length) lines.push('');
+        for (let i = 0; i < node.childNodes.length; i += 1) {
+          walk(node.childNodes[i]);
+        }
+        if (isBlock && lines.length) lines.push('');
+      };
+
+      walk(clone);
+
+      const result = lines
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, max);
+      return result;
+    } catch {
+      return '';
+    }
+  };
+
+  /**
    * GRANULAR PARAGRAPH EXTRACTION
    *
    * Extracts text exclusively from semantic block elements (<p>, <li>, <dd>)
@@ -849,19 +964,29 @@ function _extractActiveJobImpl(options) {
     if (dt.length >= 8 && dt.length <= 120 && !isChromePhrase(dt)) jobTitle = dt;
   }
 
-  // DESCRIPTION: extracted granularly from <p>/<li> elements inside the description
-  // container so badge labels, price metadata, and h1 text are not mashed in.
-  // Hierarchy: descEl paragraphs → descEl raw → root paragraphs → root raw.
+  // DESCRIPTION — 4-tier extraction with strict isolation:
+  //
+  //  Tier 1 (best):  walkTextNodes(descEl)  — raw Text nodes; immune to GTranslate
+  //  Tier 2:         paragraphsOf(descEl)   — <p>/<li>/<dd>; beats innerText blobs
+  //  Tier 3:         walkTextNodes(root)    — fall back to focused card text nodes
+  //  Tier 4 (last):  textOf(root)           — full innerText with noise stripped
+  //
+  // Each tier only activates when the previous returned < 80 chars.
   let jobDescription = '';
+
   if (descEl) {
-    jobDescription = paragraphsOf(descEl, MAX_TEXT);
+    jobDescription = walkTextNodes(descEl, MAX_TEXT);
+  }
+  if (!jobDescription || jobDescription.length < 80) {
+    if (descEl) jobDescription = paragraphsOf(descEl, MAX_TEXT);
   }
   if (!jobDescription || jobDescription.length < 80) {
     if (descEl) jobDescription = textOf(descEl, MAX_TEXT, false);
   }
   if (!jobDescription || jobDescription.length < 80) {
-    // Root is the focused card — extract paragraphs from it, but exclude the
-    // title element content so it is not repeated in the description body.
+    jobDescription = walkTextNodes(root, MAX_TEXT);
+  }
+  if (!jobDescription || jobDescription.length < 80) {
     jobDescription = paragraphsOf(root, MAX_TEXT);
   }
   if (!jobDescription || jobDescription.length < 80) {
