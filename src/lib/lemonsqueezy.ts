@@ -121,32 +121,36 @@ function checkoutUrlFromEnvOrStore(keys: string[], fallbackPath?: string): strin
   return getLemonStoreUrl();
 }
 
+/**
+ * Canonical Lemon Squeezy buy-path UUIDs — verified by the store owner.
+ * Keep these in sync with FALLBACK_CHECKOUT_URLS in src/config/plans.ts.
+ */
+export const LS_CHECKOUT_URLS = {
+  standard:    { monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/38a01448-3041-4e6d-8744-31287b12148a', yearly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ae00354b-bdc6-4f24-88b9-971ada805e59' },
+  pro:         { monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/c0ce34b3-8cd0-4554-9d06-f0de2fd2fec6', yearly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/b1be220d-f6b3-4b69-9808-0a08082f2fd5' },
+  elite:       { monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ada6ee8b-8dfc-48a8-a613-b38464ae323b', yearly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/9fdfa0f4-2dc3-47ef-a4b1-f6be5e1c7532' },
+  enterprise:  { monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6ecc3830-d895-41c1-8204-e584b37563f0', yearly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/5ad8c5b2-0061-4881-8402-8d110ec4b542' },
+  single_pass: { oneTime: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f3546a02-e784-4205-b319-d8324b9a1863' },
+  appsumo:     { tier1:   'https://sovereignapp.lemonsqueezy.com/checkout/buy/1b6e35ec-fba6-441f-8b9a-7ac90d5fa4c2', tier2: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6c9a1e9f-3870-49b2-a248-092a20718e48', tier3: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/9075cf3d-2e73-4c22-b200-3b8db0c91e02' },
+} as const;
+
 export const TIER_CHECKOUT_CONFIG: TierCheckoutConfig = {
   get tier1Url() {
-    // tier_1 = Standard plan. The /api/billing/checkout API uses the numeric variant ID.
-    // The href fallback is the LS store — it never 404s.
     return checkoutUrlFromEnvOrStore(
-      [
-        'VITE_LEMONSQUEEZY_TIER1_URL',
-        'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL',
-      ],
-      getLemonStoreUrl(),
+      ['VITE_LEMONSQUEEZY_TIER1_URL', 'VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL'],
+      LS_CHECKOUT_URLS.standard.monthly,
     );
   },
   get tier2Url() {
     return checkoutUrlFromEnvOrStore(
       ['VITE_LEMONSQUEEZY_TIER2_URL', 'VITE_LEMONSQUEEZY_PRO_MONTHLY_URL'],
-      'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
+      LS_CHECKOUT_URLS.pro.monthly,
     );
   },
   get tier3Url() {
     return checkoutUrlFromEnvOrStore(
-      [
-        'VITE_LEMONSQUEEZY_TIER3_URL',
-        'VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL',
-        'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL',
-      ],
-      'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
+      ['VITE_LEMONSQUEEZY_TIER3_URL', 'VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL', 'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL'],
+      LS_CHECKOUT_URLS.elite.monthly,
     );
   },
 };

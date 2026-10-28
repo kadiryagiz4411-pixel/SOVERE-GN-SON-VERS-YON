@@ -135,13 +135,33 @@ function extensionHeaders() {
   };
 }
 
+/**
+ * Race a promise against a fixed timeout.
+ * Rejects with an Error when the timeout fires first.
+ * Used by postJson() and scrapeActiveTab() so the sidepanel never hangs
+ * indefinitely waiting for a slow/unreachable server or an unresponsive
+ * content script.
+ */
+function withTimeout(promise, ms, label) {
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      reject(new Error(`[Sovereign] ${label || 'Request'} timed out after ${ms}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]);
+}
+
 function fetchNoRedirect(url, init) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   return fetch(url, {
     cache: 'no-store',
     redirect: 'manual',
+    signal: controller.signal,
     ...init,
     headers: { ...extensionHeaders(), ...(init?.headers || {}) },
-  });
+  }).finally(() => clearTimeout(timeoutId));
 }
 
 function isLiveStatus(res) {
@@ -429,10 +449,14 @@ async function fetchMe(accessToken) {
 }
 
 async function postJson(path, payload) {
-  const res = await fetchNoRedirect(`${apiUrl(path)}?t=${Date.now()}`, {
-    method: 'POST',
-    body: JSON.stringify(payload || {}),
-  });
+  const res = await withTimeout(
+    fetchNoRedirect(`${apiUrl(path)}?t=${Date.now()}`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    }),
+    15000,
+    `POST ${path}`,
+  );
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
   return data;
@@ -461,10 +485,16 @@ async function scrapeActiveTab(messageType = 'SCRAPE_PAGE') {
   }
 
   try {
-    const viaContent = await chrome.tabs.sendMessage(tab.id, { type: messageType || 'SCRAPE_PAGE' }).catch(() => null);
+    // Wrap sendMessage in a 6-second timeout — the content script could be
+    // unresponsive during Nuxt hydration or when the tab is still loading.
+    const viaContent = await withTimeout(
+      chrome.tabs.sendMessage(tab.id, { type: messageType || 'SCRAPE_PAGE' }).catch(() => null),
+      6000,
+      'content script scrape',
+    ).catch(() => null);
     if (viaContent?.success && viaContent.data?.pageText) return viaContent.data;
   } catch {
-    // Content script may not be loaded yet.
+    // Content script may not be loaded yet or timed out — fall through to executeScript.
   }
 
   try {

@@ -194,19 +194,31 @@ export const LEMON_SQUEEZY_CHECKOUT_URLS = {
  * Standard and Enterprise use the store as the safe href fallback;
  * CheckoutButton still mints a real checkout via /api/billing/checkout.
  */
+/**
+ * Canonical Lemon Squeezy checkout UUIDs — provided by the store owner.
+ * These are the ONLY correct buy-path slugs for this account.
+ * Do NOT modify these without a new URL from the LS dashboard.
+ */
 const FALLBACK_CHECKOUT_URLS: Partial<Record<CheckoutPlanId, { monthly?: string; yearly?: string; oneTime?: string }>> = {
+  standard: {
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/38a01448-3041-4e6d-8744-31287b12148a',
+    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/ae00354b-bdc6-4f24-88b9-971ada805e59',
+  },
   pro: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
-    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/c0ce34b3-8cd0-4554-9d06-f0de2fd2fec6',
+    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/b1be220d-f6b3-4b69-9808-0a08082f2fd5',
   },
   elite: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
-    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ada6ee8b-8dfc-48a8-a613-b38464ae323b',
+    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/9fdfa0f4-2dc3-47ef-a4b1-f6be5e1c7532',
   },
-  // Standard and Enterprise have no known UUID slugs; CheckoutButton handles
-  // those via the /api/billing/checkout hosted-checkout API using the numeric
-  // variant ID.  The href on the <a> tag falls through to getLemonStoreUrl()
-  // which is always a valid absolute URL and never 404s.
+  enterprise: {
+    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6ecc3830-d895-41c1-8204-e584b37563f0',
+    yearly:  'https://sovereignapp.lemonsqueezy.com/checkout/buy/5ad8c5b2-0061-4881-8402-8d110ec4b542',
+  },
+  single_pass: {
+    oneTime: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f3546a02-e784-4205-b319-d8324b9a1863',
+  },
 };
 
 const VARIANT_BY_PLAN: Record<CheckoutPlanId, { monthly?: string; yearly?: string; oneTime?: string }> = {
@@ -277,9 +289,9 @@ export function resolveCheckoutUrl(
   cycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
   if (planId === 'single_pass') {
-    // single_pass variant ID may be a UUID slug — use the warning-enabled path.
     return firstValidCheckout(
       LEMON_SQUEEZY_CHECKOUT_URLS.single_pass,
+      FALLBACK_CHECKOUT_URLS.single_pass?.oneTime,
       urlFromVariantId(getVariantId('single_pass')),
     );
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Key, PauseCircle, Ticket, Loader2, ShoppingBag } from 'lucide-react';
+import { Key, PauseCircle, Ticket, Loader2, ShoppingBag, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -18,6 +18,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
   const { hasBYOKAccess, user } = useSession();
   const [codes, setCodes] = useState(0);
   const [tier, setTier] = useState(0);
+  const [showByokKey, setShowByokKey] = useState(false);
   const [paused, setPaused] = useState(false);
   const [byokKey, setByokKey] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
@@ -117,13 +118,25 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
           <p className="text-xs text-muted-foreground">
             Tier 3 uses your OpenAI key and skips credit deduction. {hasStoredKey ? 'A key is already saved.' : 'No key saved yet.'}
           </p>
-          <Input
-            type="password"
-            autoComplete="off"
-            placeholder="sk-..."
-            value={byokKey}
-            onChange={(e) => setByokKey(e.target.value)}
-          />
+          <div className="relative">
+            <Input
+              type={showByokKey ? 'text' : 'password'}
+              autoComplete="off"
+              placeholder="sk-..."
+              value={byokKey}
+              onChange={(e) => setByokKey(e.target.value)}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              aria-label={showByokKey ? 'Hide key' : 'Show key'}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setShowByokKey((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showByokKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
           <Button
             size="sm"
             disabled={busy}

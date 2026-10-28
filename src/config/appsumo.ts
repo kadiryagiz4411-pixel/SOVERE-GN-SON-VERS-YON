@@ -47,13 +47,23 @@ export const APPSUMO_MONTHLY_CREDITS = {
   3: 1000,
 } as const;
 
+/**
+ * Lemon Squeezy checkout URLs for NEW AppSumo purchases on sovereignapp.pro.
+ * These are LS-hosted checkout pages (not the AppSumo marketplace itself).
+ */
+export const APPSUMO_LS_CHECKOUT_URLS = {
+  tier1: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1b6e35ec-fba6-441f-8b9a-7ac90d5fa4c2',
+  tier2: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6c9a1e9f-3870-49b2-a248-092a20718e48',
+  tier3: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/9075cf3d-2e73-4c22-b200-3b8db0c91e02',
+} as const;
+
 export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [
   {
     id: 'appsumo_tier1',
     planType: 'appsumo_tier1',
     numericTier: 1,
     label: 'Starter',
-    priceUsd: 49,
+    priceUsd: 59,
     monthlyCredits: APPSUMO_MONTHLY_CREDITS[1],
     audience: 'Individual freelancers & job seekers',
     extension: 'B2C Mode — included while monthly credits remain',
@@ -70,7 +80,7 @@ export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [
     planType: 'appsumo_tier2',
     numericTier: 2,
     label: 'Pro',
-    priceUsd: 149,
+    priceUsd: 139,
     monthlyCredits: APPSUMO_MONTHLY_CREDITS[2],
     audience: 'Active job applicants & power users',
     extension: 'B2C Mode with priority generation',
@@ -88,7 +98,7 @@ export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [
     planType: 'appsumo_b2b',
     numericTier: 3,
     label: 'B2B / Agency',
-    priceUsd: 299,
+    priceUsd: 249,
     monthlyCredits: APPSUMO_MONTHLY_CREDITS[3],
     audience: 'Agencies, team acquisition & B2B lead generation',
     extension: 'Full B2B + B2C extension — agency lead extraction & bulk pitch',
