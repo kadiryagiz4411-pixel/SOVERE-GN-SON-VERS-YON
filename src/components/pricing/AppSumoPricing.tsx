@@ -36,7 +36,7 @@ export function AppSumoPricing() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-start gap-5 md:grid-cols-3">
           {APPSUMO_LTD_TIERS.map((tier, index) => {
             const theme = TIER_THEME[index] ?? TIER_THEME[0];
             const popular = index === 1;
@@ -46,7 +46,7 @@ export function AppSumoPricing() {
               <article
                 key={tier.id}
                 className={cn(
-                  'relative flex flex-col rounded-2xl border p-6',
+                  'relative flex h-auto flex-col self-start rounded-2xl border p-6',
                   theme.border,
                   theme.bg,
                   popular && 'ring-1 ring-violet-400/40',
@@ -69,7 +69,7 @@ export function AppSumoPricing() {
                   {tier.monthlyCredits.toLocaleString()} credits / month
                 </div>
                 <p className="mt-3 text-xs text-slate-500">{tier.extension}</p>
-                <ul className="mt-5 flex-1 space-y-2">
+                <ul className="mt-5 space-y-2">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-slate-300">
                       <Check className={cn('mt-0.5 h-4 w-4 shrink-0', theme.color)} />

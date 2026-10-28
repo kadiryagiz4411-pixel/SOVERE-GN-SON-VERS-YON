@@ -86,7 +86,7 @@ export function PricingTable({
       {/* ── Subscription plan grid ──────────────────────────────────────────── */}
       <div
         className={cn(
-          "grid gap-5 items-stretch w-full max-w-full min-w-0 overflow-visible box-border pt-6",
+          "grid gap-5 items-start w-full max-w-full min-w-0 overflow-visible box-border pt-6",
           subscriptionTiers.length >= 4
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"

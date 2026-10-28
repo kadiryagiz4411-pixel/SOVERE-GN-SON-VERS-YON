@@ -133,7 +133,7 @@ export function PricingCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl border p-7 pt-10 transform-gpu transition-transform duration-300 hover:-translate-y-1 w-full max-w-full min-w-0 overflow-visible box-border",
+        "relative flex h-auto flex-col self-start rounded-2xl border p-7 pt-10 transform-gpu transition-transform duration-300 hover:-translate-y-1 w-full max-w-full min-w-0 overflow-visible box-border",
         CARD_BORDER[style],
       )}
     >
@@ -189,7 +189,7 @@ export function PricingCard({
       )} />
 
       {/* Feature list */}
-      <ul className="space-y-2.5 flex-1 mb-7">
+      <ul className="mb-7 space-y-2.5">
         {features.map((f, i) => {
           const hl = isHighlightedFeature(f);
           return (
