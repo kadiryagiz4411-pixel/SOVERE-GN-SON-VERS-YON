@@ -20,6 +20,8 @@ export interface MatchResult {
   clientFit?: number;
 }
 
+export const DEFAULT_PROFILE_TAGS = ['Freelance', 'General'];
+
 export const ONBOARDING_REQUIRED_MESSAGE =
   'Complete onboarding with at least two skills before Sovereign can calculate match and acceptance scores.';
 
@@ -54,8 +56,18 @@ export function normalizeSkillList(values: Array<string | null | undefined> | st
   return out.slice(0, 24);
 }
 
+/** Use saved skills when there are at least two. Otherwise score against default profile tags. */
+export function skillsForMatching(profile?: MatchProfile | null): string[] {
+  const listed = normalizeSkillList([
+    ...(profile?.skills || []),
+    profile?.profession || '',
+  ]);
+  if (listed.length >= 2) return listed;
+  return normalizeSkillList([...listed, ...DEFAULT_PROFILE_TAGS]);
+}
+
 export function isOnboardingComplete(profile?: MatchProfile | null): boolean {
-  return normalizeSkillList(profile?.skills).length >= 2;
+  return skillsForMatching(profile).length >= 2;
 }
 
 export function matchBand(score: number): string {
@@ -110,25 +122,7 @@ export function scoreOpportunity(
   listedSkills: string[] = [],
   options?: { depth?: MatchDepth; clientHistory?: string },
 ): MatchResult {
-  const userSkills = normalizeSkillList([
-    ...(profile?.skills || []),
-    profile?.profession || '',
-  ]);
-
-  if (userSkills.length < 2) {
-    return {
-      complete: false,
-      matchScore: 0,
-      acceptanceScore: 0,
-      matchedSkills: [],
-      missingSkills: [],
-      requiredSkills: [],
-      message: ONBOARDING_REQUIRED_MESSAGE,
-      narrative: ONBOARDING_REQUIRED_MESSAGE,
-      domainFit: 0,
-      clientFit: 0,
-    };
-  }
+  const userSkills = skillsForMatching(profile);
 
   const hay = `${jobTitle}\n${jobText}\n${budget}`.toLowerCase();
   const clientHay = String(options?.clientHistory || '').toLowerCase();

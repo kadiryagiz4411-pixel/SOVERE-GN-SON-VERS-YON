@@ -37,6 +37,36 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
+const ROLE_TAGS: Record<string, string> = {
+  freelance: 'Freelance',
+  fulltime: 'Full-time',
+  parttime: 'Part-time',
+  consulting: 'Consulting',
+};
+
+const INDUSTRY_TAGS: Record<string, string> = {
+  tech: 'Tech',
+  design: 'Design',
+  marketing: 'Marketing',
+  other: 'General',
+};
+
+const RATE_HOURLY: Record<string, number> = {
+  under25: 20,
+  '25-50': 37,
+  '50-100': 75,
+  '100+': 120,
+};
+
+function tagsFromAnswers(role?: string, industry?: string): string[] {
+  const tags = [
+    ROLE_TAGS[role || ''] || 'Freelance',
+    INDUSTRY_TAGS[industry || ''] || 'General',
+  ];
+  const unique = [...new Set(tags.filter((tag) => tag.length >= 2))];
+  return unique.length >= 2 ? unique : ['Freelance', 'General'];
+}
+
 const Onboarding = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
@@ -292,37 +322,44 @@ const Onboarding = () => {
         return;
       }
 
-      // Save ALL collected answers + mark onboarding complete.
-      // The update uses user_id FK (not PK) to match fetchProfileByAuthId convention.
-      const { error } = await supabase
+      const userId = session.user.id;
+      const wizardTags = tagsFromAnswers(answers.role, answers.industry);
+      const { data: existing } = await supabase
         .from('profiles')
-        .update({
-          onboarding_role: answers.role || null,
-          onboarding_experience: answers.experience || null,
-          onboarding_goal: answers.goal || null,
-          onboarding_volume: answers.volume || null,
-          onboarding_platform: answers.platform || null,
-          onboarding_rate: answers.rate || null,
-          onboarding_industry: answers.industry || null,
-          onboarding_completed: true,
-        })
-        .eq('user_id', session.user.id);
+        .select('skills')
+        .or(`user_id.eq.${userId},id.eq.${userId}`)
+        .limit(1)
+        .maybeSingle();
+      const prior = Array.isArray(existing?.skills) ? existing.skills.filter((skill) => skill.trim().length >= 2) : [];
+      const skills = [...new Set([...prior, ...wizardTags])].slice(0, 24);
+      const profileFields = {
+        onboarding_role: answers.role || null,
+        onboarding_experience: answers.experience || null,
+        onboarding_goal: answers.goal || null,
+        onboarding_volume: answers.volume || null,
+        onboarding_platform: answers.platform || null,
+        onboarding_rate: answers.rate || null,
+        onboarding_industry: answers.industry || null,
+        onboarding_completed: true,
+        experience: answers.experience || null,
+        profession_cluster: ROLE_TAGS[answers.role] || 'Freelance',
+        platform_type: answers.platform && answers.platform !== 'other' ? answers.platform : null,
+        skills: skills.length >= 2 ? skills : ['Freelance', 'General'],
+        ...(answers.rate && RATE_HOURLY[answers.rate] ? { hourly_rate: RATE_HOURLY[answers.rate] } : {}),
+      };
 
-      if (error) {
-        // Try PK fallback in case the row is keyed by id not user_id
-        await supabase
-          .from('profiles')
-          .update({
-            onboarding_role: answers.role || null,
-            onboarding_experience: answers.experience || null,
-            onboarding_goal: answers.goal || null,
-            onboarding_volume: answers.volume || null,
-            onboarding_platform: answers.platform || null,
-            onboarding_rate: answers.rate || null,
-            onboarding_industry: answers.industry || null,
-            onboarding_completed: true,
-          })
-          .eq('id', session.user.id);
+      const byUser = await supabase.from('profiles').update(profileFields).eq('user_id', userId).select('id');
+      const savedByUser = !byUser.error && (byUser.data?.length ?? 0) > 0;
+      if (!savedByUser) {
+        const byId = await supabase.from('profiles').update(profileFields).eq('id', userId).select('id');
+        const savedById = !byId.error && (byId.data?.length ?? 0) > 0;
+        if (!savedById) {
+          const inserted = await supabase
+            .from('profiles')
+            .upsert({ user_id: userId, ...profileFields }, { onConflict: 'user_id' })
+            .select('id');
+          if (inserted.error) throw inserted.error;
+        }
       }
 
       // 1) Persist to localStorage so ProtectedRoute never re-gates this session.

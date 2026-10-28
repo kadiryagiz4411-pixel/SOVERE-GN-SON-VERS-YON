@@ -354,15 +354,13 @@ function skillListFromSettings() {
 }
 
 /**
- * Returns the user's skill list when they have completed onboarding (≥2 skills),
- * or a temporary default set so the AI can produce a real proposal and match score
- * even before onboarding is finished. The UI always shows the onboarding hint
- * separately — this only prevents a hard block on the analysis path.
+ * Returns the user's skill list when they have at least two skills.
+ * Otherwise scores against Freelance and General so match calculation still runs.
  */
 function effectiveSkillList() {
   const skills = skillListFromSettings();
   if (skills.length >= 2) return skills;
-  return ['Full-Stack Development', 'Freelance Execution'];
+  return ['Freelance', 'General'];
 }
 
 function hideErrorBadge() {
@@ -543,11 +541,9 @@ function chipHtml(items, kind) {
 
 function humanMatchCopy(analysis, title) {
   const raw = String(analysis?.matchNarrative || analysis?.matchMessage || '').trim();
-  if (raw && !/here is your score|ai match result|match analytics|your score is/i.test(raw)) {
+  const skillBlock = /at least two skills|complete onboarding/i.test(raw);
+  if (raw && !skillBlock && !/here is your score|ai match result|match analytics|your score is/i.test(raw)) {
     return raw;
-  }
-  if (analysis?.onboardingRequired) {
-    return 'Add at least two skills in Settings so this brief can be scored against your profile.';
   }
   const score = Number(analysis?.match_score ?? analysis?.matchScore ?? 0);
   const accept = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? score);
@@ -574,7 +570,9 @@ function updateMatchUi(analysis, title) {
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
   const acceptRaw = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? safeScore);
   const accept = Number.isFinite(acceptRaw) ? Math.max(0, Math.min(100, Math.round(acceptRaw))) : safeScore;
-  const label = analysis?.matchLabel || (analysis?.onboardingRequired ? 'Add skills' : matchBand(safeScore));
+  const label = analysis?.matchLabel && !/add skills/i.test(String(analysis.matchLabel))
+    ? analysis.matchLabel
+    : matchBand(safeScore);
   const message = humanMatchCopy(analysis, title);
   lastScore = safeScore;
   lastMatch = {
@@ -582,7 +580,7 @@ function updateMatchUi(analysis, title) {
     strengths: Array.isArray(analysis?.strengths) ? analysis.strengths : (analysis?.matchedSkills || []),
     gaps: Array.isArray(analysis?.gaps) ? analysis.gaps : (analysis?.missingSkills || []),
     message,
-    onboardingRequired: Boolean(analysis?.onboardingRequired),
+    onboardingRequired: false,
     acceptanceScore: accept,
   };
 
@@ -915,9 +913,8 @@ async function refreshViewportAnalysis(pageData) {
 
   // Non-blocking onboarding hint: show a gentle nudge but continue with
   // effectiveSkillList() so the AI can still generate a proposal and score.
-  const hasUserSkills = skillListFromSettings().length >= 2;
   const busyMsg = lastJob.kind === 'cv' ? 'Scoring the profile on screen…' : 'Scoring the job on screen…';
-  setBusy(true, hasUserSkills ? busyMsg : `${busyMsg} (Add skills in Settings for a personal score.)`);
+  setBusy(true, busyMsg);
 
   try {
     const data = await postParseDom(pageData, { scoreOnly: true });
@@ -1712,12 +1709,9 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
     accountEmail: document.getElementById('accountEmail')?.value || '',
     outputLanguage: selectedLang,
   });
-  const count = skillListFromSettings().length;
   const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
   if (profileStatus) {
-    profileStatus.textContent = count < 2
-      ? `Saved (${langLabel}). Add at least two skills so match scores can be calculated.`
-      : `Saved ${count} skills for the match engine. Language: ${langLabel}.`;
+    profileStatus.textContent = `Saved (${langLabel}).`;
   }
 });
 

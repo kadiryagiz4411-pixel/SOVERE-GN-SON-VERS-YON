@@ -57,7 +57,7 @@ export function useApplyQueue(userId: string | undefined | null) {
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchInterval: 20_000,
+    refetchInterval: 5_000,
     retry: 1,
   });
 

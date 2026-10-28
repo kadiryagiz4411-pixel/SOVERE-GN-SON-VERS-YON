@@ -219,7 +219,7 @@ export async function fetchUpwork(keywords: string[]): Promise<OpportunityItem[]
   const feeds = await Promise.allSettled(
     queries.map((q) => fetchText(
       `https://www.upwork.com/ab/feed/jobs/rss?q=${encodeURIComponent(q)}&sort=recency&paging=0%3B10`,
-      8000,
+      4500,
     )),
   );
   const items: OpportunityItem[] = [];
@@ -275,7 +275,7 @@ export async function fetchFreelancer(keywords: string[]): Promise<OpportunityIt
   const payloads = await Promise.allSettled(
     queries.map((query) => fetchText(
       `https://www.freelancer.com/api/projects/0.1/projects/active/?limit=10&compact=true&full_description=true&job_details=true&query=${encodeURIComponent(query)}`,
-      8000,
+      4500,
       { Accept: 'application/json' },
     )),
   );
@@ -325,7 +325,7 @@ export async function fetchFreelancer(keywords: string[]): Promise<OpportunityIt
 export async function fetchLinkedIn(keywords: string[]): Promise<OpportunityItem[]> {
   const query = keywords[0] || 'React';
   const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}&start=0&f_TPR=r86400`;
-  const html = await fetchText(url, 8000);
+  const html = await fetchText(url, 4500);
   const cards = html.split(/base-card|job-search-card/i).slice(1, 21);
   const items: OpportunityItem[] = [];
   for (const card of cards) {

@@ -255,7 +255,9 @@ const ProfileSettings = () => {
       onboarding_experience: onboardingData.onboarding_experience || null,
       onboarding_goal: onboardingData.onboarding_goal || null,
       onboarding_volume: onboardingData.onboarding_volume || null,
-      onboarding_completed: !!(onboardingData.onboarding_role && onboardingData.onboarding_goal),
+      ...(onboardingData.onboarding_role && onboardingData.onboarding_goal
+        ? { onboarding_completed: true }
+        : {}),
     } as any);
 
     setSaving(false);

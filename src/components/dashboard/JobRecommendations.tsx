@@ -114,7 +114,7 @@ export const JobRecommendations = ({
     if (!loaded && proposal && (isPro || isElite)) {
       const timer = setTimeout(() => {
         if (!loaded) fetchRecommendations();
-      }, 1500);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [proposal]);

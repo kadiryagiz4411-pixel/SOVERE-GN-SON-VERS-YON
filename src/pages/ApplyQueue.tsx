@@ -12,7 +12,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
 import { opportunityToQueueRow } from '@/lib/opportunityFallback';
 import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
-import { isOnboardingComplete, normalizeSkillList } from '@/lib/matchScore';
+import { skillsForMatching } from '@/lib/matchScore';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import { useApplyQueue } from '@/hooks/useApplyQueue';
 import {
@@ -68,7 +68,6 @@ const ApplyQueue = () => {
     scanning: language === 'tr' ? 'Taranıyor...' : language === 'de' ? 'Wird gescannt...' : language === 'fr' ? 'Analyse en cours...' : 'Scanning…',
     copyProposal: language === 'tr' ? 'Teklifi kopyala' : language === 'de' ? 'Vorschlag kopieren' : language === 'fr' ? 'Copier la proposition' : 'Copy Proposal',
     viewOriginal: language === 'tr' ? 'Platformda gör / başvur ↗' : language === 'de' ? 'Auf der Plattform öffnen ↗' : language === 'fr' ? 'Voir / postuler ↗' : 'View / Apply on Platform ↗',
-    onboardingFirst: language === 'tr' ? 'Eşleşme skoru için onboarding’de en az iki beceri ekleyin.' : 'Add at least two skills in onboarding before Sovereign can calculate match scores.',
     noItems: language === 'tr' ? 'Henüz fırsat yok. Tarama yaparak başlayın.' : language === 'de' ? 'Noch keine Chancen. Starten Sie einen Scan.' : language === 'fr' ? 'Pas encore d\'opportunités. Lancez une recherche.' : 'No opportunities yet. Start a scan to find matches.',
     acceptance: language === 'tr' ? 'Kabul Olasılığı' : language === 'de' ? 'Annahmequote' : language === 'fr' ? 'Probabilité d\'acceptation' : 'Acceptance Probability',
     whyThis: language === 'tr' ? 'Neden bu iş?' : language === 'de' ? 'Warum dieser Job?' : language === 'fr' ? 'Pourquoi ce poste ?' : 'Why this job?',
@@ -89,18 +88,17 @@ const ApplyQueue = () => {
       toast.error(language === 'tr' ? 'Oturum gerekli' : 'Please sign in');
       return;
     }
-    const profileSkills = normalizeSkillList([
-      ...(Array.isArray(profile?.skills) ? profile.skills : []),
-      String(profile?.profession_cluster || ''),
-      String(profile?.onboarding_role || ''),
-    ]);
-    if (!isOnboardingComplete({ skills: profileSkills })) {
-      toast.error(txt.onboardingFirst);
-      return;
-    }
+    const profileSkills = skillsForMatching({
+      skills: [
+        ...(Array.isArray(profile?.skills) ? profile.skills : []),
+        String(profile?.onboarding_role || ''),
+        String(profile?.onboarding_industry || ''),
+      ],
+      profession: String(profile?.profession_cluster || ''),
+    });
     setScanning(true);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 22000);
+    const timeout = window.setTimeout(() => controller.abort(), 9000);
 
     try {
       const query = profileSkills.join(',');
