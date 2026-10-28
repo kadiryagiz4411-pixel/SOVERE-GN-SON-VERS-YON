@@ -337,19 +337,26 @@ const Onboarding = () => {
           .eq('id', session.user.id);
       }
 
-      // Optimistically flip the SessionContext flag BEFORE navigating so that
-      // ProtectedRoute immediately passes (avoids the redirect-loop race condition).
+      // 1) Persist to localStorage so ProtectedRoute never re-gates this session.
+      try { localStorage.setItem('sovereign_onboarding_done', 'true'); } catch { /**/ }
+
+      // 2) Optimistically flip the SessionContext flag (synchronous, instant).
       markOnboardingComplete();
-      // Also trigger an async DB re-fetch so the context stays in sync.
+
+      // 3) Trigger async DB re-fetch so the context stays in sync long-term.
       window.dispatchEvent(new Event('sovereign:profile-updated'));
 
       toast.success(language === 'tr' ? 'Profil oluşturuldu! 🎉' : 'Profile created! 🎉');
-      navigate('/dashboard', { replace: true });
+
+      // 4) Hard navigation — bypasses React Router's pending state and any
+      //    lingering ProtectedRoute render that could loop back to /onboarding.
+      window.location.href = '/dashboard';
     } catch (err) {
       console.error('[Onboarding] save error', err);
-      // Even if save fails, unlock the gate and navigate so users are never stuck.
+      // Even if save fails, never trap the user — unlock and hard-redirect.
+      try { localStorage.setItem('sovereign_onboarding_done', 'true'); } catch { /**/ }
       markOnboardingComplete();
-      navigate('/dashboard', { replace: true });
+      window.location.href = '/dashboard';
     } finally {
       setIsSaving(false);
     }
@@ -423,19 +430,21 @@ const Onboarding = () => {
                   onClick={() => handleSelect(option.value)}
                   className={`relative p-4 rounded-xl border-2 text-left transition-all duration-200 group ${
                     isSelected
-                      ? 'border-primary bg-primary/10 shadow-[0_0_20px_hsl(var(--primary)/0.2)]'
-                      : 'border-border bg-card hover:border-primary/40 hover:bg-card/80'
+                      ? 'border-amber-400 bg-amber-500/10 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
+                      : 'border-border bg-card hover:border-amber-500/50 hover:bg-amber-500/5'
                   }`}
                 >
                   {isSelected && (
                     <div className="absolute top-3 right-3">
-                      <CheckCircle className="w-5 h-5 text-primary" />
+                      <CheckCircle className="w-5 h-5 text-amber-400" />
                     </div>
                   )}
                   <div className="flex items-start gap-3">
-                    {/* Emoji icon bubble — extracted from the label so it always renders */}
-                    <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 text-2xl leading-none transition-colors ${
-                      isSelected ? 'bg-amber-500/20 border-amber-500/40' : 'bg-amber-500/10 border-amber-500/20'
+                    {/* Emoji icon bubble — always amber/yellow, bolder border when selected */}
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-2xl leading-none transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-amber-500/30 border-2 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.35)]'
+                        : 'bg-amber-500/15 border-2 border-amber-500/50 hover:bg-amber-500/25 hover:border-amber-400/70'
                     }`}>
                       {extractEmoji(option.label)}
                     </div>
