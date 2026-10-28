@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Crown, Shield, Users, Loader2, Search, X, ChevronLeft, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, RefreshCw, Activity, Key, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { OWNER_EMAIL, OWNER_PRIVILEGES } from '@/lib/superadmin';
+import { resolveDisplayTier } from '@/lib/displayTier';
 import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 // ─── System Health Types ──────────────────────────────────────────────────────
@@ -574,7 +575,7 @@ const Admin = () => {
                               {profile.full_name || 'Unnamed User'}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {profile.user_id.slice(0, 8)}...
+                              {profile.user_id?.slice(0, 8) ?? '--------'}...
                             </div>
                           </div>
                         </TableCell>
@@ -584,7 +585,7 @@ const Admin = () => {
                             className="flex items-center gap-1 w-fit"
                           >
                             {getPlanIcon(profile.subscription_plan)}
-                            {profile.subscription_plan === 'basic' ? 'free' : profile.subscription_plan}
+                            {resolveDisplayTier({ subscriptionPlan: profile?.subscription_plan }).label || 'Standard'}
                           </Badge>
                         </TableCell>
                         <TableCell>

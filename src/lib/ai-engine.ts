@@ -14,7 +14,7 @@ import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
 
 export class CreditLimitError extends Error {
   status = 402;
-  constructor(message = 'Credit limit reached. Upgrade to Tier 3 for Unlimited BYOK mode') {
+  constructor(message = 'Credit limit reached. Upgrade to AppSumo Agency for unlimited BYOK.') {
     super(message);
     this.name = 'CreditLimitError';
   }

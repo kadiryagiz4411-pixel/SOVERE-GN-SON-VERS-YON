@@ -48,15 +48,15 @@ export function assertFeatureAccess(appsumoTier: number, feature: AppSumoFeature
   const need = minTierFor(feature);
   if (appsumoTier >= need) return;
   if (feature === 'batch_proposals') {
-    throw new Error('Requires Tier 2 or higher');
+    throw new Error('Requires the Pro Plan or AppSumo Pro');
   }
   if (feature === 'agency_knowledge') {
-    throw new Error('Agency Knowledge Base requires Tier 2 or higher');
+    throw new Error('Agency Knowledge Base requires the Pro Plan or AppSumo Pro');
   }
   if (feature === 'byok_setup') {
-    throw new Error('BYOK requires Tier 3 (3 stacked AppSumo codes)');
+    throw new Error('BYOK requires AppSumo Agency');
   }
-  throw new Error('Requires AppSumo Tier 1 or a paid plan');
+  throw new Error('Requires AppSumo Starter or a paid plan');
 }
 
 export function canUseFeature(appsumoTier: number, feature: AppSumoFeature): boolean {

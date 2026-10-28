@@ -11,6 +11,7 @@ import { UserStatsCard } from '@/components/profile/UserStatsCard';
 import { PortfolioManager, type PortfolioProject } from '@/components/dashboard/PortfolioManager';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { resolveDisplayTier } from '@/lib/displayTier';
 import { User } from '@supabase/supabase-js';
 import {
   Crown,
@@ -209,7 +210,7 @@ const ProfileSettings = () => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || '',
-        skills: profile.skills?.join(', ') || '',
+        skills: Array.isArray(profile.skills) ? profile.skills.join(', ') : '',
         experience: profile.experience || '',
         hourly_rate: profile.hourly_rate?.toString() || '',
         bio: profile.bio || '',
@@ -330,14 +331,24 @@ const ProfileSettings = () => {
                 onAvatarUpdate={handleAvatarUpdate}
               />
             )}
-            {profile?.subscription_plan && profile.subscription_plan !== 'basic' && (
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-                <Crown className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary capitalize">
-                  {profile.subscription_plan} {labels.memberBadge}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const planBadge = resolveDisplayTier({
+                subscriptionPlan: profile?.subscription_plan,
+                subscriptionTier: profile?.subscription_tier,
+                planType: profile?.plan_type,
+                appsumoTier: profile?.appsumo_tier,
+                appsumoPlan: profile?.appsumo_plan,
+              });
+              if (!planBadge.isPaid) return null;
+              return (
+                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                  <Crown className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">
+                    {planBadge.label}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="mb-6">
@@ -591,9 +602,15 @@ const ProfileSettings = () => {
             <UserStatsCard
               userId={user.id}
               fullName={profile.full_name || null}
-              plan={profile.subscription_plan || 'basic'}
+              plan={resolveDisplayTier({
+                subscriptionPlan: profile?.subscription_plan,
+                subscriptionTier: profile?.subscription_tier,
+                planType: profile?.plan_type,
+                appsumoTier: profile?.appsumo_tier,
+                appsumoPlan: profile?.appsumo_plan,
+              }).label || 'Standard'}
               avatarUrl={profile.avatar_url || null}
-              skills={profile.skills || null}
+              skills={Array.isArray(profile.skills) ? profile.skills : null}
             />
           </div>
         )}

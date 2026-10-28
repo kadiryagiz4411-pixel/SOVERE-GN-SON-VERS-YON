@@ -334,19 +334,19 @@ export function daysUntilReset(resetDate: Date | null): string {
 export function tierLabel(tier: string): string {
   const map: Record<string, string> = {
     free:           'Free',
-    appsumo_tier1:  'AppSumo Starter ($49 LTD)',
-    appsumo_tier2:  'AppSumo Pro ($149 LTD)',
-    appsumo_b2b:    'AppSumo B2B / Agency ($299 LTD)',
-    appsumo_tier3:  'AppSumo B2B / Agency ($299 LTD)',
-    pro_monthly:    'Pro Monthly',
+    appsumo_tier1:  'AppSumo Starter',
+    appsumo_tier2:  'AppSumo Pro',
+    appsumo_b2b:    'AppSumo Agency',
+    appsumo_tier3:  'AppSumo Agency',
+    pro_monthly:    'Pro Plan',
     enterprise:     'Enterprise',
     standard:       'Standard',
-    pro:            'Pro',
+    pro:            'Pro Plan',
     elite:          'Elite',
     B2B_ENTERPRISE: 'Enterprise B2B',
   };
   if (tier === 'tier_1' || tier === 'tier1') return 'Standard';
-  if (tier === 'tier_2' || tier === 'tier2') return 'Pro';
+  if (tier === 'tier_2' || tier === 'tier2') return 'Pro Plan';
   if (tier === 'tier_3' || tier === 'tier3') return 'Elite';
   return map[tier] ?? 'Standard';
 }

@@ -35,9 +35,9 @@ const TIERS = [
   { value: 'pro',           label: 'Pro' },
   { value: 'elite',         label: 'Elite' },
   { value: 'enterprise',    label: 'Enterprise' },
-  { value: 'appsumo_tier1', label: 'AppSumo Tier 1' },
-  { value: 'appsumo_tier2', label: 'AppSumo Tier 2' },
-  { value: 'appsumo_b2b',   label: 'AppSumo Tier 3 (B2B)' },
+  { value: 'appsumo_tier1', label: 'AppSumo Starter' },
+  { value: 'appsumo_tier2', label: 'AppSumo Pro' },
+  { value: 'appsumo_b2b',   label: 'AppSumo Agency' },
 ] as const;
 
 // ─── Visibility guard ─────────────────────────────────────────────────────────

@@ -19,7 +19,7 @@ export function CreditBadge({ balance, className, to = '/pricing', unlimited = f
           'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
           className,
         )}
-        title="Tier 3 BYOK — credits are not deducted"
+        title="Agency BYOK — credits are not deducted"
       >
         <Zap className="w-3.5 h-3.5" />
         UNLIMITED (BYOK Active)

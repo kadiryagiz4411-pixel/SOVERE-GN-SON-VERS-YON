@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { PricingTable, SinglePassBanner } from "@/components/pricing/PricingTable";
 import { getTierByPlanType } from "@/config/pricing";
+import { resolveRemainingCredits } from "@/lib/credits";
+import { resolveDisplayTier } from "@/lib/displayTier";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PauseSubscriptionModal } from "@/components/subscription/PauseSubscriptionModal";
@@ -36,13 +38,6 @@ const PLAN_ICON: Record<string, React.ReactNode> = {
   B2B_ENTERPRISE: <Building2 className="w-5 h-5 text-yellow-400" />,
 };
 
-const PLAN_LABEL: Record<string, string> = {
-  free: "Free",
-  standard: "Standard",
-  pro: "Pro",
-  elite: "Elite",
-  B2B_ENTERPRISE: "Enterprise B2B",
-};
 
 export default function Billing() {
   const navigate = useNavigate();
@@ -64,9 +59,9 @@ export default function Billing() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("plan_type, credits_balance, credits_used, created_at, org_id")
+        .select("*")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       let orgName: string | undefined;
       if ((profile as any)?.org_id) {
@@ -80,7 +75,7 @@ export default function Billing() {
 
       setBilling({
         planType: (profile as any)?.plan_type ?? "free",
-        creditsBalance: (profile as any)?.credits_balance ?? 0,
+        creditsBalance: resolveRemainingCredits(profile as any),
         creditsUsed: (profile as any)?.credits_used ?? 0,
         memberSince: (profile as any)?.created_at ?? new Date().toISOString(),
         email: user.email ?? "",
@@ -94,7 +89,9 @@ export default function Billing() {
   };
 
   const currentPlan = billing ? getTierByPlanType(billing.planType) : undefined;
-  const planLabel = billing ? (PLAN_LABEL[billing.planType] ?? billing.planType) : "Free";
+  const planLabel = billing
+    ? (resolveDisplayTier({ planType: billing.planType, subscriptionPlan: billing.planType }).label || "Standard")
+    : "Standard";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">

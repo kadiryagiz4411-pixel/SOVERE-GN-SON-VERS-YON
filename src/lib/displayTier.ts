@@ -84,12 +84,21 @@ export function resolveDisplayTier(input: {
     return { id: 'tier_2', label: 'AppSumo Pro', className: TIER2, isPaid: true };
   }
   if (raw === 'pro' || raw.includes('pro')) {
-    return { id: 'pro', label: 'Pro', className: TIER2, isPaid: true };
+    return { id: 'pro', label: 'Pro Plan', className: TIER2, isPaid: true };
   }
   if (raw.includes('appsumo') && (raw.includes('tier1') || raw.includes('tier_1'))) {
     return { id: 'tier_1', label: 'AppSumo Starter', className: TIER1, isPaid: true };
   }
   if (raw === 'standard' || raw.includes('standard') || raw.includes('single_pass')) {
+    return { id: 'standard', label: 'Standard', className: TIER1, isPaid: true };
+  }
+  if (raw === 'tier_3' || raw === 'tier3') {
+    return { id: 'elite', label: 'Elite', className: TIER3, isPaid: true };
+  }
+  if (raw === 'tier_2' || raw === 'tier2') {
+    return { id: 'pro', label: 'Pro Plan', className: TIER2, isPaid: true };
+  }
+  if (raw === 'tier_1' || raw === 'tier1') {
     return { id: 'standard', label: 'Standard', className: TIER1, isPaid: true };
   }
 

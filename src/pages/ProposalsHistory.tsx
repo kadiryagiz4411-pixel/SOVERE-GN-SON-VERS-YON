@@ -10,6 +10,7 @@ import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottom
 import { useLanguage } from '@/i18n/LanguageContext';
 import { User } from '@supabase/supabase-js';
 import { getDownloadLimit } from '@/lib/plans';
+import { resolveDisplayTier } from '@/lib/displayTier';
 import { getDownloadsUsedToday, incrementDownloadsUsed } from '@/lib/downloads';
 import { ProposalDocumentView } from '@/components/documents/DocumentViews';
 import {
@@ -249,14 +250,24 @@ const ProposalsHistory = () => {
               {profile?.bio && (
                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{profile.bio}</p>
               )}
-              {profile?.subscription_plan && profile.subscription_plan !== 'basic' && (
-                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-                  <Crown className="w-3 h-3 text-primary" />
-                  <span className="text-xs font-medium text-primary capitalize">
-                    {profile.subscription_plan}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const planBadge = resolveDisplayTier({
+                  subscriptionPlan: profile?.subscription_plan,
+                  subscriptionTier: profile?.subscription_tier,
+                  planType: profile?.plan_type,
+                  appsumoTier: profile?.appsumo_tier,
+                  appsumoPlan: profile?.appsumo_plan,
+                });
+                if (!planBadge.isPaid) return null;
+                return (
+                  <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                    <Crown className="w-3 h-3 text-primary" />
+                    <span className="text-xs font-medium text-primary">
+                      {planBadge.label || 'Standard'}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Stats */}

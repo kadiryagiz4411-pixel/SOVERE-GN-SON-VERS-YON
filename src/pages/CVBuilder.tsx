@@ -31,7 +31,6 @@ import {
 import { toast } from 'sonner';
 import { publicUserError } from '@/lib/openaiErrors';
 import type { User } from '@supabase/supabase-js';
-import { CreditBadge } from '@/components/credits/CreditBadge';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 import { PaywallModal } from '@/components/modals/PaywallModal';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
@@ -556,10 +555,9 @@ const CVBuilder = () => {
                 : isPro ? 'bg-primary/20 text-primary'
                 : 'bg-muted text-muted-foreground'
               }`}>
-                {appSession.displayTier.label}
+                {appSession.displayTier?.label || 'Standard'}
               </span>
             </div>
-            <CreditBadge balance={creditsBalance} />
           </div>
         </header>
 
@@ -1033,7 +1031,7 @@ const CVBuilder = () => {
       <InsufficientCreditsModal
         open={showCreditsModal}
         onOpenChange={setShowCreditsModal}
-        balance={creditsBalance}
+        balance={appSession.remainingCredits || creditsBalance || 0}
         actionLabel="CV creation / optimization"
       />
       <PaywallModal

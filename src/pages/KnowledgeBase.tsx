@@ -72,7 +72,7 @@ export default function KnowledgeBase() {
     <GatedAppPage
       required="pro"
       featureName="Agency Knowledge Base"
-      description="Save case studies, brand voice, and service packages for batch proposals. Requires Tier 2 or higher."
+      description="Save case studies, brand voice, and service packages for batch proposals. Requires Pro Plan or AppSumo Pro."
     >
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center gap-3">
@@ -90,7 +90,7 @@ export default function KnowledgeBase() {
         ) : !allowed ? (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex gap-2 text-sm text-amber-200">
             <Lock className="w-4 h-4 mt-0.5 shrink-0" />
-            Agency Knowledge Base requires AppSumo Tier 2 (2 stacked codes) or Pro.
+            Agency Knowledge Base requires AppSumo Pro or the Pro Plan.
           </div>
         ) : (
           <>

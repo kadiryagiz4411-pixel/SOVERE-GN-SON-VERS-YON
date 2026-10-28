@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
   Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket, Ticket, Loader2,
@@ -79,7 +78,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
   const session = useSession();
   const {
     remainingCredits,
-    monthlyCreditLimit,
     appsumoTier,
     appsumoPlan,
     isByokUnlimited,
@@ -123,7 +121,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     planType === 'B2B_ENTERPRISE';
 
   const currentCredits = remainingCredits > 0 ? remainingCredits : (creditsBalance || remainingCredits || 0);
-  const maxCredits = monthlyCreditLimit || 400;
   const showAgencyTools = isSuperAdmin || Number(appsumoTier) >= 2 || isPro;
   const showByokSettings = isSuperAdmin || hasBYOKAccess || isByokUnlimited;
   const eliteNav = isSuperAdmin
@@ -133,9 +130,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
       return true;
     });
   const enterpriseNav = ENTERPRISE_NAV_ITEMS;
-  const percentage = maxCredits > 0
-    ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
-    : 0;
 
   const txt = {
     dashboard: language === 'tr' ? 'Başvuru Motoru' : language === 'de' ? 'Application Engine' : language === 'fr' ? 'Moteur de candidature' : 'Application Engine',
@@ -292,22 +286,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           </Link>
         </div>
 
-        {/* Credit balance */}
-        <div className="px-5 py-3 border-b border-border">
-          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} className="w-full justify-center" />
-          {!(isByokUnlimited || hasBYOKAccess) && (
-            <>
-          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-          <p className="mt-1.5 text-[10px] text-muted-foreground">{currentCredits.toLocaleString()} / {maxCredits.toLocaleString()} · 20 credits per AI action</p>
-            </>
-          )}
-        </div>
-
         <div className="px-3 pt-2">
           <ExtensionReadyWidget />
         </div>
@@ -374,7 +352,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
             <LanguageSelector />
           </div>
         </div>

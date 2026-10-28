@@ -6,7 +6,6 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useSession } from '@/contexts/SessionContext';
-import { CreditBadge } from '@/components/credits/CreditBadge';
 import { supabase } from '@/integrations/supabase/client';
 
 export const Header = () => {
@@ -14,7 +13,7 @@ export const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, creditsBalance } = useSession();
+  const { user } = useSession();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -66,7 +65,6 @@ export const Header = () => {
             {user ? (
               /* ── Authenticated ── */
               <>
-                <CreditBadge balance={creditsBalance} />
                 <Link to="/dashboard">
                   <Button variant="ghost" className="gap-2">
                     <LayoutDashboard className="w-4 h-4" />
@@ -123,7 +121,6 @@ export const Header = () => {
                 <LanguageSelector />
                 {user ? (
                   <div className="flex gap-2">
-                    <CreditBadge balance={creditsBalance} />
                     <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="ghost" size="sm" className="gap-1.5">
                         <LayoutDashboard className="w-3.5 h-3.5" />

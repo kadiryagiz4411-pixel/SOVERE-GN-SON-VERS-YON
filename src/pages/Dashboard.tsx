@@ -203,7 +203,7 @@ const Dashboard = () => {
     subscriptionTier: currentPlan,
     subscriptionStatus,
     b2bSubscriptionStatus,
-    remainingCredits: remainingCredits ?? profile?.credits_balance ?? 0,
+    remainingCredits: resolveRemainingCredits(profile) || remainingCredits || 0,
     isTrialActive,
     trialEndsAt,
     user: sessionUser,
@@ -742,7 +742,7 @@ const Dashboard = () => {
     // IMPORTANT: use session remainingCredits (not raw profile.credits_balance) so the
     // SessionContext's 999999 superadmin override is always respected.
     const isUnlimited = isSuperAdmin || isByokUnlimited || hasBYOKAccess;
-    const effectiveBalance = isUnlimited ? 999999 : (remainingCredits ?? profile?.credits_balance ?? 0);
+    const effectiveBalance = isUnlimited ? 999999 : (resolveRemainingCredits(profile) || remainingCredits || 0);
     const blocked = generationPaywall();
     if (blocked.kind !== 'none') {
       setPaywallKind(blocked.kind);
@@ -784,9 +784,9 @@ const Dashboard = () => {
         jobDescription,
         tone: isPaidPlan(currentPlan) ? selectedTone : undefined,
         userProfile: profile ? {
-          skills: profile.skills,
-          experience: profile.experience,
-          hourly_rate: profile.hourly_rate,
+          skills: profile?.skills,
+          experience: profile?.experience,
+          hourly_rate: profile?.hourly_rate,
         } : undefined,
         customProfession: customProfession.trim() || undefined,
         userSegment,
@@ -900,11 +900,11 @@ const Dashboard = () => {
         const updatedProfile = {
           ...profile,
           credits_balance: nextCredits,
-          daily_proposals_used: result.usage?.used ?? profile.daily_proposals_used,
+          daily_proposals_used: result.usage?.used ?? profile?.daily_proposals_used ?? 0,
         };
 
         if (result.usage && result.usage.used > 0 && result.usage.used % 10 === 0 && user) {
-          const newBonus = (profile.bonus_credits || 0) + 5;
+          const newBonus = (profile?.bonus_credits || 0) + 5;
           await supabase.from('profiles').update({ bonus_credits: newBonus }).eq('user_id', user.id);
           updatedProfile.bonus_credits = newBonus;
           toast.success('🎁 Milestone! You\'ve earned +5 bonus proposals!', { duration: 5000 });
@@ -1116,7 +1116,7 @@ const Dashboard = () => {
   // Show segment selector if not chosen yet
   if (!userSegment) {
     return (
-      <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={profile?.credits_balance ?? 0}>
+      <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={resolveRemainingCredits(profile) || remainingCredits || 0}>
         <div className="min-h-screen bg-background">
           <SegmentSelector onSelect={handleSegmentSelect} />
         </div>
@@ -1124,11 +1124,11 @@ const Dashboard = () => {
     );
   }
 
-  const planLabel = displayTier?.label || profile?.subscription_plan || 'Standard';
+  const planLabel = displayTier?.label || 'Standard';
 
   const isFreelancer = userSegment === 'freelancer';
   const profileCredits = resolveRemainingCredits(profile);
-  const creditsBalance = remainingCredits || profileCredits || 0;
+  const creditsBalance = profileCredits > 0 ? profileCredits : (remainingCredits || 0);
   // SuperAdmin always sees the session balance; everyone else uses the same resolver.
   const currentCredits = isSuperAdmin || isByokUnlimited || hasBYOKAccess
     ? remainingCredits
@@ -1325,7 +1325,7 @@ const Dashboard = () => {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-2xl border border-border bg-background/60 p-3 min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">{dashboardUiText.proposalsRemaining}</p>
                       <p className="mt-1.5 text-lg font-bold text-foreground truncate">{hasUnlimitedProposals ? '∞' : Math.max(0, dailyLimit - proposalsUsed + bonusCredits)}</p>
@@ -1333,21 +1333,6 @@ const Dashboard = () => {
                     <div className="rounded-2xl border border-border bg-background/60 p-3 min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">{dashboardUiText.downloadsRemaining}</p>
                       <p className="mt-1.5 text-lg font-bold text-foreground truncate">{downloadLimit === Infinity ? '∞' : Math.max(0, downloadLimit - downloadsUsed)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-background/60 p-3 min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">{dashboardUiText.creditsReady}</p>
-                      <div className={`mt-1.5 flex items-center gap-1.5 ${isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400' : 'text-foreground'}`}>
-                        <Coins className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                        <span className="text-lg font-bold">{creditDisplayLabel}</span>
-                      </div>
-                      {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
-                        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1390,19 +1375,6 @@ const Dashboard = () => {
                           <span>{downloadUsageLabel}</span>
                         </div>
                         <Progress value={downloadProgressValue} className="h-2.5" />
-                      </div>
-
-                      <div>
-                        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                          <span>{dashboardUiText.creditBalance}</span>
-                          <span className={isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400 font-semibold' : ''}>
-                            {creditDisplayLabel}
-                            {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && ` / ${maxCredits.toLocaleString()}`}
-                          </span>
-                        </div>
-                        {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
-                          <Progress value={percentage} className="h-2.5" />
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2138,7 +2110,7 @@ const Dashboard = () => {
       <InsufficientCreditsModal
         open={showCreditsModal}
         onOpenChange={setShowCreditsModal}
-        balance={profile?.credits_balance ?? 0}
+        balance={currentCredits || 0}
         actionLabel="This AI action"
       />
       <PaywallModal
@@ -2152,14 +2124,17 @@ const Dashboard = () => {
         open={showCVOptimizer}
         onOpenChange={setShowCVOptimizer}
         userPlan={currentPlan}
-        creditsBalance={profile?.credits_balance ?? 0}
+        creditsBalance={currentCredits || 0}
         onCreditsConsumed={(remaining) => {
           if (profile) {
+            const next = typeof remaining === 'number'
+              ? remaining
+              : Math.max(0, resolveRemainingCredits(profile) - COST_PER_ACTION);
             setProfile({
               ...profile,
-              credits_balance: typeof remaining === 'number'
-                ? remaining
-                : Math.max(0, (profile.credits_balance ?? 0) - COST_PER_ACTION),
+              remaining_credits: next,
+              credits_remaining: next,
+              credits_balance: next,
             });
           }
         }}

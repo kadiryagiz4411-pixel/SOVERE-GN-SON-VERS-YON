@@ -73,11 +73,15 @@ export interface TierProfile {
  *
  * Requires: appsumo_b2b or enterprise.
  */
-export function canAccessB2BBulkScreening(profile: TierProfile): boolean {
-  const rank = TIER_RANK[profile.subscription_tier ?? '']
+function planRank(profile?: TierProfile | null): number {
+  if (!profile) return 0;
+  return TIER_RANK[profile.subscription_tier ?? '']
     ?? TIER_RANK[profile.subscription_plan ?? '']
     ?? 0;
-  return rank >= 3; // appsumo_b2b or higher
+}
+
+export function canAccessB2BBulkScreening(profile?: TierProfile | null): boolean {
+  return planRank(profile) >= 3;
 }
 
 /**
@@ -89,11 +93,8 @@ export function canAccessB2BBulkScreening(profile: TierProfile): boolean {
  *
  * Requires: appsumo_tier2, appsumo_b2b, or enterprise.
  */
-export function canAccessAdvancedB2C(profile: TierProfile): boolean {
-  const rank = TIER_RANK[profile.subscription_tier ?? '']
-    ?? TIER_RANK[profile.subscription_plan ?? '']
-    ?? 0;
-  return rank >= 2; // tier2 or higher
+export function canAccessAdvancedB2C(profile?: TierProfile | null): boolean {
+  return planRank(profile) >= 2;
 }
 
 /**
@@ -103,11 +104,8 @@ export function canAccessAdvancedB2C(profile: TierProfile): boolean {
  *
  * Requires: any paid / AppSumo tier.
  */
-export function canAccessBasicTailoring(profile: TierProfile): boolean {
-  const rank = TIER_RANK[profile.subscription_tier ?? '']
-    ?? TIER_RANK[profile.subscription_plan ?? '']
-    ?? 0;
-  return rank >= 1; // tier1 or higher
+export function canAccessBasicTailoring(profile?: TierProfile | null): boolean {
+  return planRank(profile) >= 1;
 }
 
 /**
@@ -115,7 +113,7 @@ export function canAccessBasicTailoring(profile: TierProfile): boolean {
  */
 export function canAccess(
   feature: 'basic_tailoring' | 'advanced_b2c' | 'b2b_bulk_screening',
-  profile: TierProfile,
+  profile?: TierProfile | null,
 ): boolean {
   switch (feature) {
     case 'basic_tailoring':      return canAccessBasicTailoring(profile);
@@ -222,7 +220,7 @@ export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
     ],
   },
   appsumo_tier3: {
-    headline:    'B2B / Agency $299 Tier Activated!',
+    headline:    'AppSumo Agency Activated',
     subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
     badge:       'Agency LTD',
     creditsLine: '1,000 credits / month — refreshes every month',
@@ -234,12 +232,12 @@ export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
     ],
   },
   appsumo_b2b: {
-    headline:    'B2B / Agency $299 Tier Activated!',
+    headline:    'AppSumo Agency Activated',
     subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
     badge:       'Agency LTD',
     creditsLine: '1,000 credits / month — refreshes every month',
     features:    [
-      'Everything in Tier 2',
+      'Everything in AppSumo Pro',
       'Bulk CV Screening (up to 100 CVs at once)',
       'Ranked Applicant Table',
       'Bulk Rejection Email Generator',
