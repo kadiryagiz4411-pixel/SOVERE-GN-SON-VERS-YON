@@ -856,6 +856,10 @@ export type Database = {
         }
         Returns: number
       }
+      consume_free_allowance: {
+        Args: { p_kind: string }
+        Returns: number
+      }
       can_claim_trial: { Args: { _user_id: string }; Returns: boolean }
       redeem_appsumo_code: { Args: { code_input: string }; Returns: Json }
       start_b2b_cardless_trial: { Args: Record<PropertyKey, never>; Returns: Json }

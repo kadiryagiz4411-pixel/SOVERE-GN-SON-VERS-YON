@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits } from '@/lib/credits';
+import { consumeFreeAllowance, freeAllowanceRemaining } from '@/lib/freeAllowance';
+import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 import { PaywallModal } from '@/components/modals/PaywallModal';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
@@ -219,7 +221,13 @@ export const CVOptimizerModal = ({
   };
 
   const handleUnlockFull = async () => {
-    if (!canUnlock) {
+    const { data: { user: liveUser } } = await supabase.auth.getUser();
+    const profileRow = liveUser
+      ? (await fetchProfileByAuthId(liveUser.id, '*')).data
+      : null;
+    const freeCvs = freeAllowanceRemaining(profileRow, 'cv');
+    const usingFreeCv = !isModalUnlimited && freeCvs > 0;
+    if (!usingFreeCv && !canUnlock) {
       const blocked = paywallFromSession({
         isOwner: isModalUnlimited,
         isUnlimited: isModalUnlimited,
@@ -290,6 +298,9 @@ export const CVOptimizerModal = ({
           if (fallbackCV) {
             setOptimizedCV(fallbackCV);
             setStep('diff');
+            if (usingFreeCv) {
+              await consumeFreeAllowance('cv');
+            }
             toast.success('CV optimized via direct connection ✅');
             return;
           }
@@ -318,7 +329,15 @@ export const CVOptimizerModal = ({
       setInjectedKeywords(result.injectedKeywords || []);
       setQuantifiedBullets(result.quantifiedBullets || 0);
       setStep('diff');
-      onCreditsConsumed?.(result.creditsRemaining);
+      const serverUsedFree = result?.usedFreeAllowance === true;
+      const serverCharged = typeof result?.creditsCharged === 'number'
+        ? result.creditsCharged > 0
+        : typeof result?.creditsRemaining === 'number';
+      if (usingFreeCv && !serverUsedFree && !serverCharged) {
+        await consumeFreeAllowance('cv');
+      } else if (!usingFreeCv || serverCharged) {
+        onCreditsConsumed?.(result.creditsRemaining);
+      }
       toast.success('CV optimized!');
     } catch (err: any) {
       const msg = err?.message || err?.toString() || 'CV Optimization failed — unexpected error.';
@@ -335,6 +354,7 @@ export const CVOptimizerModal = ({
       if (fallbackCV) {
         setOptimizedCV(fallbackCV);
         setStep('diff');
+        if (usingFreeCv) await consumeFreeAllowance('cv');
         toast.success('CV optimized via direct connection ✅');
         return;
       }

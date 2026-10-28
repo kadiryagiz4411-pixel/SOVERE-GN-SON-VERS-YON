@@ -1,7 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
-  COST_PER_ACTION,
   assertActionCredits,
   deductActionCredits,
   insufficientCreditsBody,
@@ -289,7 +288,7 @@ Deno.serve(async (req) => {
       console.error("[generate-proposal] profile fetch failed", profileError);
     }
 
-    const creditGate = await assertActionCredits(supabase, user.id, user.email);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email, "proposal_generation");
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -682,14 +681,18 @@ Write the application text now. No explanations — just the text I'll send.`;
         })
         .eq("user_id", user.id);
 
-      const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+      const charge = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+      const creditsRemaining = charge.remaining;
+      const creditsCharged = charge.creditsCharged;
+      const usedFreeAllowance = charge.usedFreeAllowance;
 
       return new Response(
         JSON.stringify({
           proposal: generatedProposal,
           variants: null,
           freelanceScore: freelanceScoreResult,
-          creditsCharged: COST_PER_ACTION,
+          creditsCharged,
+          usedFreeAllowance,
           creditsRemaining,
           usage: {
             used: currentUsage + 1,
@@ -793,14 +796,18 @@ Write the application text now. No explanations — just the text I'll send.`;
               })
               .eq("user_id", user.id);
 
-            const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+            const charge = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+            const creditsRemaining = charge.remaining;
+            const creditsCharged = charge.creditsCharged;
+            const usedFreeAllowance = charge.usedFreeAllowance;
             
             return new Response(
               JSON.stringify({
                 proposal: fallbackText,
                 variants: [{ id: 'fallback', label: 'Generated Proposal', badge: '📝 Proposal', description: 'AI-generated proposal', text: fallbackText }],
                 freelanceScore: freelanceScoreResult,
-                creditsCharged: COST_PER_ACTION,
+                creditsCharged,
+                usedFreeAllowance,
                 creditsRemaining,
                 usage: { used: currentUsage + 1, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentUsage - 1 },
               }),
@@ -829,7 +836,10 @@ Write the application text now. No explanations — just the text I'll send.`;
       })
       .eq("user_id", user.id);
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+    const charge = await deductActionCredits(supabase, user.id, "proposal_generation", user.email);
+    const creditsRemaining = charge.remaining;
+    const creditsCharged = charge.creditsCharged;
+    const usedFreeAllowance = charge.usedFreeAllowance;
 
     console.log(`Generated ${successfulVariants.length} variants for ${plan} plan, segment: ${userSegment}`);
 
@@ -844,7 +854,8 @@ Write the application text now. No explanations — just the text I'll send.`;
           text: v.text,
         })),
         freelanceScore: freelanceScoreResult,
-        creditsCharged: COST_PER_ACTION,
+        creditsCharged,
+        usedFreeAllowance,
         creditsRemaining,
         usage: {
           used: currentUsage + 1,

@@ -2,7 +2,6 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { parseLLMJson } from "../_shared/llmJson.ts";
 import {
-  COST_PER_ACTION,
   assertActionCredits,
   deductActionCredits,
   insufficientCreditsBody,
@@ -91,7 +90,7 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase
       .from("profiles").select("*").or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle();
 
-    const creditGate = await assertActionCredits(supabase, user.id, user.email);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email, "cv_creation");
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -254,15 +253,16 @@ ${parts.join('\n\n')}`;
       }
     }
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_creation", user.email);
+    const charge = await deductActionCredits(supabase, user.id, "cv_creation", user.email);
 
     return new Response(
       JSON.stringify({
         cv: cvContent,
         acceptanceScore,
         plan,
-        creditsCharged: COST_PER_ACTION,
-        creditsRemaining,
+        creditsCharged: charge.creditsCharged,
+        usedFreeAllowance: charge.usedFreeAllowance,
+        creditsRemaining: charge.remaining,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

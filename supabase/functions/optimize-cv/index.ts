@@ -1,7 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
-  COST_PER_ACTION,
   assertActionCredits,
   deductActionCredits,
   insufficientCreditsBody,
@@ -93,7 +92,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const creditGate = await assertActionCredits(supabase, user.id, user.email);
+    const creditGate = await assertActionCredits(supabase, user.id, user.email, "cv_optimization");
     if (!creditGate.ok) {
       return new Response(
         JSON.stringify(insufficientCreditsBody(creditGate.balance)),
@@ -244,7 +243,7 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
 
     console.log(`[optimize-cv] score=${score} keywords=${injectedKeywords.length} starBullets=${quantifiedBullets}`);
 
-    const creditsRemaining = await deductActionCredits(supabase, user.id, "cv_optimization", user.email);
+    const charge = await deductActionCredits(supabase, user.id, "cv_optimization", user.email);
 
     return new Response(
       JSON.stringify({
@@ -255,8 +254,9 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
         injectedKeywords,
         quantifiedBullets,
         tone,
-        creditsCharged: COST_PER_ACTION,
-        creditsRemaining,
+        creditsCharged: charge.creditsCharged,
+        usedFreeAllowance: charge.usedFreeAllowance,
+        creditsRemaining: charge.remaining,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

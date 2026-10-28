@@ -360,6 +360,10 @@ const CVBuilder = () => {
             if (fallbackCV) {
               setGeneratedCV(fallbackCV);
               try { localStorage.setItem('sovereign_last_cv', fallbackCV); } catch {}
+              if (usingFreeCv) {
+                const left = await consumeFreeAllowance('cv');
+                setFreeCvsLeft(left ?? Math.max(0, freeCvsLeft - 1));
+              }
               toast.success('✅ CV generated via direct connection.');
               return; // success — skip error handling below
             }
@@ -392,9 +396,18 @@ const CVBuilder = () => {
       // LocalStorage backup — user never loses content even if Supabase is down.
       try { localStorage.setItem('sovereign_last_cv', cvText); } catch {}
       if (result.acceptanceScore) setAcceptanceScore(result.acceptanceScore);
-      if (typeof result.creditsRemaining === 'number') {
+      const serverUsedFree = (result as { usedFreeAllowance?: boolean }).usedFreeAllowance === true;
+      const serverCharged = typeof (result as { creditsCharged?: number }).creditsCharged === 'number'
+        ? (result as { creditsCharged?: number }).creditsCharged! > 0
+        : typeof result.creditsRemaining === 'number';
+      if (usingFreeCv && (serverUsedFree || !serverCharged)) {
+        const left = serverUsedFree
+          ? Math.max(0, freeCvsLeft - 1)
+          : (await consumeFreeAllowance('cv')) ?? Math.max(0, freeCvsLeft - 1);
+        setFreeCvsLeft(left);
+      } else if (typeof result.creditsRemaining === 'number') {
         setCreditsBalance(result.creditsRemaining);
-      } else {
+      } else if (!usingFreeCv) {
         setCreditsBalance(prev => Math.max(0, prev - COST_PER_ACTION));
       }
       incrementCVGenerations();
