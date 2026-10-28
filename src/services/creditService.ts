@@ -340,13 +340,13 @@ export function tierLabel(tier: string): string {
     appsumo_tier3:  'AppSumo Agency',
     pro_monthly:    'Pro Plan',
     enterprise:     'Enterprise',
-    standard:       'Standard',
+    standard:       'Standart',
     pro:            'Pro Plan',
     elite:          'Elite',
     B2B_ENTERPRISE: 'Enterprise B2B',
   };
-  if (tier === 'tier_1' || tier === 'tier1') return 'Standard';
+  if (tier === 'tier_1' || tier === 'tier1') return 'Standart';
   if (tier === 'tier_2' || tier === 'tier2') return 'Pro Plan';
   if (tier === 'tier_3' || tier === 'tier3') return 'Elite';
-  return map[tier] ?? 'Standard';
+  return map[tier] ?? 'Standart';
 }

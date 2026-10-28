@@ -574,7 +574,7 @@ const CVBuilder = () => {
                 : isPro ? 'bg-primary/20 text-primary'
                 : 'bg-muted text-muted-foreground'
               }`}>
-                {appSession.displayTier?.label || 'Standard'}
+                {appSession.displayTier?.label || 'Standart'}
               </span>
             </div>
           </div>

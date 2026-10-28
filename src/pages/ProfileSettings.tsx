@@ -340,6 +340,9 @@ const ProfileSettings = () => {
                 planType: profile?.plan_type,
                 appsumoTier: profile?.appsumo_tier,
                 appsumoPlan: profile?.appsumo_plan,
+                appsumoCodesCount: Number(profile?.appsumo_codes_count ?? 0),
+                isAppsumo: profile?.is_appsumo === true,
+                appsumoLicenseKey: String(profile?.appsumo_license_key ?? profile?.appsumo_code ?? ''),
               });
               if (!planBadge.isPaid) return null;
               return (
@@ -610,7 +613,10 @@ const ProfileSettings = () => {
                 planType: profile?.plan_type,
                 appsumoTier: profile?.appsumo_tier,
                 appsumoPlan: profile?.appsumo_plan,
-              }).label || 'Standard'}
+                appsumoCodesCount: Number(profile?.appsumo_codes_count ?? 0),
+                isAppsumo: profile?.is_appsumo === true,
+                appsumoLicenseKey: String(profile?.appsumo_license_key ?? profile?.appsumo_code ?? ''),
+              }).label || 'Standart'}
               avatarUrl={profile.avatar_url || null}
               skills={Array.isArray(profile.skills) ? profile.skills : null}
             />

@@ -50,7 +50,7 @@ const SAFE_CATALOG: CatalogPlan[] = SUBSCRIPTION_PLANS.filter(
 const PlanContext = createContext<PlanState>({
   tier: 'free',
   planType: 'free',
-  planLabel: 'Free',
+  planLabel: 'Standart',
   numericTier: 0,
   catalog: SAFE_CATALOG,
   isSuperAdmin: false,
@@ -75,7 +75,7 @@ function resolveActivePlan(planType: string, expiresAt: string | null): string {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function PlanProvider({ children }: { children: ReactNode }) {
-  const { user, sessionReady, appsumoPlan, appsumoTier, hasB2BAccess: sessionB2B } = useSession();
+  const { user, sessionReady, appsumoPlan, appsumoTier, isAppsumoUser, hasB2BAccess: sessionB2B } = useSession();
   const ownerInit = hasFullWorkspaceAccess(user);
   const [tier, setTier] = useState<PlanTier>(ownerInit ? 'enterprise' : 'free');
   const [planType, setPlanType] = useState<string>(ownerInit ? SUPERADMIN_PLAN_TYPE : 'free');
@@ -194,6 +194,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     hasB2BAccess: owner || hasEnterpriseAccess || sessionB2B,
     appsumoPlan,
     appsumoTier,
+    isAppsumo: isAppsumoUser,
     planType: resolvedPlanType,
   });
   const resolvedLabel = display.label;

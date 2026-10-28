@@ -10,8 +10,8 @@ import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
-import { isAppsumoLtdUser, isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
-import { firstPaidPlanLabel, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
+import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
+import { firstPaidPlanLabel, hasActiveAppSumoLicense, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 import { resolveRemainingCredits } from '@/lib/credits';
 
@@ -95,6 +95,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [b2bSubscriptionStatus, setB2bSubscriptionStatus] = useState('none');
   const [appsumoPlan, setAppsumoPlan] = useState('none');
+  const [appsumoLicensed, setAppsumoLicensed] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState('active');
   const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
   // true by default → existing users (null column) never see the onboarding gate.
@@ -135,6 +136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setHasUsedTrial(false);
         setB2bSubscriptionStatus('active');
         setAppsumoPlan('tier_3');
+        setAppsumoLicensed(true);
         setSubscriptionStatus('active');
         setTrialEndsAt(null);
       } else {
@@ -158,6 +160,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setHasUsedTrial(access.hasUsedTrial);
         setB2bSubscriptionStatus(access.b2bStatus);
         setAppsumoPlan(toAppsumoPlanEnum(slice?.appsumo_plan, numericTier));
+        setAppsumoLicensed(hasActiveAppSumoLicense({
+          isAppsumo: data?.is_appsumo === true || data?.is_appsumo_user === true,
+          appsumoLicenseKey: String(data?.appsumo_license_key ?? data?.appsumo_code ?? ''),
+          appsumoCodesCount: Number(data?.appsumo_codes_count ?? 0),
+          appsumoPlan: String(data?.appsumo_plan ?? ''),
+          planType: String(data?.plan_type ?? ''),
+          subscriptionPlan: String(data?.subscription_plan ?? ''),
+          subscriptionTier: String(data?.subscription_tier ?? ''),
+        }));
         setSubscriptionStatus(String(data?.subscription_status || 'active'));
         setTrialEndsAt(slice?.trial_ends_at ?? null);
         setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
@@ -327,6 +338,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setHasUsedTrial(false);
         setB2bSubscriptionStatus('none');
         setAppsumoPlan('none');
+        setAppsumoLicensed(false);
         setTrialEndsAt(null);
         setB2bAccessFlag(false);
         setApplyQueueAccess(false);
@@ -382,6 +394,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     hasB2BAccess: hasB2BAccessValue,
     appsumoPlan: owner ? 'tier_3' : appsumoPlan,
     appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
+    isAppsumo: owner || appsumoLicensed,
     planType: owner || paidB2B || liveTrial ? SUPERADMIN_PLAN_TYPE : planType,
     subscriptionPlan,
     subscriptionTier,
@@ -409,7 +422,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         hasUsedTrial: owner ? false : hasUsedTrial,
         b2bSubscriptionStatus: owner ? 'active' : b2bSubscriptionStatus,
         appsumoPlan: owner ? 'tier_3' : appsumoPlan,
-        isAppsumoUser: owner || Number(appsumoTier) >= 1 || isAppsumoLtdUser(toAppsumoPlanEnum(appsumoPlan, appsumoTier)),
+        isAppsumoUser: owner || appsumoLicensed,
         subscriptionStatus: owner ? 'active' : subscriptionStatus,
         displayTier,
         trialEndsAt,

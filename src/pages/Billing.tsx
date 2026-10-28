@@ -90,8 +90,8 @@ export default function Billing() {
 
   const currentPlan = billing ? getTierByPlanType(billing.planType) : undefined;
   const planLabel = billing
-    ? (resolveDisplayTier({ planType: billing.planType, subscriptionPlan: billing.planType }).label || "Standard")
-    : "Standard";
+    ? (resolveDisplayTier({ planType: billing.planType, subscriptionPlan: billing.planType }).label || "Standart")
+    : "Standart";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">

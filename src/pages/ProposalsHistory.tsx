@@ -257,13 +257,16 @@ const ProposalsHistory = () => {
                   planType: profile?.plan_type,
                   appsumoTier: profile?.appsumo_tier,
                   appsumoPlan: profile?.appsumo_plan,
+                  appsumoCodesCount: Number(profile?.appsumo_codes_count ?? 0),
+                  isAppsumo: profile?.is_appsumo === true,
+                  appsumoLicenseKey: String(profile?.appsumo_license_key ?? profile?.appsumo_code ?? ''),
                 });
                 if (!planBadge.isPaid) return null;
                 return (
                   <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
                     <Crown className="w-3 h-3 text-primary" />
                     <span className="text-xs font-medium text-primary">
-                      {planBadge.label || 'Standard'}
+                      {planBadge.label || 'Standart'}
                     </span>
                   </div>
                 );

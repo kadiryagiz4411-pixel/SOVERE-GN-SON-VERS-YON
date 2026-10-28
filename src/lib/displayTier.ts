@@ -32,11 +32,43 @@ export function firstPaidPlanLabel(...values: Array<unknown>): string {
   return paid ?? 'free';
 }
 
+function hasAppSumoText(...values: Array<unknown>): boolean {
+  return values.some((value) => String(value ?? '').toLowerCase().includes('appsumo'));
+}
+
+/**
+ * AppSumo package titles are for redeemed licenses only.
+ * A numeric appsumo_tier of 1 is not enough: standard SaaS rows were backfilled to that value.
+ */
+export function hasActiveAppSumoLicense(input: {
+  isAppsumo?: boolean | null;
+  appsumoLicenseKey?: string | null;
+  appsumoCodesCount?: number | null;
+  appsumoPlan?: string | null;
+  planType?: string | null;
+  subscriptionPlan?: string | null;
+  subscriptionTier?: string | null;
+}): boolean {
+  if (input.isAppsumo === true) return true;
+  const key = String(input.appsumoLicenseKey ?? '').trim();
+  if (key && !/^(none|null|undefined|0)$/i.test(key)) return true;
+  if (Number(input.appsumoCodesCount ?? 0) >= 1) return true;
+  return hasAppSumoText(
+    input.appsumoPlan,
+    input.planType,
+    input.subscriptionPlan,
+    input.subscriptionTier,
+  );
+}
+
 export function resolveDisplayTier(input: {
   isSuperAdmin?: boolean;
   hasB2BAccess?: boolean;
   appsumoPlan?: string | null;
   appsumoTier?: number | null;
+  appsumoCodesCount?: number | null;
+  appsumoLicenseKey?: string | null;
+  isAppsumo?: boolean | null;
   planType?: string | null;
   subscriptionPlan?: string | null;
   subscriptionTier?: string | null;
@@ -47,17 +79,18 @@ export function resolveDisplayTier(input: {
 
   const appsumo = String(input.appsumoPlan ?? '').toLowerCase().replace(/[\s-]/g, '_');
   const n = Number(input.appsumoTier ?? 0);
-  const appsumoLooksTier3 = appsumo === 'tier_3' || appsumo.includes('tier3') || appsumo.includes('tier_3');
-  const appsumoLooksTier2 = appsumo === 'tier_2' || appsumo.includes('tier2') || appsumo.includes('tier_2');
-  const appsumoLooksTier1 = appsumo === 'tier_1' || appsumo.includes('tier1') || appsumo.includes('tier_1');
+  const licensed = hasActiveAppSumoLicense(input);
+  const appsumoLooksTier3 = licensed && (appsumo === 'tier_3' || appsumo.includes('tier3') || appsumo.includes('tier_3'));
+  const appsumoLooksTier2 = licensed && (appsumo === 'tier_2' || appsumo.includes('tier2') || appsumo.includes('tier_2'));
+  const appsumoLooksTier1 = licensed && (appsumo === 'tier_1' || appsumo.includes('tier1') || appsumo.includes('tier_1'));
 
-  if (appsumoLooksTier3 || n >= 3) {
+  if (licensed && (appsumoLooksTier3 || n >= 3)) {
     return { id: 'tier_3', label: 'AppSumo Agency', className: TIER3, isPaid: true };
   }
-  if (appsumoLooksTier2 || n >= 2) {
+  if (licensed && (appsumoLooksTier2 || n >= 2)) {
     return { id: 'tier_2', label: 'AppSumo Pro', className: TIER2, isPaid: true };
   }
-  if (appsumoLooksTier1 || n >= 1) {
+  if (licensed && (appsumoLooksTier1 || n >= 1)) {
     return { id: 'tier_1', label: 'AppSumo Starter', className: TIER1, isPaid: true };
   }
 
@@ -74,23 +107,23 @@ export function resolveDisplayTier(input: {
   if (raw.includes('enterprise') || raw.includes('b2b')) {
     return { id: 'enterprise', label: 'Enterprise B2B', className: TIER3, isPaid: true };
   }
-  if (raw.includes('appsumo') && (raw.includes('tier3') || raw.includes('tier_3') || raw.includes('b2b'))) {
+  if (licensed && raw.includes('appsumo') && (raw.includes('tier3') || raw.includes('tier_3') || raw.includes('b2b'))) {
     return { id: 'tier_3', label: 'AppSumo Agency', className: TIER3, isPaid: true };
   }
   if (raw.includes('elite')) {
     return { id: 'elite', label: 'Elite', className: TIER3, isPaid: true };
   }
-  if (raw.includes('appsumo') && (raw.includes('tier2') || raw.includes('tier_2'))) {
+  if (licensed && raw.includes('appsumo') && (raw.includes('tier2') || raw.includes('tier_2'))) {
     return { id: 'tier_2', label: 'AppSumo Pro', className: TIER2, isPaid: true };
   }
   if (raw === 'pro' || raw.includes('pro')) {
     return { id: 'pro', label: 'Pro Plan', className: TIER2, isPaid: true };
   }
-  if (raw.includes('appsumo') && (raw.includes('tier1') || raw.includes('tier_1'))) {
+  if (licensed && raw.includes('appsumo') && (raw.includes('tier1') || raw.includes('tier_1'))) {
     return { id: 'tier_1', label: 'AppSumo Starter', className: TIER1, isPaid: true };
   }
   if (raw === 'standard' || raw.includes('standard') || raw.includes('single_pass')) {
-    return { id: 'standard', label: 'Standard', className: TIER1, isPaid: true };
+    return { id: 'standard', label: 'Standart', className: TIER1, isPaid: true };
   }
   if (raw === 'tier_3' || raw === 'tier3') {
     return { id: 'elite', label: 'Elite', className: TIER3, isPaid: true };
@@ -99,8 +132,8 @@ export function resolveDisplayTier(input: {
     return { id: 'pro', label: 'Pro Plan', className: TIER2, isPaid: true };
   }
   if (raw === 'tier_1' || raw === 'tier1') {
-    return { id: 'standard', label: 'Standard', className: TIER1, isPaid: true };
+    return { id: 'standard', label: 'Standart', className: TIER1, isPaid: true };
   }
 
-  return { id: 'free', label: 'Free', className: FREE, isPaid: false };
+  return { id: 'free', label: 'Standart', className: FREE, isPaid: false };
 }

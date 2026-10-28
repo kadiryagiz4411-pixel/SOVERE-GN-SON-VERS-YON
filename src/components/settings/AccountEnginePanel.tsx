@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RedeemModal } from '@/components/auth/RedeemModal';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { numericAppSumoTier, canUseFeature } from '@/lib/appsumoGating';
+import { hasActiveAppSumoLicense } from '@/lib/displayTier';
 import { saveEncryptedOpenAiKey, setAccountPaused } from '@/lib/ai-engine';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts/SessionContext';
@@ -18,6 +19,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
   const { hasBYOKAccess, user } = useSession();
   const [codes, setCodes] = useState(0);
   const [tier, setTier] = useState(0);
+  const [licensed, setLicensed] = useState(false);
   const [showByokKey, setShowByokKey] = useState(false);
   const [paused, setPaused] = useState(false);
   const [byokKey, setByokKey] = useState('');
@@ -31,6 +33,14 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
     const row = (data ?? {}) as Record<string, unknown>;
     setCodes(Number(row.appsumo_codes_count ?? 0));
     setTier(numericAppSumoTier(row));
+    setLicensed(hasActiveAppSumoLicense({
+      isAppsumo: row.is_appsumo === true || row.is_appsumo_user === true,
+      appsumoLicenseKey: String(row.appsumo_license_key ?? row.appsumo_code ?? ''),
+      appsumoCodesCount: Number(row.appsumo_codes_count ?? 0),
+      appsumoPlan: String(row.appsumo_plan ?? ''),
+      planType: String(row.plan_type ?? ''),
+      subscriptionTier: String(row.subscription_tier ?? ''),
+    }));
     setPaused(Boolean(row.is_account_paused) || row.subscription_status === 'paused');
     const stored = String(row.encrypted_openai_key ?? row.custom_openai_key ?? '');
     setHasStoredKey(stored.length > 0);
@@ -43,7 +53,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
   // LINK ROUTING RULES:
   // AppSumo LTD users  → exclusive AppSumo.com marketplace URLs (never LS checkout)
   // SaaS / non-AppSumo → exclusive Lemon Squeezy checkout URLs (never AppSumo)
-  const isAppsumoUser = tier > 0;
+  const isAppsumoUser = licensed;
 
   // AppSumo upgrade: direct them to the next AppSumo tier product page.
   // tier 1 → tier 2 (Pro), tier 2 → tier 3 (B2B/Agency), tier 3 → same max tier.

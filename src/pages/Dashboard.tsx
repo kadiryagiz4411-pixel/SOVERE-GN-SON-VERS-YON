@@ -1156,7 +1156,7 @@ const Dashboard = () => {
     );
   }
 
-  const planLabel = displayTier?.label || 'Standard';
+  const planLabel = displayTier?.label || 'Standart';
 
   const isFreelancer = userSegment === 'freelancer';
   const profileCredits = resolveRemainingCredits(profile);

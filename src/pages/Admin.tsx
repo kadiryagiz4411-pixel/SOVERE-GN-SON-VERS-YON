@@ -585,7 +585,7 @@ const Admin = () => {
                             className="flex items-center gap-1 w-fit"
                           >
                             {getPlanIcon(profile.subscription_plan)}
-                            {resolveDisplayTier({ subscriptionPlan: profile?.subscription_plan }).label || 'Standard'}
+                            {resolveDisplayTier({ subscriptionPlan: profile?.subscription_plan }).label || 'Standart'}
                           </Badge>
                         </TableCell>
                         <TableCell>
