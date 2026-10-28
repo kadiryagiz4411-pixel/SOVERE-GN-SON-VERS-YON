@@ -52,13 +52,13 @@ export function resolveDisplayTier(input: {
   const appsumoLooksTier1 = appsumo === 'tier_1' || appsumo.includes('tier1') || appsumo.includes('tier_1');
 
   if (appsumoLooksTier3 || n >= 3) {
-    return { id: 'tier_3', label: 'Tier 3', className: TIER3, isPaid: true };
+    return { id: 'tier_3', label: 'AppSumo Agency', className: TIER3, isPaid: true };
   }
   if (appsumoLooksTier2 || n >= 2) {
-    return { id: 'tier_2', label: 'Tier 2', className: TIER2, isPaid: true };
+    return { id: 'tier_2', label: 'AppSumo Pro', className: TIER2, isPaid: true };
   }
   if (appsumoLooksTier1 || n >= 1) {
-    return { id: 'tier_1', label: 'Tier 1', className: TIER1, isPaid: true };
+    return { id: 'tier_1', label: 'AppSumo Starter', className: TIER1, isPaid: true };
   }
 
   if (input.hasB2BAccess) {
@@ -74,14 +74,23 @@ export function resolveDisplayTier(input: {
   if (raw.includes('enterprise') || raw.includes('b2b')) {
     return { id: 'enterprise', label: 'Enterprise B2B', className: TIER3, isPaid: true };
   }
-  if (raw.includes('elite') || raw.includes('appsumo_tier3') || raw.includes('tier_3') || raw.includes('tier3')) {
-    return { id: 'tier_3', label: 'Tier 3', className: TIER3, isPaid: true };
+  if (raw.includes('appsumo') && (raw.includes('tier3') || raw.includes('tier_3') || raw.includes('b2b'))) {
+    return { id: 'tier_3', label: 'AppSumo Agency', className: TIER3, isPaid: true };
   }
-  if (raw === 'pro' || raw.includes('appsumo_tier2') || raw.includes('tier_2') || raw.includes('tier2')) {
-    return { id: 'tier_2', label: 'Tier 2', className: TIER2, isPaid: true };
+  if (raw.includes('elite')) {
+    return { id: 'elite', label: 'Elite', className: TIER3, isPaid: true };
   }
-  if (raw === 'standard' || raw.includes('appsumo_tier1') || raw.includes('tier_1') || raw.includes('tier1')) {
-    return { id: 'tier_1', label: 'Tier 1', className: TIER1, isPaid: true };
+  if (raw.includes('appsumo') && (raw.includes('tier2') || raw.includes('tier_2'))) {
+    return { id: 'tier_2', label: 'AppSumo Pro', className: TIER2, isPaid: true };
+  }
+  if (raw === 'pro' || raw.includes('pro')) {
+    return { id: 'pro', label: 'Pro', className: TIER2, isPaid: true };
+  }
+  if (raw.includes('appsumo') && (raw.includes('tier1') || raw.includes('tier_1'))) {
+    return { id: 'tier_1', label: 'AppSumo Starter', className: TIER1, isPaid: true };
+  }
+  if (raw === 'standard' || raw.includes('standard') || raw.includes('single_pass')) {
+    return { id: 'standard', label: 'Standard', className: TIER1, isPaid: true };
   }
 
   return { id: 'free', label: 'Free', className: FREE, isPaid: false };

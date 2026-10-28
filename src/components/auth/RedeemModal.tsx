@@ -29,24 +29,24 @@ export interface StackingStatus {
 
 function resolveStackingStatus(codesRedeemed: number, byokUnlocked: boolean): StackingStatus {
   if (codesRedeemed >= 3) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 3 (BYOK)', nextTierLabel: null, codesNeededForNext: null, byokUnlocked: true, monthlyCredits: 999999 };
+    return { codesRedeemed, tierLabel: 'AppSumo Agency', nextTierLabel: null, codesNeededForNext: null, byokUnlocked: true, monthlyCredits: 999999 };
   }
   if (codesRedeemed === 2) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 2', nextTierLabel: 'Tier 3 (Unlimited BYOK)', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 300 };
+    return { codesRedeemed, tierLabel: 'AppSumo Pro', nextTierLabel: 'AppSumo Agency', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 300 };
   }
   if (codesRedeemed === 1) {
-    return { codesRedeemed, tierLabel: 'AppSumo Tier 1', nextTierLabel: 'Tier 2', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 100 };
+    return { codesRedeemed, tierLabel: 'AppSumo Starter', nextTierLabel: 'AppSumo Pro', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 100 };
   }
-  return { codesRedeemed: 0, tierLabel: 'No AppSumo Code', nextTierLabel: 'Tier 1', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 0 };
+  return { codesRedeemed: 0, tierLabel: 'No AppSumo Code', nextTierLabel: 'AppSumo Starter', codesNeededForNext: 1, byokUnlocked, monthlyCredits: 0 };
 }
 
 // ─── Stacking Progress Bar ────────────────────────────────────────────────────
 
 function StackingProgress({ status }: { status: StackingStatus }) {
   const steps = [
-    { label: 'Tier 1', credits: '100/mo', reached: status.codesRedeemed >= 1 },
-    { label: 'Tier 2', credits: '300/mo', reached: status.codesRedeemed >= 2 },
-    { label: 'Tier 3 + BYOK', credits: 'Unlimited', reached: status.codesRedeemed >= 3 },
+    { label: 'AppSumo Starter', credits: '100/mo', reached: status.codesRedeemed >= 1 },
+    { label: 'AppSumo Pro', credits: '300/mo', reached: status.codesRedeemed >= 2 },
+    { label: 'AppSumo Agency', credits: 'Unlimited', reached: status.codesRedeemed >= 3 },
   ];
 
   return (

@@ -116,7 +116,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Tier 3 uses your OpenAI key and skips credit deduction. {hasStoredKey ? 'A key is already saved.' : 'No key saved yet.'}
+            AppSumo Agency uses your OpenAI key and skips credit deduction. {hasStoredKey ? 'A key is already saved.' : 'No key saved yet.'}
           </p>
           <div className="relative">
             <Input
@@ -159,7 +159,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-          Custom OpenAI key setup unlocks at AppSumo Tier 3 (stack 3 codes).
+          Custom OpenAI key setup unlocks on AppSumo Agency (stack 3 codes).
         </div>
       )}
 

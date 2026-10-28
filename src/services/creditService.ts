@@ -300,7 +300,7 @@ export async function redeemAppSumoCode(
       tier === 'tier_3' ? 'appsumo_b2b'
       : tier === 'tier_2' ? 'appsumo_tier2'
       : 'appsumo_tier1';
-    const label = payload.tier_label || (tier === 'tier_3' ? 'Tier 3' : tier === 'tier_2' ? 'Tier 2' : 'Tier 1');
+    const label = payload.tier_label || (tier === 'tier_3' ? 'AppSumo Agency' : tier === 'tier_2' ? 'AppSumo Pro' : 'AppSumo Starter');
     const message = payload.message || `Tebrikler! ${label} paketiniz başarıyla tanımlandı.`;
 
     try {
@@ -345,5 +345,8 @@ export function tierLabel(tier: string): string {
     elite:          'Elite',
     B2B_ENTERPRISE: 'Enterprise B2B',
   };
-  return map[tier] ?? tier;
+  if (tier === 'tier_1' || tier === 'tier1') return 'Standard';
+  if (tier === 'tier_2' || tier === 'tier2') return 'Pro';
+  if (tier === 'tier_3' || tier === 'tier3') return 'Elite';
+  return map[tier] ?? 'Standard';
 }

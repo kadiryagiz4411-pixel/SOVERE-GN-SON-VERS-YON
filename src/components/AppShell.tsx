@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { CreditCounterWidget } from '@/components/CreditCounterWidget';
 import { CreditBadge } from '@/components/credits/CreditBadge';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
@@ -309,8 +308,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           )}
         </div>
 
-        {/* Monthly AppSumo credit counter */}
-        <CreditCounterWidget userId={user?.id ?? null} variant="sidebar" />
         <div className="px-3 pt-2">
           <ExtensionReadyWidget />
         </div>
@@ -378,7 +375,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           </div>
           <div className="flex items-center gap-2">
             <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
-            <CreditCounterWidget userId={user?.id ?? null} variant="badge" />
             <LanguageSelector />
           </div>
         </div>
@@ -451,7 +447,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
           <div className="w-52">
             <ExtensionReadyWidget compact />
           </div>
-          <CreditBadge balance={currentCredits} unlimited={isByokUnlimited || hasBYOKAccess} />
         </div>
         {children}
       </main>

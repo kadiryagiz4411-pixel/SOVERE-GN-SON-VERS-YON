@@ -203,19 +203,19 @@ export interface TierActivationMessage {
 
 export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
   appsumo_tier1: {
-    headline:    'Tier 1 Activated!',
+    headline:    'AppSumo Starter Activated',
     subline:     '50 Monthly Credits & Core ATS Engine',
     badge:       'Starter LTD',
     creditsLine: '50 credits / month — resets every 30 days',
     features:    ['ATS Gap Analysis', '1-Click ATS Tailoring', 'Core Application Engine'],
   },
   appsumo_tier2: {
-    headline:    'Tier 2 Activated!',
+    headline:    'AppSumo Pro Activated',
     subline:     '200 Monthly Credits + Company DNA Decoder & 6-Sec Recruiter Hook',
     badge:       'Pro LTD',
     creditsLine: '200 credits / month — resets every 30 days',
     features:    [
-      'Everything in Tier 1',
+      'Everything in AppSumo Starter',
       'Company DNA Decoder',
       '6-Second Recruiter Hook Generator',
       'Red-Flag Neutralizer',

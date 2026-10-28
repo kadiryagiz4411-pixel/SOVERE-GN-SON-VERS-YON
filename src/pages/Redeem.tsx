@@ -152,10 +152,10 @@ export default function Redeem() {
       const tier = result.newTier ?? 'appsumo_tier1';
       const msg  = TIER_ACTIVATION_MESSAGES[tier] ?? DEFAULT_ACTIVATION_MESSAGE;
       const toastLabel =
-        result.codeTier === 'tier_3' ? 'Tier 3'
-        : result.codeTier === 'tier_2' ? 'Tier 2'
-        : result.codeTier === 'tier_1' ? 'Tier 1'
-        : (msg.badge || 'Tier 1');
+        result.codeTier === 'tier_3' ? 'AppSumo Agency'
+        : result.codeTier === 'tier_2' ? 'AppSumo Pro'
+        : result.codeTier === 'tier_1' ? 'AppSumo Starter'
+        : (msg.badge || 'AppSumo Starter');
 
       setActivatedTier(tier);
       setActivationMsg(msg);

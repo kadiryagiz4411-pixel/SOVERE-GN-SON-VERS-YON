@@ -9,9 +9,9 @@ export type AppSumoFeature =
   | 'byok_setup';
 
 export const APPSUMO_STACK_LIMITS = {
-  1: { monthlyCredits: 100, label: 'Tier 1' },
-  2: { monthlyCredits: 300, label: 'Tier 2' },
-  3: { monthlyCredits: 999999, label: 'Tier 3 · Unlimited BYOK' },
+  1: { monthlyCredits: 100, label: 'AppSumo Starter' },
+  2: { monthlyCredits: 300, label: 'AppSumo Pro' },
+  3: { monthlyCredits: 999999, label: 'AppSumo Agency' },
 } as const;
 
 export const MAX_APPSUMO_CODES = 3;
