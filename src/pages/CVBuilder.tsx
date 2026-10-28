@@ -15,6 +15,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
+import { consumeFreeAllowance, freeAllowanceRemaining } from '@/lib/freeAllowance';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateCVFallback } from '@/services/aiService';
 import { readGeneratedText } from '@/lib/liveGenerate';
@@ -97,6 +98,7 @@ const CVBuilder = () => {
   const [user, setUser] = useState<User | null>(null);
   const [plan, setPlan] = useState('free');
   const [creditsBalance, setCreditsBalance] = useState(0);
+  const [freeCvsLeft, setFreeCvsLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -164,6 +166,7 @@ const CVBuilder = () => {
         }
         setPlan(userPlan);
         setCreditsBalance((profile as any)?.credits_balance ?? 0);
+        setFreeCvsLeft(freeAllowanceRemaining(profile as { free_cvs_left?: unknown } | null, 'cv'));
         if (profile?.full_name) setFullName(profile.full_name);
       } catch (err) {
         console.error('[Sovereign Load Error]:', 'CVBuilder init failed', err);
@@ -198,28 +201,31 @@ const CVBuilder = () => {
       appSession.user?.email === OWNER_EMAIL ||
       appSession.isByokUnlimited ||
       appSession.hasBYOKAccess;
+    const usingFreeCv = !isCVSuperAdmin && freeCvsLeft > 0;
     const effectiveCVBalance = isCVSuperAdmin ? 999999 : (appSession.remainingCredits > 0 ? appSession.remainingCredits : creditsBalance);
-    const blocked = paywallFromSession({
-      isOwner: isCVSuperAdmin,
-      isUnlimited: isCVSuperAdmin,
-      appsumoTier: appSession.appsumoTier,
-      appsumoPlan: appSession.appsumoPlan,
-      planType: appSession.planType,
-      subscriptionTier: appSession.subscriptionTier,
-      subscriptionStatus: appSession.subscriptionStatus,
-      b2bSubscriptionStatus: appSession.b2bSubscriptionStatus,
-      remainingCredits: effectiveCVBalance,
-      isTrialActive: appSession.isTrialActive,
-      trialEndsAt: appSession.trialEndsAt,
-      user: appSession.user,
-    });
-    if (blocked.kind !== 'none') {
-      setPaywallKind(blocked.kind);
-      return;
-    }
-    if (!hasCreditsOrUnlimited(effectiveCVBalance, isCVSuperAdmin)) {
-      setShowCreditsModal(true);
-      return;
+    if (!usingFreeCv) {
+      const blocked = paywallFromSession({
+        isOwner: isCVSuperAdmin,
+        isUnlimited: isCVSuperAdmin,
+        appsumoTier: appSession.appsumoTier,
+        appsumoPlan: appSession.appsumoPlan,
+        planType: appSession.planType,
+        subscriptionTier: appSession.subscriptionTier,
+        subscriptionStatus: appSession.subscriptionStatus,
+        b2bSubscriptionStatus: appSession.b2bSubscriptionStatus,
+        remainingCredits: effectiveCVBalance,
+        isTrialActive: appSession.isTrialActive,
+        trialEndsAt: appSession.trialEndsAt,
+        user: appSession.user,
+      });
+      if (blocked.kind !== 'none') {
+        setPaywallKind(blocked.kind);
+        return;
+      }
+      if (!hasCreditsOrUnlimited(effectiveCVBalance, isCVSuperAdmin)) {
+        setShowCreditsModal(true);
+        return;
+      }
     }
     console.log('[AI Engine Request]', { component: 'CVBuilder', mode: activeTab, userId: effectiveUser.id });
 

@@ -15,6 +15,7 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
 import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited, resolveRemainingCredits } from '@/lib/credits';
+import { consumeFreeAllowance, freeAllowanceRemaining } from '@/lib/freeAllowance';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateSovereignContent, generateProposalFallback } from '@/services/aiService';
 import { supabaseAnonKey } from '@/integrations/supabase/client';
@@ -94,6 +95,9 @@ interface Profile {
   subscription_expires_at?: string | null;
   billing_period?: string | null;
   appsumo_tier?: number | null;
+  free_proposals_left?: number | null;
+  free_cvs_left?: number | null;
+  credits_remaining?: number | null;
 }
 
 interface Proposal {
@@ -742,15 +746,19 @@ const Dashboard = () => {
     // IMPORTANT: use session remainingCredits (not raw profile.credits_balance) so the
     // SessionContext's 999999 superadmin override is always respected.
     const isUnlimited = isSuperAdmin || isByokUnlimited || hasBYOKAccess;
+    const freeProposals = freeAllowanceRemaining(profile, 'proposal');
+    const usingFreeProposal = !isUnlimited && freeProposals > 0;
     const effectiveBalance = isUnlimited ? 999999 : (resolveRemainingCredits(profile) || remainingCredits || 0);
-    const blocked = generationPaywall();
-    if (blocked.kind !== 'none') {
-      setPaywallKind(blocked.kind);
-      return;
-    }
-    if (!hasCreditsOrUnlimited(effectiveBalance, isUnlimited)) {
-      setShowCreditsModal(true);
-      return;
+    if (!usingFreeProposal) {
+      const blocked = generationPaywall();
+      if (blocked.kind !== 'none') {
+        setPaywallKind(blocked.kind);
+        return;
+      }
+      if (!hasCreditsOrUnlimited(effectiveBalance, isUnlimited)) {
+        setShowCreditsModal(true);
+        return;
+      }
     }
 
     if (!isUnlimited && !hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0) {
@@ -868,9 +876,21 @@ const Dashboard = () => {
         setProposalViewsUsed(newCount);
       }
 
-      const nextCredits = typeof result.creditsRemaining === 'number'
-        ? result.creditsRemaining
-        : Math.max(0, (profile?.credits_balance ?? 0) - COST_PER_ACTION);
+      const serverUsedFree = result?.usedFreeAllowance === true;
+      const serverCharged = typeof result?.creditsCharged === 'number'
+        ? result.creditsCharged > 0
+        : typeof result?.creditsRemaining === 'number';
+      const nextCredits = usingFreeProposal && (serverUsedFree || !serverCharged)
+        ? (resolveRemainingCredits(profile) || remainingCredits || profile?.credits_balance || 0)
+        : (typeof result.creditsRemaining === 'number'
+          ? result.creditsRemaining
+          : Math.max(0, (profile?.credits_balance ?? 0) - COST_PER_ACTION));
+      let freeProposalsLeft = profile?.free_proposals_left ?? freeProposals;
+      if (usingFreeProposal && (serverUsedFree || !serverCharged)) {
+        freeProposalsLeft = serverUsedFree
+          ? Math.max(0, freeProposals - 1)
+          : (await consumeFreeAllowance('proposal')) ?? Math.max(0, freeProposals - 1);
+      }
 
       if (result.variants && result.variants.length > 0) {
         setProposalVariants(result.variants);
@@ -900,6 +920,9 @@ const Dashboard = () => {
         const updatedProfile = {
           ...profile,
           credits_balance: nextCredits,
+          remaining_credits: nextCredits,
+          credits_remaining: nextCredits,
+          free_proposals_left: freeProposalsLeft,
           daily_proposals_used: result.usage?.used ?? profile?.daily_proposals_used ?? 0,
         };
 
@@ -935,6 +958,15 @@ const Dashboard = () => {
             console.info('[CREDIT_BYPASS_OVERRIDE] Client-side generation succeeded for unlimited user.');
           }
           toast.success('✅ Proposal generated via direct connection.');
+          if (usingFreeProposal) {
+            const left = await consumeFreeAllowance('proposal');
+            if (profile) {
+              setProfile({
+                ...profile,
+                free_proposals_left: left ?? Math.max(0, freeProposals - 1),
+              });
+            }
+          }
           return; // Fallback succeeded — skip the error display below.
         }
       } catch (fallbackErr: any) {
