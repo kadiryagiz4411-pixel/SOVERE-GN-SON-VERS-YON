@@ -13,6 +13,7 @@ import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQue
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { isAppsumoLtdUser, isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
 import { firstPaidPlanLabel, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
+import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -287,7 +288,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         hydrated.current = true;
         setSessionReady(true);
-        if (next?.user?.id) void loadProfileCredits(next.user.id, next.user.email);
+        if (next?.user?.id) {
+          void loadProfileCredits(next.user.id, next.user.email);
+          void syncPreOnboardingMemory(next.user.id);
+        }
         return;
       }
 
@@ -299,6 +303,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       if (next?.user?.id) {
         void loadProfileCredits(next.user.id, next.user.email);
+        void syncPreOnboardingMemory(next.user.id);
       } else {
         setCreditsBalance(0);
         setRemainingCredits(0);

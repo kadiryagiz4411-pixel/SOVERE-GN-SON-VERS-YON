@@ -17,7 +17,7 @@ import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { ExtensionDownloadSection } from '@/components/landing/ExtensionDownloadSection';
 import { FreelancePlatformSection } from '@/components/landing/FreelancePlatformSection';
-import { OnboardingSection } from '@/components/landing/OnboardingSection';
+import { LandingOnboardingMemory } from '@/components/LandingOnboardingMemory';
 import { AnimatedSection } from '@/components/landing/AnimatedSection';
 import { useSession } from '@/contexts/SessionContext';
 import { Loader2 } from 'lucide-react';
@@ -67,12 +67,15 @@ const Index = () => {
       <Header />
       <main>
         <HeroSection />
-        {/* Show inline onboarding quiz for first-time visitors */}
-        {showOnboarding && (
-          <AnimatedSection>
-            <OnboardingSection />
-          </AnimatedSection>
-        )}
+        {/* 10-step pre-login onboarding memory — shown for all visitors */}
+        <AnimatedSection>
+          <LandingOnboardingMemory
+            onComplete={() => {
+              // Mark visited so the quiz doesn't reset on next landing visit
+              try { localStorage.setItem('sovereign-visited', '1'); } catch { /**/ }
+            }}
+          />
+        </AnimatedSection>
         <ValueBarSection />
         <StatsCounterSection />
         <AnimatedSection>
