@@ -123,7 +123,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     plan === 'B2B_ENTERPRISE' ||
     planType === 'B2B_ENTERPRISE';
 
-  const currentCredits = remainingCredits ?? creditsBalance ?? 0;
+  const currentCredits = remainingCredits > 0 ? remainingCredits : (creditsBalance || remainingCredits || 0);
   const maxCredits = monthlyCreditLimit || 400;
   const showAgencyTools = isSuperAdmin || Number(appsumoTier) >= 2 || isPro;
   const showByokSettings = isSuperAdmin || hasBYOKAccess || isByokUnlimited;

@@ -36,6 +36,28 @@ export function hasCreditsOrUnlimited(
   return (balance ?? 0) >= requiredCredits;
 }
 
+/**
+ * Pick one remaining-credit number from the profile aliases.
+ * A stored 0 must not hide a positive sibling (`credits_remaining = 0`
+ * while `remaining_credits = 400`). When every alias is 0, the result is 0.
+ */
+export function resolveRemainingCredits(row: {
+  remaining_credits?: unknown;
+  credits_remaining?: unknown;
+  credits_balance?: unknown;
+} | null | undefined): number {
+  const ordered = [row?.remaining_credits, row?.credits_remaining, row?.credits_balance];
+  for (const value of ordered) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  for (const value of ordered) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return 0;
+}
+
 /** Integer 0–100 fill for credit progress bars. */
 export function creditUsagePercentage(
   currentCredits: number | null | undefined,

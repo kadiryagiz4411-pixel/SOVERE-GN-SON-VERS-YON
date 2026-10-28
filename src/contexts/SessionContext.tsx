@@ -13,6 +13,7 @@ import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '
 import { isAppsumoLtdUser, isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
 import { firstPaidPlanLabel, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
+import { resolveRemainingCredits } from '@/lib/credits';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -117,8 +118,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         console.error(LOG, 'session profile/credits query failed', error.message);
       }
       const numericTier = Number(data?.appsumo_tier ?? data?.appsumo_codes_count ?? 0);
-      const balance = Number(data?.credits_balance ?? 0);
-      const remaining = Number(data?.credits_remaining ?? data?.remaining_credits ?? balance);
+      const remaining = resolveRemainingCredits(data);
       const limit = Number(data?.monthly_credit_limit ?? 400);
       const hasKey = Boolean(String(data?.encrypted_openai_key ?? data?.custom_openai_key ?? '').trim());
 
@@ -140,7 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         const slice = data as TrialProfileSlice;
         const access = resolveB2BAccess({ email, user: { email }, profile: slice });
-        setCreditsBalance(balance);
+        setCreditsBalance(remaining);
         setRemainingCredits(remaining);
         setMonthlyCreditLimit(limit || 400);
         const paidLabel = firstPaidPlanLabel(

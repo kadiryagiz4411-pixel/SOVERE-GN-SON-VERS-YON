@@ -14,7 +14,7 @@ import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE, hasFullWorksp
 import { TierBadge } from '@/components/ui/TierBadge';
 import { saveProposal, getRecentProposals } from '@/lib/proposals';
 import { getDailyLimit, isPaidPlan, canAccessFeature, PLAN_PRICES, isElitePlan, getDownloadLimit, CREDIT_COSTS } from '@/lib/plans';
-import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
+import { COST_PER_ACTION, hasActionCredits, hasCreditsOrUnlimited, resolveRemainingCredits } from '@/lib/credits';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
 import { generateSovereignContent, generateProposalFallback } from '@/services/aiService';
 import { supabaseAnonKey } from '@/integrations/supabase/client';
@@ -1119,11 +1119,12 @@ const Dashboard = () => {
   const getPlanLabel = () => displayTier.label;
 
   const isFreelancer = userSegment === 'freelancer';
-  const creditsBalance = remainingCredits || profile?.credits_balance || 0;
-  // SuperAdmin always sees 999999 from SessionContext; non-SA reads profile DB.
+  const profileCredits = resolveRemainingCredits(profile);
+  const creditsBalance = remainingCredits || profileCredits || 0;
+  // SuperAdmin always sees the session balance; everyone else uses the same resolver.
   const currentCredits = isSuperAdmin || isByokUnlimited || hasBYOKAccess
     ? remainingCredits
-    : (profile?.remaining_credits ?? creditsBalance ?? 0);
+    : (profileCredits || remainingCredits || 0);
   const maxCredits = isSuperAdmin ? 999999 : (profile?.monthly_credit_limit || 400);
   // Human-readable label for credit displays that should never show a raw number for SA.
   const creditDisplayLabel = isSuperAdmin || isByokUnlimited || hasBYOKAccess

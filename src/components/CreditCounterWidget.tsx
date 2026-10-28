@@ -25,24 +25,41 @@ export function CreditCounterWidget({
   variant = 'sidebar',
   className,
 }: CreditCounterWidgetProps) {
-  const { hasBYOKAccess, isByokUnlimited } = useSession();
+  const {
+    hasBYOKAccess,
+    isByokUnlimited,
+    remainingCredits,
+    monthlyCreditLimit,
+    refreshCredits,
+    appsumoTier,
+    subscriptionTier,
+  } = useSession();
   const [status, setStatus] = useState<CreditStatus | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const shownRemaining = remainingCredits;
+  const shownLimit = monthlyCreditLimit || status?.monthlyLimit || 400;
+  const shownPct = shownLimit > 0 ? Math.min(100, Math.round((shownRemaining / shownLimit) * 100)) : 0;
 
   const load = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     const s = await fetchCreditStatus(userId);
     setStatus(s);
+    // Pull the same row back into SessionContext so the header badge
+    // and this card cannot drift onto different columns.
+    await refreshCredits();
     setLoading(false);
-  }, [userId]);
+  }, [userId, refreshCredits]);
 
   useEffect(() => { load(); }, [load]);
 
   const unlimited = hasBYOKAccess || isByokUnlimited || Boolean(status?.isByokUnlimited);
 
+  const tierName = status?.subscriptionTier || subscriptionTier || 'free';
+  const hasCreditPlan = appsumoTier >= 1 || tierName.startsWith('appsumo') || (tierName !== 'free' && tierName !== '');
   // Don't render for non-AppSumo / non-credit tiers
-  if (!unlimited && (!status || (!status.subscriptionTier.startsWith('appsumo') && status.subscriptionTier === 'free'))) {
+  if (!unlimited && !hasCreditPlan && shownRemaining <= 0) {
     return null;
   }
 
@@ -56,21 +73,21 @@ export function CreditCounterWidget({
         </span>
       );
     }
-    if (!status) return null;
+    const badgeExhausted = shownRemaining <= 0;
     return (
       <span
         className={cn(
           'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border',
-          status.isExhausted
+          badgeExhausted
             ? 'bg-red-500/10 border-red-500/30 text-red-400'
-            : status.usagePct <= 20
+            : shownPct <= 20
               ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
               : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
           className,
         )}
       >
         <Zap className="w-3 h-3" />
-        {status.remainingCredits}/{status.monthlyLimit}
+        {shownRemaining}/{shownLimit}
       </span>
     );
   }
@@ -89,10 +106,9 @@ export function CreditCounterWidget({
     );
   }
 
-  if (!status) return null;
-
   /* ── Sidebar variant (desktop) ── */
-  const barWidth = `${Math.min(100, Math.max(0, Math.round(status.usagePct)))}%`;
+  const barWidth = `${shownPct}%`;
+  const exhausted = !unlimited && shownRemaining <= 0;
 
   return (
     <div className={cn('px-5 py-3 border-b border-border', className)}>
@@ -120,11 +136,11 @@ export function CreditCounterWidget({
           <span className="text-sm font-bold leading-none text-emerald-400">UNLIMITED (BYOK Active)</span>
         ) : (
           <>
-            <span className={cn('text-lg font-bold leading-none', status.colorClass)}>
-              {status.remainingCredits}
+            <span className={cn('text-lg font-bold leading-none', exhausted ? 'text-red-400' : shownPct <= 20 ? 'text-amber-400' : 'text-emerald-400')}>
+              {shownRemaining}
             </span>
             <span className="text-xs text-muted-foreground mb-0.5">
-              / {status.monthlyLimit} left
+              / {shownLimit} left
             </span>
           </>
         )}
@@ -135,8 +151,8 @@ export function CreditCounterWidget({
         <div
           className={cn(
             'h-full rounded-full transition-all duration-700',
-            status.isExhausted   ? 'bg-red-500'
-            : status.usagePct <= 20 ? 'bg-amber-500'
+            exhausted ? 'bg-red-500'
+            : shownPct <= 20 ? 'bg-amber-500'
             : 'bg-emerald-500',
           )}
           style={{ width: barWidth }}
@@ -145,9 +161,9 @@ export function CreditCounterWidget({
 
       {/* Reset info */}
       <p className="text-[10px] text-muted-foreground mt-1">
-        {status.isExhausted
-          ? `Resets in ${daysUntilReset(status.resetDate)}`
-          : `${tierLabel(status.subscriptionTier)} · resets in ${daysUntilReset(status.resetDate)}`}
+        {exhausted
+          ? `Resets in ${daysUntilReset(status?.resetDate ?? null)}`
+          : `${tierLabel(tierName)} · resets in ${daysUntilReset(status?.resetDate ?? null)}`}
       </p>
     </div>
   );

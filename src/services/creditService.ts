@@ -14,7 +14,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { COST_PER_ACTION, creditUsagePercentage } from '@/lib/credits';
+import { COST_PER_ACTION, creditUsagePercentage, resolveRemainingCredits } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
 import { isOwnerEmail, OWNER_PRIVILEGES } from '@/lib/superadmin';
 import { hasByokKey } from '@/services/aiService';
@@ -90,7 +90,7 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
 
     if (error || !data) return null;
 
-    const remaining = (data as any).credits_remaining ?? (data as any).remaining_credits ?? 0;
+    const remaining = resolveRemainingCredits(data as any);
     const limit     = (data as any).monthly_credit_limit || 400;
     const usagePct  = creditUsagePercentage(remaining, limit);
     const appsumoTier = Number((data as any).appsumo_tier ?? (data as any).appsumo_codes_count ?? 0);
