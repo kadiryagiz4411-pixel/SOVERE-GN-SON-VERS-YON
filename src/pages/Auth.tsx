@@ -24,6 +24,10 @@ const Auth = () => {
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Separate cooldown for the signup-verification resend (password-reset uses resendCooldown)
+  const [signupResendCooldown, setSignupResendCooldown] = useState(0);
+  const signupResendRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isResendingSignup, setIsResendingSignup] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -57,6 +61,11 @@ const Auth = () => {
       emailConfirmHint: 'Check your spam folder if you don\'t see it.',
       goToSignIn: 'Go to Sign In',
       tryDifferentEmail: 'Try a different email',
+      resendEmail: 'Resend verification email',
+      resendingEmail: 'Sending…',
+      resendCooldownLabel: (s: number) => `Resend in ${s}s`,
+      resendSuccess: 'Verification email resent! Check your inbox.',
+      resendError: 'Could not resend. Please wait a moment and try again.',
       termsAgree: 'By creating an account, you agree to our',
       terms: 'Terms of Service',
       and: 'and',
@@ -87,6 +96,11 @@ const Auth = () => {
       emailConfirmHint: 'Görünmüyorsa spam klasörünü kontrol edin.',
       goToSignIn: 'Giriş Sayfasına Git',
       tryDifferentEmail: 'Farklı bir e-posta dene',
+      resendEmail: 'Doğrulama e-postasını yeniden gönder',
+      resendingEmail: 'Gönderiliyor…',
+      resendCooldownLabel: (s: number) => `${s}s sonra tekrar gönder`,
+      resendSuccess: 'Doğrulama e-postası yeniden gönderildi! Gelen kutunuzu kontrol edin.',
+      resendError: 'Gönderilemedi. Lütfen bir süre bekleyip tekrar deneyin.',
       termsAgree: 'Hesap oluşturarak şunları kabul edersiniz:',
       terms: 'Kullanım Şartları',
       and: 've',
@@ -117,6 +131,11 @@ const Auth = () => {
       emailConfirmHint: 'Prüfen Sie den Spam-Ordner.',
       goToSignIn: 'Zur Anmeldung',
       tryDifferentEmail: 'Andere E-Mail verwenden',
+      resendEmail: 'Bestätigungs-E-Mail erneut senden',
+      resendingEmail: 'Senden…',
+      resendCooldownLabel: (s: number) => `Erneut senden in ${s}s`,
+      resendSuccess: 'Bestätigungs-E-Mail gesendet! Prüfen Sie Ihren Posteingang.',
+      resendError: 'Senden fehlgeschlagen. Bitte einen Moment warten und erneut versuchen.',
       termsAgree: 'Mit der Erstellung stimmen Sie zu:',
       terms: 'Nutzungsbedingungen',
       and: 'und',
@@ -147,6 +166,11 @@ const Auth = () => {
       emailConfirmHint: 'Vérifiez le dossier spam.',
       goToSignIn: 'Aller à la connexion',
       tryDifferentEmail: 'Essayer un autre email',
+      resendEmail: "Renvoyer l'email de vérification",
+      resendingEmail: 'Envoi en cours…',
+      resendCooldownLabel: (s: number) => `Renvoyer dans ${s}s`,
+      resendSuccess: 'Email de vérification renvoyé ! Vérifiez votre boîte de réception.',
+      resendError: "Impossible d'envoyer. Veuillez patienter et réessayer.",
       termsAgree: 'En créant un compte, vous acceptez nos',
       terms: 'Conditions',
       and: 'et',
@@ -264,6 +288,39 @@ const Auth = () => {
     finally { setIsLoading(false); }
   }, [resendCooldown, formData.email, language]);
 
+  /** Resend the signup verification email with 60-second cooldown. */
+  const handleResendSignup = useCallback(async () => {
+    if (signupResendCooldown > 0 || isResendingSignup || !formData.email) return;
+    setIsResendingSignup(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email.trim().toLowerCase(),
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) {
+        const detail = (error as any).status ? ` [${(error as any).status}]` : '';
+        toast.error(`${l.resendError} (${error.message}${detail})`, { duration: 8000 });
+      } else {
+        toast.success(l.resendSuccess, { duration: 5000 });
+        // Start 60-second cooldown so Supabase rate-limit is respected.
+        setSignupResendCooldown(60);
+        if (signupResendRef.current) clearInterval(signupResendRef.current);
+        signupResendRef.current = setInterval(() => {
+          setSignupResendCooldown(prev => {
+            if (prev <= 1) { clearInterval(signupResendRef.current!); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch (err) {
+      toast.error(l.resendError);
+      console.error('[Auth] signup resend error', err);
+    } finally {
+      setIsResendingSignup(false);
+    }
+  }, [signupResendCooldown, isResendingSignup, formData.email, l]);
+
   const validationMsg: Record<string, Record<string, string>> = {
     en: { email: 'Please enter your email', fields: 'Please fill in all required fields', invalidEmail: 'Please enter a valid email address', shortPassword: 'Password must be at least 6 characters', mismatch: 'Passwords do not match', name: 'Please enter your full name' },
     tr: { email: 'Lütfen e-posta adresinizi girin', fields: 'Lütfen tüm alanları doldurun', invalidEmail: 'Geçerli bir e-posta adresi girin', shortPassword: 'Şifre en az 6 karakter olmalıdır', mismatch: 'Şifreler eşleşmiyor', name: 'Lütfen adınızı girin' },
@@ -374,20 +431,27 @@ const Auth = () => {
 
   // Email confirmation screen
   if (showEmailConfirmation) {
+    const resendDisabled = signupResendCooldown > 0 || isResendingSignup;
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-8">
         <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold mx-auto mb-6">
-            <Mail className="w-8 h-8 text-primary-foreground" />
+          {/* Icon */}
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold mx-auto mb-6">
+            <Mail className="w-10 h-10 text-primary-foreground" />
           </div>
+
           <h1 className="text-3xl font-bold text-foreground mb-3">{l.emailConfirmTitle}</h1>
-          <p className="text-muted-foreground mb-2">
-            {l.emailConfirmDesc}
-          </p>
-          <p className="font-medium text-foreground mb-6">{formData.email}</p>
-          <div className="bg-card border border-border rounded-lg p-4 mb-6">
-            <p className="text-sm text-muted-foreground">{l.emailConfirmHint}</p>
+          <p className="text-muted-foreground mb-1">{l.emailConfirmDesc}</p>
+          <p className="font-semibold text-foreground mb-6 break-all">{formData.email}</p>
+
+          {/* Spam tip */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-left">
+            <p className="text-sm text-amber-200/90 leading-relaxed">
+              📬 {l.emailConfirmHint}
+            </p>
           </div>
+
+          {/* Primary: Go to Sign In */}
           <Button
             variant="gold"
             className="w-full h-12 mb-3"
@@ -398,9 +462,34 @@ const Auth = () => {
           >
             {l.goToSignIn}
           </Button>
+
+          {/* Resend verification email */}
+          <Button
+            variant="outline"
+            className="w-full h-12 mb-4 gap-2"
+            disabled={resendDisabled}
+            onClick={handleResendSignup}
+          >
+            {isResendingSignup ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            {isResendingSignup
+              ? l.resendingEmail
+              : signupResendCooldown > 0
+                ? l.resendCooldownLabel(signupResendCooldown)
+                : l.resendEmail}
+          </Button>
+
+          {/* Try different email */}
           <button
-            onClick={() => setShowEmailConfirmation(false)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            type="button"
+            onClick={() => {
+              setShowEmailConfirmation(false);
+              setMode('signup');
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
           >
             {l.tryDifferentEmail}
           </button>
