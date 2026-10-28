@@ -264,7 +264,7 @@ export const DetailedAnalysisReport = ({ plan, isElite }: DetailedAnalysisReport
             <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Improvement Tips
           </h4>
           <div className="space-y-2">
-            {report.improvementAreas.map((area, i) => (
+            {report.improvementAreas?.map((area, i) => (
               <div key={i} className="flex items-start gap-3 p-2 rounded-md bg-muted/30">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${COLORS[i % COLORS.length]}20` }}>
                   <span className="text-xs font-bold" style={{ color: COLORS[i % COLORS.length] }}>
@@ -291,14 +291,14 @@ export const DetailedAnalysisReport = ({ plan, isElite }: DetailedAnalysisReport
             <Calendar className="w-3.5 h-3.5 text-blue-400" /> Weekly Action Plan
           </h4>
           <div className="space-y-2">
-            {report.weeklyActionPlan.map((item, i) => (
+            {report.weeklyActionPlan?.map((item, i) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                <Badge variant="outline" className={`text-[10px] shrink-0 ${PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.low}`}>
-                  {item.day}
+                <Badge variant="outline" className={`text-[10px] shrink-0 ${PRIORITY_COLORS[item?.priority] || PRIORITY_COLORS.low}`}>
+                  {item?.day}
                 </Badge>
-                <span className="text-xs text-foreground/80 flex-1">{item.action}</span>
-                <Badge variant="outline" className={`text-[9px] ${PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.low}`}>
-                  {item.priority}
+                <span className="text-xs text-foreground/80 flex-1">{item?.action}</span>
+                <Badge variant="outline" className={`text-[9px] ${PRIORITY_COLORS[item?.priority] || PRIORITY_COLORS.low}`}>
+                  {item?.priority}
                 </Badge>
               </div>
             ))}

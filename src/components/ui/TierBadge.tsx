@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
 import type { DisplayTier } from '@/lib/displayTier';
 
-export function TierBadge({ tier, className }: { tier: DisplayTier; className?: string }) {
+export function TierBadge({ tier, className }: { tier?: DisplayTier | null; className?: string }) {
+  if (!tier?.label) return null;
   return (
     <span
       className={cn(

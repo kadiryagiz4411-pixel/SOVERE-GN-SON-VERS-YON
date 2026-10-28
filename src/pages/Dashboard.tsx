@@ -174,7 +174,7 @@ const Dashboard = () => {
   const isSuperAdmin =
     hasFullWorkspaceAccess(user) ||
     hasFullWorkspaceAccess(sessionUser) ||
-    hasFullWorkspaceAccess(session.user) ||
+    hasFullWorkspaceAccess(session?.user) ||
     contextSuperAdmin;
   const currentPlan = (
     isSuperAdmin || hasB2BAccess
@@ -187,7 +187,7 @@ const Dashboard = () => {
             ? 'standard'
             : checkSubscriptionExpiry()
   );
-  const isFreePlan = !isSuperAdmin && !displayTier.isPaid;
+  const isFreePlan = !isSuperAdmin && !displayTier?.isPaid;
   const dailyLimit = getDailyLimit(currentPlan);
   const proposalsUsed = profile?.daily_proposals_used || 0;
   const bonusCredits = profile?.bonus_credits || 0;
@@ -209,7 +209,7 @@ const Dashboard = () => {
     user: sessionUser,
   });
 
-  const txt = t.dashboard;
+  const txt = t?.dashboard ?? ({} as NonNullable<typeof t>['dashboard']);
 
   const dashboardUiText = useMemo(() => {
     const copy = {
@@ -470,7 +470,7 @@ const Dashboard = () => {
     const fetchOrCreateProfile = async (userId: string, email: string | undefined): Promise<Profile> => {
       if (!userId) return buildDefaultProfile(userId);
       try {
-        const { data, error } = await fetchProfileByAuthId<Profile>(userId, '*, appsumo_tier');
+        const { data, error } = await fetchProfileByAuthId<Profile>(userId, '*');
 
         if (error) {
           console.error('[Sovereign Load Error]:', 'Profile fetch returned error (will create default):', error.message);
@@ -1097,10 +1097,18 @@ const Dashboard = () => {
     toast.success('DOCX downloaded!');
   };
 
-  if (loading || !user) {
+  if (loading || !sessionReady || !user || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="mx-auto max-w-6xl space-y-4">
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-muted" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="h-28 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-28 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-28 animate-pulse rounded-2xl bg-muted" />
+          </div>
+          <div className="h-64 animate-pulse rounded-2xl bg-muted" />
+        </div>
       </div>
     );
   }
@@ -1116,7 +1124,7 @@ const Dashboard = () => {
     );
   }
 
-  const getPlanLabel = () => displayTier.label;
+  const planLabel = displayTier?.label || profile?.subscription_plan || 'Standard';
 
   const isFreelancer = userSegment === 'freelancer';
   const profileCredits = resolveRemainingCredits(profile);
@@ -1134,7 +1142,6 @@ const Dashboard = () => {
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
     : 0;
   const proposalUsageLabel = hasUnlimitedProposals ? dashboardUiText.unlimited : `${proposalsUsed}/${dailyLimit}`;
-  const planLabel = getPlanLabel();
   const downloadLimit = getDownloadLimit(currentPlan);
   const downloadUsageLabel = downloadLimit === Infinity ? dashboardUiText.unlimited : `${downloadsUsed}/${downloadLimit}`;
   const proposalProgressValue = hasUnlimitedProposals ? 100 : Math.min(100, Math.round((proposalsUsed / Math.max(dailyLimit, 1)) * 100));
@@ -1212,8 +1219,8 @@ const Dashboard = () => {
                 </div>
 
                 <h1 className="text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl lg:text-4xl flex flex-wrap items-center gap-3">
-                  <span>{dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋</span>
-                  <TierBadge tier={displayTier} className="text-[11px] px-3 py-1" />
+                  <span>{dashboardUiText?.welcome ?? 'Welcome back'}{typeof profile?.full_name === 'string' && profile.full_name.trim() ? `, ${profile.full_name.trim().split(' ')[0]}` : ''} 👋</span>
+                  {displayTier ? <TierBadge tier={displayTier} className="text-[11px] px-3 py-1" /> : null}
                 </h1>
                 {/* Personalised subtitle — uses onboarding answers when available */}
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
@@ -1266,7 +1273,7 @@ const Dashboard = () => {
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.currentPlan}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white/90">{displayTier.label}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white/90">{planLabel}</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{dashboardUiText.proposalQuota}</p>

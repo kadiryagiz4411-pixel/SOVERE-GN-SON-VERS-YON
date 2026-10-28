@@ -35,9 +35,16 @@ interface RoadmapData {
 
 export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoadmapProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const roadmap: RoadmapData | null = profile.career_roadmap as RoadmapData | null;
+  const raw = profile?.career_roadmap;
+  const roadmap: Partial<RoadmapData> | null =
+    raw && typeof raw === 'object' ? (raw as Partial<RoadmapData>) : null;
+  const strengths = Array.isArray(roadmap?.strengths) ? roadmap.strengths : [];
+  const focusAreas = Array.isArray(roadmap?.focusAreas) ? roadmap.focusAreas : [];
+  const weeklyPlan = Array.isArray(roadmap?.weeklyPlan) ? roadmap.weeklyPlan : [];
+  const targetRoles = Array.isArray(roadmap?.targetRoles) ? roadmap.targetRoles : [];
+  const hasRoadmap = Boolean(roadmap?.summary) || strengths.length > 0 || weeklyPlan.length > 0;
 
-  const hasOnboardingData = profile.onboarding_role || profile.onboarding_goal;
+  const hasOnboardingData = Boolean(profile?.onboarding_role || profile?.onboarding_goal);
 
   const generateRoadmap = async () => {
     setIsGenerating(true);
@@ -54,12 +61,12 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            skills: profile.skills,
-            experience: profile.experience,
-            onboarding_role: profile.onboarding_role,
-            onboarding_experience: profile.onboarding_experience,
-            onboarding_goal: profile.onboarding_goal,
-            onboarding_volume: profile.onboarding_volume,
+            skills: profile?.skills,
+            experience: profile?.experience,
+            onboarding_role: profile?.onboarding_role,
+            onboarding_experience: profile?.onboarding_experience,
+            onboarding_goal: profile?.onboarding_goal,
+            onboarding_volume: profile?.onboarding_volume,
           }),
         }
       );
@@ -86,7 +93,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
     }
   };
 
-  if (!roadmap) {
+  if (!hasRoadmap || !roadmap) {
     return (
       <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-card p-6 text-center">
         <Map className="w-10 h-10 text-primary mx-auto mb-3" />
@@ -127,7 +134,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
           <Map className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Your Career Roadmap</h3>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">{roadmap.summary}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{roadmap?.summary ?? ''}</p>
       </div>
 
       {/* Strengths & Focus */}
@@ -138,7 +145,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
             Your Strengths
           </h4>
           <ul className="space-y-2">
-            {roadmap.strengths.map((s, i) => (
+            {strengths.map((s, i) => (
               <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">•</span>
                 {s}
@@ -152,7 +159,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
             Focus Areas
           </h4>
           <ul className="space-y-2">
-            {roadmap.focusAreas.map((f, i) => (
+            {focusAreas.map((f, i) => (
               <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                 <span className="text-amber-500 mt-0.5">•</span>
                 {f}
@@ -169,13 +176,13 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
           Action Plan
         </h4>
         <div className="space-y-4">
-          {roadmap.weeklyPlan.map((week, i) => (
+          {weeklyPlan.map((week, i) => (
             <div key={i} className="relative pl-6 pb-4 border-l-2 border-primary/20 last:border-0 last:pb-0">
               <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary/20 border-2 border-primary" />
-              <p className="text-xs font-semibold text-primary mb-1">{week.week}</p>
-              <p className="text-sm font-medium text-foreground mb-2">{week.goal}</p>
+              <p className="text-xs font-semibold text-primary mb-1">{week?.week}</p>
+              <p className="text-sm font-medium text-foreground mb-2">{week?.goal}</p>
               <ul className="space-y-1">
-                {week.actions.map((a, j) => (
+                {(Array.isArray(week?.actions) ? week.actions : []).map((a, j) => (
                   <li key={j} className="text-xs text-muted-foreground flex items-start gap-1.5">
                     <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
                     {a}
@@ -194,7 +201,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
           Target Roles
         </h4>
         <div className="flex flex-wrap gap-2">
-          {roadmap.targetRoles.map((role, i) => (
+          {targetRoles.map((role, i) => (
             <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary font-medium">
               {role}
             </span>
@@ -208,7 +215,7 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
           <TrendingUp className="w-4 h-4" />
           Expected Outcome
         </h4>
-        <p className="text-sm text-muted-foreground">{roadmap.expectedOutcome}</p>
+        <p className="text-sm text-muted-foreground">{roadmap?.expectedOutcome ?? ''}</p>
       </div>
 
       {/* Regenerate */}
