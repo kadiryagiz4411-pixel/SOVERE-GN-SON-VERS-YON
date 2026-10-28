@@ -53,7 +53,7 @@ const Index = () => {
   if (user) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#09090b]">
       <Header />
       <main>
         <HeroSection />

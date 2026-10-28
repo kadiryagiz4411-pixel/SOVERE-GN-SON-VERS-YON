@@ -17,12 +17,12 @@ export function ExtensionDownloadSection() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section id="extension" className="relative scroll-mt-32 overflow-visible bg-slate-950 py-24">
+    <section id="extension" className="relative scroll-mt-32 overflow-visible border-y border-zinc-800 bg-[#09090b] py-24">
       <div className="container mx-auto px-4">
-        <div className="mx-auto max-w-4xl rounded-3xl border border-violet-500/25 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 md:p-12">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-violet-300">
+        <div className="mx-auto max-w-4xl border border-zinc-800 bg-zinc-900/40 p-8 md:p-12">
+          <div className="mb-4 inline-flex items-center gap-2 border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-[11px] tracking-[0.18em] text-amber-400">
             <Puzzle className="h-3.5 w-3.5" />
-            Chrome Extension
+            EXT.CHROME
           </div>
 
           <h2 className="text-3xl font-black leading-tight text-slate-100 md:text-5xl">

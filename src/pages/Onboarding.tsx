@@ -25,28 +25,16 @@ const RATIONALE_ICONS: Record<string, typeof Target> = {
   industry: Users,
 };
 
-/**
- * Extract the leading emoji grapheme cluster from an option label string.
- * Labels look like "🧑‍💻 Freelance / Contract" — we grab everything before the
- * first ASCII character (space + letter) using Intl.Segmenter when available,
- * falling back to a two-character slice for environments that lack it.
- */
-function extractEmoji(label: string): string {
-  if (!label) return '•';
-  try {
-    if (typeof Intl !== 'undefined' && (Intl as any).Segmenter) {
-      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
-      const segs: Array<{ segment: string }> = [...seg.segment(label)];
-      // Collect leading graphemes until we hit a plain ASCII character or space
-      const emojis = segs.takeWhile
-        ? segs.takeWhile((s: { segment: string }) => s.segment.trim() && !/^[\x20-\x7E]$/.test(s.segment))
-        : segs.filter((_, i) => i === 0);
-      const joined = emojis.map((s: { segment: string }) => s.segment).join('');
-      return joined || label[0];
-    }
-  } catch { /* fallback below */ }
-  // Simple fallback: take first two code units (handles most emoji)
-  return [...label].slice(0, 2).join('').trim() || '•';
+/** Strip pictographs so option cards stay typographic. */
+function stripEmoji(label: string): string {
+  return label
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]+/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
 }
 
 const Onboarding = () => {
@@ -366,126 +354,100 @@ const Onboarding = () => {
   const selectedValue = answers[currentQuestion.id];
   const isLastStep = currentStep === totalSteps - 1;
 
+  const stepCode = pad2(currentStep + 1);
+  const totalCode = pad2(totalSteps);
+  const RIcon = RATIONALE_ICONS[currentQuestion.id] || Icon;
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center">
-              <Crown className="w-4 h-4 text-primary-foreground" />
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col">
+      <header className="border-b border-zinc-800">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center border border-amber-500/40 bg-amber-500/10">
+              <Crown className="h-3.5 w-3.5 text-amber-400" />
             </div>
-            <span className="font-bold text-foreground">Sovereign</span>
+            <span className="text-sm font-semibold tracking-tight">Sovereign</span>
           </div>
-          {/* Skip removed — onboarding is mandatory for new accounts */}
+          <p className="font-mono text-[11px] tracking-[0.18em] text-amber-400">
+            SYS.ONBOARD // STEP {stepCode} OF {totalCode}
+          </p>
         </div>
-      </div>
+        <div className="h-px bg-zinc-800">
+          <div
+            className="h-px bg-amber-400 transition-[width] duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </header>
 
-      {/* Progress Bar */}
-      <div className="h-1 bg-muted">
-        <div
-          className="h-full bg-gradient-to-r from-primary to-amber-500 transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4 py-8">
-        <div className="w-full max-w-2xl">
-          {/* Step indicator */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-4">
-              <span className="text-xs font-medium text-primary">
-                {l.step} {currentStep + 1} {l.of} {totalSteps}
-              </span>
+      <main className="flex flex-1 items-center justify-center px-5 py-10">
+        <div className="w-full max-w-3xl">
+          <div className="mb-8 flex items-start gap-4 border border-zinc-800 bg-zinc-900/40 p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-amber-500/40 bg-amber-500/10">
+              <RIcon className="h-4 w-4 text-amber-400" />
             </div>
-
-            {/* Question header icon — use Lucide icon from RATIONALE_ICONS */}
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <Icon className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-              {currentQuestion.question}
-            </h2>
-            <div className="mx-auto mt-4 max-w-lg rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 flex items-start gap-3 text-left">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-                {(() => {
-                  const RIcon = RATIONALE_ICONS[currentQuestion.id] || currentQuestion.icon;
-                  return <RIcon className="w-5 h-5 text-amber-400" />;
-                })()}
-              </div>
-              <p className="text-sm text-amber-100/90 leading-relaxed">{currentQuestion.subtitle}</p>
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] tracking-[0.22em] text-zinc-500">
+                [{stepCode}/{totalCode}]
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50 md:text-[1.7rem]">
+                {currentQuestion.question}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-400">{currentQuestion.subtitle}</p>
             </div>
           </div>
 
-          {/* Options Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-            {currentQuestion.options.map((option) => {
+          <div className="mb-8 grid grid-cols-1 gap-px border border-zinc-800 bg-zinc-800 sm:grid-cols-2">
+            {currentQuestion.options.map((option, idx) => {
               const isSelected = selectedValue === option.value;
               return (
                 <button
                   key={option.value}
+                  type="button"
                   onClick={() => handleSelect(option.value)}
-                  className={`relative p-4 rounded-xl border-2 text-left transition-all duration-200 group ${
-                    isSelected
-                      ? 'border-amber-400 bg-amber-500/10 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
-                      : 'border-border bg-card hover:border-amber-500/50 hover:bg-amber-500/5'
+                  className={`flex items-start gap-4 bg-[#09090b] p-4 text-left transition-colors duration-150 ${
+                    isSelected ? 'bg-amber-500/10' : 'hover:bg-zinc-900/70'
                   }`}
                 >
-                  {isSelected && (
-                    <div className="absolute top-3 right-3">
-                      <CheckCircle className="w-5 h-5 text-amber-400" />
-                    </div>
-                  )}
-                  <div className="flex items-start gap-3">
-                    {/* Emoji icon bubble — always amber/yellow, bolder border when selected */}
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-2xl leading-none transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-amber-500/30 border-2 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.35)]'
-                        : 'bg-amber-500/15 border-2 border-amber-500/50 hover:bg-amber-500/25 hover:border-amber-400/70'
-                    }`}>
-                      {extractEmoji(option.label)}
-                    </div>
-                    <div className="min-w-0">
-                      {/* Strip the leading emoji from the label since we show it in the bubble */}
-                      <div className="text-base mb-0.5 font-semibold text-foreground leading-snug">
-                        {option.label.replace(/^[\p{Emoji}\s]+/u, '').trim()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{option.desc}</div>
-                    </div>
-                  </div>
+                  <span
+                    aria-hidden
+                    className={`mt-0.5 h-4 w-4 shrink-0 border transition-colors duration-150 ${
+                      isSelected ? 'border-amber-400 bg-amber-400' : 'border-zinc-600 bg-transparent'
+                    }`}
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-mono text-[10px] tracking-[0.2em] text-amber-400/80">
+                      OPT.{pad2(idx + 1)}
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-zinc-100">
+                      {stripEmoji(option.label)}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{option.desc}</span>
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Step dots */}
-          <div className="flex justify-center gap-2 mb-8">
+          <div className="mb-6 flex gap-1">
             {l.questions.map((_, idx) => (
               <div
                 key={idx}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  idx === currentStep
-                    ? 'bg-primary w-6'
-                    : idx < currentStep
-                    ? 'bg-primary/50 w-3'
-                    : 'bg-muted w-3'
+                className={`h-px flex-1 transition-colors duration-200 ${
+                  idx <= currentStep ? 'bg-amber-400' : 'bg-zinc-800'
                 }`}
               />
             ))}
           </div>
 
-          {/* Navigation */}
           <div className="flex gap-3">
             {currentStep > 0 && (
               <Button
                 variant="outline"
                 onClick={handleBack}
-                className="flex-none"
+                className="h-11 rounded-lg border-zinc-700 bg-transparent text-zinc-200 hover:border-amber-500/50 hover:bg-zinc-900"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 {l.back}
               </Button>
             )}
@@ -493,37 +455,33 @@ const Onboarding = () => {
             {isLastStep ? (
               <Button
                 variant="gold"
-                className="flex-1 h-12 text-base"
+                className="h-11 flex-1 rounded-lg text-sm"
                 onClick={handleFinish}
                 disabled={isSaving}
               >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 {l.finish}
               </Button>
             ) : (
               <Button
                 variant="gold"
-                className="flex-1 h-12 text-base"
+                className="h-11 flex-1 rounded-lg text-sm"
                 onClick={handleNext}
                 disabled={!selectedValue}
               >
                 {l.next}
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
           </div>
 
           {!selectedValue && !isLastStep && (
-            <p className="text-center text-xs text-muted-foreground mt-3">
-              {language === 'tr' ? 'Devam etmek için bir seçenek seçin' : language === 'de' ? 'Wählen Sie eine Option, um fortzufahren' : language === 'fr' ? 'Sélectionnez une option pour continuer' : 'Select an option to continue'}
+            <p className="mt-3 text-center font-mono text-[11px] tracking-wide text-zinc-500">
+              {language === 'tr' ? 'DEVAM ICIN BIR SECENEK SECIN' : language === 'de' ? 'OPTION WAEHLEN, UM FORTZUFAHREN' : language === 'fr' ? 'SELECTIONNEZ UNE OPTION' : 'SELECT AN OPTION TO CONTINUE'}
             </p>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };

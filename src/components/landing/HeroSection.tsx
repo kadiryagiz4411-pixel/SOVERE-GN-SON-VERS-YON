@@ -100,20 +100,16 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 md:pt-32 pb-16">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-card" />
-      <div className="hero-glow top-1/4 left-1/4 -translate-x-1/2" />
-      <div className="hero-glow bottom-1/4 right-1/4 translate-x-1/2 opacity-50" />
-      
-      <div 
-        className="absolute inset-0 opacity-[0.02]"
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#09090b] pt-24 md:pt-32 pb-16">
+      <div
+        className="absolute inset-0 opacity-[0.35]"
         style={{
-          backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
-                           linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
+          backgroundSize: '72px 72px',
         }}
       />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-zinc-800" />
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
@@ -122,10 +118,11 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 text-primary mb-8"
+            className="inline-flex items-center gap-2 border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-amber-400 mb-8"
           >
-            <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium">{t.badge}</span>
+            <span className="font-mono text-[10px] tracking-[0.22em]">SYS.01</span>
+            <span className="h-3 w-px bg-zinc-700" />
+            <span className="text-xs font-medium tracking-wide text-zinc-200">{t.badge}</span>
           </motion.div>
 
           {/* Headline */}
@@ -133,7 +130,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.08] mb-6 tracking-tight"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.02] mb-6 tracking-tight"
           >
             <span className="text-foreground">{t.headline1}</span>
             <br />
@@ -158,14 +155,14 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-wrap items-center justify-center gap-2 mb-10"
           >
-            <span className="text-xs text-muted-foreground mr-1">{t.platformLabel}:</span>
+            <span className="font-mono text-[10px] tracking-[0.18em] text-zinc-500 mr-1">{t.platformLabel.toUpperCase()}</span>
             {platforms.map((p, i) => (
               <motion.span
                 key={p.name}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.35 + i * 0.08 }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r ${p.color} border text-xs font-medium text-foreground`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.35 + i * 0.05 }}
+                className="inline-flex items-center border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 font-mono text-[11px] tracking-wide text-zinc-300"
               >
                 {p.name}
               </motion.span>
@@ -210,7 +207,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-12 pt-8 border-t border-border"
+            className="mt-12 grid grid-cols-2 gap-px border border-zinc-800 bg-zinc-800 md:grid-cols-4"
           >
             {t.signals.map((text, i) => {
               return (
@@ -219,9 +216,9 @@ export const HeroSection = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.7 + i * 0.1 }}
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  className="flex items-center gap-2 bg-[#09090b] px-4 py-3 text-left text-xs text-zinc-400"
                 >
-                  <SafeIcon icon={signalIcons[i]} fallback={Sparkles} className="w-4 h-4 text-primary" />
+                  <SafeIcon icon={signalIcons[i]} fallback={Sparkles} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                   <span>{text}</span>
                 </motion.div>
               );
@@ -237,8 +234,8 @@ export const HeroSection = () => {
         transition={{ delay: 1.2 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2"
       >
-        <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2">
-          <div className="w-1 h-3 bg-primary rounded-full animate-bounce" />
+        <div className="flex h-10 w-6 items-start justify-center border border-zinc-700 p-1.5">
+          <div className="h-3 w-px bg-amber-400 animate-bounce" />
         </div>
       </motion.div>
     </section>

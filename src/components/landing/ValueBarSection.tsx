@@ -44,26 +44,26 @@ export const ValueBarSection = () => {
   const t = translations[language] || translations.en;
 
   return (
-    <section className="py-6 border-y border-border/50 bg-muted/30">
+    <section className="border-y border-zinc-800 bg-[#09090b]">
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
+        <div className="grid grid-cols-2 gap-px bg-zinc-800 md:grid-cols-4">
           {t.items.map((item, i) => {
             const Icon = asIcon(item.icon, Zap);
             return (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-3 text-center"
+                transition={{ delay: i * 0.06 }}
+                className="flex items-center gap-3 bg-[#09090b] px-4 py-5"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-primary" />
+                <div className="flex h-9 w-9 items-center justify-center border border-amber-500/40 bg-amber-500/10">
+                  <Icon className="h-4 w-4 text-amber-400" />
                 </div>
                 <div className="text-left">
-                  <div className="text-lg font-bold text-foreground">{item.value}</div>
-                  <div className="text-xs text-muted-foreground">{item.label}</div>
+                  <div className="font-mono text-lg font-medium tracking-tight text-zinc-50">{item.value}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">{item.label}</div>
                 </div>
               </motion.div>
             );
