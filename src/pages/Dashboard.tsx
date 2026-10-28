@@ -79,6 +79,9 @@ interface Profile {
   onboarding_experience: string | null;
   onboarding_goal: string | null;
   onboarding_volume: string | null;
+  onboarding_platform: string | null;
+  onboarding_rate: string | null;
+  onboarding_industry: string | null;
   onboarding_completed: boolean;
   career_roadmap: any;
   bonus_credits: number;
@@ -516,12 +519,28 @@ const Dashboard = () => {
         const profileData = await fetchOrCreateProfile(session.user.id, session.user.email);
         setProfile(profileData);
 
-        // Restore segment from profile
+        // Restore segment from profile — fall back to onboarding answers for new users
         if (profileData?.user_segment) {
           setUserSegment(profileData.user_segment as UserSegment);
+        } else if (profileData?.onboarding_role) {
+          // Map onboarding role → freelancer / corporate segment
+          const role = profileData.onboarding_role;
+          setUserSegment(
+            role === 'freelance' || role === 'parttime' ? 'freelancer' : 'corporate',
+          );
         }
         if (profileData?.platform_type) {
           setPlatformType(profileData.platform_type as PlatformType);
+        } else if (profileData?.onboarding_platform) {
+          // Map onboarding platform → platformType
+          const platformMap: Record<string, PlatformType> = {
+            upwork: 'upwork',
+            linkedin: 'linkedin',
+            fiverr: 'fiverr',
+            other: 'upwork', // sensible default
+          };
+          const mapped = platformMap[profileData.onboarding_platform];
+          if (mapped) setPlatformType(mapped);
         }
         if (profileData?.profession_cluster) {
           setProfessionCluster(profileData.profession_cluster as ClusterCategory);
@@ -1192,11 +1211,38 @@ const Dashboard = () => {
                 </div>
 
                 <h1 className="text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl lg:text-4xl flex flex-wrap items-center gap-3">
-                  <span>{dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name}` : ''}</span>
+                  <span>{dashboardUiText.welcome}{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋</span>
                   <TierBadge tier={displayTier} className="text-[11px] px-3 py-1" />
                 </h1>
+                {/* Personalised subtitle — uses onboarding answers when available */}
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                  {dashboardUiText.memberWorkspace}
+                  {(() => {
+                    const role = profile?.onboarding_role;
+                    const platform = profile?.onboarding_platform;
+                    const industry = profile?.onboarding_industry;
+                    const goal = profile?.onboarding_goal;
+
+                    if (role || platform || industry) {
+                      const platformLabel: Record<string, string> = {
+                        upwork: 'Upwork', linkedin: 'LinkedIn', fiverr: 'Fiverr', other: 'your platform',
+                      };
+                      const industryLabel: Record<string, string> = {
+                        tech: 'tech & software', design: 'design & creative',
+                        marketing: 'marketing & content', other: 'your industry',
+                      };
+                      const goalLabel: Record<string, string> = {
+                        responses: 'more client responses', standout: 'standing out from competitors',
+                        writing: 'faster proposal writing', opportunities: 'finding the right opportunities',
+                      };
+                      const parts: string[] = [];
+                      if (platform && platformLabel[platform]) parts.push(`optimised for ${platformLabel[platform]}`);
+                      if (industry && industryLabel[industry]) parts.push(`${industryLabel[industry]} focus`);
+                      if (goal && goalLabel[goal]) parts.push(`${goalLabel[goal]}`);
+                      const tailored = parts.length ? `Tailored for ${parts.join(' · ')}.` : '';
+                      return `Your workspace is ready. ${tailored} Generate high-converting proposals, pitch clients, and track your pipeline — all in one place.`;
+                    }
+                    return dashboardUiText.memberWorkspace;
+                  })()}
                 </p>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">

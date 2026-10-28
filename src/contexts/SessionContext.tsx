@@ -42,6 +42,8 @@ interface SessionState {
   trialEndsAt: string | null;
   /** false only when the profiles row has onboarding_completed = false (new user) */
   onboardingCompleted: boolean;
+  /** Optimistically marks onboarding done so ProtectedRoute unlocks before DB re-fetch */
+  markOnboardingComplete: () => void;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
 }
@@ -71,6 +73,7 @@ const SessionContext = createContext<SessionState>({
   displayTier: resolveDisplayTier({}),
   trialEndsAt: null,
   onboardingCompleted: true,
+  markOnboardingComplete: () => {},
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
 });
@@ -412,6 +415,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         trialEndsAt,
         // superadmin always passes the gate; otherwise use the resolved value
         onboardingCompleted: owner ? true : onboardingCompleted,
+        markOnboardingComplete: () => setOnboardingCompleted(true),
         refreshCredits,
         setCreditsBalance,
       }}

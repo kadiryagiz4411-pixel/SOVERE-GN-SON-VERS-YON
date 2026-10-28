@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
   ArrowRight, ArrowLeft, Crown, Briefcase, TrendingUp, Target, Clock, Users, DollarSign, Globe,
-  Loader2, CheckCircle, Brain, Zap, LineChart, Laptop, Building2, Mail, Trophy, PenLine,
-  Rocket, Star, Sprout, Search, Coins, Gem, Code2, Palette, Megaphone,
+  Loader2, CheckCircle, Brain, Zap, LineChart,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SafeIcon } from '@/lib/safeIcon';
 
 interface Answer {
   questionId: string;
@@ -26,39 +25,34 @@ const RATIONALE_ICONS: Record<string, typeof Target> = {
   industry: Users,
 };
 
-const OPTION_ICONS: Record<string, typeof Target> = {
-  freelance: Laptop,
-  fulltime: Building2,
-  parttime: Clock,
-  consulting: LineChart,
-  '0-2': Sprout,
-  '3-5': Rocket,
-  '5-10': Star,
-  '10+': Crown,
-  responses: Mail,
-  standout: Trophy,
-  writing: PenLine,
-  opportunities: Search,
-  '1-5': Target,
-  '5-15': Zap,
-  '15-30': TrendingUp,
-  '30+': Rocket,
-  upwork: Globe,
-  linkedin: Users,
-  fiverr: Star,
-  other: Globe,
-  under25: Coins,
-  '25-50': DollarSign,
-  '50-100': Gem,
-  '100+': Crown,
-  tech: Code2,
-  design: Palette,
-  marketing: Megaphone,
-};
+/**
+ * Extract the leading emoji grapheme cluster from an option label string.
+ * Labels look like "🧑‍💻 Freelance / Contract" — we grab everything before the
+ * first ASCII character (space + letter) using Intl.Segmenter when available,
+ * falling back to a two-character slice for environments that lack it.
+ */
+function extractEmoji(label: string): string {
+  if (!label) return '•';
+  try {
+    if (typeof Intl !== 'undefined' && (Intl as any).Segmenter) {
+      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
+      const segs: Array<{ segment: string }> = [...seg.segment(label)];
+      // Collect leading graphemes until we hit a plain ASCII character or space
+      const emojis = segs.takeWhile
+        ? segs.takeWhile((s: { segment: string }) => s.segment.trim() && !/^[\x20-\x7E]$/.test(s.segment))
+        : segs.filter((_, i) => i === 0);
+      const joined = emojis.map((s: { segment: string }) => s.segment).join('');
+      return joined || label[0];
+    }
+  } catch { /* fallback below */ }
+  // Simple fallback: take first two code units (handles most emoji)
+  return [...label].slice(0, 2).join('').trim() || '•';
+}
 
 const Onboarding = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
+  const { markOnboardingComplete } = useSession();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -343,14 +337,18 @@ const Onboarding = () => {
           .eq('id', session.user.id);
       }
 
-      // Tell SessionContext to re-fetch the profile so onboardingCompleted flips to true.
+      // Optimistically flip the SessionContext flag BEFORE navigating so that
+      // ProtectedRoute immediately passes (avoids the redirect-loop race condition).
+      markOnboardingComplete();
+      // Also trigger an async DB re-fetch so the context stays in sync.
       window.dispatchEvent(new Event('sovereign:profile-updated'));
 
       toast.success(language === 'tr' ? 'Profil oluşturuldu! 🎉' : 'Profile created! 🎉');
       navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('[Onboarding] save error', err);
-      // Even if save fails, let the user into the dashboard so they aren't stuck.
+      // Even if save fails, unlock the gate and navigate so users are never stuck.
+      markOnboardingComplete();
       navigate('/dashboard', { replace: true });
     } finally {
       setIsSaving(false);
@@ -395,10 +393,10 @@ const Onboarding = () => {
               </span>
             </div>
 
-            {/* Question header */}
+            {/* Question header icon — use Lucide icon from RATIONALE_ICONS */}
             <div className="flex items-center justify-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <SafeIcon icon={Icon} fallback={Crown} className="w-6 h-6 text-primary" />
+                <Icon className="w-6 h-6 text-primary" />
               </div>
             </div>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
@@ -406,7 +404,10 @@ const Onboarding = () => {
             </h2>
             <div className="mx-auto mt-4 max-w-lg rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 flex items-start gap-3 text-left">
               <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-                <SafeIcon icon={RATIONALE_ICONS[currentQuestion.id] || currentQuestion.icon} fallback={Target} className="w-5 h-5 text-amber-400" />
+                {(() => {
+                  const RIcon = RATIONALE_ICONS[currentQuestion.id] || currentQuestion.icon;
+                  return <RIcon className="w-5 h-5 text-amber-400" />;
+                })()}
               </div>
               <p className="text-sm text-amber-100/90 leading-relaxed">{currentQuestion.subtitle}</p>
             </div>
@@ -432,14 +433,16 @@ const Onboarding = () => {
                     </div>
                   )}
                   <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${
+                    {/* Emoji icon bubble — extracted from the label so it always renders */}
+                    <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 text-2xl leading-none transition-colors ${
                       isSelected ? 'bg-amber-500/20 border-amber-500/40' : 'bg-amber-500/10 border-amber-500/20'
                     }`}>
-                      <SafeIcon icon={OPTION_ICONS[option.value] || currentQuestion.icon} fallback={Target} className="w-5 h-5 text-amber-400" />
+                      {extractEmoji(option.label)}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-lg mb-1 font-semibold text-foreground">
-                        {option.label}
+                      {/* Strip the leading emoji from the label since we show it in the bubble */}
+                      <div className="text-base mb-0.5 font-semibold text-foreground leading-snug">
+                        {option.label.replace(/^[\p{Emoji}\s]+/u, '').trim()}
                       </div>
                       <div className="text-xs text-muted-foreground">{option.desc}</div>
                     </div>
