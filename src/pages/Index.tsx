@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -17,22 +17,23 @@ import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { ExtensionDownloadSection } from '@/components/landing/ExtensionDownloadSection';
 import { FreelancePlatformSection } from '@/components/landing/FreelancePlatformSection';
-import { LandingOnboardingMemory } from '@/components/LandingOnboardingMemory';
 import { AnimatedSection } from '@/components/landing/AnimatedSection';
 import { useSession } from '@/contexts/SessionContext';
-import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  // Do NOT wait for sessionReady — landing page renders immediately.
+  // The redirect to /dashboard fires once session resolves.
   const { user, sessionReady } = useSession();
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    const hasAdParams = searchParams.get('utm_source') ||
-                        searchParams.get('gclid') ||
-                        searchParams.get('fbclid') ||
-                        searchParams.get('utm_campaign');
+    // Redirect paid-traffic ads to the signup page with UTM params preserved.
+    const hasAdParams =
+      searchParams.get('utm_source') ||
+      searchParams.get('gclid') ||
+      searchParams.get('fbclid') ||
+      searchParams.get('utm_campaign');
     if (hasAdParams) {
       const params = new URLSearchParams();
       params.set('mode', 'signup');
@@ -41,25 +42,14 @@ const Index = () => {
       return;
     }
 
+    // Redirect authenticated users to their dashboard once session is ready.
     if (sessionReady && user) {
       navigate('/dashboard', { replace: true });
     }
-
-    const hasVisited = localStorage.getItem('sovereign-visited');
-    if (!hasVisited) {
-      setShowOnboarding(true);
-      localStorage.setItem('sovereign-visited', 'true');
-    }
   }, [searchParams, navigate, sessionReady, user]);
 
-  if (!sessionReady) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  // While an authenticated session is loading, don't flash the landing page
+  // briefly before the dashboard redirect fires.
   if (user) return null;
 
   return (
@@ -67,15 +57,6 @@ const Index = () => {
       <Header />
       <main>
         <HeroSection />
-        {/* 10-step pre-login onboarding memory — shown for all visitors */}
-        <AnimatedSection>
-          <LandingOnboardingMemory
-            onComplete={() => {
-              // Mark visited so the quiz doesn't reset on next landing visit
-              try { localStorage.setItem('sovereign-visited', '1'); } catch { /**/ }
-            }}
-          />
-        </AnimatedSection>
         <ValueBarSection />
         <StatsCounterSection />
         <AnimatedSection>

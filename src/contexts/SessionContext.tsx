@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
@@ -41,6 +40,8 @@ interface SessionState {
   subscriptionStatus: string;
   displayTier: DisplayTier;
   trialEndsAt: string | null;
+  /** false only when the profiles row has onboarding_completed = false (new user) */
+  onboardingCompleted: boolean;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
 }
@@ -69,6 +70,7 @@ const SessionContext = createContext<SessionState>({
   subscriptionStatus: 'active',
   displayTier: resolveDisplayTier({}),
   trialEndsAt: null,
+  onboardingCompleted: true,
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
 });
@@ -91,6 +93,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [appsumoPlan, setAppsumoPlan] = useState('none');
   const [subscriptionStatus, setSubscriptionStatus] = useState('active');
   const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
+  // true by default → existing users (null column) never see the onboarding gate.
+  // Only explicitly false (new user whose profile row has onboarding_completed=false) will be gated.
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
   const [applyQueueAccess, setApplyQueueAccess] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -154,6 +159,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setTrialEndsAt(slice?.trial_ends_at ?? null);
         setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
         setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
+        // Gate only when DB explicitly has false. null/undefined = existing user = treated as done.
+        setOnboardingCompleted(data?.onboarding_completed !== false);
       }
 
       const nextTier = superAdmin ? OWNER_PRIVILEGES.appsumo_tier : numericTier;
@@ -362,14 +369,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id, user?.email, loadProfileCredits]);
 
-  if (!sessionReady) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const owner = hasFullWorkspaceAccess(user);
 
   const liveTrial = owner || isTrialWindowOpen(isTrialActive, trialEndsAt);
@@ -411,6 +410,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: owner ? 'active' : subscriptionStatus,
         displayTier,
         trialEndsAt,
+        // superadmin always passes the gate; otherwise use the resolved value
+        onboardingCompleted: owner ? true : onboardingCompleted,
         refreshCredits,
         setCreditsBalance,
       }}

@@ -310,36 +310,51 @@ const Onboarding = () => {
         return;
       }
 
-      await supabase
+      // Save ALL collected answers + mark onboarding complete.
+      // The update uses user_id FK (not PK) to match fetchProfileByAuthId convention.
+      const { error } = await supabase
         .from('profiles')
         .update({
           onboarding_role: answers.role || null,
           onboarding_experience: answers.experience || null,
           onboarding_goal: answers.goal || null,
           onboarding_volume: answers.volume || null,
+          onboarding_platform: answers.platform || null,
+          onboarding_rate: answers.rate || null,
+          onboarding_industry: answers.industry || null,
           onboarding_completed: true,
         })
         .eq('user_id', session.user.id);
 
+      if (error) {
+        // Try PK fallback in case the row is keyed by id not user_id
+        await supabase
+          .from('profiles')
+          .update({
+            onboarding_role: answers.role || null,
+            onboarding_experience: answers.experience || null,
+            onboarding_goal: answers.goal || null,
+            onboarding_volume: answers.volume || null,
+            onboarding_platform: answers.platform || null,
+            onboarding_rate: answers.rate || null,
+            onboarding_industry: answers.industry || null,
+            onboarding_completed: true,
+          })
+          .eq('id', session.user.id);
+      }
+
+      // Tell SessionContext to re-fetch the profile so onboardingCompleted flips to true.
+      window.dispatchEvent(new Event('sovereign:profile-updated'));
+
       toast.success(language === 'tr' ? 'Profil oluşturuldu! 🎉' : 'Profile created! 🎉');
-      navigate('/pricing?from=onboarding');
+      navigate('/dashboard', { replace: true });
     } catch (err) {
-      console.error(err);
-      navigate('/pricing?from=onboarding');
+      console.error('[Onboarding] save error', err);
+      // Even if save fails, let the user into the dashboard so they aren't stuck.
+      navigate('/dashboard', { replace: true });
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleSkip = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true })
-        .eq('user_id', session.user.id);
-    }
-    navigate('/pricing?from=onboarding');
   };
 
   const Icon = currentQuestion.icon;
@@ -357,12 +372,7 @@ const Onboarding = () => {
             </div>
             <span className="font-bold text-foreground">Sovereign</span>
           </div>
-          <button
-            onClick={handleSkip}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {l.skip}
-          </button>
+          {/* Skip removed — onboarding is mandatory for new accounts */}
         </div>
       </div>
 
