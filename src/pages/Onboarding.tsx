@@ -373,15 +373,12 @@ const Onboarding = () => {
 
       toast.success(language === 'tr' ? 'Profil oluşturuldu! 🎉' : 'Profile created! 🎉');
 
-      // 4) Hard navigation — bypasses React Router's pending state and any
-      //    lingering ProtectedRoute render that could loop back to /onboarding.
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('[Onboarding] save error', err);
-      // Even if save fails, never trap the user — unlock and hard-redirect.
       try { localStorage.setItem('sovereign_onboarding_done', 'true'); } catch { /**/ }
       markOnboardingComplete();
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
     } finally {
       setIsSaving(false);
     }

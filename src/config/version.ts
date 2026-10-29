@@ -22,4 +22,5 @@ export const PRESERVED_KEYS: ReadonlySet<string> = new Set([
   'supabase.auth.token',
   // Sovereign per-user settings that should survive version bumps
   'sovereign_byok_key',
+  'sovereign_onboarding_done',
 ]);

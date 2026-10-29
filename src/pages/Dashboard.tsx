@@ -491,7 +491,6 @@ const Dashboard = () => {
           bonus_credits: 0,
           credits_balance: 0,
           trial_claimed: false,
-          onboarding_completed: false,
         };
 
         const { data: created, error: createErr } = await supabase

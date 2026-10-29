@@ -43,10 +43,20 @@ interface SessionState {
   trialEndsAt: string | null;
   /** false only when the profiles row has onboarding_completed = false (new user) */
   onboardingCompleted: boolean;
+  /** False until the first profile read (or a stored done flag) settles the gate. */
+  onboardingResolved: boolean;
   /** Optimistically marks onboarding done so ProtectedRoute unlocks before DB re-fetch */
   markOnboardingComplete: () => void;
   refreshCredits: () => Promise<void>;
   setCreditsBalance: (n: number) => void;
+}
+
+function readOnboardingDoneFlag(): boolean {
+  try {
+    return localStorage.getItem('sovereign_onboarding_done') === 'true';
+  } catch {
+    return false;
+  }
 }
 
 const SessionContext = createContext<SessionState>({
@@ -74,6 +84,7 @@ const SessionContext = createContext<SessionState>({
   displayTier: resolveDisplayTier({}),
   trialEndsAt: null,
   onboardingCompleted: true,
+  onboardingResolved: true,
   markOnboardingComplete: () => {},
   refreshCredits: async () => {},
   setCreditsBalance: () => {},
@@ -98,9 +109,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [appsumoLicensed, setAppsumoLicensed] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState('active');
   const [b2bAccessFlag, setB2bAccessFlag] = useState(false);
-  // true by default → existing users (null column) never see the onboarding gate.
-  // Only explicitly false (new user whose profile row has onboarding_completed=false) will be gated.
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+  // Unknown until the first profile read, unless this browser already finished onboarding.
+  const [onboardingCompleted, setOnboardingCompleted] = useState(readOnboardingDoneFlag);
+  const [onboardingResolved, setOnboardingResolved] = useState(readOnboardingDoneFlag);
+  const onboardingHydrated = useRef(readOnboardingDoneFlag());
+  const profileLoadStarted = useRef(false);
   const [applyQueueAccess, setApplyQueueAccess] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -108,6 +121,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
+    profileLoadStarted.current = true;
+    if (!readOnboardingDoneFlag() && !onboardingHydrated.current) {
+      setOnboardingResolved(false);
+    }
     const superAdmin = hasFullWorkspaceAccess({ email });
     try {
       const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
@@ -140,6 +157,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setAppsumoLicensed(true);
         setSubscriptionStatus('active');
         setTrialEndsAt(null);
+        setOnboardingCompleted(true);
+        onboardingHydrated.current = true;
+        setOnboardingResolved(true);
       } else {
         const slice = data as TrialProfileSlice;
         const access = resolveB2BAccess({ email, user: { email }, profile: slice });
@@ -174,8 +194,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setTrialEndsAt(slice?.trial_ends_at ?? null);
         setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
         setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
-        // Gate only when DB explicitly has false. null/undefined = existing user = treated as done.
-        setOnboardingCompleted(data?.onboarding_completed !== false);
+        // Decide the gate once. A later refresh must not flip a finished user back to onboarding.
+        setOnboardingCompleted((current) => {
+          if (readOnboardingDoneFlag()) return true;
+          if (onboardingHydrated.current && current) return true;
+          return data?.onboarding_completed !== false;
+        });
+        onboardingHydrated.current = true;
+        setOnboardingResolved(true);
       }
 
       const nextTier = superAdmin ? OWNER_PRIVILEGES.appsumo_tier : numericTier;
@@ -223,6 +249,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setB2bAccessFlag(true);
         setApplyQueueAccess(true);
       }
+      if (mounted.current) {
+        if (readOnboardingDoneFlag() || superAdmin || !onboardingHydrated.current) {
+          setOnboardingCompleted(true);
+        }
+        onboardingHydrated.current = true;
+        setOnboardingResolved(true);
+      }
     }
   }, []);
 
@@ -269,6 +302,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!mounted.current || hydrated.current) return;
       hydrated.current = true;
       setSessionReady(true);
+      if (!profileLoadStarted.current) setOnboardingResolved(true);
     }, 3000);
 
     supabase.auth.getSession()
@@ -288,6 +322,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(authedUser);
         if (authedUser?.id) {
           void loadProfileCredits(authedUser.id, authedUser.email);
+        } else {
+          setOnboardingResolved(true);
         }
         if (!mounted.current) return;
         hydrated.current = true;
@@ -298,6 +334,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (mounted.current) {
           hydrated.current = true;
           setSessionReady(true);
+          if (!profileLoadStarted.current) setOnboardingResolved(true);
         }
       });
 
@@ -343,6 +380,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setTrialEndsAt(null);
         setB2bAccessFlag(false);
         setApplyQueueAccess(false);
+        onboardingHydrated.current = readOnboardingDoneFlag();
+        setOnboardingCompleted(readOnboardingDoneFlag());
+        setOnboardingResolved(true);
       }
     });
 
@@ -429,7 +469,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         trialEndsAt,
         // superadmin always passes the gate; otherwise use the resolved value
         onboardingCompleted: owner ? true : onboardingCompleted,
-        markOnboardingComplete: () => setOnboardingCompleted(true),
+        onboardingResolved: owner || onboardingResolved,
+        markOnboardingComplete: () => {
+          onboardingHydrated.current = true;
+          setOnboardingCompleted(true);
+          setOnboardingResolved(true);
+        },
         refreshCredits,
         setCreditsBalance,
       }}
