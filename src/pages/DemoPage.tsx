@@ -347,7 +347,7 @@ const DemoPage = () => {
                 </aside>
               </div>
               <div
-                className={`absolute inset-y-0 right-0 w-full max-w-sm border-l border-amber-400/30 bg-zinc-950/95 backdrop-blur-md p-5 transition-transform duration-300 ${b2bOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`absolute inset-y-0 right-0 w-full max-w-sm border-l border-amber-400/30 bg-zinc-950/95 backdrop-blur-md p-5 transition-transform duration-300 ${b2bOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
                 aria-hidden={!b2bOpen}
               >
                 <div className="flex items-center justify-between gap-3">
