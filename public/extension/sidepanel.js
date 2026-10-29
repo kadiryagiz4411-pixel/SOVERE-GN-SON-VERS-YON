@@ -481,6 +481,7 @@ async function saveProposalRecord(record) {
   const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
   await storageSet(STORE.PROPOSALS, next);
   renderProposalList(next);
+  void renderSettingsHistory();
 }
 
 async function saveCandidateRecord(record) {
@@ -1552,7 +1553,10 @@ function switchTab(tab) {
   document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.tab === id);
   });
-  if (id === 'settings') void pingApi();
+  if (id === 'settings') {
+    void pingApi();
+    void renderSettingsHistory();
+  }
 }
 
 document.getElementById('navB2c')?.addEventListener('click', (event) => {
@@ -1911,6 +1915,7 @@ async function saveCvRecord(record) {
   const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
   await storageSet(STORE.CVS, next);
   renderCvList(next);
+  void renderSettingsHistory();
 }
 
 async function generateTailoredCv() {
@@ -2041,6 +2046,92 @@ document.getElementById('downloadCv')?.addEventListener('click', () => {
   setCvBusy(false, 'PDF downloaded.');
 });
 
+const B2B_NOTES = 'sovereign.b2b-notes.v1';
+
+async function renderSettingsHistory() {
+  const host = document.getElementById('settingsHistory');
+  if (!host) return;
+  const proposals = await storageGet(STORE.PROPOSALS, []);
+  const cvs = await storageGet(STORE.CVS, []);
+  const rows = [
+    ...(Array.isArray(proposals) ? proposals : []).map((item) => ({ ...item, kind: 'Proposal' })),
+    ...(Array.isArray(cvs) ? cvs : []).map((item) => ({ ...item, kind: 'CV' })),
+  ].sort((a, b) => Number(b.at || 0) - Number(a.at || 0));
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty">No history yet.</div>';
+    return;
+  }
+  host.innerHTML = rows.map((item) => `
+    <article class="list-item">
+      <h3>${escapeHtml(item.kind)} · ${escapeHtml(item.title || 'Untitled')}</h3>
+      <div class="when">${escapeHtml(formatWhen(item.at))}</div>
+      <p>${escapeHtml(item.text || item.summary || '')}</p>
+      <button class="ghost" type="button" data-history-copy="1" data-history-text="${escapeHtml(item.text || item.summary || '')}">Copy</button>
+    </article>
+  `).join('');
+}
+
+function setB2bDrawer(open) {
+  document.getElementById('b2bDrawer')?.classList.toggle('open', open);
+  document.getElementById('b2bBackdrop')?.classList.toggle('open', open);
+  document.getElementById('b2bDrawer')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (open) {
+    const client = document.getElementById('b2bClient');
+    if (client && !client.value && lastTitle) client.value = lastTitle;
+    void renderB2bNotes();
+  }
+}
+
+async function renderB2bNotes() {
+  const host = document.getElementById('b2bNoteList');
+  if (!host) return;
+  const notes = await storageGet(B2B_NOTES, []);
+  const list = Array.isArray(notes) ? notes : [];
+  if (!list.length) {
+    host.innerHTML = '<div class="empty">No client notes yet.</div>';
+    return;
+  }
+  host.innerHTML = list.map((item) => `
+    <article class="list-item">
+      <h3>${escapeHtml(item.client || 'Client')}</h3>
+      <p>${escapeHtml(item.pitch || '')}</p>
+      <button class="ghost" type="button" data-note-copy="1" data-note-text="${escapeHtml(item.pitch || '')}">Copy</button>
+    </article>
+  `).join('');
+}
+
+document.getElementById('openB2bPanel')?.addEventListener('click', () => setB2bDrawer(true));
+document.getElementById('closeB2bPanel')?.addEventListener('click', () => setB2bDrawer(false));
+document.getElementById('b2bBackdrop')?.addEventListener('click', () => setB2bDrawer(false));
+document.getElementById('saveB2bNote')?.addEventListener('click', async () => {
+  const client = document.getElementById('b2bClient')?.value?.trim() || 'Client';
+  const pitch = document.getElementById('b2bPitch')?.value?.trim() || '';
+  const notes = await storageGet(B2B_NOTES, []);
+  const next = [{ id: crypto.randomUUID(), client, pitch, at: Date.now() }, ...(Array.isArray(notes) ? notes : [])].slice(0, 30);
+  await storageSet(B2B_NOTES, next);
+  const status = document.getElementById('b2bDrawerStatus');
+  if (status) status.textContent = 'Saved on this device.';
+  void renderB2bNotes();
+});
+document.getElementById('copyB2bPitch')?.addEventListener('click', async () => {
+  const pitch = document.getElementById('b2bPitch')?.value || '';
+  if (!pitch) return;
+  await copyText(pitch);
+  const status = document.getElementById('b2bDrawerStatus');
+  if (status) status.textContent = 'Pitch copied.';
+});
+document.getElementById('settingsHistory')?.addEventListener('click', async (event) => {
+  const text = event.target.closest('[data-history-text]')?.getAttribute('data-history-text') || '';
+  if (!text) return;
+  await copyText(text);
+  if (profileStatus) profileStatus.textContent = 'Copied from history.';
+});
+document.getElementById('b2bNoteList')?.addEventListener('click', async (event) => {
+  const text = event.target.closest('[data-note-text]')?.getAttribute('data-note-text') || '';
+  if (!text) return;
+  await copyText(text);
+});
+
 async function boot() {
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
@@ -2048,20 +2139,10 @@ async function boot() {
     fillSettingsForm();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));
+    void renderSettingsHistory();
     renderTeamLeads(await storageGet(STORE.LEADS, []));
     await resolveWorkspaceAccess();
-    const viewport = await storageGet(STORE.VIEWPORT, null);
-    // Only restore viewport from storage if it is fresh (< 60 s old).
-    // Stale storage is the primary source of "old job still showing" bugs —
-    // rescanActiveScreen() below will immediately refresh with live DOM data.
-    const viewportAge = Date.now() - (viewport?.at || 0);
-    if ((viewport?.jobTitle || viewport?.pageText) && viewportAge < 60_000) {
-      setTargetBadge('live', viewport.jobTitle || viewport.pageTitle, viewport.kind);
-      applyIsolatedJob(normalizePageData(viewport));
-      lastTargetHash = viewport.hash || viewport.signature || '';
-    } else {
-      setTargetBadge('scanning');
-    }
+    setTargetBadge('scanning');
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }

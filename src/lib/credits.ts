@@ -64,6 +64,7 @@ export function creditUsagePercentage(
   maxCredits: number | null | undefined,
 ): number {
   const current = currentCredits ?? 0;
-  const max = maxCredits || DEFAULT_MONTHLY_CREDIT_LIMIT;
+  const max = Number(maxCredits);
+  if (!Number.isFinite(max) || max <= 0) return 0;
   return Math.min(100, Math.max(0, Math.round((current / max) * 100)));
 }

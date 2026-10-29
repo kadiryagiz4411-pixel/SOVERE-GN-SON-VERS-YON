@@ -56,7 +56,7 @@ const SessionContext = createContext<SessionState>({
   isLoading: true,
   creditsBalance: 0,
   remainingCredits: 0,
-  monthlyCreditLimit: 400,
+  monthlyCreditLimit: 0,
   subscriptionPlan: 'free',
   subscriptionTier: 'free',
   planType: 'free',
@@ -85,7 +85,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionReady, setSessionReady] = useState(false);
   const [creditsBalance, setCreditsBalance] = useState(0);
   const [remainingCredits, setRemainingCredits] = useState(0);
-  const [monthlyCreditLimit, setMonthlyCreditLimit] = useState(400);
+  const [monthlyCreditLimit, setMonthlyCreditLimit] = useState(0);
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
   const [subscriptionTier, setSubscriptionTier] = useState('free');
   const [planType, setPlanType] = useState('free');
@@ -120,7 +120,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const numericTier = Number(data?.appsumo_tier ?? data?.appsumo_codes_count ?? 0);
       const remaining = resolveRemainingCredits(data);
-      const limit = Number(data?.monthly_credit_limit ?? 400);
+      const rawLimit = Number(data?.monthly_credit_limit);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
       const hasKey = Boolean(String(data?.encrypted_openai_key ?? data?.custom_openai_key ?? '').trim());
 
       if (superAdmin) {
@@ -144,7 +145,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const access = resolveB2BAccess({ email, user: { email }, profile: slice });
         setCreditsBalance(remaining);
         setRemainingCredits(remaining);
-        setMonthlyCreditLimit(limit || 400);
+        setMonthlyCreditLimit(limit);
         const paidLabel = firstPaidPlanLabel(
           data?.plan_type,
           data?.subscription_plan,
@@ -328,7 +329,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         setCreditsBalance(0);
         setRemainingCredits(0);
-        setMonthlyCreditLimit(400);
+        setMonthlyCreditLimit(0);
         setSubscriptionPlan('free');
         setSubscriptionTier('free');
         setPlanType('free');

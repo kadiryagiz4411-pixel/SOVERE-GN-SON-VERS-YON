@@ -91,7 +91,8 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
     if (error || !data) return null;
 
     const remaining = resolveRemainingCredits(data as any);
-    const limit     = (data as any).monthly_credit_limit || 400;
+    const rawLimit = Number((data as any).monthly_credit_limit);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
     const usagePct  = creditUsagePercentage(remaining, limit);
     const appsumoTier = Number((data as any).appsumo_tier ?? (data as any).appsumo_codes_count ?? 0);
     const hasKey = Boolean(String((data as any).encrypted_openai_key ?? (data as any).custom_openai_key ?? '').trim());

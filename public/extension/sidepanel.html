@@ -23,6 +23,8 @@
         display: flex;
         flex-direction: column;
         font-family: Inter, system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
         background: radial-gradient(1100px 380px at 50% -90px, rgba(212, 175, 55, 0.14), transparent 55%), var(--bg);
         color: var(--text);
       }
@@ -221,8 +223,8 @@
         margin: 14px 0 6px;
       }
       .pain, .proposal {
-        font-size: 12px;
-        line-height: 1.5;
+        font-size: 15px;
+        line-height: 1.6;
         color: #e7e5e4;
         white-space: pre-wrap;
         margin: 0;
@@ -288,7 +290,36 @@
         font-size: 13px;
       }
       .field textarea { min-height: 72px; resize: vertical; }
-      .hint { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
+      .hint { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
+      .b2b-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 40;
+        width: min(100%, 360px);
+        height: 100%;
+        background: #111113;
+        border-left: 1px solid var(--line);
+        box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
+        transform: translateX(100%);
+        transition: transform 220ms ease;
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        overflow: auto;
+      }
+      .b2b-drawer.open { transform: translateX(0); }
+      .b2b-drawer h2 { margin: 0; font-size: 16px; color: var(--gold-2); }
+      .drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+      }
+      .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
       .theme-row, .plan-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -566,6 +597,7 @@
           </div>
         </div>
         <button id="rescan" class="rescan" type="button">🔍 Scan Active Screen</button>
+        <button id="openB2bPanel" class="rescan" type="button">B2B</button>
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>
@@ -724,7 +756,7 @@
 
       <section id="tab-settings" class="tab-view">
         <div class="k">Profile Settings</div>
-        <p class="hint">These fields feed the Real Match Score Engine. Add at least two skills.</p>
+        <p class="hint">These fields feed the match score. Leave skills blank and Sovereign uses Freelance and General.</p>
         <div class="field">
           <label for="skills">Primary skills</label>
           <textarea id="skills" placeholder="React, TypeScript, Supabase, Python"></textarea>
@@ -793,6 +825,10 @@
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
         <p id="profileStatus" class="hint"></p>
 
+        <div class="k">History / Geçmiş</div>
+        <p class="hint">Proposals and CVs saved on this device. Copy any item without leaving Settings.</p>
+        <div id="settingsHistory"></div>
+
         <div class="k">Appearance &amp; Theme</div>
         <div class="theme-row">
           <button id="themeOled" class="choice" type="button" data-theme="oled">Pure OLED Dark<small>#000000</small></button>
@@ -824,6 +860,29 @@
         </div>
       </section>
     </main>
+    <div id="b2bBackdrop" class="drawer-backdrop"></div>
+    <aside id="b2bDrawer" class="b2b-drawer" aria-hidden="true">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <h2>B2B clients</h2>
+        <button id="closeB2bPanel" class="ghost" type="button">Close</button>
+      </div>
+      <p class="hint">Pitch and client notes for the page you just scanned. Nothing is sent until you copy it.</p>
+      <div class="field">
+        <label for="b2bClient">Client</label>
+        <input id="b2bClient" type="text" placeholder="Client or company" />
+      </div>
+      <div class="field">
+        <label for="b2bPitch">Pitch</label>
+        <textarea id="b2bPitch" placeholder="Short pitch for this client"></textarea>
+      </div>
+      <div class="row">
+        <button id="saveB2bNote" class="primary" type="button">Save note</button>
+        <button id="copyB2bPitch" class="ghost" type="button">Copy pitch</button>
+      </div>
+      <p id="b2bDrawerStatus" class="hint"></p>
+      <div class="k">Saved clients</div>
+      <div id="b2bNoteList"></div>
+    </aside>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
   </body>

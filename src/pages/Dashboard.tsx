@@ -1165,7 +1165,8 @@ const Dashboard = () => {
   const currentCredits = isSuperAdmin || isByokUnlimited || hasBYOKAccess
     ? remainingCredits
     : (profileCredits || remainingCredits || 0);
-  const maxCredits = isSuperAdmin ? 999999 : (profile?.monthly_credit_limit || 400);
+  const listedLimit = Number(profile?.monthly_credit_limit);
+  const maxCredits = !isSuperAdmin && Number.isFinite(listedLimit) && listedLimit > 0 ? listedLimit : 0;
   // Human-readable label for credit displays that should never show a raw number for SA.
   const creditDisplayLabel = isSuperAdmin || isByokUnlimited || hasBYOKAccess
     ? '∞ UNLIMITED'
@@ -1291,7 +1292,7 @@ const Dashboard = () => {
                     <p className={`mt-2 text-2xl font-bold ${isSuperAdmin || isByokUnlimited || hasBYOKAccess ? 'text-emerald-400' : 'text-foreground'}`}>
                       {creditDisplayLabel}
                     </p>
-                    {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && (
+                    {!(isSuperAdmin || isByokUnlimited || hasBYOKAccess) && maxCredits > 0 && (
                       <>
                         <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {maxCredits.toLocaleString()}</p>
                         <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">

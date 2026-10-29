@@ -531,18 +531,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     type === 'SCAN_ACTIVE_SCREEN' ||
     type === 'FLUSH_VIEWPORT'
   ) {
+    let replied = false;
     safeCall(() => {
-      // Force-scan: always wipe the hash cache so dedup never short-circuits.
-      if (type !== 'SCRAPE_PAGE') lastPublishedHash = '';
-      const force = type !== 'SCRAPE_PAGE';
-      const data  = scrapeFresh(force);
+      lastPublishedHash = '';
+      invalidateViewportState();
+      const data = scrapeFresh(true);
       publishTarget(data, true);
-      sendResponse({ success: Boolean(data?.pageText), data });
+      replied = true;
+      sendResponse({
+        success: Boolean(data && (data.pageText || data.jobDescription || data.jobTitle)),
+        data,
+        scannedAt: Date.now(),
+      });
     });
-    // If safeCall swallowed an exception, send a safe error response.
-    // (sendResponse may already have been called inside safeCall — that's OK,
-    //  Chrome ignores duplicate sendResponse calls.)
-    safeCall(() => sendResponse({ success: false, error: 'content-script error boundary' }));
+    if (!replied) {
+      safeCall(() => sendResponse({ success: false, error: 'Could not read the active page.' }));
+    }
     return true;
   }
 

@@ -8,11 +8,19 @@ import { APP_VERSION, VERSION_STORAGE_KEY, PRESERVED_KEYS } from "./config/versi
 // Removes any stale Workbox / PWA service workers so cached assets from a
 // previous build can never serve outdated JS/CSS.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister().catch(() => {});
+  const swFlag = `sovereign_sw_cleared_${APP_VERSION}`;
+  try {
+    if (!sessionStorage.getItem(swFlag)) {
+      sessionStorage.setItem(swFlag, '1');
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister().catch(() => {});
+        }
+      }).catch(() => {});
     }
-  }).catch(() => {});
+  } catch {
+    // sessionStorage unavailable
+  }
 }
 
 // ── 2. Version-based localStorage cache flush ────────────────────────────────
@@ -77,8 +85,17 @@ if (
   document.documentElement.classList.add("pwa-standalone");
 }
 
-createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error('Missing application root');
+}
+try {
+  createRoot(rootEl).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+} catch (err) {
+  console.error('[Sovereign Load Error]:', err);
+  rootEl.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#09090b;color:#f5f5f4;font-family:Inter,system-ui,sans-serif;padding:24px;text-align:center"><div><h1 style="font-size:22px;margin:0 0 8px">Something went wrong</h1><p style="margin:0 0 16px;color:#a8a29e">The app could not start. Reload the page to try again.</p><button type="button" onclick="location.reload()" style="background:#d4af37;color:#111;border:0;border-radius:10px;padding:10px 16px;font-weight:700">Reload</button></div></div>';
+}

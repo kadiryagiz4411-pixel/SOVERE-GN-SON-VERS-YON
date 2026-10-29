@@ -31,10 +31,11 @@ function actionLabel(item: CreditActivityItem): string {
   return 'Credit activity';
 }
 
-export const CreditActivityPanel = ({ currentBalance, monthlyLimit = 400, items }: CreditActivityPanelProps) => {
+export const CreditActivityPanel = ({ currentBalance, monthlyLimit, items }: CreditActivityPanelProps) => {
   const { language } = useLanguage();
   const currentCredits = currentBalance ?? 0;
-  const maxCredits = monthlyLimit || 400;
+  const parsedLimit = Number(monthlyLimit);
+  const maxCredits = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 0;
   const percentage = maxCredits > 0
     ? Math.min(100, Math.max(0, Math.round((currentCredits / maxCredits) * 100)))
     : 0;
@@ -112,13 +113,17 @@ export const CreditActivityPanel = ({ currentBalance, monthlyLimit = 400, items 
               <Coins className="h-4 w-4 text-primary" />
               <span className="text-2xl font-bold">{numberFormatter.format(currentBalance)}</span>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {numberFormatter.format(maxCredits)}</p>
-            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
+            {maxCredits > 0 && (
+              <>
+                <p className="mt-1 text-[11px] text-muted-foreground">{percentage}% of {numberFormatter.format(maxCredits)}</p>
+                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${currentCredits <= 0 ? 'bg-destructive' : percentage < 20 ? 'bg-amber-500' : 'bg-primary'}`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-background/60 p-4">

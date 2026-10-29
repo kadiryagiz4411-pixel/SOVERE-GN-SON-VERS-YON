@@ -38,7 +38,11 @@ export function CreditCounterWidget({
   const [loading, setLoading] = useState(false);
 
   const shownRemaining = remainingCredits;
-  const shownLimit = monthlyCreditLimit || status?.monthlyLimit || 400;
+  const profileLimit = Number(monthlyCreditLimit);
+  const statusLimit = Number(status?.monthlyLimit);
+  const shownLimit = Number.isFinite(profileLimit) && profileLimit > 0
+    ? profileLimit
+    : (Number.isFinite(statusLimit) && statusLimit > 0 ? statusLimit : 0);
   const shownPct = shownLimit > 0 ? Math.min(100, Math.round((shownRemaining / shownLimit) * 100)) : 0;
 
   const load = useCallback(async () => {
@@ -87,7 +91,7 @@ export function CreditCounterWidget({
         )}
       >
         <Zap className="w-3 h-3" />
-        {shownRemaining}/{shownLimit}
+        {shownLimit > 0 ? `${shownRemaining}/${shownLimit}` : shownRemaining}
       </span>
     );
   }
@@ -139,9 +143,11 @@ export function CreditCounterWidget({
             <span className={cn('text-lg font-bold leading-none', exhausted ? 'text-red-400' : shownPct <= 20 ? 'text-amber-400' : 'text-emerald-400')}>
               {shownRemaining}
             </span>
-            <span className="text-xs text-muted-foreground mb-0.5">
-              / {shownLimit} left
-            </span>
+            {shownLimit > 0 && (
+              <span className="text-xs text-muted-foreground mb-0.5">
+                / {shownLimit}
+              </span>
+            )}
           </>
         )}
       </div>
