@@ -28,7 +28,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
 
   const load = async () => {
     const { data } = await fetchProfileByAuthId(userId,
-      'appsumo_tier, appsumo_codes_count, is_account_paused, subscription_status, encrypted_openai_key, custom_openai_key, subscription_tier, plan_type, byok_unlocked',
+      'appsumo_tier, appsumo_codes_count, appsumo_plan, is_appsumo, plan_tier, subscription_status, encrypted_openai_key, subscription_tier, plan_type',
     );
     const row = (data ?? {}) as Record<string, unknown>;
     setCodes(Number(row.appsumo_codes_count ?? 0));

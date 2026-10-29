@@ -25,14 +25,21 @@ const EMPTY: AppsumoLicenseGate = {
   gatePlan: 'free',
 };
 
-function rankFromProductLabel(value: unknown): 0 | 1 | 2 | 3 {
+function rankFromAppsumoLabel(value: unknown): 0 | 1 | 2 | 3 {
   const v = String(value ?? '').trim().toLowerCase().replace(/[\s-]/g, '_');
-  if (!v) return 0;
+  if (!v || ['free', 'unlimited', 'standard', 'pro', 'elite', 'enterprise', 'none'].includes(v)) return 0;
   if (['agency', 'b2b', 'tier_3', 'tier3', 'appsumo_tier3', 'appsumo_b2b'].includes(v)) return 3;
   if (['tier_2', 'tier2', 'appsumo_tier2'].includes(v)) return 2;
   if (['starter', 'tier_1', 'tier1', 'appsumo_tier1'].includes(v)) return 1;
-  if (v === 'pro') return 2;
   return 0;
+}
+
+function rankFromPlanTierColumn(value: unknown): 0 | 1 | 2 | 3 {
+  const v = String(value ?? '').trim().toLowerCase().replace(/[\s-]/g, '_');
+  if (v === 'agency' || v === 'b2b') return 3;
+  if (v === 'pro') return 2;
+  if (v === 'starter') return 1;
+  return rankFromAppsumoLabel(v);
 }
 
 export function creditsForAppsumoRank(rank: number): number {
@@ -59,16 +66,12 @@ export function gatePlanForRank(rank: number): string {
 export function readAppsumoLicense(row: Record<string, unknown> | null | undefined): AppsumoLicenseGate {
   if (!row) return EMPTY;
 
-  const planTierRank = rankFromProductLabel(row.plan_tier);
-  const legacyTier = String(row.tier ?? '').trim().toLowerCase();
-  const legacyRank = ['free', 'unlimited', 'standard', 'elite', 'enterprise'].includes(legacyTier)
-    ? 0
-    : rankFromProductLabel(legacyTier);
-  const textRank = Math.max(
-    rankFromProductLabel(row.appsumo_plan),
-    rankFromProductLabel(row.subscription_tier),
-    rankFromProductLabel(row.plan_type),
-    rankFromProductLabel(row.subscription_plan),
+  const planTierRank = rankFromPlanTierColumn(row.plan_tier);
+  const legacyRank = rankFromAppsumoLabel(row.tier);
+  const storedRank = Math.max(
+    rankFromAppsumoLabel(row.subscription_tier),
+    rankFromAppsumoLabel(row.plan_type),
+    rankFromAppsumoLabel(row.subscription_plan),
   ) as 0 | 1 | 2 | 3;
 
   const licensedSignal = hasActiveAppSumoLicense({
@@ -79,13 +82,13 @@ export function readAppsumoLicense(row: Record<string, unknown> | null | undefin
     planType: String(row.plan_type ?? ''),
     subscriptionPlan: String(row.subscription_plan ?? ''),
     subscriptionTier: String(row.subscription_tier ?? ''),
-  }) || planTierRank > 0 || legacyRank > 0;
+  }) || planTierRank > 0 || legacyRank > 0 || storedRank > 0;
 
-  if (!licensedSignal && textRank === 0) return EMPTY;
+  if (!licensedSignal) return EMPTY;
 
   const numeric = Number(row.appsumo_tier ?? 0);
-  const numericRank: 0 | 1 | 2 | 3 = licensedSignal && numeric >= 3 ? 3 : licensedSignal && numeric >= 2 ? 2 : licensedSignal && numeric >= 1 ? 1 : 0;
-  const rank = Math.max(planTierRank, legacyRank, textRank, numericRank) as 0 | 1 | 2 | 3;
+  const numericRank: 0 | 1 | 2 | 3 = numeric >= 3 ? 3 : numeric >= 2 ? 2 : numeric >= 1 ? 1 : 0;
+  const rank = Math.max(planTierRank, legacyRank, storedRank, numericRank) as 0 | 1 | 2 | 3;
   if (rank < 1) return EMPTY;
 
   return {

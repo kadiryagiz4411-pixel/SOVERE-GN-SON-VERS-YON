@@ -13,6 +13,7 @@ import { useSession } from '@/contexts/SessionContext';
 import { type PlanTier, planTypeToTier } from '@/lib/entitlements';
 import { hasFullWorkspaceAccess, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { SUBSCRIPTION_PLANS, numericTierFromPlanType, type CatalogPlan } from '@/data/plans';
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { resolveDisplayTier } from '@/lib/displayTier';
 
 const LOG = '[Sovereign Load Error]:';
@@ -139,21 +140,18 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         setB2bStatus(access.b2bStatus);
         setHasEnterpriseAccess(access.hasEnterpriseAccess);
         setDaysRemaining(access.daysRemaining);
-        if (access.hasEnterpriseAccess) {
-          setPlanType(SUPERADMIN_PLAN_TYPE);
+        const license = readAppsumoLicense((profile ?? null) as Record<string, unknown> | null);
+        if (access.hasEnterpriseAccess || license.rank >= 3) {
+          setPlanType(license.rank >= 3 ? license.gatePlan : SUPERADMIN_PLAN_TYPE);
           setTier('enterprise');
+        } else if (license.rank >= 1) {
+          setPlanType(license.gatePlan);
+          setTier(planTypeToTier(license.gatePlan));
         } else {
-          const appsumoTier = Number(profile?.appsumo_tier ?? 0);
           const raw =
-            appsumoTier >= 3
-              ? 'elite'
-              : appsumoTier >= 2
-                ? 'pro'
-                : appsumoTier >= 1
-                  ? 'standard'
-                  : (profile as TrialProfileSlice)?.plan_type ??
-                    (profile as TrialProfileSlice)?.subscription_plan ??
-                    'free';
+            (profile as TrialProfileSlice)?.plan_type ??
+            (profile as TrialProfileSlice)?.subscription_plan ??
+            'free';
           const active = resolveActivePlan(fallbackPlanAfterTrial(profile) || String(raw ?? 'free'), null);
           setPlanType(active || 'free');
           setTier(planTypeToTier(active) || 'free');

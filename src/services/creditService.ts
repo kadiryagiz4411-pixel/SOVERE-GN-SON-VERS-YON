@@ -13,6 +13,7 @@
  *  - Out-of-credits state signalling
  */
 
+import { numericAppSumoTier } from '@/lib/appsumoGating';
 import { supabase } from '@/integrations/supabase/client';
 import { COST_PER_ACTION, creditUsagePercentage, resolveRemainingCredits } from '@/lib/credits';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue } from '@/lib/profileQuery';
@@ -86,17 +87,17 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
       byok_unlocked?: boolean;
       encrypted_openai_key?: string;
       custom_openai_key?: string;
-    }>(userId, 'remaining_credits, credits_remaining, monthly_credit_limit, credit_reset_date, credits_reset_at, subscription_tier, appsumo_tier, appsumo_codes_count, byok_unlocked, encrypted_openai_key, custom_openai_key');
+    }>(userId, 'remaining_credits, credits_remaining, credits_limit, monthly_credit_limit, credit_reset_date, credits_reset_at, subscription_tier, plan_type, plan_tier, appsumo_plan, appsumo_tier, appsumo_codes_count, is_appsumo, encrypted_openai_key');
 
     if (error || !data) return null;
 
     const remaining = resolveRemainingCredits(data as any);
-    const rawLimit = Number((data as any).monthly_credit_limit);
+    const rawLimit = Number((data as any).credits_limit ?? (data as any).monthly_credit_limit);
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
     const usagePct  = creditUsagePercentage(remaining, limit);
-    const appsumoTier = Number((data as any).appsumo_tier ?? (data as any).appsumo_codes_count ?? 0);
-    const hasKey = Boolean(String((data as any).encrypted_openai_key ?? (data as any).custom_openai_key ?? '').trim());
-    const isByokUnlimited = appsumoTier >= 3 && (Boolean((data as any).byok_unlocked) || hasKey);
+    const appsumoTier = numericAppSumoTier(data as Record<string, unknown>);
+    const hasKey = Boolean(String((data as any).encrypted_openai_key ?? '').trim());
+    const isByokUnlimited = appsumoTier >= 3 && hasKey;
 
     return {
       remainingCredits: remaining,
@@ -216,20 +217,16 @@ export async function resolveByokStatus(userId: string): Promise<ByokStatus> {
   }
 
   try {
-    const { data } = await fetchProfileByAuthId<{
-      custom_openai_key?: string;
-      byok_unlocked?: boolean;
-    }>(userId, 'custom_openai_key, byok_unlocked');
+    const { data } = await fetchProfileByAuthId<Record<string, unknown>>(
+      userId,
+      'encrypted_openai_key, plan_tier, appsumo_tier, appsumo_codes_count, is_appsumo, plan_type, subscription_tier',
+    );
 
-    const customKey = (data as { custom_openai_key?: string } | null)?.custom_openai_key?.trim();
-    const byokFlag  = (data as { byok_unlocked?: boolean } | null)?.byok_unlocked ?? false;
+    const customKey = String(data?.encrypted_openai_key ?? '').trim();
+    const agency = numericAppSumoTier(data) >= 3;
 
-    if (customKey) {
+    if (customKey && agency) {
       return { isByokActive: true, apiKey: resolveOpenAIKey(customKey), source: 'custom_key' };
-    }
-    if (byokFlag) {
-      // byok_unlocked but no custom key yet — still bypass credits, use platform key
-      return { isByokActive: true, apiKey: platformKey, source: 'byok_unlocked' };
     }
   } catch { /* fall through */ }
 

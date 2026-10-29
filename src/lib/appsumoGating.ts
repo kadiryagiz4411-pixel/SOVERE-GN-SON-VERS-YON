@@ -1,6 +1,11 @@
 /**
- * AppSumo numeric tier gates (0 none, 1 ATS, 2 batch/KB, 3 BYOK unlimited).
+ * AppSumo numeric tier gates.
+ * Starter (1): ATS and single pitch. Pro (2): advanced match and priority queue. Agency (3): bulk pitch, knowledge base, BYOK.
+ * Monthly credits stay 50 / 200 / 1000.
  */
+import { APPSUMO_MONTHLY_CREDITS } from '@/config/appsumo';
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
+
 export type AppSumoFeature =
   | 'ats_optimize'
   | 'single_pitch'
@@ -9,26 +14,24 @@ export type AppSumoFeature =
   | 'byok_setup';
 
 export const APPSUMO_STACK_LIMITS = {
-  1: { monthlyCredits: 100, label: 'AppSumo Starter' },
-  2: { monthlyCredits: 300, label: 'AppSumo Pro' },
-  3: { monthlyCredits: 999999, label: 'AppSumo Agency' },
+  1: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[1], label: 'AppSumo Starter' },
+  2: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[2], label: 'AppSumo Pro' },
+  3: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[3], label: 'AppSumo Agency' },
 } as const;
 
 export const MAX_APPSUMO_CODES = 3;
 
+function saasFeatureRank(row: Record<string, unknown>): number {
+  const raw = String(row.plan_type ?? row.subscription_tier ?? row.subscription_plan ?? '').toLowerCase();
+  if (raw.includes('enterprise') || raw === 'b2b_enterprise' || raw === 'appsumo_b2b' || raw === 'appsumo_tier3') return 3;
+  if (raw === 'elite' || raw === 'pro' || raw === 'appsumo_tier2') return 2;
+  if (raw === 'standard' || raw === 'appsumo_tier1' || raw === 'starter') return 1;
+  return 0;
+}
+
 export function numericAppSumoTier(row: Record<string, unknown> | null | undefined): number {
   if (!row) return 0;
-  const explicit = Number(row.appsumo_tier ?? 0);
-  if (explicit >= 1) return Math.min(3, explicit);
-  const count = Number(row.appsumo_codes_count ?? 0);
-  if (count >= 3) return 3;
-  if (count === 2) return 2;
-  if (count === 1) return 1;
-  const tier = String(row.subscription_tier ?? row.plan_type ?? '');
-  if (['appsumo_tier3', 'appsumo_b2b', 'enterprise', 'B2B_ENTERPRISE'].includes(tier)) return 3;
-  if (['appsumo_tier2', 'pro', 'elite'].includes(tier)) return 2;
-  if (['appsumo_tier1', 'standard'].includes(tier)) return 1;
-  return 0;
+  return Math.max(readAppsumoLicense(row).rank, saasFeatureRank(row));
 }
 
 export function minTierFor(feature: AppSumoFeature): number {
@@ -38,7 +41,6 @@ export function minTierFor(feature: AppSumoFeature): number {
       return 1;
     case 'batch_proposals':
     case 'agency_knowledge':
-      return 2;
     case 'byok_setup':
       return 3;
   }
@@ -48,10 +50,10 @@ export function assertFeatureAccess(appsumoTier: number, feature: AppSumoFeature
   const need = minTierFor(feature);
   if (appsumoTier >= need) return;
   if (feature === 'batch_proposals') {
-    throw new Error('Requires the Pro Plan or AppSumo Pro');
+    throw new Error('Bulk pitch requires AppSumo Agency');
   }
   if (feature === 'agency_knowledge') {
-    throw new Error('Agency Knowledge Base requires the Pro Plan or AppSumo Pro');
+    throw new Error('Agency lead tools require AppSumo Agency');
   }
   if (feature === 'byok_setup') {
     throw new Error('BYOK requires AppSumo Agency');

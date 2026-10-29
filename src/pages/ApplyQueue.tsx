@@ -36,23 +36,8 @@ const ApplyQueue = () => {
   const { user } = useSession();
   const { profile } = useProfile(user);
   const { language } = useLanguage();
-  const plan = profile?.subscription_plan || 'basic';
   const credits = profile?.credits_balance || 0;
-
-  // ── Bypass matrix (mirrors tierPermissions.ts) ───────────────────────────
-  // Grant full access when ANY of:
-  //   1. Email is kadiryagiz4411@gmail.com (superadmin override)
-  //   2. SessionContext reports hasB2BAccess or isByokUnlimited (trial/paid B2B, BYOK)
-  //   3. profile.appsumo_tier >= 2 (AppSumo Tier 2 & 3)
-  //   4. profile.is_superadmin === true
-  //   5. profile.tier is 'unlimited' | 'agency' | etc.
-  //   6. plan is any paid variant (pro, elite, B2B_ENTERPRISE, appsumo_*)
-  const { hasB2BAccess, isByokUnlimited, hasApplyQueueAccess, displayTier } = useSession();
-  const PAID_PLANS = new Set([
-    'pro', 'elite', 'standard', 'B2B_ENTERPRISE', 'enterprise', 'enterprise_b2b',
-    'appsumo_tier1', 'appsumo_tier2', 'appsumo_tier3', 'appsumo_b2b', 'unlimited', 'agency',
-    'tier_1', 'tier_2', 'tier_3',
-  ]);
+  const { isByokUnlimited, hasApplyQueueAccess, displayTier } = useSession();
 
   const { items, loading, refresh, invalidate } = useApplyQueue(user?.id);
   const [scanning, setScanning] = useState(false);
@@ -181,14 +166,9 @@ const ApplyQueue = () => {
 
   const isUnlimitedUser =
     isOwnerEmail(user?.email) ||
-    displayTier.isPaid ||
-    hasB2BAccess ||
     hasApplyQueueAccess ||
     isByokUnlimited ||
-    Number(profile?.appsumo_tier ?? 0) >= 2 ||
-    Boolean((profile as any)?.is_superadmin) ||
-    ['unlimited', 'agency'].includes((profile as any)?.tier ?? '') ||
-    PAID_PLANS.has(plan);
+    Boolean((profile as any)?.is_superadmin);
 
   const isPaid = isUnlimitedUser;
 

@@ -81,7 +81,7 @@ async function resolveApiKey(userId: string): Promise<{ key: string; isByok: boo
   try {
     const { data } = await fetchProfileByAuthId<{ custom_openai_key?: string; encrypted_openai_key?: string }>(
       userId,
-      'custom_openai_key, encrypted_openai_key',
+      'encrypted_openai_key',
     );
     const byokKey = String(
       (data as { encrypted_openai_key?: string; custom_openai_key?: string } | null)?.encrypted_openai_key

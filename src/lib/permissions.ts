@@ -2,6 +2,7 @@
  * Unified plan → feature-flag authorization.
  * Superadmin `kadiryagiz4411@gmail.com` receives every flag.
  */
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { isOwnerEmail, isSuperAdminUser, OWNER_EMAIL } from '@/lib/superadmin';
 import { planTypeToTier, TIER_RANK, type PlanTier, type FeatureKey, canAccess } from '@/lib/entitlements';
 
@@ -93,29 +94,62 @@ const ALL_FLAGS: FeatureFlags = {
   leaderboardExport: true,
 };
 
+const FREE_FLAGS: FeatureFlags = {
+  standardTemplates: false,
+  basicAtsScore: false,
+  premiumTemplates: false,
+  atsKeywordInjector: false,
+  multiLanguage: false,
+  unlimitedCv: false,
+  unlimitedCoverLetters: false,
+  interviewSimulator: false,
+  freelancePitch: false,
+  priorityLlm: false,
+  portfolioBuilder: false,
+  batchCvUpload: false,
+  teamWorkspace: false,
+  fraudDetector: false,
+  gdprExport: false,
+  talentPool: false,
+  leaderboardExport: false,
+};
+
 export function resolvePermissionTier(input: {
   email?: string | null;
   planType?: string | null;
   subscriptionTier?: string | null;
   appsumoTier?: number | null;
-}): PermissionTier {
+  appsumoLicensed?: boolean | null;
+  planTier?: string | null;
+}): PermissionTier | 'free' {
   if (isOwnerEmail(input.email)) return 'enterprise';
-  const appsumo = Number(input.appsumoTier ?? 0);
+  const license = readAppsumoLicense({
+    plan_tier: input.planTier,
+    plan_type: input.planType,
+    subscription_tier: input.subscriptionTier,
+    appsumo_tier: input.appsumoLicensed ? input.appsumoTier : 0,
+    is_appsumo: input.appsumoLicensed === true,
+  });
+  if (license.rank >= 3) return 'enterprise';
   const plan = planTypeToTier(input.planType || input.subscriptionTier);
   if (plan === 'enterprise' || TIER_RANK[plan] >= TIER_RANK.enterprise) return 'enterprise';
-  if (plan === 'elite' || appsumo >= 3) return 'elite';
-  if (plan === 'pro' || appsumo >= 2) return 'pro';
-  return 'standard';
+  if (license.rank >= 2) return 'pro';
+  if (plan === 'elite') return 'elite';
+  if (plan === 'pro') return 'pro';
+  if (license.rank >= 1 || plan === 'standard' || plan === 'single_pass') return 'standard';
+  return 'free';
 }
 
-export function flagsForTier(tier: PermissionTier, isSuperAdmin = false): FeatureFlags {
+export function flagsForTier(tier: PermissionTier | 'free', isSuperAdmin = false, appsumoRank = 0): FeatureFlags {
   if (isSuperAdmin) return { ...ALL_FLAGS };
-  const elite = tier === 'elite' || tier === 'enterprise';
-  const enterprise = tier === 'enterprise';
-  const pro = tier === 'pro' || elite;
+  if (tier === 'free' && appsumoRank < 1) return { ...FREE_FLAGS };
+  const elite = tier === 'elite' || tier === 'enterprise' || appsumoRank >= 3;
+  const enterprise = tier === 'enterprise' || appsumoRank >= 3;
+  const pro = tier === 'pro' || elite || appsumoRank >= 2;
+  const starter = tier !== 'free' || appsumoRank >= 1;
   return {
-    standardTemplates: true,
-    basicAtsScore: true,
+    standardTemplates: starter,
+    basicAtsScore: starter,
     premiumTemplates: pro,
     atsKeywordInjector: pro,
     multiLanguage: pro,
@@ -123,7 +157,7 @@ export function flagsForTier(tier: PermissionTier, isSuperAdmin = false): Featur
     unlimitedCoverLetters: pro,
     interviewSimulator: elite,
     freelancePitch: elite,
-    priorityLlm: elite,
+    priorityLlm: elite || appsumoRank >= 2,
     portfolioBuilder: elite,
     batchCvUpload: enterprise,
     teamWorkspace: enterprise,
@@ -140,10 +174,20 @@ export function getFeatureFlags(input: {
   planType?: string | null;
   subscriptionTier?: string | null;
   appsumoTier?: number | null;
+  appsumoLicensed?: boolean | null;
+  planTier?: string | null;
 }): FeatureFlags {
   const email = input.email ?? input.user?.email;
   const admin = isOwnerEmail(email) || isSuperAdminUser(input.user) || email === SUPERADMIN_EMAIL;
-  return flagsForTier(resolvePermissionTier({ ...input, email }), admin);
+  const tier = resolvePermissionTier({ ...input, email });
+  const license = readAppsumoLicense({
+    plan_tier: input.planTier,
+    plan_type: input.planType,
+    subscription_tier: input.subscriptionTier,
+    appsumo_tier: input.appsumoLicensed ? input.appsumoTier : 0,
+    is_appsumo: input.appsumoLicensed === true,
+  });
+  return flagsForTier(tier, admin, license.rank);
 }
 
 export function canUseGuardFeature(feature: GuardFeature, flags: FeatureFlags): boolean {
@@ -175,16 +219,35 @@ export function guardFeatureToKey(feature: GuardFeature): FeatureKey {
 
 export function canAccessFeatureKey(
   featureKey: FeatureKey,
-  input: { email?: string | null; user?: { email?: string | null } | null; planTier?: PlanTier; appsumoTier?: number | null; planType?: string | null },
+  input: {
+    email?: string | null;
+    user?: { email?: string | null } | null;
+    planTier?: PlanTier | string | null;
+    appsumoTier?: number | null;
+    appsumoLicensed?: boolean | null;
+    planType?: string | null;
+    subscriptionTier?: string | null;
+  },
 ): boolean {
   if (isOwnerEmail(input.email) || isSuperAdminUser(input.user) || input.user?.email === SUPERADMIN_EMAIL) {
     return true;
   }
-  const flags = getFeatureFlags(input);
+  const flags = getFeatureFlags({
+    ...input,
+    planTier: typeof input.planTier === 'string' ? input.planTier : null,
+  });
   const entry = (Object.entries(GUARD_TO_FEATURE) as Array<[GuardFeature, FeatureKey]>).find(([, key]) => key === featureKey);
   if (entry) return canUseGuardFeature(entry[0], flags);
-  const tier = resolvePermissionTier(input);
-  const planTier: PlanTier = tier === 'enterprise' ? 'enterprise' : tier === 'elite' ? 'elite' : tier === 'pro' ? 'pro' : 'standard';
+  const tier = resolvePermissionTier({
+    ...input,
+    planTier: typeof input.planTier === 'string' ? input.planTier : null,
+  });
+  const planTier: PlanTier =
+    tier === 'enterprise' ? 'enterprise'
+    : tier === 'elite' ? 'elite'
+    : tier === 'pro' ? 'pro'
+    : tier === 'standard' ? 'standard'
+    : 'free';
   return canAccess(planTier, featureKey);
 }
 

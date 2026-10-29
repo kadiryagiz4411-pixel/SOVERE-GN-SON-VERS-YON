@@ -38,7 +38,10 @@ const PLAN_TO_ACCESS: Record<string, AccessTier | 'free'> = {
   enterprise: 'enterprise',
   B2B_ENTERPRISE: 'enterprise',
   appsumo_b2b: 'enterprise',
-  appsumo_tier3: 'elite',
+  appsumo_tier3: 'enterprise',
+  starter: 'standard',
+  agency: 'enterprise',
+  b2b: 'enterprise',
   enterprise_b2b: 'enterprise',
   enterprise_plus: 'enterprise',
   staffing_agency: 'enterprise',
@@ -98,12 +101,19 @@ export interface TierAccessResult {
 
 export function useTierAccess(required?: AccessTier): TierAccessResult {
   const { tier, planType, isLoading, hasEnterpriseAccess } = usePlan();
-  const { user, subscriptionPlan, subscriptionTier, appsumoTier } = useSession();
+  const { user, subscriptionPlan, subscriptionTier, appsumoTier, isAppsumoUser } = useSession();
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const owner = hasFullWorkspaceAccess(user);
 
-  const appsumoPlan =
-    appsumoTier >= 3 ? 'elite' : appsumoTier === 2 ? 'appsumo_tier2' : appsumoTier === 1 ? 'appsumo_tier1' : null;
+  const appsumoPlan = !isAppsumoUser
+    ? null
+    : appsumoTier >= 3
+      ? 'appsumo_b2b'
+      : appsumoTier === 2
+        ? 'appsumo_tier2'
+        : appsumoTier === 1
+          ? 'appsumo_tier1'
+          : null;
 
   const currentTier = useMemo(
     () =>

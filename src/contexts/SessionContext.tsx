@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
 import { hasFullWorkspaceAccess, OWNER_PRIVILEGES, SUPERADMIN_PLAN_TYPE } from '@/lib/superadmin';
 import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfileSlice } from '@/lib/b2bTrial';
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { firstPaidPlanLabel, hasActiveAppSumoLicense, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 import { resolveRemainingCredits } from '@/lib/credits';
@@ -175,13 +176,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setSubscriptionPlan(paidLabel);
         setSubscriptionTier(paidLabel);
         setPlanType(access.hasEnterpriseAccess ? SUPERADMIN_PLAN_TYPE : paidLabel);
-        setAppsumoTier(numericTier);
-        setIsByokUnlimited(numericTier >= 3 && (Boolean(data?.byok_unlocked) || hasKey));
+        const license = readAppsumoLicense(data);
+        setAppsumoTier(license.licensed ? license.rank : 0);
+        setIsByokUnlimited(license.rank >= 3 && hasKey);
         setIsTrialActive(access.isTrialActive);
         setHasUsedTrial(access.hasUsedTrial);
         setB2bSubscriptionStatus(access.b2bStatus);
-        setAppsumoPlan(toAppsumoPlanEnum(slice?.appsumo_plan, numericTier));
-        setAppsumoLicensed(hasActiveAppSumoLicense({
+        setAppsumoPlan(license.licensed ? toAppsumoPlanEnum(license.gatePlan, license.rank) : 'none');
+        setAppsumoLicensed(license.licensed || hasActiveAppSumoLicense({
           isAppsumo: data?.is_appsumo === true || data?.is_appsumo_user === true,
           appsumoLicenseKey: String(data?.appsumo_license_key ?? data?.appsumo_code ?? ''),
           appsumoCodesCount: Number(data?.appsumo_codes_count ?? 0),
@@ -192,8 +194,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }));
         setSubscriptionStatus(String(data?.subscription_status || 'active'));
         setTrialEndsAt(slice?.trial_ends_at ?? null);
-        setB2bAccessFlag(Boolean(data?.b2b_access) || access.hasEnterpriseAccess);
-        setApplyQueueAccess(Boolean(data?.apply_queue_access) || numericTier >= 2);
+        setB2bAccessFlag(access.hasEnterpriseAccess);
+        const planRaw = String(data?.plan_type ?? data?.subscription_plan ?? data?.subscription_tier ?? '').toLowerCase();
+        const saasQueue = ['pro', 'elite', 'enterprise', 'b2b_enterprise', 'enterprise_b2b'].includes(planRaw);
+        setApplyQueueAccess(
+          license.rank >= 2 ||
+          saasQueue ||
+          access.hasEnterpriseAccess ||
+          (license.rank !== 1 && Boolean(data?.apply_queue_access)),
+        );
         // Decide the gate once. A later refresh must not flip a finished user back to onboarding.
         setOnboardingCompleted((current) => {
           if (readOnboardingDoneFlag()) return true;
@@ -457,8 +466,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         appsumoTier: owner ? OWNER_PRIVILEGES.appsumo_tier : appsumoTier,
         isByokUnlimited: owner || isByokUnlimited,
         hasB2BAccess: hasB2BAccessValue,
-        hasApplyQueueAccess: owner || applyQueueAccess || appsumoTier >= 2 || paidB2B || liveTrial || b2bAccessFlag,
-        hasBYOKAccess: owner || appsumoTier >= 3 || isByokUnlimited,
+        hasApplyQueueAccess: owner || applyQueueAccess || paidB2B || liveTrial,
+        hasBYOKAccess: owner || (appsumoLicensed && appsumoTier >= 3) || isByokUnlimited,
         isTrialActive: liveTrial,
         hasUsedTrial: owner ? false : hasUsedTrial,
         b2bSubscriptionStatus: owner ? 'active' : b2bSubscriptionStatus,

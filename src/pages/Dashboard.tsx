@@ -7,6 +7,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
 import { supabase } from '@/integrations/supabase/client';
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
@@ -180,16 +181,13 @@ const Dashboard = () => {
     hasFullWorkspaceAccess(sessionUser) ||
     hasFullWorkspaceAccess(session?.user) ||
     contextSuperAdmin;
+  const appsumoGate = readAppsumoLicense((profile ?? null) as Record<string, unknown> | null);
   const currentPlan = (
     isSuperAdmin || hasB2BAccess
       ? SUPERADMIN_PLAN_TYPE
-      : Number(profile?.appsumo_tier ?? 0) >= 3
-        ? 'elite'
-        : Number(profile?.appsumo_tier ?? 0) >= 2
-          ? 'pro'
-          : Number(profile?.appsumo_tier ?? 0) >= 1
-            ? 'standard'
-            : checkSubscriptionExpiry()
+      : appsumoGate.rank >= 1
+        ? appsumoGate.gatePlan
+        : checkSubscriptionExpiry()
   );
   const isFreePlan = !isSuperAdmin && !displayTier?.isPaid;
   const dailyLimit = getDailyLimit(currentPlan);

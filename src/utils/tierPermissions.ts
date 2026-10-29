@@ -29,6 +29,7 @@ const TIER_RANK: Record<string, number> = {
   free:           0,
   // AppSumo tiers
   appsumo_tier1:  1,
+  starter:        1,
   // Legacy standard / single_pass map to tier1 capability
   standard:       1,
   single_pass:    1,
@@ -39,6 +40,8 @@ const TIER_RANK: Record<string, number> = {
   // B2B tiers
   appsumo_b2b:    3,
   appsumo_tier3:  3,
+  agency:         3,
+  b2b:            3,
   B2B_ENTERPRISE: 3,
   enterprise:     4,
 };
@@ -63,6 +66,12 @@ export function resolveAppSumoTier(
 export interface TierProfile {
   subscription_tier?: string | null;
   subscription_plan?: string | null;
+  plan_tier?: string | null;
+  plan_type?: string | null;
+  is_appsumo?: boolean | null;
+  appsumo_codes_count?: number | null;
+  appsumo_tier?: number | null;
+  appsumo_plan?: string | null;
 }
 
 // ─── Feature gates ────────────────────────────────────────────────────────────
@@ -75,9 +84,14 @@ export interface TierProfile {
  */
 function planRank(profile?: TierProfile | null): number {
   if (!profile) return 0;
-  return TIER_RANK[profile.subscription_tier ?? '']
-    ?? TIER_RANK[profile.subscription_plan ?? '']
-    ?? 0;
+  const keys = [profile.plan_tier, profile.subscription_tier, profile.plan_type, profile.subscription_plan];
+  let best = 0;
+  for (const key of keys) {
+    if (!key) continue;
+    const rank = TIER_RANK[key] ?? TIER_RANK[key.toLowerCase()];
+    if (typeof rank === 'number' && rank > best) best = rank;
+  }
+  return best;
 }
 
 export function canAccessB2BBulkScreening(profile?: TierProfile | null): boolean {

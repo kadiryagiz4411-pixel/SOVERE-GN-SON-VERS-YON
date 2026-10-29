@@ -1,3 +1,4 @@
+import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { OWNER_EMAIL, isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
 import { createCheckout } from '@/config/plans';
 import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
@@ -73,6 +74,11 @@ export type TrialProfileSlice = {
   appsumo_tier?: number | null;
   plan_type?: string | null;
   subscription_plan?: string | null;
+  subscription_tier?: string | null;
+  plan_tier?: string | null;
+  tier?: string | null;
+  is_appsumo?: boolean | null;
+  appsumo_codes_count?: number | null;
   b2b_access?: boolean | null;
   apply_queue_access?: boolean | null;
 };
@@ -105,7 +111,10 @@ export function resolveB2BAccess(input: {
       ? statusRaw
       : 'none';
 
-  const appsumoPlan = toAppsumoPlanEnum(input.profile?.appsumo_plan, input.profile?.appsumo_tier);
+  const license = readAppsumoLicense((input.profile ?? null) as Record<string, unknown> | null);
+  const appsumoPlan = license.licensed
+    ? toAppsumoPlanEnum(input.profile?.appsumo_plan, license.rank)
+    : 'none';
   const liveTrial = isTrialWindowOpen(Boolean(input.profile?.is_trial_active), input.profile?.trial_ends_at);
   const paid = b2bStatus === 'active';
   const hasUsedTrial = Boolean(input.profile?.has_used_trial || input.profile?.trial_claimed);
@@ -115,14 +124,16 @@ export function resolveB2BAccess(input: {
       ? trialDaysRemaining(input.profile?.trial_ends_at)
       : 0;
 
-  // Also grant enterprise access when the DB plan_type is explicitly B2B_ENTERPRISE
-  // (e.g., manually provisioned accounts or AppSumo B2B code redemptions).
+  const belowAgency = license.licensed && license.rank > 0 && license.rank < 3;
   const planTypeIsEnterprise =
-    input.profile?.plan_type === 'B2B_ENTERPRISE' ||
-    input.profile?.plan_type === 'appsumo_b2b' ||
-    input.profile?.subscription_plan === 'B2B_ENTERPRISE' ||
-    input.profile?.subscription_plan === 'appsumo_b2b' ||
-    input.profile?.b2b_access === true;
+    license.rank >= 3 ||
+    (!belowAgency && (
+      input.profile?.plan_type === 'B2B_ENTERPRISE' ||
+      input.profile?.plan_type === 'appsumo_b2b' ||
+      input.profile?.subscription_plan === 'B2B_ENTERPRISE' ||
+      input.profile?.subscription_plan === 'appsumo_b2b' ||
+      input.profile?.b2b_access === true
+    ));
 
   const hasEnterpriseAccess = isSuperAdmin || paid || liveTrial || planTypeIsEnterprise;
   const trialExpiredUnpaid =
@@ -144,10 +155,8 @@ export function resolveB2BAccess(input: {
 }
 
 export function fallbackPlanAfterTrial(profile?: TrialProfileSlice | null): string {
-  const appsumo = toAppsumoPlanEnum(profile?.appsumo_plan, profile?.appsumo_tier);
-  if (appsumo === 'tier_3') return 'elite';
-  if (appsumo === 'tier_2') return 'pro';
-  if (appsumo === 'tier_1') return 'standard';
+  const license = readAppsumoLicense((profile ?? null) as Record<string, unknown> | null);
+  if (license.rank >= 1) return license.gatePlan;
   const raw = String(profile?.plan_type ?? profile?.subscription_plan ?? 'free');
   if (raw === 'B2B_ENTERPRISE' || raw === 'enterprise') return 'free';
   return raw || 'free';

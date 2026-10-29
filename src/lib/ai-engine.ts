@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, resetMonthlyCreditsIfDue, profileByAuthId } from '@/lib/profileQuery';
+import { APPSUMO_MONTHLY_CREDITS } from '@/config/appsumo';
 import { deductCredit, COST_PER_ACTION } from '@/services/creditService';
 import {
   assertFeatureAccess,
@@ -40,18 +41,20 @@ export interface EngineProfile {
 export async function loadEngineProfile(userId: string): Promise<EngineProfile> {
   await resetMonthlyCreditsIfDue(userId);
   const { data } = await fetchProfileByAuthId(userId,
-    'appsumo_tier, appsumo_codes_count, remaining_credits, credits_remaining, monthly_credit_limit, byok_unlocked, custom_openai_key, encrypted_openai_key, is_account_paused, subscription_status, subscription_tier',
+    'appsumo_tier, appsumo_codes_count, appsumo_plan, plan_type, plan_tier, subscription_tier, subscription_plan, is_appsumo, remaining_credits, credits_remaining, credits_limit, monthly_credit_limit, encrypted_openai_key, subscription_status',
   );
   const row = (data ?? {}) as Record<string, unknown>;
   const remaining = Number(row.credits_remaining ?? row.remaining_credits ?? 0);
-  const key = String(row.encrypted_openai_key ?? row.custom_openai_key ?? '').trim() || null;
+  const key = String(row.encrypted_openai_key ?? '').trim() || null;
+  const license = numericAppSumoTier(row);
+  const storedLimit = Number(row.credits_limit ?? row.monthly_credit_limit ?? 0);
   return {
-    appsumoTier: numericAppSumoTier(row),
+    appsumoTier: license,
     remaining,
-    monthlyLimit: Number(row.monthly_credit_limit ?? 100),
-    byokUnlocked: Boolean(row.byok_unlocked) || Number(row.appsumo_tier ?? 0) >= 3,
+    monthlyLimit: Number.isFinite(storedLimit) && storedLimit > 0 ? storedLimit : 0,
+    byokUnlocked: license >= 3 && Boolean(key),
     openaiKey: key,
-    paused: Boolean(row.is_account_paused) || row.subscription_status === 'paused',
+    paused: row.subscription_status === 'paused',
   };
 }
 
@@ -120,7 +123,6 @@ export async function runAiAction<T>(options: {
 export async function setAccountPaused(userId: string, paused: boolean): Promise<void> {
   await profileByAuthId(
     supabase.from('profiles').update({
-      is_account_paused: paused,
       subscription_status: paused ? 'paused' : 'active',
       updated_at: new Date().toISOString(),
     } as never),
@@ -133,29 +135,40 @@ export async function saveEncryptedOpenAiKey(userId: string, key: string | null)
   await profileByAuthId(
     supabase.from('profiles').update({
       encrypted_openai_key: value,
-      custom_openai_key: value,
       updated_at: new Date().toISOString(),
     } as never),
     userId,
   );
 }
 
-const DEV_TIER_LIMITS: Record<1 | 2 | 3, number> = { 1: 100, 2: 300, 3: 999999 };
+const DEV_TIER_LIMITS: Record<1 | 2 | 3, number> = {
+  1: APPSUMO_MONTHLY_CREDITS[1],
+  2: APPSUMO_MONTHLY_CREDITS[2],
+  3: APPSUMO_MONTHLY_CREDITS[3],
+};
 
 /** Development-only: persist AppSumo numeric tier and refresh UI. */
 export async function applyDevAppsumoTier(userId: string, tier: 1 | 2 | 3): Promise<void> {
   const limit = DEV_TIER_LIMITS[tier];
-  const subscriptionTier = tier === 3 ? 'appsumo_tier3' : `appsumo_tier${tier}`;
+  const planTier = tier === 3 ? 'agency' : tier === 2 ? 'pro' : 'starter';
+  const subscriptionTier = tier === 3 ? 'appsumo_b2b' : `appsumo_tier${tier}`;
   await profileByAuthId(
     supabase.from('profiles').update({
       appsumo_tier: tier,
       appsumo_codes_count: tier,
+      is_appsumo: true,
+      plan_tier: planTier,
+      tier: planTier,
+      credits_limit: limit,
       monthly_credit_limit: limit,
       remaining_credits: limit,
       credits_remaining: limit,
-      byok_unlocked: tier === 3,
+      credits_balance: limit,
+      credits: limit,
       subscription_tier: subscriptionTier,
-      plan_type: tier === 3 ? 'B2B_ENTERPRISE' : tier === 2 ? 'pro' : 'standard',
+      plan_type: subscriptionTier,
+      b2b_access: tier >= 3,
+      apply_queue_access: tier >= 2,
       updated_at: new Date().toISOString(),
     } as never),
     userId,

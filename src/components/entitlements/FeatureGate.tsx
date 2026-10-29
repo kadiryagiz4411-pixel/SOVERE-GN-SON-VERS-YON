@@ -136,7 +136,7 @@ export function FeatureGate({
 
   // While plan is loading, render children transparently (avoids flash of locked state)
   if (isLoading) {
-    return <>{children}</>;
+    return <div className="h-16 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />;
   }
 
   if (hasAccess) {

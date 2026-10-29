@@ -34,7 +34,7 @@ export interface EntitlementResult {
 
 export function useEntitlement(featureKey: FeatureKey): EntitlementResult {
   const { tier, isLoading, planType } = usePlan();
-  const { user, appsumoTier, subscriptionTier } = useSession();
+  const { user, appsumoTier, subscriptionTier, isAppsumoUser } = useSession();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const gate = getGate(featureKey);
@@ -42,9 +42,10 @@ export function useEntitlement(featureKey: FeatureKey): EntitlementResult {
   const hasAccess = canAccessFeatureKey(featureKey, {
     email: user?.email,
     user,
-    planTier: tier,
+    planTier: planType,
     planType,
     appsumoTier,
+    appsumoLicensed: isAppsumoUser,
     subscriptionTier,
   }) || (!isLoading && canAccess(tier, featureKey));
 
@@ -74,15 +75,16 @@ export function useEntitlement(featureKey: FeatureKey): EntitlementResult {
  */
 export function useEntitlements(featureKeys: FeatureKey[]): Record<FeatureKey, boolean> {
   const { tier, isLoading, planType } = usePlan();
-  const { user, appsumoTier } = useSession();
+  const { user, appsumoTier, isAppsumoUser } = useSession();
   const result = {} as Record<FeatureKey, boolean>;
   for (const key of featureKeys) {
     result[key] = canAccessFeatureKey(key, {
       email: user?.email,
       user,
-      planTier: tier,
+      planTier: planType,
       planType,
       appsumoTier,
+      appsumoLicensed: isAppsumoUser,
     }) || (!isLoading && canAccess(tier, key));
   }
   return result;

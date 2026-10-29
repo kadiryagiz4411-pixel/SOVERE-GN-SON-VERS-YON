@@ -101,7 +101,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     user?.email === OWNER_EMAIL ||
     session.user?.email === OWNER_EMAIL;
   const hasB2BAccess = isSuperAdmin || sessionB2B || planState.hasEnterpriseAccess;
-  const hasBYOKAccess = isSuperAdmin || sessionBYOK || Number(appsumoTier) >= 3;
+  const hasBYOKAccess = isSuperAdmin || sessionBYOK || (isAppsumoUser && Number(appsumoTier) >= 3);
 
   useEffect(() => {
     console.log('[Sovereign Auth]', {
@@ -121,7 +121,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     planType === 'B2B_ENTERPRISE';
 
   const currentCredits = remainingCredits > 0 ? remainingCredits : (creditsBalance || remainingCredits || 0);
-  const showAgencyTools = isSuperAdmin || Number(appsumoTier) >= 2 || isPro;
+  const showAgencyTools = isSuperAdmin || hasB2BAccess || (isAppsumoUser && Number(appsumoTier) >= 3);
   const showByokSettings = isSuperAdmin || hasBYOKAccess || isByokUnlimited;
   const eliteNav = isSuperAdmin
     ? ELITE_NAV_ITEMS

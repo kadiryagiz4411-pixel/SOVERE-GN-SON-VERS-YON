@@ -17,13 +17,15 @@ interface FeatureGuardProps {
 }
 
 export function FeatureGuard({ feature, children, mode = 'render', lockedFallback }: FeatureGuardProps) {
-  const { user, planType, subscriptionTier, appsumoTier } = useSession();
+  const { user, planType, subscriptionTier, appsumoTier, isAppsumoUser } = useSession();
   const flags = getFeatureFlags({
     email: user?.email,
     user,
     planType,
     subscriptionTier,
     appsumoTier,
+    appsumoLicensed: isAppsumoUser,
+    planTier: planType,
   });
   const allowed = user?.email === SUPERADMIN_EMAIL || canUseGuardFeature(feature, flags);
 

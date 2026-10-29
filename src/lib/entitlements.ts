@@ -43,10 +43,13 @@ export const PLAN_TYPE_TO_TIER: Record<string, PlanTier> = {
   staffing_agency:'enterprise',
 
   // AppSumo lifetime tiers — mapped to equivalent Sovereign plan tiers
-  appsumo_tier1:  'standard',   // 50 credits/mo — same capability as Standard
-  appsumo_tier2:  'pro',        // 200 credits/mo — same capability as Pro
-  appsumo_b2b:    'elite', // LTD — B2B seats require paid Enterprise or trial
-  appsumo_tier3:  'elite',
+  appsumo_tier1:  'standard',   // Starter — 50 credits/mo, B2C extension, CV, proposals, ATS
+  starter:        'standard',
+  appsumo_tier2:  'pro',        // Pro — 200 credits/mo, advanced match, DNA, priority queue
+  appsumo_b2b:    'enterprise', // Agency — 1,000 credits/mo, full B2B + B2C
+  appsumo_tier3:  'enterprise',
+  agency:         'enterprise',
+  b2b:            'enterprise',
 };
 
 export function planTypeToTier(planType: string | null | undefined): PlanTier {
