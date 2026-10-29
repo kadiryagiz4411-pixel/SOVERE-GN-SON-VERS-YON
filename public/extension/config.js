@@ -1,4 +1,6 @@
 const API_BASE_URL = 'https://sovereignapp.pro';
+const BUILD_AT = '2026-10-29T03:29:12.385Z'; // auto-injected by buildExtensionZip.mjs
+const BUILD_AT = '2026-10-29T03:28:33.681Z'; // auto-injected by buildExtensionZip.mjs
 const BUILD_AT = '2026-10-28T17:42:47.839Z'; // auto-injected by buildExtensionZip.mjs
 const BUILD_AT = '2026-10-28T17:39:36.156Z'; // auto-injected by buildExtensionZip.mjs
 const BUILD_AT = '2026-10-28T17:16:26.894Z'; // auto-injected by buildExtensionZip.mjs
