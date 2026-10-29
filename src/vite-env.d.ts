@@ -17,4 +17,5 @@ interface ImportMetaEnv {
   readonly VITE_APPSUMO_TIER1_URL?: string;
   readonly VITE_APPSUMO_TIER2_URL?: string;
   readonly VITE_APPSUMO_B2B_URL?: string;
+  readonly VITE_DEMO_TOUR_URL?: string;
 }

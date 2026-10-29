@@ -9,7 +9,30 @@ import {
   scoreOpportunity,
   type MatchResult,
 } from '@/lib/matchScore';
-import { ArrowRight, PanelRight, Radar, ScanLine, Sparkles, Ticket } from 'lucide-react';
+import { APPSUMO_LTD_TIERS } from '@/config/appsumo';
+import { ArrowRight, Check, PanelRight, Radar, ScanLine, Sparkles, Ticket } from 'lucide-react';
+
+const UPWORK_SCREEN = {
+  title: 'Upwork · React dashboard for a fintech client',
+  body: 'Payment verified. React, TypeScript, Tailwind, and Node. First milestone is a readable portfolio view.',
+};
+
+const TIER_LINE: Record<number, string> = {
+  1: 'Freelancers & Job Seekers',
+  2: 'Power Users & Match Scoring',
+  3: 'Full Lead Extraction & Bulk Pitch',
+};
+
+function demoTourUrl() {
+  const raw = String(import.meta.env.VITE_DEMO_TOUR_URL ?? '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
 
 const SAMPLE_JOB = `Senior React engineer — fintech dashboard
 
@@ -138,6 +161,11 @@ const DemoPage = () => {
   const [leadPhase, setLeadPhase] = useState<'idle' | 'extracting' | 'done'>('idle');
   const streamSeq = useRef(0);
   const timers = useRef<number[]>([]);
+  const proposalRef = useRef<HTMLElement>(null);
+  const extensionRef = useRef<HTMLElement>(null);
+  const [screenTitle, setScreenTitle] = useState('Fintech dashboard rebuild');
+  const [screenBody, setScreenBody] = useState(MOCK_SCAN_JOB);
+  const tourUrl = demoTourUrl();
 
   useEffect(() => {
     document.title = 'Live Demo · Sovereign';
@@ -172,14 +200,35 @@ const DemoPage = () => {
     setMatch(scoreTexts(jobText, profileText));
   };
 
-  const scanScreen = () => {
+  const scanScreen = (jobBody = screenBody) => {
     if (scanPhase === 'scanning') return;
     setScanPhase('scanning');
     setScanMatch(null);
     later(() => {
-      setScanMatch(scoreTexts(MOCK_SCAN_JOB, MOCK_SCAN_PROFILE));
+      setScanMatch(scoreTexts(jobBody, MOCK_SCAN_PROFILE));
       setScanPhase('done');
     }, 2200);
+  };
+
+  const scrollToSection = (node: HTMLElement | null) => {
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const testUpworkScan = () => {
+    setScreenTitle(UPWORK_SCREEN.title);
+    setScreenBody(UPWORK_SCREEN.body);
+    scrollToSection(extensionRef.current);
+    scanScreen(UPWORK_SCREEN.body);
+  };
+
+  const jumpToProposal = () => {
+    scrollToSection(proposalRef.current);
+    if (!streaming) void generateProposal();
+  };
+
+  const jumpToLeads = () => {
+    scrollToSection(extensionRef.current);
+    extractLeads();
   };
 
   const extractLeads = () => {
@@ -194,20 +243,66 @@ const DemoPage = () => {
       <Header />
       <main className="pt-32 pb-20">
         <div className="container mx-auto px-4 max-w-6xl">
-          <section className="mb-12">
-            <p className="text-sm font-medium tracking-[0.18em] uppercase text-amber-300/90 mb-3">
-              Live sandbox
+          <section className="mb-10">
+            <p className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-sm font-medium text-amber-200">
+              No Login Required • Test Sovereign Live in 10 Seconds
             </p>
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-zinc-50 leading-tight">
-              Try the proposal, the match score, and the extension.
+            <h1 className="mt-5 max-w-4xl text-4xl md:text-5xl font-semibold tracking-tight text-zinc-50 leading-tight">
+              Turn Any Job Board or Screen Into High-Converting Proposals Instantly.
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-zinc-300">
-              This page runs in your browser. No login, no saved drafts, and no credits are spent.
-              Paste a job and a profile, then walk the extension preview the same way the side panel works.
+              Built for indie hackers, agency owners, and lifetime-deal buyers. The sandbox below runs in this browser. Nothing is saved, and no credits are spent.
             </p>
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-zinc-900/50 backdrop-blur-md p-6 md:p-8 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+          <section className="mb-8" aria-label="Interactive product tour">
+            <div className="rounded-2xl p-px bg-gradient-to-br from-amber-300/80 via-amber-500/20 to-violet-400/50 shadow-[0_0_56px_rgba(245,158,11,0.28)]">
+              <div className="relative aspect-video overflow-hidden rounded-2xl bg-zinc-950">
+                {tourUrl ? (
+                  <iframe
+                    src={tourUrl}
+                    title="Sovereign interactive product tour"
+                    className="absolute inset-0 h-full w-full border-0"
+                    allow="fullscreen; autoplay"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col">
+                    <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+                      <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+                      <span className="ml-2 text-sm text-zinc-400">Live product tour</span>
+                    </div>
+                    <div className="grid flex-1 md:grid-cols-[1.4fr_0.8fr]">
+                      <div className="p-6 md:p-8">
+                        <p className="text-sm uppercase tracking-[0.16em] text-amber-300/90">Job board on screen</p>
+                        <p className="mt-3 text-xl md:text-2xl font-semibold text-zinc-50 leading-snug">{UPWORK_SCREEN.title}</p>
+                        <p className="mt-3 max-w-xl text-base leading-relaxed text-zinc-300">{UPWORK_SCREEN.body}</p>
+                      </div>
+                      <div className="border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900/80 p-6">
+                        <p className="text-sm font-semibold text-amber-200">Sovereign</p>
+                        <p className="mt-2 text-base leading-relaxed text-zinc-300">Scan the listing, write the proposal, or pull agency leads. Each pill below starts that step.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" onClick={testUpworkScan} className="rounded-full border border-amber-400/40 bg-zinc-900/80 px-4 py-2 text-sm font-medium text-amber-100 hover:border-amber-300">
+                Test Upwork Scan
+              </button>
+              <button type="button" onClick={jumpToProposal} className="rounded-full border border-amber-400/40 bg-zinc-900/80 px-4 py-2 text-sm font-medium text-amber-100 hover:border-amber-300">
+                Generate AI Proposal
+              </button>
+              <button type="button" onClick={jumpToLeads} className="rounded-full border border-amber-400/40 bg-zinc-900/80 px-4 py-2 text-sm font-medium text-amber-100 hover:border-amber-300">
+                Try B2B Lead Extractor
+              </button>
+            </div>
+          </section>
+
+          <section id="demo-proposal" ref={proposalRef} className="scroll-mt-32 rounded-2xl border border-white/10 bg-zinc-900/50 backdrop-blur-md p-6 md:p-8 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
             <div className="flex items-start gap-3 mb-6">
               <Sparkles className="w-5 h-5 text-amber-300 mt-1 shrink-0" />
               <div>
@@ -297,7 +392,7 @@ const DemoPage = () => {
             </div>
           </section>
 
-          <section className="mt-8 rounded-2xl border border-white/10 bg-zinc-900/50 backdrop-blur-md p-6 md:p-8">
+          <section id="demo-extension" ref={extensionRef} className="scroll-mt-32 mt-8 rounded-2xl border border-white/10 bg-zinc-900/50 backdrop-blur-md p-6 md:p-8">
             <div className="flex items-start gap-3 mb-6">
               <PanelRight className="w-5 h-5 text-amber-300 mt-1 shrink-0" />
               <div>
@@ -317,8 +412,8 @@ const DemoPage = () => {
               <div className="grid lg:grid-cols-[1fr_260px] min-h-[460px]">
                 <div className="p-6 border-b lg:border-b-0 lg:border-r border-zinc-800">
                   <p className="text-sm uppercase tracking-widest text-zinc-500">Job on screen</p>
-                  <h3 className="mt-2 text-xl font-semibold text-zinc-50">Fintech dashboard rebuild</h3>
-                  <p className="mt-3 text-base leading-relaxed text-zinc-300">{MOCK_SCAN_JOB}</p>
+                  <h3 className="mt-2 text-xl font-semibold text-zinc-50">{screenTitle}</h3>
+                  <p className="mt-3 text-base leading-relaxed text-zinc-300">{screenBody}</p>
                 </div>
                 <aside className="p-4 bg-zinc-900/80" aria-label="Extension side panel">
                   <p className="text-sm font-semibold tracking-wide text-amber-200">Sovereign</p>
@@ -326,7 +421,7 @@ const DemoPage = () => {
                   <div className="mt-4 flex flex-col gap-3 w-full">
                     <button
                       type="button"
-                      onClick={scanScreen}
+                      onClick={() => scanScreen()}
                       className="w-full rounded-[10px] px-3.5 py-2.5 text-sm font-semibold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-600"
                     >
                       {scanPhase === 'scanning' ? 'Scanning…' : 'Scan Active Screen'}
@@ -376,6 +471,52 @@ const DemoPage = () => {
                   ))}
                 </ul>
               </div>
+            </div>
+          </section>
+
+          <section className="mt-12" aria-label="AppSumo lifetime tiers">
+            <div className="mb-6">
+              <p className="text-sm font-medium tracking-[0.16em] uppercase text-amber-300/90">Lifetime deal</p>
+              <h2 className="mt-2 text-3xl font-semibold text-zinc-50">Pick the credit tier that matches how you sell.</h2>
+              <p className="mt-2 max-w-3xl text-base leading-relaxed text-zinc-300">
+                Monthly credits refresh on their own. Starter and Pro stay on freelancer tools. Agency adds B2B lead extraction and bulk pitch.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {APPSUMO_LTD_TIERS.map((tier) => {
+                const agency = tier.numericTier === 3;
+                const credits = tier.monthlyCredits.toLocaleString('en-US');
+                return (
+                  <article
+                    key={tier.id}
+                    className={`rounded-2xl border p-5 ${agency ? 'border-amber-400/50 bg-amber-400/5 shadow-[0_0_32px_rgba(245,158,11,0.12)]' : 'border-white/10 bg-zinc-900/60'}`}
+                  >
+                    <h3 className="text-xl font-semibold text-zinc-50">{agency ? 'Agency' : tier.label}</h3>
+                    <p className="mt-2 text-base font-medium text-amber-200">
+                      {credits} credits/mo{agency ? ' + B2B' : ''}
+                    </p>
+                    <p className="mt-3 flex items-start gap-2 text-base leading-relaxed text-zinc-200">
+                      <Check className="mt-1 h-4 w-4 shrink-0 text-amber-300" />
+                      {TIER_LINE[tier.numericTier]}
+                    </p>
+                    <p className="mt-3 text-sm text-zinc-400">${tier.priceUsd} lifetime</p>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
+              <Link to="/redeem">
+                <Button variant="gold" className="text-base px-6 h-11">
+                  <Ticket className="w-4 h-4 mr-2" />
+                  Redeem your code
+                </Button>
+              </Link>
+              <Link to="/auth?mode=signup">
+                <Button variant="outline" className="text-base px-6 h-11 border-amber-400/40 text-amber-100">
+                  Start onboarding
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
             </div>
           </section>
 
