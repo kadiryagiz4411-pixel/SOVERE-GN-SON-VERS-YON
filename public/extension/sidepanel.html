@@ -405,7 +405,22 @@
       }
       .cv-preview h3:first-child { margin-top: 0; }
       .cv-preview .name { color: #fff; font-size: 16px; font-weight: 800; margin: 0 0 8px; letter-spacing: .04em; }
-      .header-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-left: auto; }
+      .header-tools {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-left: auto;
+        width: min(100%, 240px);
+        min-width: 180px;
+        flex: 1 1 180px;
+      }
+      .scan-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+      }
       .plan-pill {
         font-size: 9px;
         font-weight: 800;
@@ -469,12 +484,19 @@
       .toggle-wrap input:checked + .toggle-track { background:var(--gold); }
       .toggle-thumb { position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .2s; pointer-events:none; }
       .toggle-wrap input:checked ~ .toggle-thumb { transform:translateX(18px); }
-      .rescan {
-        font-size: 11px;
+      .scan-actions .rescan {
+        display: block;
+        width: 100%;
+        margin: 0;
+        box-sizing: border-box;
+        font-size: 12px;
+        line-height: 1.2;
         letter-spacing: .04em;
         text-transform: none;
         font-weight: 800;
-        padding: 8px 10px;
+        text-align: center;
+        padding: 10px 14px;
+        border-radius: 10px;
         background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
         border: 1px solid rgba(212, 175, 55, 0.45);
@@ -584,7 +606,7 @@
       <img class="logo" src="assets/logo.png" alt="Sovereign" />
       <div>
         <h1>Sovereign</h1>
-        <p>Tracks the job or CV centered on screen</p>
+        <p>Scan the job or CV on screen</p>
       </div>
       <div class="header-tools">
         <div id="creditBadge" class="credit-badge hidden">Credits —</div>
@@ -596,14 +618,16 @@
             <button type="button" data-mode="b2b">🏢 B2B Agency</button>
           </div>
         </div>
-        <button id="rescan" class="rescan" type="button">🔍 Scan Active Screen</button>
-        <button id="openB2bPanel" class="rescan" type="button">B2B</button>
+        <div class="scan-actions">
+          <button id="rescan" class="rescan" type="button">Scan Active Screen</button>
+          <button id="openB2bPanel" class="rescan" type="button">B2B</button>
+        </div>
         <div id="apiBadge" class="api-badge hidden">API…</div>
       </div>
     </header>
-    <div id="targetBadge" class="target-badge scanning" role="status">
+    <div id="targetBadge" class="target-badge" role="status">
       <span class="dot" aria-hidden="true"></span>
-      <span id="targetBadgeText">🟡 Scanning Viewport...</span>
+      <span id="targetBadgeText">Click Scan Active Screen</span>
     </div>
     <div id="creditResetBanner" class="credit-reset" role="status">
       Monthly AppSumo credits reached. Credits refresh next month — your workspace stays open.

@@ -53,8 +53,11 @@ if (existsSync(CONFIG_JS)) {
   let configSrc = readFileSync(CONFIG_JS, 'utf8');
   // Replace an existing BUILD_AT line or append it if missing.
   const stampLine = `const BUILD_AT = '${buildAt}'; // auto-injected by buildExtensionZip.mjs`;
-  if (/^const BUILD_AT\s*=/.test(configSrc)) {
-    configSrc = configSrc.replace(/^const BUILD_AT\s*=.*$/m, stampLine);
+  const withoutStamps = configSrc.replace(/^const BUILD_AT\s*=.*\r?\n?/gm, '');
+  if (withoutStamps !== configSrc) {
+    const lines = withoutStamps.split('\n');
+    lines.splice(1, 0, stampLine);
+    configSrc = lines.join('\n');
   } else {
     // Insert after the first line (usually a comment block header).
     const lines = configSrc.split('\n');

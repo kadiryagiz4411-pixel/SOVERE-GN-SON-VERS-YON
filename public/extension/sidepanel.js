@@ -863,7 +863,11 @@ function setTargetBadge(state, title, kind, contentType) {
   const text = document.getElementById('targetBadgeText');
   if (!el || !text) return;
   el.classList.toggle('live', state === 'live');
-  el.classList.toggle('scanning', state !== 'live');
+  el.classList.toggle('scanning', state === 'scanning');
+  if (state === 'idle') {
+    text.textContent = 'Click Scan Active Screen';
+    return;
+  }
   if (contentType === 'CANDIDATE_LIST' || kind === 'list') {
     el.classList.remove('live');
     el.classList.add('scanning');
@@ -871,7 +875,7 @@ function setTargetBadge(state, title, kind, contentType) {
     return;
   }
   if (state !== 'live') {
-    text.textContent = '🟡 Scanning Viewport...';
+    text.textContent = 'Scanning...';
     return;
   }
   const noun = kind === 'cv' || contentType === 'PROFILE_CV'
@@ -1212,6 +1216,9 @@ async function rescanActiveScreen() {
   // Release any stuck lock — a deliberate click always wins.
   analyzing = false;
   const thisSeq = ++scanSeq;
+  const scanStarted = Date.now();
+  const SCAN_WINDOW_MS = 9000;
+  const remainingMs = () => Math.max(0, SCAN_WINDOW_MS - (Date.now() - scanStarted));
 
   if (!assertAccountOpen()) return;
 
@@ -1246,10 +1253,13 @@ async function rescanActiveScreen() {
 
   // Auto-detect page language for 'auto' mode — read the active tab's <html lang> attribute.
   try {
-    const langResult = await chrome.scripting.executeScript({
-      target: { tabId: (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id || 0 },
-      func: () => String(document.documentElement.lang || navigator.language || 'en').split('-')[0].toLowerCase(),
-    }).catch(() => null);
+    const langBudget = Math.min(1500, remainingMs());
+    const langResult = langBudget < 200
+      ? null
+      : await withTimeout(chrome.scripting.executeScript({
+        target: { tabId: (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id || 0 },
+        func: () => String(document.documentElement.lang || navigator.language || 'en').split('-')[0].toLowerCase(),
+      }), langBudget).catch(() => null);
     const detected = langResult?.[0]?.result;
     if (detected && detected.length >= 2 && settings.outputLanguage === 'auto') {
       settings = { ...settings, _detectedLang: detected };
@@ -1257,19 +1267,23 @@ async function rescanActiveScreen() {
   } catch { /**/ }
 
   try {
-    // 3-second timeout on background scrape + baked parse-dom.
-    // If it times out, we fall through to a direct DOM scrape below.
-    const forced = await withTimeout(
-      chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null),
-      3000,
-    ).catch(() => null);
+    const scrapeBudget = Math.min(6000, remainingMs());
+    const forced = scrapeBudget < 400
+      ? null
+      : await withTimeout(
+        chrome.runtime.sendMessage({ type: 'SCAN_ACTIVE_SCREEN' }).catch(() => null),
+        scrapeBudget,
+      ).catch(() => null);
 
     if (thisSeq !== scanSeq) return; // newer click superseded this scan
 
     // If background timed out or failed, do a direct scrape without LLM pre-baking.
+    const fallbackBudget = Math.min(4000, remainingMs());
     const pageData = forced?.success && forced.data
       ? normalizePageData(forced.data)
-      : await withTimeout(getActiveTabDOM(), 5000).catch(() => null);
+      : fallbackBudget < 400
+        ? null
+        : await withTimeout(getActiveTabDOM(), fallbackBudget).catch(() => null);
 
     if (thisSeq !== scanSeq) return;
 
@@ -1282,7 +1296,7 @@ async function rescanActiveScreen() {
     // Discarded (no center card, chrome noise, list, empty).
     if (pageData.discarded) {
       flushJobContext();
-      setTargetBadge('scanning');
+      setTargetBadge('idle');
       const discardMsg = pageData.discardReason === 'no-center-card'
         ? 'Scroll a job card to the center of the screen, then click Scan again.'
         : pageData.discardReason === 'chrome'
@@ -1350,9 +1364,12 @@ async function rescanActiveScreen() {
       merged = pre;
     } else {
       if (thisSeq !== scanSeq) return;
-      merged = await withTimeout(
+      const analysisBudget = remainingMs();
+      merged = analysisBudget < 800
+        ? null
+        : await withTimeout(
         postParseDom(pageData, { scoreOnly: true }),
-        10000,
+        analysisBudget,
       ).catch((err) => {
         if (err?.message === 'timeout') return null;
         throw err;
@@ -1389,7 +1406,11 @@ async function rescanActiveScreen() {
       showError(publicError(msg));
     }
   } finally {
-    if (thisSeq === scanSeq) analyzing = false;
+    if (thisSeq === scanSeq) {
+      analyzing = false;
+      const badgeEl = document.getElementById('targetBadge');
+      if (badgeEl?.classList.contains('scanning')) setTargetBadge('idle');
+    }
   }
 }
 
@@ -2142,29 +2163,12 @@ async function boot() {
     void renderSettingsHistory();
     renderTeamLeads(await storageGet(STORE.LEADS, []));
     await resolveWorkspaceAccess();
-    setTargetBadge('scanning');
+    setTargetBadge('idle');
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }
   void pingApi();
-  void rescanActiveScreen();
 }
-
-chrome.runtime.onMessage.addListener((request) => {
-  if (request?.type === 'VIEWPORT_SCANNING') {
-    if (!analyzing && !generatingCv) setTargetBadge('scanning');
-    return false;
-  }
-  if (request?.type === 'ANALYSIS_READY' && request.data) {
-    onViewportFocus(request.data);
-    return false;
-  }
-  if ((request?.type === 'VIEWPORT_FOCUS' || request?.type === 'JOB_TARGET_CHANGED') && request.data) {
-    onViewportFocus(request.data);
-    return false;
-  }
-  return false;
-});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
@@ -2174,9 +2178,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
   if (changes[STORE.SESSION]?.newValue) {
     void resolveWorkspaceAccess();
-  }
-  if (changes[STORE.VIEWPORT]?.newValue && !changes[STORE.VIEWPORT].newValue.scanning) {
-    onViewportFocus(changes[STORE.VIEWPORT].newValue);
   }
 });
 

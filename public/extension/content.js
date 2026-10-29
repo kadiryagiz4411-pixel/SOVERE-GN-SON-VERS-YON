@@ -501,7 +501,8 @@ function startViewportWatch() {
 
 markSovereignHost();
 captureSovereignSession();
-safeCall(() => startViewportWatch());
+// Scans run only when the side panel sends SCAN_ACTIVE_SCREEN. Do not watch
+// scroll, mutations, or navigation — those were starting "Scanning..." on their own.
 
 if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
   window.addEventListener('focus',   captureSovereignSession);

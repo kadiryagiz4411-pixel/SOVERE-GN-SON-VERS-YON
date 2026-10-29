@@ -88,7 +88,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   if (request.type === 'JOB_TARGET_CHANGED' && request.data) {
     persistViewportTarget(request.data, false);
-    autoAnalyzeViewport(request.data, true).catch(() => {});
     return false;
   }
 
@@ -102,7 +101,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   }
 
   if (request.type === 'FORCE_VIEWPORT_SCAN' || request.type === 'SCAN_ACTIVE_SCREEN') {
-    forceViewportScan()
+    scrapeActiveTab('SCAN_ACTIVE_SCREEN')
       .then((data) => sendResponse({ success: true, data }))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;
@@ -394,18 +393,6 @@ async function autoAnalyzeViewport(data, force) {
     persistViewportTarget({ ...data, autoAnalyzed: false }, false);
   }
 }
-
-chrome.tabs.onActivated.addListener((info) => {
-  lastAnalyzedHash = '';
-  analyzeSeq += 1;
-  chrome.storage.local.set({
-    'sovereign.viewport.v1': { scanning: true, flushed: true, at: Date.now() },
-  });
-  if (!info?.tabId) return;
-  chrome.tabs.sendMessage(info.tabId, { type: 'FLUSH_VIEWPORT' }, () => {
-    void chrome.runtime.lastError;
-  });
-});
 
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
   if (!changeInfo.url) return;
