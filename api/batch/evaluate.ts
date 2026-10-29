@@ -167,15 +167,21 @@ async function handleRequest(req: Request): Promise<Response> {
       const chunk = candidates.slice(i, i + BATCH_SIZE);
       try {
         const evaluations = await evaluateChunk(chunk, i, jobContext, apiKey);
-        for (const ev of evaluations) {
-          scoreMap.set(ev.candidateIndex, {
+        evaluations.forEach((ev, localIdx) => {
+          const reported = Number(ev.candidateIndex);
+          const index = reported >= i && reported < i + chunk.length
+            ? reported
+            : reported >= 0 && reported < chunk.length
+              ? i + reported
+              : i + localIdx;
+          scoreMap.set(index, {
             score: ev.overallScore,
             why: ev.whyThisCandidate,
             strengths: ev.keyStrengths,
             missing: ev.missingSkills,
             rec: ev.recommendation,
           });
-        }
+        });
       } catch (err) {
         console.warn('[batch/evaluate] chunk failed', err);
         chunk.forEach((c, idx) => {

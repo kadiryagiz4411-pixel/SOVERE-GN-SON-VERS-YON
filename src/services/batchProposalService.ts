@@ -127,6 +127,7 @@ async function callOpenAI(
 ): Promise<{ clientProblem: string; matchScore: number; proposal: string }> {
   const res = await fetch(OPENAI_URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(45_000),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -244,11 +245,16 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
 
   let creditsUsed = 0;
 
+  const publishJob = (index: number, patch: Partial<BatchJob>) => {
+    const current = jobs[index];
+    if (!current) return;
+    jobs[index] = { ...current, ...patch };
+    onProgress?.(jobs.map((job) => ({ ...job })));
+  };
+
   // 4. Build tasks
   const tasks = jds.map((jd, i) => async (): Promise<void> => {
-    // Mark running
-    jobs = jobs.map((j) => (j.index === i ? { ...j, status: 'running' } : j));
-    onProgress?.([...jobs]);
+    publishJob(i, { status: 'running' });
 
     try {
       const prompt = buildPrompt(jd, agencyWithKb);
@@ -268,25 +274,19 @@ export async function runBatchProposals(options: BatchOptions): Promise<BatchRes
         creditsUsed += COST_PER_ACTION;
       }
 
-      jobs = jobs.map((j) =>
-        j.index === i
-          ? {
-              ...j,
-              status: 'done',
-              proposal: result.proposal ?? '',
-              matchScore: Math.min(100, Math.max(0, Math.round(result.matchScore ?? 0))),
-              clientProblem: result.clientProblem ?? '',
-            }
-          : j,
-      );
+      publishJob(i, {
+        status: 'done',
+        proposal: result.proposal ?? '',
+        matchScore: Math.min(100, Math.max(0, Math.round(result.matchScore ?? 0))),
+        clientProblem: result.clientProblem ?? '',
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      jobs = jobs.map((j) =>
-        j.index === i ? { ...j, status: 'error', errorMessage: msg } : j,
-      );
+      const friendly = /timeout|aborted/i.test(msg)
+        ? 'This listing took too long. The rest of the batch continues.'
+        : msg;
+      publishJob(i, { status: 'error', errorMessage: friendly });
     }
-
-    onProgress?.([...jobs]);
   });
 
   // 5. Run with concurrency limit

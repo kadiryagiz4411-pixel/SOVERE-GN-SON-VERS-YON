@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt"],
+      includeAssets: ["favicon.ico", "brand-logo.png", "robots.txt"],
       manifest: {
         name: "Sovereign - AI Career Strategy",
         short_name: "Sovereign",
@@ -59,17 +59,13 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
-            src: "/pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512x512.png",
+            src: "/brand-logo.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any",
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/brand-logo.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",

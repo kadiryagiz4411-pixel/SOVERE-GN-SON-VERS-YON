@@ -269,6 +269,10 @@ export async function redeemAppSumoCode(
 ): Promise<RedeemResult> {
   try {
     const normalized = code.trim().toUpperCase();
+    const { data: authData } = await supabase.auth.getSession();
+    if (!authData.session?.user) {
+      return { success: false, message: 'Sign in to redeem your code.' };
+    }
     const { data, error } = await supabase.rpc('redeem_appsumo_code', {
       code_input: normalized,
     });

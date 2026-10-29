@@ -1221,6 +1221,15 @@ async function rescanActiveScreen() {
   const remainingMs = () => Math.max(0, SCAN_WINDOW_MS - (Date.now() - scanStarted));
 
   if (!assertAccountOpen()) return;
+  if (!isExtensionAdmin() && settings.accountEmail && (settings.canGenerate === false || Number(settings.remainingCredits || 0) <= 0)) {
+    if (settings.isAppsumoUser) showCreditResetBanner();
+    else showPaywall('credits');
+    setTargetBadge('idle');
+    setBusy(false, settings.isAppsumoUser
+      ? APPSUMO_ZERO_MESSAGE
+      : 'Your monthly credits are used up. Upgrade to keep scanning.');
+    return;
+  }
 
   // Flush ALL stale state so nothing from a previous job bleeds in.
   clearTimeout(viewportScoreTimer);

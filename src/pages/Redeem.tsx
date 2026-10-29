@@ -8,7 +8,6 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { redeemAppSumoCode } from '@/services/creditService';
 import { AppSumoBadge } from '@/components/AppSumoBadge';
 import {
@@ -114,9 +113,10 @@ function TierSuccessPanel({ msg, creditLimit, tier, onNavigate }: TierSuccessPan
 
 export default function Redeem() {
   const navigate = useNavigate();
-  const { user, refreshCredits } = useSession();
+  const { user, sessionReady, onboardingResolved, refreshCredits } = useSession();
   const { refresh: refreshPlan } = usePlan();
   const userId = user?.id ?? null;
+  const accountReady = sessionReady && (!user || onboardingResolved);
   const [code, setCode]               = useState('');
   const [state, setState]             = useState<RedeemState>('idle');
   const [errorMsg, setErrorMsg]       = useState('');
@@ -126,20 +126,14 @@ export default function Redeem() {
 
   // Load current user — redirect to auth if not signed in
   useEffect(() => {
-    if (userId) return;
-    supabase.auth.getSession().then(({ data }) => {
-      const uid = data.session?.user?.id ?? null;
-      if (!uid) navigate('/auth?redirect=/redeem');
-    });
-  }, [navigate, userId]);
+    if (!sessionReady || userId) return;
+    navigate('/auth?redirect=/redeem', { replace: true });
+  }, [navigate, sessionReady, userId]);
 
   const handleRedeem = async () => {
+    if (!accountReady || !userId) return;
     if (!code.trim()) {
       toast.error('Please enter your AppSumo code.');
-      return;
-    }
-    if (!userId) {
-      navigate('/auth?redirect=/redeem');
       return;
     }
 
@@ -237,10 +231,10 @@ export default function Redeem() {
                 </div>
                 <Button
                   onClick={handleRedeem}
-                  disabled={state === 'loading' || !code.trim()}
+                  disabled={!accountReady || !userId || state === 'loading' || !code.trim()}
                   className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-4"
                 >
-                  {state === 'loading' ? (
+                  {!accountReady || state === 'loading' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>Kodu Kullan <ChevronRight className="w-4 h-4 ml-1" /></>
