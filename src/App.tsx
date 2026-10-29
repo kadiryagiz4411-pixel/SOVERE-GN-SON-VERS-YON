@@ -53,6 +53,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
 const ProposalsHistory = lazy(() => import("./pages/ProposalsHistory"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const DemoPage = lazy(() => import("./pages/DemoPage"));
 const Features = lazy(() => import("./pages/Features"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -164,6 +165,7 @@ const AppRoutes = () => (
       <Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
       <Route path="/proposals" element={<ProtectedRoute><ProposalsHistory /></ProtectedRoute>} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/demo" element={<DemoPage />} />
       <Route path="/features" element={<Features />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />

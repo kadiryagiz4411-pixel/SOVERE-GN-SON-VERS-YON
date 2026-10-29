@@ -190,6 +190,11 @@ export const HeroSection = () => {
                   {t.ctaCV}
                 </Button>
               </Link>
+              <Link to="/demo" onClick={() => trackEvent('cta_click', { label: 'hero_demo', source: 'landing' })} className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="text-base px-8 py-5 h-auto w-full sm:w-auto border-amber-400/40 text-amber-100 hover:border-amber-300">
+                  Live Demo
+                </Button>
+              </Link>
             </div>
             <Link to="/install">
               <Button variant="ghost" size="sm" className="h-9 px-4 gap-2 text-xs text-muted-foreground">

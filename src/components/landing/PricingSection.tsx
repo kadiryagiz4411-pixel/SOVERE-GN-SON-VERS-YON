@@ -1,8 +1,9 @@
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PricingTable } from '@/components/pricing/PricingTable';
 import { AppSumoPricing } from '@/components/pricing/AppSumoPricing';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { usePlan } from '@/contexts/PlanContext';
+import { Button } from '@/components/ui/button';
 
 export const PricingSection = () => {
   const { t } = useLanguage();
@@ -28,6 +29,13 @@ export const PricingSection = () => {
           <p className="text-lg text-slate-400 max-w-2xl mx-auto">
             {t.pricing?.subtitle ?? 'From individual job seekers to enterprise HR teams — Sovereign scales with your ambition.'}
           </p>
+          <div className="mt-6 flex justify-center">
+            <Link to="/demo">
+              <Button variant="outline" className="text-base border-amber-400/40 text-amber-100 hover:border-amber-300">
+                Try Sandbox
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Pricing table */}
