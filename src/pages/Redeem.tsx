@@ -2,9 +2,9 @@
  * Redeem.tsx — AppSumo multi-tier code redemption page (/redeem)
  *
  * Shows a distinct tier-specific success screen for:
- *   Tier 1 ($49)   — 50 credits / ATS core / B2C extension
- *   Tier 2 ($149)  — 200 credits / advanced B2C + match analytics
- *   B2B Tier ($299) — 1,000 credits / B2B+B2C extension + bulk screening
+ *   Tier 1 ($59)   — 50 credits / B2C extension, CV, and proposals
+ *   Tier 2 ($139)  — 200 credits / advanced match and priority queue
+ *   Agency ($249)  — 1,000 credits / B2B and B2C, bulk pitch
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,14 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
+
+function redeemErrorTitle(message: string): string {
+  if (/already been used/i.test(message)) return 'Code already used';
+  if (/expired/i.test(message)) return 'Code expired';
+  if (/not valid|invalid/i.test(message)) return 'Invalid code';
+  if (/sign in/i.test(message)) return 'Sign in required';
+  return 'Could not activate';
+}
 
 type RedeemState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -160,7 +168,7 @@ export default function Redeem() {
       await refreshCredits();
       await refreshPlan();
 
-      setTimeout(() => navigate(tier === 'appsumo_b2b' ? '/b2b' : '/dashboard'), 2_000);
+      setTimeout(() => navigate('/dashboard'), 2_000);
     } else {
       setState('error');
       setErrorMsg(result.message);
@@ -202,7 +210,7 @@ export default function Redeem() {
               msg={activationMsg}
               creditLimit={creditLimit}
               tier={activatedTier}
-              onNavigate={() => navigate(activatedTier === 'appsumo_b2b' ? '/b2b' : '/dashboard')}
+              onNavigate={() => navigate('/dashboard')}
             />
           ) : (
             <div className="p-6">
@@ -244,9 +252,12 @@ export default function Redeem() {
 
               {/* Error */}
               {state === 'error' && errorMsg && (
-                <div className="flex items-start gap-2 mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="flex items-start gap-2 mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
                   <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-400">{errorMsg}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-red-300">{redeemErrorTitle(errorMsg)}</p>
+                    <p className="text-sm text-red-400 mt-0.5 break-words">{errorMsg}</p>
+                  </div>
                 </div>
               )}
 

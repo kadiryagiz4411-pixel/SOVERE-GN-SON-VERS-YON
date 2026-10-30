@@ -263,13 +263,14 @@ const REDEEM_MESSAGES: Record<string, string> = {
   disabled:         'This code has been disabled. Please contact AppSumo support.',
 };
 
-/** Keep redeem copy in English even when the database function returns Turkish. */
+/** Pass English redeem copy through. Map leftover Turkish database text. */
 function toEnglishRedeemCopy(raw: string, fallback: string): string {
   const text = String(raw || '').replace(/\s+/g, ' ').trim();
   if (!text) return fallback;
   if (/oturum gerekli|giri[sş]\s*yap/i.test(text)) return 'Sign in to redeem your code.';
-  if (/geçersiz|kullanılmış|already used|invalid/i.test(text)) return 'This code is invalid or has already been used.';
-  if (/tebrikler|başarıyla|paketiniz/i.test(text)) return fallback;
+  if (/süresi dol/i.test(text)) return 'This code has expired.';
+  if (/kullanılmış/i.test(text)) return 'This code has already been used.';
+  if (/geçersiz/i.test(text)) return 'This code is not valid. Check it and try again.';
   if (/[ğüşıöçĞÜŞİÖÇ]/.test(text)) return fallback;
   return text;
 }
@@ -295,6 +296,7 @@ export async function redeemAppSumoCode(
 
     const payload = (typeof data === 'object' && data !== null ? data : {}) as {
       success?: boolean;
+      error?: string;
       tier?: string;
       tier_label?: string;
       monthly_limit?: number;
@@ -302,7 +304,10 @@ export async function redeemAppSumoCode(
     };
 
     if (payload.success === false) {
-      return { success: false, message: toEnglishRedeemCopy(payload.message || '', 'This code is invalid or has already been used.') };
+      return {
+        success: false,
+        message: toEnglishRedeemCopy(payload.message || '', 'This code could not be redeemed. Please try again.'),
+      };
     }
 
     const tier = payload.tier || 'tier_1';
