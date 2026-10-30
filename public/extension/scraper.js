@@ -1098,8 +1098,8 @@ function _extractActiveJobImpl(options) {
   let budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
   let clientHistory = clientFrom(root);
 
-  const onIndeed = host === 'indeed.com' || host.endsWith('.indeed.com');
-  const onGlassdoor = host === 'glassdoor.com' || host.endsWith('.glassdoor.com');
+  const onIndeed = /(^|\.)indeed\./.test(host);
+  const onGlassdoor = /(^|\.)glassdoor\./.test(host);
   let platformFields = null;
   try {
     if (onIndeed) platformFields = extractIndeed(root);

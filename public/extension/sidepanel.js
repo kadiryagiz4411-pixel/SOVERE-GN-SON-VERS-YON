@@ -417,8 +417,8 @@ function setBusy(on, message) {
 
 function setActiveChannel(url) {
   const host = String(url || '').toLowerCase();
-  const key = host.includes('indeed.com') ? 'indeed'
-    : host.includes('glassdoor.com') ? 'glassdoor'
+  const key = host.includes('indeed.') ? 'indeed'
+    : host.includes('glassdoor.') ? 'glassdoor'
     : host.includes('linkedin.com') ? 'linkedin'
     : host.includes('upwork.com') ? 'upwork'
     : '';
@@ -448,8 +448,8 @@ function detectOpportunityPlatform(url) {
   if (u.includes('upwork.com')) return 'Upwork';
   if (u.includes('freelancer.com')) return 'Freelancer';
   if (u.includes('linkedin.com')) return 'LinkedIn';
-  if (u.includes('indeed.com')) return 'Indeed';
-  if (u.includes('glassdoor.com')) return 'Glassdoor';
+  if (u.includes('indeed.')) return 'Indeed';
+  if (u.includes('glassdoor.')) return 'Glassdoor';
   return 'Upwork';
 }
 
@@ -850,15 +850,15 @@ function normalizePageData(raw, fallback = emptyPageData()) {
   const skills = Array.isArray(raw?.requiredSkills)
     ? raw.requiredSkills.map((item) => String(item)).filter(Boolean).slice(0, 16)
     : [];
-  return {
+  const normalized = {
     pageText: String(raw?.pageText || raw?.jobDescription || fallback.pageText || ''),
     pageTitle: String(raw?.jobTitle || raw?.pageTitle || fallback.pageTitle || ''),
     pageUrl: String(raw?.pageUrl || fallback.pageUrl || ''),
     jobTitle: String(raw?.jobTitle || raw?.pageTitle || fallback.jobTitle || ''),
     jobDescription: String(raw?.jobDescription || raw?.pageText || fallback.jobDescription || ''),
     requiredSkills: skills,
-    budget: String(raw?.budget || fallback.budget || ''),
-    clientHistory: String(raw?.clientHistory || fallback.clientHistory || ''),
+    budget: String(raw?.budget || raw?.structuredJob?.salary || fallback.budget || ''),
+    clientHistory: String(raw?.clientHistory || raw?.structuredJob?.company || fallback.clientHistory || ''),
     isolated: Boolean(raw?.isolated),
     kind: raw?.kind || fallback.kind || 'job',
     contentType: raw?.contentType || fallback.contentType || '',
@@ -870,6 +870,8 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     autoAnalyzed: Boolean(raw?.autoAnalyzed),
     flushed: Boolean(raw?.flushed),
   };
+  setActiveChannel(normalized.pageUrl);
+  return normalized;
 }
 
 function flushJobContext() {
@@ -1242,7 +1244,11 @@ async function analyzeActivePage() {
     const data = await postParseDom(pageData);
     const merged = await enrichWithSmartMatch(pageData, data);
     void ingestOpportunity(pageData, merged);
-    renderAnalysisResults(merged, pageData.pageTitle, pageData.pageUrl);
+    renderAnalysisResults(
+      { ...merged, structuredJob: pageData.structuredJob || merged?.structuredJob || null },
+      pageData.pageTitle,
+      pageData.pageUrl,
+    );
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
