@@ -199,6 +199,28 @@ const Auth = () => {
       ? 'https://sovereignapp.pro/reset-password'
       : `${window.location.origin}/reset-password`;
 
+  const redeemReturnPath = () => {
+    const raw = new URLSearchParams(window.location.search).get('redirect');
+    if (!raw) return null;
+    let path = raw;
+    try {
+      path = decodeURIComponent(raw);
+    } catch {
+      return null;
+    }
+    if (!path.startsWith('/redeem') || path.startsWith('//') || path.includes('\\') || path.includes('://')) {
+      return null;
+    }
+    const queryIndex = path.indexOf('?');
+    const pathname = queryIndex === -1 ? path : path.slice(0, queryIndex);
+    if (pathname !== '/redeem') return null;
+    if (queryIndex === -1) return '/redeem';
+    const license = new URLSearchParams(path.slice(queryIndex + 1)).get('code')?.trim().toUpperCase() || '';
+    if (!license) return '/redeem';
+    if (!/^[A-Z0-9-]{4,64}$/.test(license)) return '/redeem';
+    return `/redeem?code=${encodeURIComponent(license)}`;
+  };
+
   const hasRecoveryParams = () => {
     const hash = window.location.hash;
     const search = new URLSearchParams(window.location.search);
@@ -227,7 +249,7 @@ const Auth = () => {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/dashboard', { replace: true });
+        navigate(redeemReturnPath() || '/dashboard', { replace: true });
       }
     };
 
@@ -240,7 +262,7 @@ const Auth = () => {
       }
 
       if (event === 'SIGNED_IN' && session && mode !== 'signup') {
-        navigate('/dashboard', { replace: true });
+        navigate(redeemReturnPath() || '/dashboard', { replace: true });
       }
     });
 
@@ -386,7 +408,7 @@ const Auth = () => {
         }
         const welcomeMsgs: Record<string, string> = { en: 'Welcome back!', tr: 'Hoş geldiniz!', de: 'Willkommen zurück!', fr: 'Bon retour !' };
         toast.success(welcomeMsgs[language] || welcomeMsgs.en);
-        navigate('/dashboard');
+        navigate(redeemReturnPath() || '/dashboard');
       } else {
         // signup — attach referral code if captured from ?ref= landing
         const affiliateRef = localStorage.getItem('affiliate_ref');
@@ -416,7 +438,7 @@ const Auth = () => {
           if (affiliateRef) localStorage.removeItem('affiliate_ref');
           const createMsgs: Record<string, string> = { en: 'Account created! Welcome.', tr: 'Hesap oluşturuldu! Hoş geldiniz.', de: 'Konto erstellt! Willkommen.', fr: 'Compte créé ! Bienvenue.' };
           toast.success(createMsgs[language] || createMsgs.en);
-          navigate('/onboarding');
+          navigate(redeemReturnPath() || '/onboarding');
         } else {
           setShowEmailConfirmation(true);
         }

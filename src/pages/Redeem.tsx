@@ -7,7 +7,7 @@
  *   Agency ($249)  — 1,000 credits / B2B and B2C, bulk pitch
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { redeemAppSumoCode } from '@/services/creditService';
 import { AppSumoBadge } from '@/components/AppSumoBadge';
 import {
@@ -25,6 +25,16 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
+
+function licenseCodeFromQuery(value: string | null): string {
+  const text = (value || '').trim().toUpperCase().replace(/\s+/g, '');
+  return /^[A-Z0-9-]{4,64}$/.test(text) ? text : '';
+}
+
+function authRedirectForCode(code: string): string {
+  const target = code ? `/redeem?code=${encodeURIComponent(code)}` : '/redeem';
+  return `/auth?redirect=${encodeURIComponent(target)}`;
+}
 
 function redeemErrorTitle(message: string): string {
   if (/already been used/i.test(message)) return 'Code already used';
@@ -121,22 +131,29 @@ function TierSuccessPanel({ msg, creditLimit, tier, onNavigate }: TierSuccessPan
 
 export default function Redeem() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedCode = licenseCodeFromQuery(searchParams.get('code'));
   const { user, sessionReady, onboardingResolved, refreshCredits } = useSession();
   const { refresh: refreshPlan } = usePlan();
   const userId = user?.id ?? null;
   const accountReady = sessionReady && (!user || onboardingResolved);
-  const [code, setCode]               = useState('');
+  const [code, setCode]               = useState(linkedCode);
   const [state, setState]             = useState<RedeemState>('idle');
   const [errorMsg, setErrorMsg]       = useState('');
   const [activatedTier, setActivatedTier]     = useState<string>('');
   const [activationMsg, setActivationMsg]     = useState<TierActivationMessage | null>(null);
   const [creditLimit, setCreditLimit]         = useState(0);
 
-  // Load current user — redirect to auth if not signed in
+  useEffect(() => {
+    if (linkedCode) setCode(linkedCode);
+  }, [linkedCode]);
+
+  // Load current user — redirect to auth if not signed in, keeping ?code=
   useEffect(() => {
     if (!sessionReady || userId) return;
-    navigate('/auth?redirect=/redeem', { replace: true });
-  }, [navigate, sessionReady, userId]);
+    const pending = licenseCodeFromQuery(code) || linkedCode;
+    navigate(authRedirectForCode(pending), { replace: true });
+  }, [navigate, sessionReady, userId, code, linkedCode]);
 
   const handleRedeem = async () => {
     if (!accountReady || !userId) return;
@@ -327,7 +344,7 @@ export default function Redeem() {
         <p className="text-center text-xs text-muted-foreground mt-3">
           Need an account?{' '}
           <button
-            onClick={() => navigate('/auth?mode=signup&redirect=/redeem')}
+            onClick={() => navigate(`${authRedirectForCode(licenseCodeFromQuery(code) || linkedCode)}&mode=signup`)}
             className="text-primary hover:underline"
           >
             Sign up free
