@@ -960,7 +960,7 @@ function _extractActiveJobImpl(options) {
 
   const looksLikePay = (value) => /[$€£¥₹]|\d|\b(?:hour|hr|year|yr|month|annum|salary|pay)\b/i.test(String(value || ''));
 
-  const readFirst = (selectors, scope, max) => {
+  const readFirst = (selectors, scope, max, allowShort = true) => {
     const roots = [];
     if (scope instanceof Element) roots.push(scope);
     roots.push(document);
@@ -969,7 +969,7 @@ function _extractActiveJobImpl(options) {
         let el = null;
         try { el = rootNode.querySelector(selector); } catch { el = null; }
         if (!el) continue;
-        const raw = textOf(el, max, true) || attrText(el, ['aria-label', 'title']) || '';
+        const raw = textOf(el, max, allowShort) || attrText(el, ['aria-label', 'title']) || '';
         const text = cleanText(raw, max);
         if (text && !isChromePhrase(text)) return text;
       }
@@ -1007,7 +1007,7 @@ function _extractActiveJobImpl(options) {
       '#jobDescriptionText',
       '.jobsearch-jobDescriptionText',
       '#jobDescription',
-    ], scope, MAX_TEXT),
+    ], scope, MAX_TEXT, false),
   });
 
   const extractGlassdoor = (scope) => ({
@@ -1040,7 +1040,7 @@ function _extractActiveJobImpl(options) {
       '#JobDescriptionContainer',
       '[class*="JobDetails_jobDescription"]',
       '.jobDescriptionContent',
-    ], scope, MAX_TEXT),
+    ], scope, MAX_TEXT, false),
   });
 
   const titleEl = pickBest(TITLE_SELECTORS, root);

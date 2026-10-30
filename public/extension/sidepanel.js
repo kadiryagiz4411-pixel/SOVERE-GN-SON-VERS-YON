@@ -415,6 +415,33 @@ function setBusy(on, message) {
   if (!on) hideErrorBadge();
 }
 
+function setActiveChannel(url) {
+  const host = String(url || '').toLowerCase();
+  const key = host.includes('indeed.com') ? 'indeed'
+    : host.includes('glassdoor.com') ? 'glassdoor'
+    : host.includes('linkedin.com') ? 'linkedin'
+    : host.includes('upwork.com') ? 'upwork'
+    : '';
+  document.querySelectorAll('[data-channel]').forEach((el) => {
+    el.classList.toggle('on', Boolean(key) && el.getAttribute('data-channel') === key);
+  });
+}
+
+function sanitizeStructuredJob(job) {
+  if (!job || typeof job !== 'object') return null;
+  const clip = (value, max) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+  return {
+    platform: clip(job.platform, 40),
+    title: clip(job.title, 180),
+    company: clip(job.company, 120),
+    location: clip(job.location, 120),
+    salary: clip(job.salary, 160),
+    description: String(job.description || '').trim().slice(0, 12000),
+    skills: Array.isArray(job.skills) ? job.skills.map((item) => String(item)).filter(Boolean).slice(0, 16) : [],
+    budget: clip(job.budget, 160),
+    clientInfo: clip(job.clientInfo, 500),
+  };
+}
 function detectOpportunityPlatform(url) {
   const u = String(url || '').toLowerCase();
   if (u.includes('fiverr.com')) return 'Fiverr';
@@ -422,6 +449,7 @@ function detectOpportunityPlatform(url) {
   if (u.includes('freelancer.com')) return 'Freelancer';
   if (u.includes('linkedin.com')) return 'LinkedIn';
   if (u.includes('indeed.com')) return 'Indeed';
+  if (u.includes('glassdoor.com')) return 'Glassdoor';
   return 'Upwork';
 }
 
@@ -680,7 +708,10 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (badge) badge.textContent = `${safeScore}`;
   scoreRing?.style.setProperty('--p', String(safeScore));
   if (titleEl) titleEl.textContent = lastTitle || (isJob ? 'Job posting' : isCv ? 'Candidate' : 'Company');
-  if (metaEl) metaEl.textContent = data.url || pageUrl || '';
+  const jobRecord = data.structuredJob || {};
+  const metaBits = [jobRecord.company, jobRecord.location, jobRecord.salary || data.budget].filter(Boolean);
+  if (metaEl) metaEl.textContent = metaBits.join(' · ') || data.url || pageUrl || '';
+  setActiveChannel(data.url || pageUrl || '');
 
   if (isJob) {
     if (scoreHeading) scoreHeading.textContent = 'Match';
@@ -834,6 +865,7 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     discarded: Boolean(raw?.discarded),
     discardReason: String(raw?.discardReason || raw?.reason || fallback.discardReason || ''),
     hash: String(raw?.hash || raw?.signature || fallback.hash || ''),
+    structuredJob: sanitizeStructuredJob(raw?.structuredJob),
     analysis: raw?.analysis || null,
     autoAnalyzed: Boolean(raw?.autoAnalyzed),
     flushed: Boolean(raw?.flushed),
@@ -1071,7 +1103,9 @@ async function postParseDom(pageData, options = {}) {
     clientHistory: pageData.clientHistory,
     // structuredJob carries the clean, field-isolated extraction from scraper.js.
     structuredJob: pageData.structuredJob || null,
-    // effectiveSkillList() provides a graceful default when onboarding < 2 skills.
+    company: pageData.structuredJob?.company || '',
+    location: pageData.structuredJob?.location || '',
+    salary: pageData.structuredJob?.salary || '',
     skills: effectiveSkillList(),
     experience: settings.experience,
     hourlyRate: Number(settings.hourlyRate) || undefined,
