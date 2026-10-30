@@ -25,6 +25,7 @@ dist-ssr
 
 .vercel
 appsumo_codes.txt
+appsumo_codes.csv
 scripts/.sov-insert/
 .env
 .env.local

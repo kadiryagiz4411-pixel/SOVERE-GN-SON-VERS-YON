@@ -6,7 +6,7 @@
  * so the text file and appsumo_codes stay the same set.
  *
  * Usage: node scripts/generateSovLicenseCodes.mjs
- * appsumo_codes.txt is local only. Do not commit it.
+ * appsumo_codes.txt and appsumo_codes.csv are local only. Do not commit them.
  */
 import { createHash } from 'crypto';
 import { writeFileSync } from 'fs';
@@ -34,8 +34,9 @@ if (unique.size !== COUNT) {
   process.exit(1);
 }
 
-const listPath = join(root, 'appsumo_codes.txt');
-writeFileSync(listPath, `${rows.map((row) => row.code).join('\n')}\n`, 'utf8');
+const body = `${rows.map((row) => row.code).join('\n')}\n`;
+writeFileSync(join(root, 'appsumo_codes.txt'), body, 'utf8');
+writeFileSync(join(root, 'appsumo_codes.csv'), body, 'utf8');
 
 const sorted = [...unique].sort();
 const digest = createHash('sha256').update(sorted.join('\n')).digest('hex');
@@ -47,4 +48,4 @@ const tierCounts = rows.reduce((acc, row) => {
 console.log(`count=${rows.length}`);
 console.log(`sha256=${digest}`);
 console.log(`tier_1=${tierCounts.tier_1} tier_2=${tierCounts.tier_2} tier_3=${tierCounts.tier_3}`);
-console.log('file=appsumo_codes.txt');
+console.log('file=appsumo_codes.csv');
