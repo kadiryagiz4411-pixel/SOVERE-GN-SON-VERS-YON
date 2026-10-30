@@ -263,6 +263,17 @@ const REDEEM_MESSAGES: Record<string, string> = {
   disabled:         'This code has been disabled. Please contact AppSumo support.',
 };
 
+/** Keep redeem copy in English even when the database function returns Turkish. */
+function toEnglishRedeemCopy(raw: string, fallback: string): string {
+  const text = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!text) return fallback;
+  if (/oturum gerekli|giri[sş]\s*yap/i.test(text)) return 'Sign in to redeem your code.';
+  if (/geçersiz|kullanılmış|already used|invalid/i.test(text)) return 'This code is invalid or has already been used.';
+  if (/tebrikler|başarıyla|paketiniz/i.test(text)) return fallback;
+  if (/[ğüşıöçĞÜŞİÖÇ]/.test(text)) return fallback;
+  return text;
+}
+
 export async function redeemAppSumoCode(
   code: string,
   _userId?: string,
@@ -279,10 +290,7 @@ export async function redeemAppSumoCode(
 
     if (error) {
       const raw = error.message || '';
-      if (/geçersiz|kullanılmış|invalid|already/i.test(raw)) {
-        return { success: false, message: raw.includes('Geçersiz') ? raw : 'Geçersiz veya kullanılmış kod.' };
-      }
-      return { success: false, message: raw || 'Kod kullanılamadı. Lütfen tekrar deneyin.' };
+      return { success: false, message: toEnglishRedeemCopy(raw, 'This code could not be redeemed. Please try again.') };
     }
 
     const payload = (typeof data === 'object' && data !== null ? data : {}) as {
@@ -294,7 +302,7 @@ export async function redeemAppSumoCode(
     };
 
     if (payload.success === false) {
-      return { success: false, message: payload.message || 'Geçersiz veya kullanılmış kod.' };
+      return { success: false, message: toEnglishRedeemCopy(payload.message || '', 'This code is invalid or has already been used.') };
     }
 
     const tier = payload.tier || 'tier_1';
@@ -303,7 +311,7 @@ export async function redeemAppSumoCode(
       : tier === 'tier_2' ? 'appsumo_tier2'
       : 'appsumo_tier1';
     const label = payload.tier_label || (tier === 'tier_3' ? 'AppSumo Agency' : tier === 'tier_2' ? 'AppSumo Pro' : 'AppSumo Starter');
-    const message = payload.message || `Tebrikler! ${label} paketiniz başarıyla tanımlandı.`;
+    const message = toEnglishRedeemCopy(payload.message || '', `${label} is now active.`);
 
     try {
       window.dispatchEvent(new CustomEvent('sovereign:profile-updated'));

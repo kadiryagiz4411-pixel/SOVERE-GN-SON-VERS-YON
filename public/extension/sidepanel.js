@@ -45,6 +45,15 @@ const DEFAULT_SETTINGS = {
  *    cause AI proposals to be written in Turkish while all UI text stays
  *    English, producing a broken mixed-language experience.
  */
+const UI_TITLE_NOISE = /^(giri[sş]\s*yap(?:mak|ın|iniz)?|oturum\s*aç(?:ın)?|sign\s*in|log\s*in|join\s*now|translate(?:\s+this\s+page)?|türkçe|english|menu|home)$/i;
+
+/** Drop browser-chrome labels so a Turkish "Giriş yapmak" button never becomes a card title. */
+function cleanCardTitle(value, fallback) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text || UI_TITLE_NOISE.test(text)) return fallback || 'Untitled proposal';
+  return text;
+}
+
 function resolveOutputLanguage() {
   const saved = String(settings.outputLanguage || 'en').trim();
   // 'auto' is kept as a user-selectable option for power users, but when
@@ -498,7 +507,7 @@ function renderProposalList(list) {
   }
   proposalListEl.innerHTML = list.map((item) => `
     <article class="list-item" data-id="${escapeHtml(item.id)}">
-      <h3>${escapeHtml(item.title || 'Untitled proposal')}</h3>
+      <h3>${escapeHtml(cleanCardTitle(item.title, 'Untitled proposal'))}</h3>
       <div class="when">${escapeHtml(formatWhen(item.at))} · ${escapeHtml(item.score || 0)}% match</div>
       <p>${escapeHtml(item.text || '')}</p>
       <div class="row">
@@ -517,7 +526,7 @@ function renderCvList(list) {
   }
   cvListEl.innerHTML = list.map((item) => `
     <article class="list-item" data-id="${escapeHtml(item.id)}">
-      <h3>${escapeHtml(item.title || 'Tailored CV')}</h3>
+      <h3>${escapeHtml(cleanCardTitle(item.title, 'Tailored CV'))}</h3>
       <div class="when">${escapeHtml(item.score || 0)}% match · ${escapeHtml(formatWhen(item.at))}</div>
       <p>${escapeHtml(item.text || item.summary || '')}</p>
       <div class="row">
@@ -646,7 +655,10 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   const isB2b = mode === 'B2B_COMMAND';
   const score = Number(data.match_score ?? data.matchScore ?? data.compatibilityScore ?? data.overallScore ?? 0);
   const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
-  lastTitle = data.title || data.jobTitle || pageTitle || '';
+  lastTitle = cleanCardTitle(
+    data.title || data.jobTitle || pageTitle || '',
+    isJob ? 'Job posting' : isCv ? 'Candidate' : 'Company',
+  );
   lastScore = safeScore;
   lastJob = {
     title: lastTitle,
@@ -2093,7 +2105,7 @@ async function renderSettingsHistory() {
   }
   host.innerHTML = rows.map((item) => `
     <article class="list-item">
-      <h3>${escapeHtml(item.kind)} · ${escapeHtml(item.title || 'Untitled')}</h3>
+      <h3>${escapeHtml(item.kind)} · ${escapeHtml(cleanCardTitle(item.title, 'Untitled'))}</h3>
       <div class="when">${escapeHtml(formatWhen(item.at))}</div>
       <p>${escapeHtml(item.text || item.summary || '')}</p>
       <button class="ghost" type="button" data-history-copy="1" data-history-text="${escapeHtml(item.text || item.summary || '')}">Copy</button>

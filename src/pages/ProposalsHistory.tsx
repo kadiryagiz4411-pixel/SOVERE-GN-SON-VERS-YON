@@ -192,8 +192,8 @@ const ProposalsHistory = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="container mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 lg:px-8 py-4 flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-4 min-w-0">
             <Link to="/dashboard">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="w-5 h-5" />
@@ -203,7 +203,7 @@ const ProposalsHistory = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center shadow-gold">
                 <Crown className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-bold text-foreground">Application History</span>
+              <span className="text-lg font-bold text-foreground truncate">Application History</span>
             </div>
           </div>
           <Link to="/profile">
@@ -353,12 +353,12 @@ const ProposalsHistory = () => {
                     setExpandedId(expandedId === proposal.id ? null : proposal.id)
                   }
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground line-clamp-2 font-medium">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0 basis-48">
+                      <p className="text-sm text-foreground line-clamp-2 font-medium break-words">
                         {proposal.job_description}
                       </p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {new Date(proposal.created_at).toLocaleDateString(undefined, {
@@ -379,7 +379,7 @@ const ProposalsHistory = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                       <Button
                         variant="ghost"
                         size="icon"

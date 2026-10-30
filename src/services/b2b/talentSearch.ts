@@ -57,7 +57,7 @@ export async function searchTalentPool(params: {
   console.log('[Auth Check]', { component: 'searchTalentPool', userId: sessionData.session?.user?.id, email: sessionData.session?.user?.email, hasSession: !!token });
 
   if (!token) {
-    throw new Error('Lütfen devam etmek için giriş yapın. (Auth token missing for talent search)');
+    throw new Error('Please sign in to continue.');
   }
   if (!supabaseUrl) {
     throw new Error('Configuration error: VITE_SUPABASE_URL is not set.');

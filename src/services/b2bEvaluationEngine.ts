@@ -237,7 +237,7 @@ export async function triggerAIEvaluation(params: {
   console.log('[Auth Check]', { component: 'triggerAIEvaluation', userId: sessionData.session?.user?.id, email: userEmail, hasSession: !!token });
 
   if (!token) {
-    throw new Error('Lütfen devam etmek için giriş yapın. (Auth token missing — please sign in again.)');
+    throw new Error('Please sign in to continue.');
   }
 
   const supabaseUrl = getSupabaseUrl();

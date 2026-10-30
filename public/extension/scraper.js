@@ -57,6 +57,9 @@ const SOVEREIGN_DETAIL_SELECTORS = [
   '.jobsearch-JobComponent',
   '.jobsearch-RightPane',
   '.jobsearch-ViewJobLayout--mainContent',
+  '#JDCol',
+  '[data-test="job-details"]',
+  '[class*="JobDetails_jobDetails"]',
   '.PageProjectViewLogout-detail',
   '.PageProjectView-detail',
   '#main-content .ProjectView',
@@ -76,6 +79,9 @@ const SOVEREIGN_CARD_SELECTORS = [
   '.jobsearch-SerpJobCard',
   '.jobsearch-ResultsList > li',
   '[data-jk]',
+  'li[data-test="jobListing"]',
+  '[data-test="jobListing"]',
+  'li.react-job-listing',
   '[data-job-id]',
   '.up-card-section.job-tile',
   '.up-card-section',
@@ -209,7 +215,7 @@ const SOVEREIGN_MAIN_SELECTORS = [
   '.jobsearch-JobComponent', '.jobs-search__job-details',
 ];
 
-const UI_CHROME_LINE = /^(translate(?: this page)?|türkçe|turkce|english|español|deutsch|français|sign in|log in|join now|menu|home|jobs|messaging|notifications|network|post a job|cookie(?:s)?(?: settings)?|accept(?: all)?|reject(?: all)?|see more|show more|follow|share|report(?: job)?|save(?: job)?|skip to (?:main )?content)$/i;
+const UI_CHROME_LINE = /^(translate(?: this page)?|türkçe|turkce|english|español|deutsch|français|sign in|log in|join now|menu|home|jobs|messaging|notifications|network|post a job|cookie(?:s)?(?: settings)?|accept(?: all)?|reject(?: all)?|see more|show more|follow|share|report(?: job)?|save(?: job)?|skip to (?:main )?content|giri[sş]\s*yap(?:mak|ın|iniz)?|oturum\s*aç(?:ın)?|üye\s*ol|kaydol|kabul\s*et|reddet|çerez(?:ler)?|daha\s*fazla|menü|ana\s*sayfa)$/i;
 
 function isChromePhrase(text) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -219,7 +225,7 @@ function isChromePhrase(text) {
 function looksLikeUiChrome(title, text) {
   const compact = `${title || ''}\n${text || ''}`.replace(/\s+/g, ' ').trim();
   if (compact.length < 40) return true;
-  const chromeHits = (compact.match(/translate this page|google çeviri|chrome.?çeviri|\btürkçe\b|cookie settings|sign in|join now|skip to main content/gi) || []).length;
+  const chromeHits = (compact.match(/translate this page|google çeviri|chrome.?çeviri|\btürkçe\b|cookie settings|sign in|join now|skip to main content|giri[sş]\s*yap(?:mak|ın)?|oturum\s*aç/gi) || []).length;
   const jobHits = (compact.match(/responsibilities|requirements|job description|hourly|fixed[- ]price|must have|beatmaker|mixing|mastering|sound design|producer|react|python|design/gi) || []).length;
   if (chromeHits >= 1 && jobHits === 0 && compact.length < 240) return true;
   return chromeHits >= 2 && jobHits === 0;
@@ -806,7 +812,12 @@ function _extractActiveJobImpl(options) {
     'h1.t-24',
     'h1.text-heading-xlarge',
     'h1.jobsearch-JobInfoHeader-title',
+    '[data-testid="jobsearch-JobInfoHeader-title"]',
+    '[data-testid="simpler-jobTitle"]',
     '.jobsearch-JobInfoHeader-title',
+    '[data-test="job-title"]',
+    '[data-test="jobTitle"]',
+    'h1[class*="JobDetails_jobTitle"]',
     '.PageProjectViewLogout-header-title',
     '.pv-text-details__left-panel h1',
     'h1',
@@ -823,6 +834,10 @@ function _extractActiveJobImpl(options) {
     '#job-description',
     '#jobDescriptionText',
     '.jobsearch-jobDescriptionText',
+    '[data-test="jobDescriptionContent"]',
+    '#JobDescriptionContainer',
+    '[class*="JobDetails_jobDescription"]',
+    '.jobDescriptionContent',
     '.ProjectDescription',
     '[data-qa="project-description"]',
     '.pv-shared-text-with-see-more',
@@ -943,6 +958,91 @@ function _extractActiveJobImpl(options) {
     || document.body;
   if (root instanceof Element) root.setAttribute('data-sovereign-active-job', '1');
 
+  const looksLikePay = (value) => /[$€£¥₹]|\d|\b(?:hour|hr|year|yr|month|annum|salary|pay)\b/i.test(String(value || ''));
+
+  const readFirst = (selectors, scope, max) => {
+    const roots = [];
+    if (scope instanceof Element) roots.push(scope);
+    roots.push(document);
+    for (const rootNode of roots) {
+      for (const selector of selectors) {
+        let el = null;
+        try { el = rootNode.querySelector(selector); } catch { el = null; }
+        if (!el) continue;
+        const raw = textOf(el, max, true) || attrText(el, ['aria-label', 'title']) || '';
+        const text = cleanText(raw, max);
+        if (text && !isChromePhrase(text)) return text;
+      }
+    }
+    return '';
+  };
+
+  const extractIndeed = (scope) => ({
+    title: readFirst([
+      '[data-testid="jobsearch-JobInfoHeader-title"]',
+      'h1.jobsearch-JobInfoHeader-title',
+      '.jobsearch-JobInfoHeader-title',
+      '[data-testid="simpler-jobTitle"]',
+      'h1.jobTitle',
+    ], scope, 180),
+    company: readFirst([
+      '[data-testid="inlineHeader-companyName"] a',
+      '[data-testid="inlineHeader-companyName"]',
+      '[data-company-name="true"]',
+      '[data-testid="company-name"]',
+      '.jobsearch-InlineCompanyRating a',
+    ], scope, 120),
+    location: readFirst([
+      '[data-testid="inlineHeader-companyLocation"]',
+      '[data-testid="job-location"]',
+      '#jobLocationText',
+      '[data-testid="jobsearch-JobInfoHeader-companyLocation"]',
+    ], scope, 120),
+    salary: readFirst([
+      '#salaryInfoAndJobType',
+      '[data-testid="salaryInfoAndJobType"]',
+      '.jobsearch-JobMetadataHeader-item',
+    ], scope, 160),
+    description: readFirst([
+      '#jobDescriptionText',
+      '.jobsearch-jobDescriptionText',
+      '#jobDescription',
+    ], scope, MAX_TEXT),
+  });
+
+  const extractGlassdoor = (scope) => ({
+    title: readFirst([
+      '[data-test="job-title"]',
+      '[data-test="jobTitle"]',
+      'h1[data-test="jobTitle"]',
+      'h1[class*="JobDetails_jobTitle"]',
+      '[class*="JobDetails_jobTitle"]',
+    ], scope, 180),
+    company: readFirst([
+      '[data-test="employer-name"]',
+      '[data-test="employerName"]',
+      '[data-test="employer-short-name"]',
+      '[class*="EmployerProfile_employerName"]',
+    ], scope, 120),
+    location: readFirst([
+      '[data-test="location"]',
+      '[data-test="emp-location"]',
+      '[class*="JobDetails_location"]',
+    ], scope, 120),
+    salary: readFirst([
+      '[data-test="detailSalary"]',
+      '[data-test="salary-estimate"]',
+      '[data-test="pay-range"]',
+      '[class*="SalaryEstimate"]',
+    ], scope, 160),
+    description: readFirst([
+      '[data-test="jobDescriptionContent"]',
+      '#JobDescriptionContainer',
+      '[class*="JobDetails_jobDescription"]',
+      '.jobDescriptionContent',
+    ], scope, MAX_TEXT),
+  });
+
   const titleEl = pickBest(TITLE_SELECTORS, root);
   const descEl = pickBest(DESC_SELECTORS, root);
 
@@ -995,24 +1095,72 @@ function _extractActiveJobImpl(options) {
 
   const isolated = Boolean(focus || descEl) && (force || !looksLikeFeed(jobDescription));
   const requiredSkills = skillsFrom(root);
-  const budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
-  const clientHistory = clientFrom(root);
+  let budget = budgetFrom(root, `${jobTitle}\n${jobDescription}`);
+  let clientHistory = clientFrom(root);
 
-  // pageText must NOT mash budget/skills/clientHistory into the job description.
-  // Keep it as title + clean body only — metadata is sent in dedicated fields so
-  // the LLM never confuses "8 proposals" with a skill or "$35/hr" with job copy.
+  const onIndeed = host === 'indeed.com' || host.endsWith('.indeed.com');
+  const onGlassdoor = host === 'glassdoor.com' || host.endsWith('.glassdoor.com');
+  let platformFields = null;
+  try {
+    if (onIndeed) platformFields = extractIndeed(root);
+    else if (onGlassdoor) platformFields = extractGlassdoor(root);
+  } catch {
+    platformFields = null;
+  }
+
+  if (platformFields) {
+    if (!looksLikePay(platformFields.salary)) platformFields.salary = '';
+    if (!platformFields.title) {
+      const rawTitle = cleanText(document.title || '', 180);
+      const stripped = rawTitle
+        .replace(/\s*[|–-]\s*(indeed|glassdoor)(\.com)?.*$/i, '')
+        .trim();
+      const head = cleanText(stripped.split(/\s+-\s+/)[0], 180);
+      if (head && head.length >= 4 && !isChromePhrase(head)) platformFields.title = head;
+    }
+    if (!platformFields.company && onIndeed) {
+      const parts = String(document.title || '').split(/\s+-\s+/).map((part) => part.trim());
+      if (parts.length >= 2 && !/indeed/i.test(parts[1])) platformFields.company = cleanText(parts[1], 120);
+    }
+    if (!platformFields.company && onGlassdoor) {
+      const match = String(document.title || '').match(/\bat\s+([^|]+)/i);
+      if (match) platformFields.company = cleanText(match[1], 120);
+    }
+    if (platformFields.title) jobTitle = platformFields.title;
+    if (platformFields.description && platformFields.description.length >= 80) {
+      jobDescription = platformFields.description;
+    }
+    if (platformFields.salary) budget = platformFields.salary;
+    if (platformFields.company) clientHistory = platformFields.company;
+  }
+
+  const platformName = onIndeed ? 'Indeed'
+    : onGlassdoor ? 'Glassdoor'
+    : host.includes('linkedin') ? 'LinkedIn'
+    : host.includes('upwork') ? 'Upwork'
+    : '';
+
   const pageText = cleanText(
-    [jobTitle, jobDescription].filter(Boolean).join('\n\n'),
+    [
+      platformFields?.company ? `Company: ${platformFields.company}` : '',
+      platformFields?.location ? `Location: ${platformFields.location}` : '',
+      platformFields?.salary ? `Salary: ${platformFields.salary}` : '',
+      jobTitle,
+      jobDescription,
+    ].filter(Boolean).join('\n\n'),
     MAX_TEXT,
   );
 
-  // Full structured object for the backend — every field is isolated.
   const structuredJob = {
-    title:       jobTitle,
+    platform: platformName,
+    title: jobTitle,
+    company: cleanText(platformFields?.company || '', 120),
+    location: cleanText(platformFields?.location || '', 120),
+    salary: cleanText(platformFields?.salary || '', 160),
     description: cleanText(jobDescription, MAX_TEXT),
-    skills:      requiredSkills,
-    budget:      cleanText(budget, 160),
-    clientInfo:  cleanText(clientHistory, MAX_FIELD),
+    skills: requiredSkills,
+    budget: cleanText(budget, 160),
+    clientInfo: cleanText(clientHistory || platformFields?.company || '', MAX_FIELD),
   };
 
   const classified = classifyScrapedContent(href, jobTitle, pageText, isolated);

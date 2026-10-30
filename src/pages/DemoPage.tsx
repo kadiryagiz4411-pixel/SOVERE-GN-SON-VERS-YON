@@ -410,26 +410,26 @@ const DemoPage = () => {
                 <span className="ml-3 text-sm text-zinc-500">upwork.com/jobs/fintech-dashboard</span>
               </div>
               <div className="grid lg:grid-cols-[1fr_260px] min-h-[460px]">
-                <div className="p-6 border-b lg:border-b-0 lg:border-r border-zinc-800">
+                <div className="p-6 border-b lg:border-b-0 lg:border-r border-zinc-800 min-w-0">
                   <p className="text-sm uppercase tracking-widest text-zinc-500">Job on screen</p>
-                  <h3 className="mt-2 text-xl font-semibold text-zinc-50">{screenTitle}</h3>
-                  <p className="mt-3 text-base leading-relaxed text-zinc-300">{screenBody}</p>
+                  <h3 className="mt-2 text-xl font-semibold text-zinc-50 break-words">{screenTitle}</h3>
+                  <p className="mt-3 text-base leading-relaxed text-zinc-300 break-words">{screenBody}</p>
                 </div>
-                <aside className="p-4 bg-zinc-900/80" aria-label="Extension side panel">
+                <aside className="p-4 bg-zinc-900/80 min-w-0" aria-label="Extension side panel">
                   <p className="text-sm font-semibold tracking-wide text-amber-200">Sovereign</p>
                   <p className="mt-1 text-sm text-zinc-400">Scan the job on screen</p>
-                  <div className="mt-4 flex flex-col gap-3 w-full">
+                  <div className="mt-4 ml-auto flex w-full max-w-[168px] flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => scanScreen()}
-                      className="w-full rounded-[10px] px-3.5 py-2.5 text-sm font-semibold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-600"
+                      className="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-600"
                     >
                       {scanPhase === 'scanning' ? 'Scanning…' : 'Scan Active Screen'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setB2bOpen((open) => !open)}
-                      className="w-full rounded-[10px] px-3.5 py-2.5 text-sm font-semibold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-600"
+                      className="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-600"
                     >
                       B2B
                     </button>
@@ -445,8 +445,8 @@ const DemoPage = () => {
                 className={`absolute inset-y-0 right-0 w-full max-w-sm border-l border-amber-400/30 bg-zinc-950/95 backdrop-blur-md p-5 transition-transform duration-300 ${b2bOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
                 aria-hidden={!b2bOpen}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-zinc-50">B2B panel</h3>
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <h3 className="text-lg font-semibold text-zinc-50 min-w-0 truncate">B2B panel</h3>
                   <button type="button" className="text-sm text-zinc-400" onClick={() => setB2bOpen(false)}>
                     Close
                   </button>
@@ -464,9 +464,9 @@ const DemoPage = () => {
                 </button>
                 <ul className="mt-5 space-y-3">
                   {leadPhase === 'done' && SAMPLE_LEADS.map((lead) => (
-                    <li key={lead.company} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3">
-                      <p className="text-base font-medium text-zinc-50">{lead.company}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-zinc-300">{lead.note}</p>
+                    <li key={lead.company} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 min-w-0">
+                      <p className="text-base font-medium text-zinc-50 truncate">{lead.company}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-zinc-300 break-words">{lead.note}</p>
                     </li>
                   ))}
                 </ul>

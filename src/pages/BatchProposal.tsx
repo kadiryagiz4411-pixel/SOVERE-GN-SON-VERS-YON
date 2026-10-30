@@ -86,15 +86,15 @@ function JobCard({ job, index, onRetry }: { job: BatchJob; index: number; onRetr
       )}
     >
       {/* Header row */}
-      <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 basis-48">
           <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">
             {String(index + 1).padStart(2, '0')}
           </span>
           <StatusIcon status={job.status} />
-          <p className="text-sm text-foreground truncate">{preview}</p>
+          <p className="text-sm text-foreground truncate min-w-0">{preview}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
           <StatusBadge status={job.status} />
           {job.matchScore !== undefined && (
             <span className={cn(
@@ -240,8 +240,8 @@ export default function BatchProposal() {
     const effectiveBatchUser = user ?? liveSession?.user ?? null;
     console.log('[Auth Check]', { component: 'BatchProposal.handleRun', userId: effectiveBatchUser?.id, email: effectiveBatchUser?.email, hasSession: !!liveSession });
     if (!effectiveBatchUser) {
-      toast.error('Lütfen devam etmek için giriş yapın.', {
-        action: { label: 'Giriş Yap', onClick: () => window.location.href = '/auth' },
+      toast.error('Please sign in to continue.', {
+        action: { label: 'Sign in', onClick: () => window.location.href = '/auth' },
         duration: 6000,
       });
       return;
@@ -293,7 +293,7 @@ export default function BatchProposal() {
     const retryUser = user ?? retrySession?.user ?? null;
     console.log('[Auth Check]', { component: 'BatchProposal.handleRetryJob', userId: retryUser?.id, hasSession: !!retrySession });
     if (!retryUser) {
-      toast.error('Lütfen devam etmek için giriş yapın.');
+      toast.error('Please sign in to continue.');
       return;
     }
     setRunning(true);
@@ -336,7 +336,7 @@ export default function BatchProposal() {
     const { data: { session: retryAllSession } } = await supabase.auth.getSession();
     const retryAllUser = user ?? retryAllSession?.user ?? null;
     console.log('[Auth Check]', { component: 'BatchProposal.handleRetryAllFailed', userId: retryAllUser?.id, hasSession: !!retryAllSession });
-    if (!retryAllUser) { toast.error('Lütfen devam etmek için giriş yapın.'); return; }
+    if (!retryAllUser) { toast.error('Please sign in to continue.'); return; }
     const failedJobs = jobs.filter((j) => j.status === 'error');
     if (!failedJobs.length) return;
     setRunning(true);

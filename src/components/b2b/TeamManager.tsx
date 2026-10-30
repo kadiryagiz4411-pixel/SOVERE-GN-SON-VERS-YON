@@ -67,7 +67,7 @@ export function TeamManager() {
 
   const invite = async () => {
     if (!user) {
-      toast.error('Lütfen devam etmek için giriş yapın.');
+      toast.error('Please sign in to continue.');
       return;
     }
     const email = inviteEmail.trim().toLowerCase();

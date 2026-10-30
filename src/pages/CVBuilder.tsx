@@ -180,13 +180,13 @@ const CVBuilder = () => {
   const handleGenerate = async () => {
     // ── Auth guard — must come first ────────────────────────────────────────────
     // Re-read from both React state and live session so stale-closure edge cases
-    // are covered.  If neither resolves, show Turkish login toast and bail.
+    // are covered.  If neither resolves, ask the user to sign in and bail.
     const liveSession = (await supabase.auth.getSession()).data.session;
     const effectiveUser = user ?? liveSession?.user ?? null;
     console.log('[Auth Check]', { userId: effectiveUser?.id, email: effectiveUser?.email, hasSession: !!liveSession });
     if (!effectiveUser) {
-      toast.error('Lütfen devam etmek için giriş yapın.', {
-        action: { label: 'Giriş Yap', onClick: () => window.location.href = '/auth' },
+      toast.error('Please sign in to continue.', {
+        action: { label: 'Sign in', onClick: () => window.location.href = '/auth' },
         duration: 6000,
       });
       return;

@@ -155,7 +155,7 @@ export default function Redeem() {
       setActivationMsg(msg);
       setCreditLimit(result.monthlyLimit ?? 50);
       setState('success');
-      toast.success(result.message || `Tebrikler! ${toastLabel} paketiniz başarıyla tanımlandı.`);
+      toast.success(result.message || `${toastLabel} is now active.`);
 
       await refreshCredits();
       await refreshPlan();
@@ -237,7 +237,7 @@ export default function Redeem() {
                   {!accountReady || state === 'loading' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>Kodu Kullan <ChevronRight className="w-4 h-4 ml-1" /></>
+                    <>Redeem <ChevronRight className="w-4 h-4 ml-1" /></>
                   )}
                 </Button>
               </div>

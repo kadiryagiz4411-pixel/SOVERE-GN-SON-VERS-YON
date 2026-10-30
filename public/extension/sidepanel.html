@@ -35,14 +35,28 @@
       }
       .header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
+        justify-content: space-between;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 10px 12px;
         padding: 14px 16px 10px;
         background: #09090B;
         border-bottom: 1px solid var(--line);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(212, 175, 55, 0.08);
         flex-shrink: 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex: 1 1 140px;
+      }
+      .brand > div { min-width: 0; }
+      .brand h1, .brand p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       body[data-theme="oled"] .header { background: #000; }
       .logo {
@@ -193,7 +207,8 @@
         padding: 5px 10px;
         margin-bottom: 12px;
       }
-      .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; min-width: 0; }
+      .score-row > div:last-child { min-width: 0; flex: 1 1 auto; }
       .score {
         width: 58px;
         height: 58px;
@@ -213,8 +228,8 @@
         font-weight: 800;
         color: var(--gold-2);
       }
-      .title { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
-      .meta { font-size: 11px; color: var(--muted); word-break: break-all; }
+      .title { font-size: 14px; font-weight: 700; margin: 0 0 4px; min-width: 0; overflow-wrap: anywhere; }
+      .meta { font-size: 11px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
       .k {
         font-size: 10px;
         letter-spacing: .14em;
@@ -257,12 +272,18 @@
       .list-item h3 {
         margin: 0 0 4px;
         font-size: 13px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .list-item .when {
         font-size: 10px;
         color: var(--muted);
         margin-bottom: 8px;
+        overflow-wrap: anywhere;
       }
+      .list-item .row { min-width: 0; }
       .list-item p {
         margin: 0 0 10px;
         font-size: 12px;
@@ -354,6 +375,9 @@
         letter-spacing: .02em;
         padding: 10px 4px 12px;
         border-bottom: 2px solid transparent;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .nav button.on {
         color: var(--gold-2);
@@ -369,11 +393,13 @@
         border: 1px solid var(--line);
         background: var(--card);
         align-items: center;
+        flex-wrap: wrap;
         gap: 10px;
+        min-width: 0;
       }
       .match-banner.on { display: flex; }
-      .match-banner strong { color: var(--gold-2); font-size: 13px; }
-      .match-banner span { font-size: 11px; color: var(--muted); }
+      .match-banner strong { color: var(--gold-2); font-size: 13px; flex-shrink: 0; }
+      .match-banner span { font-size: 11px; color: var(--muted); min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .chip {
         font-size: 11px;
@@ -408,18 +434,22 @@
       .header-tools {
         display: flex;
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-end;
         gap: 8px;
         margin-left: auto;
-        width: min(100%, 240px);
-        min-width: 180px;
-        flex: 1 1 180px;
+        width: auto;
+        max-width: 200px;
+        min-width: 0;
+        flex: 0 0 auto;
       }
       .scan-actions {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        width: 100%;
+        align-items: stretch;
+        gap: 8px;
+        width: 168px;
+        max-width: 100%;
+        margin-left: auto;
       }
       .plan-pill {
         font-size: 9px;
@@ -489,19 +519,19 @@
         width: 100%;
         margin: 0;
         box-sizing: border-box;
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.2;
-        letter-spacing: .04em;
+        letter-spacing: .01em;
         text-transform: none;
-        font-weight: 800;
+        font-weight: 700;
         text-align: center;
-        padding: 10px 14px;
-        border-radius: 10px;
+        padding: 7px 10px;
+        border-radius: 8px;
         background: linear-gradient(90deg, var(--gold), #b8860b);
         color: #111;
         border: 1px solid rgba(212, 175, 55, 0.45);
         white-space: nowrap;
-        box-shadow: 0 0 14px rgba(212, 175, 55, 0.28);
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.22);
       }
       .target-badge {
         display: flex;
@@ -603,10 +633,12 @@
   </head>
   <body data-theme="obsidian">
     <header class="header">
-      <img class="logo" src="assets/logo.png" alt="Sovereign" />
-      <div>
-        <h1>Sovereign</h1>
-        <p>Scan the job or CV on screen</p>
+      <div class="brand">
+        <img class="logo" src="assets/logo.png" alt="Sovereign" />
+        <div>
+          <h1>Sovereign</h1>
+          <p>Scan the job or CV on screen</p>
+        </div>
       </div>
       <div class="header-tools">
         <div id="creditBadge" class="credit-badge hidden">Credits —</div>
@@ -849,7 +881,7 @@
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
         <p id="profileStatus" class="hint"></p>
 
-        <div class="k">History / Geçmiş</div>
+        <div class="k">History</div>
         <p class="hint">Proposals and CVs saved on this device. Copy any item without leaving Settings.</p>
         <div id="settingsHistory"></div>
 

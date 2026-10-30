@@ -110,8 +110,8 @@ export function CandidateCard({
       )}
 
       {/* Header row: avatar + rank badge */}
-      <div className="flex items-start justify-between p-4 pb-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 p-4 pb-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
           <CandidateAvatar name={fullName} photoUrl={photoUrl} />
           <div className="min-w-0">
             <p className="font-semibold text-foreground truncate text-sm leading-tight">{fullName}</p>
@@ -213,13 +213,13 @@ export function CandidateCard({
       )}
 
       {/* Action footer */}
-      <div className="mt-auto p-4 pt-3 flex gap-2 border-t border-border/60 mt-4">
+      <div className="mt-auto p-4 pt-3 flex flex-wrap gap-2 border-t border-border/60 mt-4">
         {clientMode ? (
           <>
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 h-8 text-xs gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              className="flex-1 min-w-0 h-8 text-xs gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
               disabled={decision === 'APPROVED'}
               onClick={() => onApprove?.(candidate)}
             >
@@ -228,7 +228,7 @@ export function CandidateCard({
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 h-8 text-xs gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
+              className="flex-1 min-w-0 h-8 text-xs gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
               disabled={decision === 'REJECTED'}
               onClick={() => onReject?.(candidate)}
             >
@@ -241,7 +241,7 @@ export function CandidateCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-1 h-8 text-xs gap-1"
+                className="flex-1 min-w-0 h-8 text-xs gap-1"
                 onClick={() => onViewFull(candidate)}
               >
                 <ExternalLink className="w-3 h-3" /> View Full CV
@@ -251,7 +251,7 @@ export function CandidateCard({
               <Button
                 size="sm"
                 variant="gold"
-                className="flex-1 h-8 text-xs gap-1"
+                className="flex-1 min-w-0 h-8 text-xs gap-1"
                 onClick={() => onScheduleInterview(candidate)}
               >
                 <Calendar className="w-3 h-3" /> Schedule Interview

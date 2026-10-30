@@ -134,7 +134,7 @@ export function ProposalCard({ job, onInjectProposal, injecting }: ProposalCardP
         </div>
       )}
 
-      <div className="mt-auto p-4 pt-3 flex gap-2 border-t border-border/60 mt-4">
+      <div className="mt-auto p-4 pt-3 flex flex-wrap gap-2 border-t border-border/60 mt-4">
         <a
           href={/https?:\/\//i.test(job.rawContent || '') ? resolveUpworkJobUrl(job.rawContent) : upworkSearchUrl(job.title)}
           target="_blank"
@@ -147,7 +147,7 @@ export function ProposalCard({ job, onInjectProposal, injecting }: ProposalCardP
         <Button
           size="sm"
           variant="gold"
-          className="flex-1 h-8 text-xs gap-1"
+          className="flex-1 min-w-0 h-8 text-xs gap-1"
           disabled={injecting}
           onClick={() => onInjectProposal(job)}
         >

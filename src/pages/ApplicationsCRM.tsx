@@ -115,8 +115,8 @@ function ProposalCard({
   return (
     <div className="rounded-xl border border-border bg-card p-3.5 space-y-2 hover:border-primary/30 transition-colors group">
       {/* Title + actions */}
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground leading-tight">{proposal.title}</p>
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <p className="text-sm font-semibold text-foreground leading-tight min-w-0 line-clamp-2 break-words">{proposal.title}</p>
         <button
           type="button"
           onClick={() => onDelete(proposal.id)}
@@ -129,7 +129,7 @@ function ProposalCard({
 
       {/* Meta */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{proposal.client}</span>
+        <span className="flex items-center gap-1 min-w-0 max-w-full"><Briefcase className="w-3 h-3 shrink-0" /><span className="truncate">{proposal.client}</span></span>
         <span className="px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-medium">{proposal.platform}</span>
         {proposal.budget && <span className="text-foreground font-medium">{proposal.budget}</span>}
       </div>
@@ -409,9 +409,9 @@ export default function ApplicationsCRM() {
               const Icon = asIcon(col.icon);
 
               return (
-                <div key={col.id} className="flex flex-col gap-3">
+                <div key={col.id} className="flex flex-col gap-3 min-w-0">
                   {/* Column header */}
-                  <div className={cn('rounded-xl border px-4 py-2.5 flex items-center justify-between', col.color)}>
+                  <div className={cn('rounded-xl border px-4 py-2.5 flex items-center justify-between gap-2 min-w-0', col.color)}>
                     <div className="flex items-center gap-2">
                       <Icon className={cn('w-4 h-4', col.accent)} />
                       <span className={cn('text-sm font-semibold', col.accent)}>{col.label}</span>
