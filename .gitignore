@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 
 .vercel
+appsumo_codes.txt
+scripts/.sov-insert/
 .env
 .env.local
 .env.*.local
