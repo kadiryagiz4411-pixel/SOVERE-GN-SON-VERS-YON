@@ -330,40 +330,35 @@
         overflow: auto;
       }
       .context-toggle {
-        position: fixed;
-        left: 0;
-        top: 50%;
-        z-index: 30;
-        transform: translateY(-50%);
+        position: static;
+        flex: 0 0 auto;
+        align-self: flex-end;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        flex: none;
-        align-self: center;
-        width: max-content;
-        height: max-content;
+        height: 22px;
+        width: auto;
         max-width: none;
-        border: 1px solid var(--line);
-        border-left: 0;
+        margin: 0;
+        padding: 0 8px;
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        border-radius: 999px;
         background: #111113;
         color: var(--gold-2);
-        border-radius: 0 10px 10px 0;
-        padding: 14px 10px;
-        margin: 0;
-        cursor: pointer;
-      }
-      .context-toggle-label {
-        display: block;
-        writing-mode: vertical-rl;
-        text-orientation: upright;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0.04em;
         white-space: nowrap;
         word-break: keep-all;
         overflow-wrap: normal;
-        line-height: 1;
-        text-align: center;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.16em;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        cursor: pointer;
+      }
+      .context-toggle.on {
+        background: rgba(212, 175, 55, 0.16);
+        border-color: var(--gold);
       }
       .context-drawer {
         position: fixed;
@@ -723,7 +718,6 @@
     </style>
   </head>
   <body data-theme="obsidian">
-    <button id="contextDrawerToggle" class="context-toggle" type="button" aria-label="Files"><span class="context-toggle-label">Files</span></button>
     <aside id="contextDrawer" class="context-drawer" aria-hidden="true">
       <div class="context-head">
         <h2>Context files</h2>
@@ -745,6 +739,7 @@
         </div>
       </div>
       <div class="header-tools">
+        <button id="contextDrawerToggle" class="context-toggle" type="button" aria-expanded="false">Files</button>
         <div id="creditBadge" class="credit-badge hidden">Credits —</div>
         <div id="planBadge" class="plan-pill b2c">B2C</div>
         <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode" data-mode="b2c">

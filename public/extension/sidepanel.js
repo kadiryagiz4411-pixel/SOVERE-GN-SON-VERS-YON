@@ -2249,8 +2249,11 @@ function renderContextDrawer() {
 }
 
 function setContextDrawer(open) {
+  const toggle = document.getElementById('contextDrawerToggle');
   document.getElementById('contextDrawer')?.classList.toggle('open', open);
   document.getElementById('contextDrawer')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  toggle?.classList.toggle('on', open);
+  toggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
   renderContextDrawer();
 }
 
