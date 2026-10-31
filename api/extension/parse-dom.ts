@@ -172,8 +172,15 @@ async function handleRequest(req: Request): Promise<Response> {
       matchDepth?: string;
       deepMatch?: boolean;
       scoreOnly?: boolean;
-      /** Explicit output language code ('en', 'tr', 'de', …). Default 'en'. */
+      /** Explicit output language code ('en', 'tr', 'de', …). 'auto' follows the page. */
       outputLanguage?: string;
+      /** ISO code detected from the target webpage. Never the browser locale. */
+      target_language?: string;
+      targetLanguage?: string;
+      /** B2B block: candidate scoring or proposal tuning. Isolates the prompt. */
+      analysisMode?: 'candidate' | 'proposal' | '';
+      /** Text extracted from a file dropped into the active B2B block only. */
+      uploadedText?: string;
     }>(req);
 
     // Prefer structuredJob fields when present — they are field-isolated and
@@ -194,17 +201,29 @@ async function handleRequest(req: Request): Promise<Response> {
     const pageTitle    = jobTitle  || String(body.pageTitle  || '').trim();
     const pageUrl      = String(body.pageUrl   || body.sourceUrl   || '').trim();
 
-    // Resolve output language — strict English-first policy.
-    // 'auto' and undefined both fall through to English. Only a recognised
-    // ISO 639-1 code (e.g. 'tr', 'de', 'fr') overrides the default.
-    const rawLang = String(body.outputLanguage || 'en').trim().toLowerCase();
-    const outputLanguage = (rawLang && rawLang !== 'auto' && /^[a-z]{2}$/.test(rawLang))
-      ? rawLang
-      : 'en';
-    // Build a single, unambiguous language directive injected into every prompt.
-    const langDirective = outputLanguage === 'en'
-      ? 'Write the output in English.'
-      : `Write the ENTIRE output in ${outputLanguage.toUpperCase()} — do NOT default to English or mix languages.`;
+    const LANGUAGE_NAMES: Record<string, string> = {
+      en: 'English', tr: 'Turkish', de: 'German', fr: 'French', es: 'Spanish',
+      pt: 'Portuguese', nl: 'Dutch', it: 'Italian', ru: 'Russian', ar: 'Arabic',
+      zh: 'Chinese', ja: 'Japanese', ko: 'Korean', pl: 'Polish',
+    };
+    const asLang = (value: unknown) => {
+      const code = String(value || '').trim().toLowerCase().split('-')[0];
+      return /^[a-z]{2}$/.test(code) ? code : '';
+    };
+    const requested = asLang(body.outputLanguage);
+    const pageLanguage = asLang(body.target_language || body.targetLanguage);
+    const outputLanguage = (requested && requested !== 'auto')
+      ? requested
+      : (pageLanguage || 'en');
+    const languageName = LANGUAGE_NAMES[outputLanguage] || 'English';
+    const langDirective = [
+      `LANGUAGE LOCK: The target webpage language is ${languageName} (${outputLanguage}).`,
+      `Write the ENTIRE analysis in ${languageName}.`,
+      `That includes scores labels, summaries, strengths, gaps, recommendations, proposals, hooks, and candidate notes.`,
+      outputLanguage === 'en'
+        ? 'Do not mix in another language.'
+        : 'Do not fall back to English and do not mix languages.',
+    ].join(' ');
 
     if (!pageText || pageText.length < 20) {
       return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);
@@ -238,7 +257,15 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
-    const detectedMode = detectMode(pageUrl, pageTitle, pageText);
+    const analysisMode = body.analysisMode === 'candidate' || body.analysisMode === 'proposal'
+      ? body.analysisMode
+      : '';
+    const uploadedText = String(body.uploadedText || '').trim().slice(0, 12000);
+    const detectedMode = analysisMode === 'candidate'
+      ? 'CV_EVALUATION'
+      : analysisMode === 'proposal'
+        ? 'JOB_PROPOSAL'
+        : detectMode(pageUrl, pageTitle, pageText);
     const label = platformLabel(pageUrl, detectedMode);
 
     // Structured context: each field is clearly labelled so the LLM never
@@ -250,6 +277,12 @@ async function handleRequest(req: Request): Promise<Response> {
       listedSkills.length ? `=== SKILLS REQUIRED ===\n${listedSkills.join(', ')}` : '',
       clientHistory ? `=== CLIENT INFO ===\n${clientHistory.slice(0, 400)}` : '',
       `=== JOB DESCRIPTION ===\n${pageText.slice(0, 4000)}`,
+      analysisMode === 'candidate' && uploadedText
+        ? `=== CANDIDATE DOCUMENT ===\nUse this only for resume parsing, skill matching, gap analysis, and candidate scoring. Do not write a client proposal.\n${uploadedText}`
+        : '',
+      analysisMode === 'proposal' && uploadedText
+        ? `=== PROPOSAL SOURCE ===\nUse this only to tune the client proposal, cover letter, and opening hooks. Do not score a candidate resume.\n${uploadedText}`
+        : '',
     ].filter(Boolean).join('\n\n');
     const depth = body.matchDepth === 'deep' || body.deepMatch ? 'deep' : 'basic';
     const match = scoreOpportunity(
@@ -321,7 +354,10 @@ async function handleRequest(req: Request): Promise<Response> {
         `- Sentence 4 (optional): Turnaround time or next step.`,
         `Total: 3-5 sentences. No markdown. No headers. No "Dear Hiring Manager". No "I am excited to apply".`,
         `If the job description is unclear, ask one specific clarifying question instead of guessing.`,
-        `Return JSON: { proposal, painPoint, title, contentDomain }`,
+        analysisMode === 'proposal'
+          ? 'This is the Proposal Analysis block. Optimize the cover letter and return hooks: exactly 3 short persuasive opening lines. Do not include candidate scoring or resume gaps.'
+          : '',
+        `Return JSON: { proposal, painPoint, title, contentDomain, hooks }`,
       ].join('\n');
       const parsed = await completeJson(apiKey, proposalSystemPrompt, context);
       const proposalText = sanitizeAiText(
@@ -346,6 +382,7 @@ async function handleRequest(req: Request): Promise<Response> {
         compatibilityScore: score,
         overallScore: match.complete ? match.acceptanceScore : 0,
         proposalText,
+        hooks: listField(parsed.hooks).slice(0, 3),
         summary: painPoint,
         ...matchPayload,
       });
@@ -409,8 +446,11 @@ async function handleRequest(req: Request): Promise<Response> {
       `- pros: array of 3 concrete strengths from their profile.`,
       `- cons: array of 2 honest gaps.`,
       `- overallScore: 0-100 based on the actual content.`,
+      analysisMode === 'candidate'
+        ? 'This is the Candidate Analysis block. Return skillMatches (skills found on the resume), gaps (missing skills), and recommendations (what to improve). Do not write a cover letter or client proposal.'
+        : '',
       `If the text is UI chrome (no resume content), return all empty strings and overallScore 0.`,
-      `Return JSON: { fullName, title, summary, overallScore, whyThisCandidate, pros, cons }`,
+      `Return JSON: { fullName, title, summary, overallScore, whyThisCandidate, pros, cons, skillMatches, gaps, recommendations }`,
     ].join('\n');
     const parsed = await completeJson(apiKey, cvSystemPrompt, context);
     summary = sanitizeAiText(String(parsed.summary || summary));
@@ -420,6 +460,9 @@ async function handleRequest(req: Request): Promise<Response> {
     role = sanitizeAiText(String(parsed.title || ''));
     pros = listField(parsed.pros);
     cons = listField(parsed.cons);
+    const skillMatches = listField(parsed.skillMatches);
+    const candidateGaps = listField(parsed.gaps);
+    const recommendations = listField(parsed.recommendations);
 
     return jsonNoStore({
       success: true,
@@ -434,6 +477,9 @@ async function handleRequest(req: Request): Promise<Response> {
       whyThisCandidate,
       pros,
       cons,
+      skillMatches,
+      candidateGaps,
+      recommendations,
       painPoint: whyThisCandidate || summary,
       overallScore,
       compatibilityScore: overallScore,

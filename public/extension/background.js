@@ -254,6 +254,7 @@ async function forceViewportScan() {
       matchDepth: deep ? 'deep' : 'basic',
       deepMatch: deep,
       scoreOnly: true,
+      ...languageFields(setts, data),
     });
     if (seq !== analyzeSeq) return data; // newer scan superseded this one
     const enriched = { ...data, analysis };
@@ -266,6 +267,16 @@ async function forceViewportScan() {
     // Parse-dom failed — return raw scrape so sidepanel can retry inline.
     return data;
   }
+}
+
+function languageFields(settings, data) {
+  const target = String(data?.pageLanguage || '').trim().toLowerCase().split('-')[0];
+  const saved = String(settings?.outputLanguage || 'auto').trim().toLowerCase();
+  const explicit = settings?.languageChoice === 'explicit' && saved && saved !== 'auto';
+  return {
+    outputLanguage: explicit ? saved : 'auto',
+    target_language: /^[a-z]{2}$/.test(target) ? target : 'en',
+  };
 }
 
 function skillListFromSettings(settings) {
@@ -359,6 +370,7 @@ async function autoAnalyzeViewport(data, force) {
       matchDepth: deep ? 'deep' : 'basic',
       deepMatch: deep,
       scoreOnly: true,
+      ...languageFields(settings, data),
     });
     if (seq !== analyzeSeq) return;
     if (analysis?.discarded) {

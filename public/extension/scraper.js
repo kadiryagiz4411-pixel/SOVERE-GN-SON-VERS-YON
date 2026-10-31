@@ -4,6 +4,48 @@
  * (no closures, no chrome.* APIs).
  */
 
+const PAGE_LANGUAGE_CODES = new Set(['en', 'tr', 'de', 'fr', 'es', 'pt', 'nl', 'it', 'ru', 'ar', 'zh', 'ja', 'ko', 'pl']);
+
+/** Page language only. Never reads navigator.language. */
+function detectPageLanguage(doc) {
+  const root = doc || (typeof document !== 'undefined' ? document : null);
+  if (!root) return 'en';
+  const attr = String(
+    root.documentElement?.getAttribute('lang')
+    || root.documentElement?.getAttribute('xml:lang')
+    || '',
+  ).trim().toLowerCase().split('-')[0];
+  let sample = '';
+  try {
+    sample = String(root.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 4000);
+  } catch { sample = ''; }
+  const heuristic = heuristicPageLanguage(sample);
+  if (heuristic && PAGE_LANGUAGE_CODES.has(heuristic)) {
+    if (!PAGE_LANGUAGE_CODES.has(attr)) return heuristic;
+    if (attr === 'en' && heuristic !== 'en') return heuristic;
+    if (attr === heuristic) return attr;
+    if (heuristic !== 'en') return heuristic;
+  }
+  if (PAGE_LANGUAGE_CODES.has(attr)) return attr;
+  return 'en';
+}
+
+function heuristicPageLanguage(sample) {
+  const text = String(sample || '');
+  if (text.length < 40) return '';
+  const score = (marks, words) => (text.match(marks) || []).length * 3 + (text.match(words) || []).length;
+  const ranked = [
+    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi)],
+    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi)],
+    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi)],
+    ['es', score(/[ñ¿¡]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi)],
+    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi)],
+  ].sort((a, b) => b[1] - a[1]);
+  if (ranked[0][1] < 3) return '';
+  if (ranked[0][1] < ranked[1][1] + 2) return '';
+  return ranked[0][0];
+}
+
 const SOVEREIGN_FEED_WRAPPERS = [
   '[data-test="job-tile-list"]',
   'section[data-test="job-tile-list"]',
@@ -1184,6 +1226,7 @@ function _extractActiveJobImpl(options) {
     contentType:   classified.contentType,
     discarded:     classified.discarded,
     discardReason: classified.reason,
+    pageLanguage:  detectPageLanguage(typeof document !== 'undefined' ? document : null),
     hash,
     signature: hash,
   };

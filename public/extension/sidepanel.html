@@ -329,6 +329,57 @@
         padding: 16px;
         overflow: auto;
       }
+      .context-toggle {
+        position: fixed;
+        left: 0;
+        top: 46%;
+        z-index: 30;
+        border: 1px solid var(--line);
+        border-left: 0;
+        background: #111113;
+        color: var(--gold-2);
+        border-radius: 0 10px 10px 0;
+        padding: 10px 8px;
+        writing-mode: vertical-rl;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        cursor: pointer;
+      }
+      .context-drawer {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 40;
+        width: min(320px, 88vw);
+        background: #09090b;
+        color: var(--text);
+        border-right: 1px solid var(--line);
+        transform: translateX(-105%);
+        transition: transform .2s ease;
+        padding: 16px;
+        overflow: auto;
+        box-shadow: 12px 0 40px rgba(0, 0, 0, .45);
+      }
+      .context-drawer.open { transform: translateX(0); }
+      .context-drawer h2 { margin: 0; font-size: 16px; color: var(--gold-2); }
+      .context-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+      .context-drop {
+        margin-top: 12px;
+        border: 1px dashed rgba(212, 175, 55, .45);
+        border-radius: 14px;
+        min-height: 140px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 16px;
+        color: var(--muted);
+        background: #111113;
+        cursor: pointer;
+      }
+      .context-drop.over { border-color: var(--gold); color: var(--text); background: rgba(212, 175, 55, .08); }
       .b2b-drawer.open { transform: translateX(0); }
       .b2b-drawer h2 { margin: 0; font-size: 16px; color: var(--gold-2); }
       .drawer-backdrop {
@@ -653,6 +704,19 @@
     </style>
   </head>
   <body data-theme="obsidian">
+    <button id="contextDrawerToggle" class="context-toggle" type="button">Files</button>
+    <aside id="contextDrawer" class="context-drawer" aria-hidden="true">
+      <div class="context-head">
+        <h2>Context files</h2>
+        <button id="contextDrawerClose" class="ghost" type="button">Close</button>
+      </div>
+      <p id="contextModeLabel" class="hint">Feeds Candidate analysis only</p>
+      <div id="contextDrop" class="context-drop">Drop a PDF, TXT, or HTML file for the active block</div>
+      <input id="contextFile" type="file" accept=".pdf,.txt,.html,.htm,application/pdf,text/plain,text/html" hidden />
+      <p id="contextFileName" class="hint">No file in this block.</p>
+      <p id="contextStatus" class="hint"></p>
+      <button id="contextClear" class="ghost" type="button">Clear this block</button>
+    </aside>
     <header class="header">
       <div class="brand">
         <img class="logo" src="assets/logo.png" alt="Sovereign" />
@@ -706,6 +770,8 @@
       <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
     </nav>
     <nav class="nav hidden" id="navB2b">
+      <button type="button" data-tab="candidate" class="on"><span>◎</span>Candidate</button>
+      <button type="button" data-tab="b2b-proposal"><span>⚡</span>Proposal</button>
       <button type="button" data-tab="lead"><span>◎</span>Leads</button>
       <button type="button" data-tab="dispatch"><span>⚡</span>Dispatch</button>
       <button type="button" data-tab="team"><span>🏢</span>Team</button>
@@ -790,6 +856,36 @@
           <div class="k">Gaps</div>
           <div id="matchGaps" class="chips"></div>
           <p id="matchNote" class="hint"></p>
+        </div>
+      </section>
+
+      <section id="tab-candidate" class="tab-view">
+        <p class="hint">Resume parsing, skill match, gaps, and a candidate score. This block does not use the proposal draft.</p>
+        <button id="runCandidate" class="primary" type="button">Analyze candidate</button>
+        <p id="candidateBlockStatus" class="hint">Drop a resume on the left, or scan a profile, then analyze.</p>
+        <div class="card on">
+          <div class="k">Score</div>
+          <p id="candidateScore" class="title">—</p>
+          <div class="k">Summary</div>
+          <p id="candidateSummary" class="pain"></p>
+          <div class="k">Skill match</div>
+          <p id="candidateSkills" class="pain"></p>
+          <div class="k">Gaps</div>
+          <p id="candidateGaps" class="pain"></p>
+          <div class="k">Recommendations</div>
+          <p id="candidateTips" class="pain"></p>
+        </div>
+      </section>
+
+      <section id="tab-b2b-proposal" class="tab-view">
+        <p class="hint">Cover letter, opening hooks, and proposal tuning. This block does not use the candidate resume.</p>
+        <button id="runProposalBlock" class="primary" type="button">Tune proposal</button>
+        <p id="proposalBlockStatus" class="hint">Drop a draft on the left, or scan a job, then tune.</p>
+        <div class="card on">
+          <div class="k">Opening hooks</div>
+          <p id="proposalHooks" class="pain"></p>
+          <div class="k">Cover letter</div>
+          <p id="proposalLetter" class="proposal"></p>
         </div>
       </section>
 
@@ -886,8 +982,8 @@
         <div class="field">
           <label for="outputLanguage">AI output language</label>
           <select id="outputLanguage">
-            <option value="en" selected>English (Default)</option>
-            <option value="auto">Auto-detect from page</option>
+            <option value="auto" selected>Match the page language</option>
+            <option value="en">English</option>
             <option value="tr">Türkçe</option>
             <option value="de">Deutsch</option>
             <option value="fr">Français</option>
@@ -902,7 +998,7 @@
             <option value="ko">한국어</option>
             <option value="pl">Polski</option>
           </select>
-          <p class="hint" style="margin-top:2px">Auto-detect reads the page's language. Proposals and CVs are written in the selected language.</p>
+          <p class="hint" style="margin-top:2px">Match the page reads the job's language, not the browser language. A saved choice overrides it.</p>
         </div>
 
         <button id="saveProfile" class="primary" type="button">Save Profile</button>

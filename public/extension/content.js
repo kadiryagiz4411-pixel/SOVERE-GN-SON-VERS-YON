@@ -551,6 +551,14 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (type === 'DETECT_PAGE_LANGUAGE') {
+    safeCall(() => sendResponse({
+      success: true,
+      target_language: typeof detectPageLanguage === 'function' ? detectPageLanguage(document) : 'en',
+    }));
+    return true;
+  }
+
   if (type === 'INJECT_PROPOSAL') {
     const run = typeof injectProposalToDOM === 'function'
       ? injectProposalToDOM

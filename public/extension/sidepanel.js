@@ -28,22 +28,14 @@ const DEFAULT_SETTINGS = {
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
   canGenerate: true,
-  // 'en' is the strict default — English-only UI until the user explicitly
-  // picks another language in Settings. 'auto' is still available as an option
-  // but must never be the shipping default because it causes the AI to write
-  // proposals in Turkish (or whatever browser locale) while all UI strings stay
-  // in English, producing a mixed-language experience.
-  outputLanguage: 'en',
+  // 'auto' follows the target webpage language, never the browser locale.
+  // A saved choice is honored only after the user saves Settings (languageChoice).
+  outputLanguage: 'auto',
+  languageChoice: '',
 };
 
-/** Resolve the effective output language for AI calls.
- *
- * Strict English-first policy:
- *  - If the user has explicitly selected a language in Settings, use it.
- *  - If 'auto' was previously saved (legacy setting), treat it as 'en'.
- *  - NEVER fall back to navigator.language: a Turkish browser locale would
- *    cause AI proposals to be written in Turkish while all UI text stays
- *    English, producing a broken mixed-language experience.
+/** Page language drives analysis unless the user saved an explicit Settings choice.
+ *  Never read navigator.language — a Turkish browser must not rewrite an English job.
  */
 const UI_TITLE_NOISE = /^(giri[sş]\s*yap(?:mak|ın|iniz)?|oturum\s*aç(?:ın)?|sign\s*in|log\s*in|join\s*now|translate(?:\s+this\s+page)?|türkçe|english|menu|home)$/i;
 
@@ -54,15 +46,27 @@ function cleanCardTitle(value, fallback) {
   return text;
 }
 
+function rememberPageLanguage(code) {
+  const lang = String(code || '').trim().toLowerCase().split('-')[0];
+  if (/^[a-z]{2}$/.test(lang)) settings = { ...settings, _detectedLang: lang };
+}
+
 function resolveOutputLanguage() {
-  const saved = String(settings.outputLanguage || 'en').trim();
-  // 'auto' is kept as a user-selectable option for power users, but when
-  // no explicit page language was detected we always fall back to English —
-  // never to the browser's locale.
-  if (saved && saved !== 'auto') return saved;
+  const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
+  const explicit = settings.languageChoice === 'explicit' && saved && saved !== 'auto';
+  if (explicit && /^[a-z]{2}$/.test(saved)) return saved;
   const detected = String(settings._detectedLang || '').split('-')[0].toLowerCase();
-  if (detected && detected.length >= 2 && detected !== 'auto') return detected;
-  return 'en'; // English default — no navigator.language fallback
+  if (/^[a-z]{2}$/.test(detected)) return detected;
+  return 'auto';
+}
+
+function languagePayload() {
+  const outputLanguage = resolveOutputLanguage();
+  const target = String(settings._detectedLang || '').split('-')[0].toLowerCase();
+  return {
+    outputLanguage,
+    target_language: /^[a-z]{2}$/.test(target) ? target : 'en',
+  };
 }
 
 /** Race a promise against a timeout (ms). Resolves/rejects with whichever fires first. */
@@ -866,10 +870,12 @@ function normalizePageData(raw, fallback = emptyPageData()) {
     discardReason: String(raw?.discardReason || raw?.reason || fallback.discardReason || ''),
     hash: String(raw?.hash || raw?.signature || fallback.hash || ''),
     structuredJob: sanitizeStructuredJob(raw?.structuredJob),
+    pageLanguage: String(raw?.pageLanguage || '').split('-')[0].toLowerCase(),
     analysis: raw?.analysis || null,
     autoAnalyzed: Boolean(raw?.autoAnalyzed),
     flushed: Boolean(raw?.flushed),
   };
+  if (normalized.pageLanguage) rememberPageLanguage(normalized.pageLanguage);
   setActiveChannel(normalized.pageUrl);
   return normalized;
 }
@@ -1114,7 +1120,9 @@ async function postParseDom(pageData, options = {}) {
     matchDepth: deep ? 'deep' : 'basic',
     deepMatch: deep,
     scoreOnly: Boolean(options.scoreOnly),
-    outputLanguage: resolveOutputLanguage(),
+    analysisMode: options.analysisMode || '',
+    uploadedText: options.uploadedText || '',
+    ...languagePayload(),
   };
 
   const viaWorker = await chrome.runtime.sendMessage({
@@ -1312,18 +1320,11 @@ async function rescanActiveScreen() {
   setBusy(true, 'Scanning active screen…');
   analyzing = true;
 
-  // Auto-detect page language for 'auto' mode — read the active tab's <html lang> attribute.
   try {
-    const langBudget = Math.min(1500, remainingMs());
-    const langResult = langBudget < 200
-      ? null
-      : await withTimeout(chrome.scripting.executeScript({
-        target: { tabId: (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id || 0 },
-        func: () => String(document.documentElement.lang || navigator.language || 'en').split('-')[0].toLowerCase(),
-      }), langBudget).catch(() => null);
-    const detected = langResult?.[0]?.result;
-    if (detected && detected.length >= 2 && settings.outputLanguage === 'auto') {
-      settings = { ...settings, _detectedLang: detected };
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.id) {
+      const reply = await chrome.tabs.sendMessage(tab.id, { type: 'DETECT_PAGE_LANGUAGE' }).catch(() => null);
+      if (reply?.target_language) rememberPageLanguage(reply.target_language);
     }
   } catch { /**/ }
 
@@ -1530,7 +1531,7 @@ function applyWorkspaceUi() {
   applyCreditBadge();
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
-    ? ['lead', 'dispatch', 'team', 'settings']
+    ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
     : ['proposal', 'cv', 'match', 'settings'];
   if (!allowed.includes(current)) switchTab(allowed[0]);
   else {
@@ -1554,7 +1555,11 @@ function fillSettingsForm() {
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
   if (experience) experience.value = settings.experience || 'mid';
   if (accountEmail) accountEmail.value = settings.accountEmail || '';
-  if (outputLanguage) outputLanguage.value = settings.outputLanguage || 'en';
+  if (outputLanguage) {
+    outputLanguage.value = settings.languageChoice === 'explicit'
+      ? (settings.outputLanguage || 'en')
+      : 'auto';
+  }
   const canB2b = canUseDualWorkspace();
   // Always show the B2B toggle — disabled with an upgrade note for ineligible users.
   if (b2bToggle) {
@@ -1623,12 +1628,22 @@ async function pingApi() {
   }
 }
 
+let b2bBlock = 'candidate';
+const b2bBlocks = {
+  candidate: { fileName: '', text: '', result: null, error: '' },
+  proposal: { fileName: '', text: '', result: null, error: '' },
+};
+
 function switchTab(tab) {
   const mode = effectiveMode();
   const allowed = mode === 'b2b'
-    ? ['lead', 'dispatch', 'team', 'settings']
+    ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
     : ['proposal', 'cv', 'match', 'settings'];
   const id = allowed.includes(tab) ? tab : allowed[0];
+  if (id === 'candidate' || id === 'b2b-proposal') {
+    b2bBlock = id === 'b2b-proposal' ? 'proposal' : 'candidate';
+    renderContextDrawer();
+  }
   document.querySelectorAll('.tab-view').forEach((view) => {
     view.classList.toggle('on', view.id === `tab-${id}`);
   });
@@ -1794,6 +1809,7 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
     experience: document.getElementById('experience')?.value || 'mid',
     accountEmail: document.getElementById('accountEmail')?.value || '',
     outputLanguage: selectedLang,
+    languageChoice: 'explicit',
   });
   const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
   if (profileStatus) {
@@ -2042,7 +2058,7 @@ async function generateTailoredCv() {
         skills: effectiveSkillList(),
         experience: settings.experience,
         hourlyRate: Number(settings.hourlyRate) || undefined,
-        outputLanguage: resolveOutputLanguage(),
+        ...languagePayload(),
       },
     }).catch(() => null);
     if (viaWorker?.error) throw new Error(viaWorker.error);
@@ -2213,6 +2229,255 @@ document.getElementById('b2bNoteList')?.addEventListener('click', async (event) 
   if (!text) return;
   await copyText(text);
 });
+
+function activeB2bBlock() {
+  return b2bBlock === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
+}
+
+function renderContextDrawer() {
+  const block = activeB2bBlock();
+  const label = document.getElementById('contextModeLabel');
+  const name = document.getElementById('contextFileName');
+  const status = document.getElementById('contextStatus');
+  if (label) {
+    label.textContent = b2bBlock === 'proposal'
+      ? 'Feeds Proposal analysis only'
+      : 'Feeds Candidate analysis only';
+  }
+  if (name) name.textContent = block.fileName ? `Loaded: ${block.fileName}` : 'No file in this block.';
+  if (status) status.textContent = block.error || (block.text ? `${block.text.length} characters ready.` : '');
+}
+
+function setContextDrawer(open) {
+  document.getElementById('contextDrawer')?.classList.toggle('open', open);
+  document.getElementById('contextDrawer')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  renderContextDrawer();
+}
+
+function pullPdfStrings(text) {
+  const parts = [];
+  const literal = /\((?:\\\)|\\.|[^\\)]){2,}\)/g;
+  let match;
+  while ((match = literal.exec(text))) {
+    const raw = match[0].slice(1, -1)
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '')
+      .replace(/\\t/g, ' ')
+      .replace(/\\\(/g, '(')
+      .replace(/\\\)/g, ')')
+      .replace(/\\\\/g, '\\');
+    if (/[A-Za-zÀ-ÿĞğÜüŞşİıÖöÇç]{3}/.test(raw)) parts.push(raw);
+  }
+  return parts.join(' ');
+}
+
+async function inflatePdfStream(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  const buf = await new Response(stream).arrayBuffer();
+  return new TextDecoder('utf-8', { fatal: false }).decode(buf);
+}
+
+function findAscii(bytes, needle, from) {
+  const start = from || 0;
+  outer: for (let i = start; i <= bytes.length - needle.length; i += 1) {
+    for (let j = 0; j < needle.length; j += 1) {
+      if (bytes[i + j] !== needle[j]) continue outer;
+    }
+    return i;
+  }
+  return -1;
+}
+
+async function extractPdfText(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const streamMark = [115, 116, 114, 101, 97, 109];
+  const endMark = [101, 110, 100, 115, 116, 114, 101, 97, 109];
+  const chunks = [];
+  let cursor = 0;
+  while (cursor < bytes.length) {
+    const at = findAscii(bytes, streamMark, cursor);
+    if (at < 0) break;
+    let dataStart = at + streamMark.length;
+    if (bytes[dataStart] === 13 && bytes[dataStart + 1] === 10) dataStart += 2;
+    else if (bytes[dataStart] === 10 || bytes[dataStart] === 13) dataStart += 1;
+    const end = findAscii(bytes, endMark, dataStart);
+    if (end < 0) break;
+    const slice = bytes.slice(dataStart, end);
+    const head = new TextDecoder('latin1').decode(bytes.slice(Math.max(0, at - 180), at));
+    let text = '';
+    if (/FlateDecode/.test(head)) {
+      try { text = await inflatePdfStream(slice); } catch { text = ''; }
+    } else {
+      text = new TextDecoder('latin1').decode(slice);
+    }
+    const pulled = pullPdfStrings(text);
+    if (pulled) chunks.push(pulled);
+    cursor = end + endMark.length;
+  }
+  const joined = chunks.join('\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (joined.length < 40) {
+    throw new Error('Could not read text from this PDF. Export it as TXT or use a text-based PDF.');
+  }
+  return joined.slice(0, 12000);
+}
+
+async function extractDroppedFile(file) {
+  const name = String(file?.name || 'file');
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  const type = String(file?.type || '');
+  if (ext === 'txt' || type.startsWith('text/plain')) {
+    const text = await file.text();
+    if (text.trim().length < 20) throw new Error('That text file is too short to analyze.');
+    return text.trim().slice(0, 12000);
+  }
+  if (ext === 'html' || ext === 'htm' || type === 'text/html') {
+    const raw = await file.text();
+    const doc = new DOMParser().parseFromString(raw, 'text/html');
+    doc.querySelectorAll('script, style, noscript').forEach((node) => node.remove());
+    const text = String(doc.body?.innerText || '').replace(/\s+/g, ' ').trim();
+    if (text.length < 20) throw new Error('That HTML file has no readable text.');
+    return text.slice(0, 12000);
+  }
+  if (ext === 'pdf' || type === 'application/pdf') {
+    return extractPdfText(await file.arrayBuffer());
+  }
+  throw new Error('Use a PDF, TXT, or HTML file.');
+}
+
+async function runB2bBlock(mode) {
+  b2bBlock = mode === 'proposal' ? 'proposal' : 'candidate';
+  const block = activeB2bBlock();
+  const status = document.getElementById(mode === 'proposal' ? 'proposalBlockStatus' : 'candidateBlockStatus');
+  block.error = '';
+  if (status) status.textContent = 'Reading the open page…';
+  let pageData = null;
+  try {
+    pageData = await getActiveTabDOM();
+  } catch {
+    pageData = null;
+  }
+  const pageText = String(pageData?.pageText || pageData?.jobDescription || '').trim();
+  const source = String(block.text || '').trim();
+  if (pageText.length < 20 && source.length < 20) {
+    block.error = 'Open a job or drop a PDF, TXT, or HTML file into this block.';
+    if (status) status.textContent = block.error;
+    renderContextDrawer();
+    return;
+  }
+  if (status) status.textContent = mode === 'proposal' ? 'Tuning the proposal…' : 'Scoring the candidate…';
+  try {
+    const data = await postParseDom(pageData || {
+      pageText: source,
+      pageTitle: block.fileName || 'Uploaded document',
+      pageUrl: '',
+      jobTitle: block.fileName || 'Uploaded document',
+      jobDescription: source,
+      requiredSkills: [],
+      budget: '',
+      clientHistory: '',
+    }, {
+      analysisMode: b2bBlock,
+      uploadedText: source,
+    });
+    block.result = data;
+    renderB2bBlock(b2bBlock);
+    if (status) status.textContent = 'Analysis ready.';
+  } catch (err) {
+    block.error = err?.message || 'Analysis failed. Try again.';
+    if (status) status.textContent = block.error;
+  }
+  renderContextDrawer();
+}
+
+function listLines(items) {
+  if (!Array.isArray(items) || !items.length) return 'None found.';
+  return items.map((item) => `• ${typeof item === 'string' ? item : (item?.area || item?.detail || '')}`).filter((line) => line !== '• ').join('\n');
+}
+
+function renderB2bBlock(mode) {
+  const block = mode === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
+  const data = block.result || {};
+  if (!block.result) {
+    ['proposalHooks', 'proposalLetter', 'candidateScore', 'candidateSummary', 'candidateSkills', 'candidateGaps', 'candidateTips']
+      .forEach((id) => {
+        const node = document.getElementById(id);
+        if (node) node.textContent = '';
+      });
+    return;
+  }
+  if (mode === 'proposal') {
+    const hooks = document.getElementById('proposalHooks');
+    const letter = document.getElementById('proposalLetter');
+    if (hooks) hooks.textContent = listLines(data.hooks);
+    if (letter) letter.textContent = data.proposalText || data.summary || '';
+    return;
+  }
+  const score = document.getElementById('candidateScore');
+  const summary = document.getElementById('candidateSummary');
+  const skills = document.getElementById('candidateSkills');
+  const gaps = document.getElementById('candidateGaps');
+  const tips = document.getElementById('candidateTips');
+  if (score) score.textContent = String(data.overallScore ?? data.matchScore ?? '—');
+  if (summary) summary.textContent = data.summary || data.whyThisCandidate || '';
+  if (skills) skills.textContent = listLines(data.skillMatches || data.pros || data.strengths);
+  if (gaps) gaps.textContent = listLines(data.candidateGaps || data.cons || data.gaps);
+  if (tips) tips.textContent = listLines(data.recommendations);
+}
+
+document.getElementById('contextDrawerToggle')?.addEventListener('click', () => {
+  const open = !document.getElementById('contextDrawer')?.classList.contains('open');
+  setContextDrawer(open);
+});
+document.getElementById('contextDrawerClose')?.addEventListener('click', () => setContextDrawer(false));
+document.getElementById('contextDrop')?.addEventListener('click', () => {
+  document.getElementById('contextFile')?.click();
+});
+document.getElementById('contextDrop')?.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  event.currentTarget.classList.add('over');
+});
+document.getElementById('contextDrop')?.addEventListener('dragleave', (event) => {
+  event.currentTarget.classList.remove('over');
+});
+document.getElementById('contextDrop')?.addEventListener('drop', (event) => {
+  event.preventDefault();
+  event.currentTarget.classList.remove('over');
+  const file = event.dataTransfer?.files?.[0];
+  if (file) void acceptContextFile(file);
+});
+document.getElementById('contextFile')?.addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (file) void acceptContextFile(file);
+});
+document.getElementById('contextClear')?.addEventListener('click', () => {
+  const block = activeB2bBlock();
+  block.fileName = '';
+  block.text = '';
+  block.error = '';
+  block.result = null;
+  renderB2bBlock(b2bBlock);
+  renderContextDrawer();
+});
+document.getElementById('runCandidate')?.addEventListener('click', () => { void runB2bBlock('candidate'); });
+document.getElementById('runProposalBlock')?.addEventListener('click', () => { void runB2bBlock('proposal'); });
+
+async function acceptContextFile(file) {
+  const block = activeB2bBlock();
+  const status = document.getElementById('contextStatus');
+  if (status) status.textContent = 'Reading file…';
+  try {
+    block.text = await extractDroppedFile(file);
+    block.fileName = file.name;
+    block.error = '';
+    block.result = null;
+    if (status) status.textContent = 'File ready for this block.';
+  } catch (err) {
+    block.error = err?.message || 'Could not read that file.';
+    if (status) status.textContent = block.error;
+  }
+  renderContextDrawer();
+}
 
 async function boot() {
   try {
