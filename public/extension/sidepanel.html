@@ -724,7 +724,7 @@
         <button id="contextDrawerClose" class="ghost" type="button">Close</button>
       </div>
       <p id="contextModeLabel" class="hint">Feeds Candidate analysis only</p>
-      <div id="contextDrop" class="context-drop">Drop a PDF, TXT, or HTML file for the active block</div>
+      <div id="contextDrop" class="context-drop">Drop a PDF, TXT, or HTML file. A resume is scored. A job brief becomes a proposal.</div>
       <input id="contextFile" type="file" accept=".pdf,.txt,.html,.htm,application/pdf,text/plain,text/html" hidden />
       <p id="contextFileName" class="hint">No file in this block.</p>
       <p id="contextStatus" class="hint"></p>
@@ -876,7 +876,7 @@
       <section id="tab-candidate" class="tab-view">
         <p class="hint">Resume parsing, skill match, gaps, and a candidate score. This block does not use the proposal draft.</p>
         <div id="candidateBlockSpinner" class="spinner"></div>
-        <p id="candidateBlockStatus" class="hint">Drop a resume from Files. Analysis starts as soon as the file is read.</p>
+        <p id="candidateBlockStatus" class="hint">Drop a resume from Files. Scoring starts as soon as the file is read.</p>
         <div class="card on">
           <div class="k">Score</div>
           <p id="candidateScore" class="title">—</p>
@@ -894,7 +894,7 @@
       <section id="tab-b2b-proposal" class="tab-view">
         <p class="hint">Cover letter, opening hooks, and proposal tuning. This block does not use the candidate resume.</p>
         <div id="proposalBlockSpinner" class="spinner"></div>
-        <p id="proposalBlockStatus" class="hint">Drop a draft from Files. Tuning starts as soon as the file is read.</p>
+        <p id="proposalBlockStatus" class="hint">Drop a job brief from Files. The proposal draft starts as soon as the file is read.</p>
         <div class="card on">
           <div class="k">Opening hooks</div>
           <p id="proposalHooks" class="pain"></p>

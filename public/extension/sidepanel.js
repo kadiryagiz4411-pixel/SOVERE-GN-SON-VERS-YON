@@ -2357,38 +2357,90 @@ function blockSpinner(mode) {
   return document.getElementById(mode === 'proposal' ? 'proposalBlockSpinner' : 'candidateBlockSpinner');
 }
 
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+function fileAnalysisError(err) {
+  const raw = String(err?.message || err || '').replace(/\s+/g, ' ').trim();
+  console.error('[sovereign] file analysis failed', raw || err);
+  if (/too long to read|too short to analyze|no readable text|Could not read text|Use a PDF/i.test(raw)) return raw;
+  if (/took too long/i.test(raw)) return 'Analysis took too long. Try the file again.';
+  if (/OPENAI|vercel|parse-dom|api[_ ]?key|stack|Check Vercel/i.test(raw)) {
+    return 'Analysis could not finish. Try the file again.';
+  }
+  if (raw && raw.length < 140 && !/https?:|at\s+\w+\s+\(/i.test(raw)) return raw;
+  return 'Analysis could not finish. Try the file again.';
+}
+
+function detectUploadKind(fileName, text) {
+  const name = String(fileName || '').toLowerCase();
+  const sample = `${name}\n${String(text || '').slice(0, 4000)}`;
+  const resumeName = /\b(cv|resume|résumé|curriculum|vitae)\b/i.test(name);
+  const briefName = /\b(job|brief|proposal|cover|rfp|sow|posting)\b/i.test(name);
+  const resumeHits = (sample.match(/curriculum vitae|\bcv\b|work experience|professional experience|\beducation\b|\bskills\b|certifications|years of experience/gi) || []).length;
+  const briefHits = (sample.match(/job description|responsibilities|qualifications|requirements|we are (?:looking|seeking|hiring)|cover letter|project scope|\bproposal\b|deliverables?|milestone/gi) || []).length;
+  if (resumeName && !briefName) return 'candidate';
+  if (briefName && !resumeName) return 'proposal';
+  if (resumeHits > briefHits) return 'candidate';
+  return 'proposal';
+}
+
+function setBlockStatus(mode, message, isError) {
+  const status = document.getElementById(mode === 'proposal' ? 'proposalBlockStatus' : 'candidateBlockStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('err', Boolean(isError));
+}
+
+function revealAnalysisTab(mode) {
+  const id = mode === 'proposal' ? 'b2b-proposal' : 'candidate';
+  if (effectiveMode() === 'b2b') {
+    switchTab(id);
+    return;
+  }
+  document.querySelectorAll('.tab-view').forEach((view) => {
+    view.classList.toggle('on', view.id === `tab-${id}`);
+  });
+}
+
 async function runB2bBlock(mode) {
   const key = mode === 'proposal' ? 'proposal' : 'candidate';
   b2bBlock = key;
   const seq = (b2bRunSeq[key] += 1);
   const block = key === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
-  const status = document.getElementById(key === 'proposal' ? 'proposalBlockStatus' : 'candidateBlockStatus');
   const spinner = blockSpinner(key);
   const current = () => b2bRunSeq[key] === seq;
   block.error = '';
   block.phase = 'analyzing';
-  if (status) status.textContent = key === 'proposal' ? 'Tuning the proposal…' : 'Scoring the candidate…';
+  setBlockStatus(key, key === 'proposal' ? 'Tuning the proposal…' : 'Scoring the candidate…', false);
   spinner?.classList.add('on');
   renderContextDrawer();
-  let pageData = null;
   try {
-    pageData = await getActiveTabDOM();
-  } catch {
-    pageData = null;
-  }
-  if (!current()) return;
-  const pageText = String(pageData?.pageText || pageData?.jobDescription || '').trim();
-  const source = String(block.text || '').trim();
-  if (pageText.length < 20 && source.length < 20) {
-    block.phase = 'error';
-    block.error = 'Open a job or drop a PDF, TXT, or HTML file into this block.';
-    if (status) status.textContent = block.error;
-    spinner?.classList.remove('on');
-    renderContextDrawer();
-    return;
-  }
-  try {
-    const data = await postParseDom(pageData || {
+    let pageData = null;
+    try {
+      pageData = await withTimeout(getActiveTabDOM(), 8000, 'The open page took too long to read.');
+    } catch (err) {
+      console.warn('[sovereign] open page skipped', err?.message || err);
+      pageData = null;
+    }
+    if (!current()) return;
+    const source = String(block.text || '').trim();
+    const pageText = String(pageData?.pageText || pageData?.jobDescription || '').trim();
+    const pageOk = key === 'candidate' && pageText.length >= 40;
+    if (!pageOk && source.length < 20) {
+      block.phase = 'error';
+      block.error = 'Drop a PDF, TXT, or HTML resume or job brief.';
+      setBlockStatus(key, block.error, true);
+      return;
+    }
+    const base = pageOk ? pageData : {
       pageText: source,
       pageTitle: block.fileName || 'Uploaded document',
       pageUrl: '',
@@ -2397,24 +2449,30 @@ async function runB2bBlock(mode) {
       requiredSkills: [],
       budget: '',
       clientHistory: '',
-    }, {
+    };
+    const data = await withTimeout(postParseDom(base, {
       analysisMode: key,
       uploadedText: source,
-    });
+    }), 35000, 'Analysis took too long. Try the file again.');
     if (!current()) return;
     block.result = data;
     block.phase = 'ready';
     renderB2bBlock(key);
-    if (status) status.textContent = 'Analysis ready.';
+    setBlockStatus(key, key === 'proposal' ? 'Proposal draft ready.' : 'Resume scored.', false);
   } catch (err) {
     if (!current()) return;
     block.phase = 'error';
-    block.error = err?.message || 'Analysis failed. Try again.';
-    if (status) status.textContent = block.error;
+    block.result = null;
+    block.error = fileAnalysisError(err);
+    renderB2bBlock(key);
+    setBlockStatus(key, block.error, true);
   } finally {
-    if (current()) spinner?.classList.remove('on');
+    if (current()) {
+      spinner?.classList.remove('on');
+      if (block.phase === 'analyzing') block.phase = block.error ? 'error' : 'ready';
+      renderContextDrawer();
+    }
   }
-  if (current()) renderContextDrawer();
 }
 
 function listLines(items) {
@@ -2492,27 +2550,33 @@ document.getElementById('contextClear')?.addEventListener('click', () => {
 });
 
 async function acceptContextFile(file) {
-  const mode = b2bBlock === 'proposal' ? 'proposal' : 'candidate';
-  const block = mode === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
   const status = document.getElementById('contextStatus');
   if (status) status.textContent = 'Reading file…';
+  let mode = b2bBlock === 'proposal' ? 'proposal' : 'candidate';
   try {
-    const text = await extractDroppedFile(file);
+    const text = await withTimeout(
+      extractDroppedFile(file),
+      12000,
+      'That file took too long to read. Try a TXT or HTML export.',
+    );
+    mode = detectUploadKind(file.name, text);
+    const block = b2bBlocks[mode];
     block.text = text;
     block.fileName = file.name;
     block.error = '';
     block.result = null;
     block.phase = 'loaded';
+    b2bBlock = mode;
     renderContextDrawer();
-    if (effectiveMode() === 'b2b') {
-      switchTab(mode === 'proposal' ? 'b2b-proposal' : 'candidate');
-      setContextDrawer(false);
-    }
-    void runB2bBlock(mode);
+    revealAnalysisTab(mode);
+    setContextDrawer(false);
+    await runB2bBlock(mode);
   } catch (err) {
+    const block = b2bBlocks[mode];
     block.phase = 'error';
-    block.error = err?.message || 'Could not read that file.';
+    block.error = fileAnalysisError(err);
     if (status) status.textContent = block.error;
+    blockSpinner(mode)?.classList.remove('on');
     renderContextDrawer();
   }
 }
