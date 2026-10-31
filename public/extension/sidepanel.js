@@ -1630,9 +1630,10 @@ async function pingApi() {
 
 let b2bBlock = 'candidate';
 const b2bBlocks = {
-  candidate: { fileName: '', text: '', result: null, error: '' },
-  proposal: { fileName: '', text: '', result: null, error: '' },
+  candidate: { fileName: '', text: '', result: null, error: '', phase: '' },
+  proposal: { fileName: '', text: '', result: null, error: '', phase: '' },
 };
+const b2bRunSeq = { candidate: 0, proposal: 0 };
 
 function switchTab(tab) {
   const mode = effectiveMode();
@@ -2245,7 +2246,12 @@ function renderContextDrawer() {
       : 'Feeds Candidate analysis only';
   }
   if (name) name.textContent = block.fileName ? `Loaded: ${block.fileName}` : 'No file in this block.';
-  if (status) status.textContent = block.error || (block.text ? `${block.text.length} characters ready.` : '');
+  if (status) {
+    if (block.error) status.textContent = block.error;
+    else if (block.phase === 'analyzing') status.textContent = 'Analyzing…';
+    else if (block.phase === 'loaded' || block.phase === 'ready') status.textContent = 'File loaded.';
+    else status.textContent = '';
+  }
 }
 
 function setContextDrawer(open) {
@@ -2347,27 +2353,40 @@ async function extractDroppedFile(file) {
   throw new Error('Use a PDF, TXT, or HTML file.');
 }
 
+function blockSpinner(mode) {
+  return document.getElementById(mode === 'proposal' ? 'proposalBlockSpinner' : 'candidateBlockSpinner');
+}
+
 async function runB2bBlock(mode) {
-  b2bBlock = mode === 'proposal' ? 'proposal' : 'candidate';
-  const block = activeB2bBlock();
-  const status = document.getElementById(mode === 'proposal' ? 'proposalBlockStatus' : 'candidateBlockStatus');
+  const key = mode === 'proposal' ? 'proposal' : 'candidate';
+  b2bBlock = key;
+  const seq = (b2bRunSeq[key] += 1);
+  const block = key === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
+  const status = document.getElementById(key === 'proposal' ? 'proposalBlockStatus' : 'candidateBlockStatus');
+  const spinner = blockSpinner(key);
+  const current = () => b2bRunSeq[key] === seq;
   block.error = '';
-  if (status) status.textContent = 'Reading the open page…';
+  block.phase = 'analyzing';
+  if (status) status.textContent = key === 'proposal' ? 'Tuning the proposal…' : 'Scoring the candidate…';
+  spinner?.classList.add('on');
+  renderContextDrawer();
   let pageData = null;
   try {
     pageData = await getActiveTabDOM();
   } catch {
     pageData = null;
   }
+  if (!current()) return;
   const pageText = String(pageData?.pageText || pageData?.jobDescription || '').trim();
   const source = String(block.text || '').trim();
   if (pageText.length < 20 && source.length < 20) {
+    block.phase = 'error';
     block.error = 'Open a job or drop a PDF, TXT, or HTML file into this block.';
     if (status) status.textContent = block.error;
+    spinner?.classList.remove('on');
     renderContextDrawer();
     return;
   }
-  if (status) status.textContent = mode === 'proposal' ? 'Tuning the proposal…' : 'Scoring the candidate…';
   try {
     const data = await postParseDom(pageData || {
       pageText: source,
@@ -2379,17 +2398,23 @@ async function runB2bBlock(mode) {
       budget: '',
       clientHistory: '',
     }, {
-      analysisMode: b2bBlock,
+      analysisMode: key,
       uploadedText: source,
     });
+    if (!current()) return;
     block.result = data;
-    renderB2bBlock(b2bBlock);
+    block.phase = 'ready';
+    renderB2bBlock(key);
     if (status) status.textContent = 'Analysis ready.';
   } catch (err) {
+    if (!current()) return;
+    block.phase = 'error';
     block.error = err?.message || 'Analysis failed. Try again.';
     if (status) status.textContent = block.error;
+  } finally {
+    if (current()) spinner?.classList.remove('on');
   }
-  renderContextDrawer();
+  if (current()) renderContextDrawer();
 }
 
 function listLines(items) {
@@ -2455,31 +2480,41 @@ document.getElementById('contextFile')?.addEventListener('change', (event) => {
 });
 document.getElementById('contextClear')?.addEventListener('click', () => {
   const block = activeB2bBlock();
+  b2bRunSeq[b2bBlock] += 1;
   block.fileName = '';
   block.text = '';
   block.error = '';
   block.result = null;
+  block.phase = '';
+  blockSpinner(b2bBlock)?.classList.remove('on');
   renderB2bBlock(b2bBlock);
   renderContextDrawer();
 });
-document.getElementById('runCandidate')?.addEventListener('click', () => { void runB2bBlock('candidate'); });
-document.getElementById('runProposalBlock')?.addEventListener('click', () => { void runB2bBlock('proposal'); });
 
 async function acceptContextFile(file) {
-  const block = activeB2bBlock();
+  const mode = b2bBlock === 'proposal' ? 'proposal' : 'candidate';
+  const block = mode === 'proposal' ? b2bBlocks.proposal : b2bBlocks.candidate;
   const status = document.getElementById('contextStatus');
   if (status) status.textContent = 'Reading file…';
   try {
-    block.text = await extractDroppedFile(file);
+    const text = await extractDroppedFile(file);
+    block.text = text;
     block.fileName = file.name;
     block.error = '';
     block.result = null;
-    if (status) status.textContent = 'File ready for this block.';
+    block.phase = 'loaded';
+    renderContextDrawer();
+    if (effectiveMode() === 'b2b') {
+      switchTab(mode === 'proposal' ? 'b2b-proposal' : 'candidate');
+      setContextDrawer(false);
+    }
+    void runB2bBlock(mode);
   } catch (err) {
+    block.phase = 'error';
     block.error = err?.message || 'Could not read that file.';
     if (status) status.textContent = block.error;
+    renderContextDrawer();
   }
-  renderContextDrawer();
 }
 
 async function boot() {

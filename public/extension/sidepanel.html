@@ -875,8 +875,8 @@
 
       <section id="tab-candidate" class="tab-view">
         <p class="hint">Resume parsing, skill match, gaps, and a candidate score. This block does not use the proposal draft.</p>
-        <button id="runCandidate" class="primary" type="button">Analyze candidate</button>
-        <p id="candidateBlockStatus" class="hint">Drop a resume on the left, or scan a profile, then analyze.</p>
+        <div id="candidateBlockSpinner" class="spinner"></div>
+        <p id="candidateBlockStatus" class="hint">Drop a resume from Files. Analysis starts as soon as the file is read.</p>
         <div class="card on">
           <div class="k">Score</div>
           <p id="candidateScore" class="title">—</p>
@@ -893,8 +893,8 @@
 
       <section id="tab-b2b-proposal" class="tab-view">
         <p class="hint">Cover letter, opening hooks, and proposal tuning. This block does not use the candidate resume.</p>
-        <button id="runProposalBlock" class="primary" type="button">Tune proposal</button>
-        <p id="proposalBlockStatus" class="hint">Drop a draft on the left, or scan a job, then tune.</p>
+        <div id="proposalBlockSpinner" class="spinner"></div>
+        <p id="proposalBlockStatus" class="hint">Drop a draft from Files. Tuning starts as soon as the file is read.</p>
         <div class="card on">
           <div class="k">Opening hooks</div>
           <p id="proposalHooks" class="pain"></p>
