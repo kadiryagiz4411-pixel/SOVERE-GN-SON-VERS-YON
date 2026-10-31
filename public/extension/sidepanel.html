@@ -332,19 +332,38 @@
       .context-toggle {
         position: fixed;
         left: 0;
-        top: 46%;
+        top: 50%;
         z-index: 30;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        align-self: center;
+        width: max-content;
+        height: max-content;
+        max-width: none;
         border: 1px solid var(--line);
         border-left: 0;
         background: #111113;
         color: var(--gold-2);
         border-radius: 0 10px 10px 0;
-        padding: 10px 8px;
-        writing-mode: vertical-rl;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .04em;
+        padding: 14px 10px;
+        margin: 0;
         cursor: pointer;
+      }
+      .context-toggle-label {
+        display: block;
+        writing-mode: vertical-rl;
+        text-orientation: upright;
+        white-space: nowrap;
+        word-break: keep-all;
+        overflow-wrap: normal;
+        line-height: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
       }
       .context-drawer {
         position: fixed;
@@ -704,7 +723,7 @@
     </style>
   </head>
   <body data-theme="obsidian">
-    <button id="contextDrawerToggle" class="context-toggle" type="button">Files</button>
+    <button id="contextDrawerToggle" class="context-toggle" type="button" aria-label="Files"><span class="context-toggle-label">Files</span></button>
     <aside id="contextDrawer" class="context-drawer" aria-hidden="true">
       <div class="context-head">
         <h2>Context files</h2>
