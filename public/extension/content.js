@@ -504,6 +504,9 @@ captureSovereignSession();
 // Scans run only when the side panel sends SCAN_ACTIVE_SCREEN. Do not watch
 // scroll, mutations, or navigation — those were starting "Scanning..." on their own.
 
+window.addEventListener('hashchange', () => { lastPublishedHash = ''; });
+window.addEventListener('popstate', () => { lastPublishedHash = ''; });
+
 if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
   window.addEventListener('focus',   captureSovereignSession);
   window.addEventListener('storage', captureSovereignSession);
@@ -567,7 +570,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       sendResponse({ success: false, error: 'Auto-Fill is not loaded. Reload the extension.' });
       return true;
     }
-    Promise.resolve(safeCall(() => run(request.proposalText || ''), false))
+    Promise.resolve(safeCall(() => run(request.proposalText || '', request.extras || {}), false))
       .then((ok) => safeCall(() => sendResponse({ success: Boolean(ok) })))
       .catch((err) => safeCall(() => sendResponse({ success: false, error: err?.message || String(err) })));
     return true;

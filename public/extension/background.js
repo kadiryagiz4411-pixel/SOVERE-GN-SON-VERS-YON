@@ -25,7 +25,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   }
 
   if (request.type === 'INJECT_PROPOSAL') {
-    injectActiveTab(request.proposalText || '')
+    injectActiveTab(request.proposalText || '', {
+      hourlyRate: request.hourlyRate || '',
+      fixedRate: request.fixedRate || '',
+      skills: request.skills || '',
+      pastWins: request.pastWins || '',
+    })
       .then((ok) => sendResponse({ success: ok }))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;
@@ -450,10 +455,36 @@ function persistPlanFromMe(data, fallbackEmail) {
         subscriptionStatus: data.subscriptionStatus || prev.subscriptionStatus || 'unknown',
         canGenerate: data.canGenerate !== false,
         workspace: data.workspace || prev.workspace || 'b2c',
+        skills: (Array.isArray(data.profileSkills) && data.profileSkills.length)
+          ? data.profileSkills.join(', ')
+          : prev.skills,
+        hourlyRate: data.hourlyRate ? String(data.hourlyRate) : (prev.hourlyRate || ''),
+        profession: data.profession || prev.profession || '',
+        pastWins: data.experienceSummary || prev.pastWins || '',
+        portfolio: data.portfolio || prev.portfolio || '',
       },
     });
   });
 }
+
+function schedulePlanSync() {
+  try {
+    chrome.alarms.create('sovereign-sync', { periodInMinutes: 2 });
+  } catch { /**/ }
+}
+
+chrome.runtime.onInstalled.addListener(schedulePlanSync);
+chrome.runtime.onStartup.addListener(schedulePlanSync);
+schedulePlanSync();
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm?.name !== 'sovereign-sync') return;
+  chrome.storage.local.get('sovereign.session.v1', (bag) => {
+    const token = bag['sovereign.session.v1']?.accessToken;
+    if (!token) return;
+    fetchMe(token).then((data) => persistPlanFromMe(data)).catch(() => {});
+  });
+});
 
 async function fetchMe(accessToken) {
   const headers = {};
@@ -532,7 +563,7 @@ async function scrapeActiveTab(messageType = 'SCRAPE_PAGE') {
   }
 }
 
-async function injectActiveTab(proposalText) {
+async function injectActiveTab(proposalText, extras) {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
     .then((tabs) => (tabs?.length ? tabs : chrome.tabs.query({ active: true, currentWindow: true })));
   if (!tab?.id) throw new Error('No active tab found.');
@@ -544,6 +575,7 @@ async function injectActiveTab(proposalText) {
     const viaContent = await chrome.tabs.sendMessage(tab.id, {
       type: 'INJECT_PROPOSAL',
       proposalText,
+      extras: extras || {},
     });
     if (viaContent?.success) return true;
   } catch {
@@ -557,14 +589,14 @@ async function injectActiveTab(proposalText) {
     });
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id, allFrames: true },
-      func: async (text) => {
+      func: async (text, extra) => {
         const run = typeof injectProposalToDOM === 'function'
           ? injectProposalToDOM
           : (typeof sovereignInjectProposal === 'function' ? sovereignInjectProposal : null);
         if (!run) return false;
-        return Boolean(await run(text));
+        return Boolean(await run(text, extra || {}));
       },
-      args: [proposalText],
+      args: [proposalText, extras || {}],
     });
     return (results || []).some((entry) => Boolean(entry?.result));
   } catch (err) {

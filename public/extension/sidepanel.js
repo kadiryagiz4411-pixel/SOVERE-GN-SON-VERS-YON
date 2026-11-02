@@ -35,6 +35,9 @@ const DEFAULT_SETTINGS = {
   outputLanguage: 'auto',
   languageChoice: '',
   referralCode: '',
+  profession: '',
+  pastWins: '',
+  portfolio: '',
 };
 
 /** Page language drives analysis unless the user saved an explicit Settings choice.
@@ -364,6 +367,8 @@ const actionsJobLink = document.getElementById('actionsJobLink');
 const saveCandidateBtn = document.getElementById('saveCandidate');
 const outreachBtn = document.getElementById('outreach');
 const actionsJob = document.getElementById('actionsJob');
+const actionsDeploy = document.getElementById('actionsDeploy');
+const deployBtn = document.getElementById('deploy');
 const actionsCv = document.getElementById('actionsCv');
 const actionsB2b = document.getElementById('actionsB2b');
 const errorBadge = document.getElementById('errorBadge');
@@ -900,10 +905,12 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   }
 
   actionsJob?.classList.toggle('hidden', !isJob);
+  actionsDeploy?.classList.toggle('hidden', !isJob || !lastProposal);
   actionsCv?.classList.toggle('hidden', !isCv);
   actionsB2b?.classList.toggle('hidden', !isB2b);
   if (copyBtn) copyBtn.disabled = !isJob || !lastProposal;
   if (autofillBtn) autofillBtn.disabled = !isJob || !lastProposal;
+  if (deployBtn) deployBtn.disabled = !isJob || !lastProposal;
   if (viewJobLink) {
     const href = /^https?:\/\//i.test(lastJobUrl) ? lastJobUrl : '#';
     viewJobLink.href = href;
@@ -1236,8 +1243,11 @@ async function postParseDom(pageData, options = {}) {
     location: pageData.structuredJob?.location || '',
     salary: pageData.structuredJob?.salary || '',
     skills: effectiveSkillList(),
-    experience: settings.experience,
+    experience: settings.pastWins || settings.experience,
+    profession: settings.profession || '',
     hourlyRate: Number(settings.hourlyRate) || undefined,
+    portfolio: settings.portfolio || '',
+    pastWins: settings.pastWins || '',
     matchDepth: deep ? 'deep' : 'basic',
     deepMatch: deep,
     scoreOnly: Boolean(options.scoreOnly),
@@ -1482,7 +1492,7 @@ async function rescanActiveScreen() {
       flushJobContext();
       setTargetBadge('idle');
       const discardMsg = pageData.discardReason === 'non-job'
-        ? 'No valid job listing detected on active tab. Please navigate to Upwork, LinkedIn, Indeed, or a job board, or paste/upload manually.'
+        ? 'No target detected. Navigate to an active job listing.'
         : pageData.discardReason === 'no-center-card'
         ? 'Scroll a job card to the center of the screen, then click Scan again.'
         : pageData.discardReason === 'chrome'
@@ -1868,22 +1878,37 @@ copyBtn?.addEventListener('click', async () => {
   setBusy(false, 'Proposal copied. Paste it yourself on the original job post — Sovereign never auto-submits.');
 });
 
-autofillBtn?.addEventListener('click', async () => {
+function injectProposalPayload() {
+  return {
+    type: 'INJECT_PROPOSAL',
+    proposalText: lastProposal,
+    hourlyRate: settings.hourlyRate || '',
+    fixedRate: settings.fixedRate || '',
+    skills: settings.skills || '',
+    pastWins: settings.pastWins || '',
+  };
+}
+
+async function deployProposalToPage(statusReady) {
   if (!lastProposal) return;
-  setBusy(true, 'Inserting proposal into the page editor…');
+  setBusy(true, 'Deploying proposal into the page editor…');
   try {
-    const result = await chrome.runtime.sendMessage({
-      type: 'INJECT_PROPOSAL',
-      proposalText: lastProposal,
-    });
+    const result = await chrome.runtime.sendMessage(injectProposalPayload());
     if (!result?.success) {
-      setBusy(false, 'Open the cover letter box on this page, then tap Auto-Fill again. Sovereign never auto-submits.');
+      setBusy(false, 'Open the cover letter box on this page, then tap Deploy again. Sovereign never auto-submits.');
       return;
     }
-    setBusy(false, 'Proposal inserted. Review it, then submit yourself — Sovereign never auto-sends.');
+    setBusy(false, statusReady || 'Proposal successfully deployed as professional entity. Review and send on the platform — Sovereign never auto-submits.');
   } catch (err) {
     setBusy(false, publicError(err.message || String(err)));
   }
+}
+
+autofillBtn?.addEventListener('click', () => {
+  void deployProposalToPage('Proposal inserted. Review it, then submit yourself — Sovereign never auto-sends.');
+});
+deployBtn?.addEventListener('click', () => {
+  void deployProposalToPage();
 });
 
 saveCandidateBtn?.addEventListener('click', async () => {
@@ -2181,6 +2206,13 @@ async function resolveWorkspaceAccess() {
       canGenerate: data?.canGenerate !== false,
       workspace: nextWorkspace,
       workspaceMode: dual ? (settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c') : 'b2c',
+      skills: (Array.isArray(data?.profileSkills) && data.profileSkills.length)
+        ? data.profileSkills.join(', ')
+        : settings.skills,
+      hourlyRate: data?.hourlyRate ? String(data.hourlyRate) : settings.hourlyRate,
+      profession: data?.profession || settings.profession,
+      pastWins: data?.experienceSummary || settings.pastWins,
+      portfolio: data?.portfolio || settings.portfolio,
     });
     applyCreditBadge();
     hidePaywall();
@@ -2306,10 +2338,7 @@ document.getElementById('autofillDispatch')?.addEventListener('click', async () 
   if (!lastProposal) return;
   const dispatchStatus = document.getElementById('dispatchStatus');
   try {
-    const result = await chrome.runtime.sendMessage({
-      type: 'INJECT_PROPOSAL',
-      proposalText: lastProposal,
-    });
+    const result = await chrome.runtime.sendMessage(injectProposalPayload());
     if (dispatchStatus) {
       dispatchStatus.textContent = result?.success
         ? 'Inserted. Review it, then submit yourself.'

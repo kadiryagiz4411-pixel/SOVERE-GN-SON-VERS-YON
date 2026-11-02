@@ -36,7 +36,7 @@ async function fetchProfile(
   userId: string,
 ): Promise<Record<string, unknown>> {
   const selects = [
-    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier,referral_code',
+    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier,referral_code,skills,hourly_rate,experience,profession,portfolio_projects',
     'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,remaining_credits,monthly_credit_limit,subscription_status',
     'b2b_access,plan_type,b2b_subscription_status,appsumo_tier',
     'plan_type',
@@ -168,6 +168,15 @@ async function handleRequest(req: Request): Promise<Response> {
     const workspace = isAdmin || hasB2BAccess ? 'dual' : 'b2c';
     const creditsDepleted = !isAdmin && remainingCredits <= 0;
     const canGenerate = isAdmin || (appsumo ? remainingCredits > 0 : !saasExpired && remainingCredits > 0);
+    const profileSkills = Array.isArray(profile.skills)
+      ? profile.skills.map((item) => String(item || '').trim()).filter((item) => item.length >= 2).slice(0, 24)
+      : String(profile.skills || '').split(/[,|\n]+/).map((item) => item.trim()).filter((item) => item.length >= 2).slice(0, 24);
+    const portfolio = Array.isArray(profile.portfolio_projects)
+      ? profile.portfolio_projects.map((item) => {
+        const rec = asRecord(item);
+        return String(rec.title || rec.name || rec.url || '').trim();
+      }).filter(Boolean).slice(0, 4).join('; ')
+      : '';
 
     return jsonNoStore({
       success: true,
@@ -195,6 +204,11 @@ async function handleRequest(req: Request): Promise<Response> {
       saasExpired,
       creditPrompt: appsumo && creditsDepleted ? APPSUMO_ZERO_MESSAGE : null,
       referralCode: String(profile.referral_code || '').trim().toLowerCase(),
+      profileSkills,
+      hourlyRate: Number(profile.hourly_rate || 0) || 0,
+      experienceSummary: String(profile.experience || '').trim().slice(0, 800),
+      profession: String(profile.profession || '').trim().slice(0, 120),
+      portfolio,
     });
   } catch (error: unknown) {
     const err = error as { message?: string };

@@ -93,17 +93,16 @@
     return null;
   }
 
-  function setNativeValue(element, value) {
+  function dispatchReactEvents(element, value) {
     const win = viewOf(element);
-    const proto = element.tagName === 'TEXTAREA'
-      ? win.HTMLTextAreaElement.prototype
-      : win.HTMLInputElement.prototype;
-    const own = Object.getOwnPropertyDescriptor(element, 'value');
-    const inherited = Object.getOwnPropertyDescriptor(proto, 'value');
-    const setter = own && own.set ? own.set : inherited && inherited.set;
-    if (setter) setter.call(element, value);
-    else element.value = value;
     const InputEventCtor = win.InputEvent || InputEvent;
+    element.dispatchEvent(new InputEventCtor('beforeinput', {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      data: value,
+      inputType: 'insertFromPaste',
+    }));
     element.dispatchEvent(new InputEventCtor('input', {
       bubbles: true,
       composed: true,
@@ -112,7 +111,27 @@
     }));
     element.dispatchEvent(new win.Event('input', { bubbles: true, composed: true }));
     element.dispatchEvent(new win.Event('change', { bubbles: true, composed: true }));
+    element.dispatchEvent(new win.KeyboardEvent('keydown', { bubbles: true, composed: true, key: 'a', keyCode: 65 }));
+    element.dispatchEvent(new win.KeyboardEvent('keyup', { bubbles: true, composed: true, key: 'a', keyCode: 65 }));
     element.dispatchEvent(new win.Event('blur', { bubbles: true, composed: true }));
+    element.dispatchEvent(new win.Event('focus', { bubbles: true, composed: true }));
+  }
+
+  function setNativeValue(element, value) {
+    const win = viewOf(element);
+    const proto = element.tagName === 'TEXTAREA'
+      ? win.HTMLTextAreaElement.prototype
+      : win.HTMLInputElement.prototype;
+    const own = Object.getOwnPropertyDescriptor(element, 'value');
+    const inherited = Object.getOwnPropertyDescriptor(proto, 'value');
+    const setter = own && own.set ? own.set : inherited && inherited.set;
+    try {
+      const tracker = element._valueTracker;
+      if (tracker && typeof tracker.setValue === 'function') tracker.setValue('');
+    } catch { /**/ }
+    if (setter) setter.call(element, value);
+    else element.value = value;
+    dispatchReactEvents(element, value);
   }
 
   function fillContentEditable(element, text) {
@@ -133,19 +152,10 @@
     let inserted = false;
     try { inserted = doc.execCommand('insertText', false, text); } catch { inserted = false; }
     if (!inserted || !String(element.innerText || element.textContent || '').trim()) {
-      element.textContent = '';
+      element.innerHTML = '';
       element.appendChild(doc.createTextNode(text));
     }
-    const InputEventCtor = win.InputEvent || InputEvent;
-    element.dispatchEvent(new InputEventCtor('input', {
-      bubbles: true,
-      composed: true,
-      data: text,
-      inputType: 'insertFromPaste',
-    }));
-    element.dispatchEvent(new win.Event('input', { bubbles: true, composed: true }));
-    element.dispatchEvent(new win.Event('change', { bubbles: true, composed: true }));
-    element.dispatchEvent(new win.Event('blur', { bubbles: true, composed: true }));
+    dispatchReactEvents(element, text);
   }
 
   function fill(element, text) {
@@ -181,12 +191,116 @@
     });
   }
 
-  async function injectProposalToDOM(proposalText) {
+  function deployStatusBadge(success, platform) {
+    try {
+      const existing = document.getElementById('sovereign-deploy-badge');
+      if (existing) existing.remove();
+      const badge = document.createElement('div');
+      badge.id = 'sovereign-deploy-badge';
+      badge.setAttribute('role', 'status');
+      badge.setAttribute('aria-live', 'polite');
+      Object.assign(badge.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: '2147483647',
+        background: success ? '#064e3b' : '#7f1d1d',
+        color: success ? '#6ee7b7' : '#fca5a5',
+        border: `1px solid ${success ? 'rgba(16,185,129,0.45)' : 'rgba(239,68,68,0.45)'}`,
+        borderRadius: '12px',
+        padding: '12px 18px',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '14px',
+        fontWeight: '700',
+        lineHeight: '1.5',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+        maxWidth: '320px',
+        wordBreak: 'break-word',
+        transition: 'opacity 400ms ease',
+      });
+      badge.textContent = success
+        ? 'Proposal successfully deployed as professional entity. Review and send on the platform — Sovereign never auto-submits.'
+        : 'No editor found. Open the cover-letter field on this page, then try Auto-Fill again.';
+      document.body.appendChild(badge);
+      setTimeout(() => {
+        badge.style.opacity = '0';
+        setTimeout(() => { try { badge.remove(); } catch { /**/ } }, 450);
+      }, 5000);
+    } catch { /**/ }
+  }
+
+  function detectPlatformName() {
+    const host = String(window.location.hostname || '').replace(/^www\./, '').toLowerCase();
+    if (host.includes('upwork.com')) return 'Upwork';
+    if (host.includes('linkedin.com')) return 'LinkedIn';
+    if (host.includes('indeed.com')) return 'Indeed';
+    if (host.includes('glassdoor.com')) return 'Glassdoor';
+    if (host.includes('fiverr.com')) return 'Fiverr';
+    if (host.includes('freelancer.com')) return 'Freelancer';
+    return '';
+  }
+
+  function looksLikeSubmitControl(el) {
+    const blob = `${el?.textContent || ''} ${el?.getAttribute?.('aria-label') || ''} ${el?.value || ''}`.toLowerCase();
+    return /submit|send proposal|apply now|apply for this job|place bid|next step/.test(blob);
+  }
+
+  function fillSupportingFields(cover, extras) {
+    const rate = String(extras?.hourlyRate || extras?.fixedRate || '').replace(/[^\d.]/g, '');
+    const skills = String(extras?.skills || '').split(/[,|\n]+/).map((item) => item.trim()).filter(Boolean);
+    const wins = String(extras?.pastWins || extras?.experience || '').replace(/\s+/g, ' ').trim();
+    let filled = 0;
+    const docs = collectDocuments();
+    for (const doc of docs) {
+      const roots = [];
+      collectRoots(doc, roots);
+      for (const root of roots) {
+        let matches = [];
+        try { matches = [...root.querySelectorAll('input, textarea')]; } catch { matches = []; }
+        for (const el of matches) {
+          if (el === cover || !isFillable(el)) continue;
+          const type = String(el.type || '').toLowerCase();
+          if (['hidden', 'password', 'file', 'checkbox', 'radio', 'submit', 'button'].includes(type)) continue;
+          const label = `${el.name || ''} ${el.id || ''} ${el.placeholder || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+          const current = String(el.value || el.innerText || '').trim();
+          if (current) continue;
+          if (filled >= 4) return;
+          if (rate && /bid|hourly|rate|budget|milestone|amount/.test(label) && el.tagName === 'INPUT') {
+            fill(el, rate);
+            filled += 1;
+            continue;
+          }
+          if (el.tagName === 'TEXTAREA' && /question|screen|cover|proposal|why|experience|describe/.test(label)) {
+            const firstSkill = skills[0] || 'this stack';
+            const answer = wins
+              ? wins.slice(0, 280)
+              : `Yes. I have shipped this with ${firstSkill} and can start on the first deliverable this week.`;
+            fill(el, answer);
+            filled += 1;
+          }
+        }
+      }
+    }
+  }
+
+  async function injectProposalToDOM(proposalText, extras) {
     const text = String(proposalText || '');
     if (!text) return false;
-    const field = await waitForEditor(2800);
-    if (!field) return false;
-    return fill(field, text);
+    const field = await waitForEditor(3200);
+    const platform = detectPlatformName();
+    if (!field) {
+      deployStatusBadge(false, platform);
+      return false;
+    }
+    const ok = fill(field, text);
+    try { fillSupportingFields(field, extras || {}); } catch { /**/ }
+    const submit = [...document.querySelectorAll('button, input[type="submit"], a[role="button"]')]
+      .find(looksLikeSubmitControl);
+    if (submit) {
+      try { submit.setAttribute('data-sovereign-ready', '1'); } catch { /**/ }
+    }
+    deployStatusBadge(ok, platform);
+    return ok;
   }
 
   global.injectProposalToDOM = injectProposalToDOM;

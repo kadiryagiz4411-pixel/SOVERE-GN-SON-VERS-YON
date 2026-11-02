@@ -100,7 +100,7 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       temperature: 0.2,
-      max_tokens: 480,
+      max_tokens: 700,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
@@ -170,6 +170,8 @@ async function handleRequest(req: Request): Promise<Response> {
       experience?: string;
       profession?: string;
       hourlyRate?: number;
+      portfolio?: string;
+      pastWins?: string;
       matchDepth?: string;
       deepMatch?: boolean;
       scoreOnly?: boolean;
@@ -263,6 +265,7 @@ async function handleRequest(req: Request): Promise<Response> {
       listedSkills.length ? `=== SKILLS REQUIRED ===\n${listedSkills.join(', ')}` : '',
       clientHistory ? `=== CLIENT INFO ===\n${clientHistory.slice(0, 400)}` : '',
       `=== JOB DESCRIPTION ===\n${pageText.slice(0, 4000)}`,
+      `=== FREELANCER PROFILE ===\nProfession: ${String(body.profession || '').trim() || 'not specified'}\nSkills: ${(Array.isArray(body.skills) ? body.skills : []).join(', ') || 'not specified'}\nPast wins: ${String(body.pastWins || body.experience || '').trim().slice(0, 600) || 'not specified'}\nHourly rate: ${body.hourlyRate ? `$${body.hourlyRate}/hr` : 'not specified'}\nPortfolio: ${String(body.portfolio || '').trim() || 'not specified'}`,
       analysisMode === 'candidate' && uploadedText
         ? `=== CANDIDATE DOCUMENT ===\nUse this only for resume parsing, skill matching, gap analysis, and candidate scoring. Do not write a client proposal.\n${uploadedText}`
         : '',
@@ -333,9 +336,12 @@ async function handleRequest(req: Request): Promise<Response> {
       const proposalSystemPrompt = [
         SCREEN_ANALYST_RULES,
         langDirective,
-        `You are a world-class growth hacker and elite freelance proposal strategist. Bypass generic, robotic phrasing ("As an AI model...", "I am thrilled to apply...") and write a hyper-targeted, high-conversion proposal in first person.`,
-        `In the first two sentences, hook the client by naming the hidden pain point in their brief. Then give a concise solution architecture with absolute confidence and professional authority. End with one high-engagement call-to-action question.`,
-        `Keep it punchy, sharp, and short enough that a client can reply immediately. 4-6 sentences. No markdown. No headers. Use only facts present in the structured sections. Do not invent tools, budgets, or employers.`,
+        `You are a world-class growth hacker and elite freelance proposal strategist writing as the freelancer in FREELANCER PROFILE. Kill cliches. Never write "As an AI", "I am thrilled to apply", "Dear Hiring Manager", or "I hope this finds you".`,
+        `Mandatory structure:`,
+        `1. HOOK (exactly two sentences): dissect the client's hidden technical or business headache from the brief.`,
+        `2. ARCHITECTURE (2-3 sentences): a high-confidence solution framework using only skills that appear in both the brief and FREELANCER PROFILE.`,
+        `3. PROOF & CTA (1-2 sentences): cite a real past win or speed from FREELANCER PROFILE if present, then one qualifying question that forces a reply.`,
+        `Keep it punchy and short enough for an instant reply. No markdown. No headers. Do not invent tools, budgets, employers, or metrics.`,
         `If the brief is unclear, ask one specific clarifying question instead of guessing.`,
         analysisMode === 'proposal'
           ? 'This is the Proposal Analysis block. Optimize the cover letter and return hooks: exactly 3 short persuasive opening lines. Do not include candidate scoring or resume gaps.'

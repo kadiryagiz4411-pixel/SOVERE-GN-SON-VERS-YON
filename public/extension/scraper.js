@@ -308,6 +308,11 @@ function isNonJobHost(hostname) {
 
 function classifyScrapedContent(url, title, text, isolated) {
   const href = String(url || '').toLowerCase();
+  let host = '';
+  try { host = new URL(String(url || location.href || '')).hostname; } catch { host = ''; }
+  if (isNonJobHost(host)) {
+    return { contentType: '', kind: 'job', discarded: true, reason: 'non-job' };
+  }
   const sample = `${title || ''}\n${text || ''}`.toLowerCase();
   const compact = sample.replace(/\s+/g, ' ').trim();
   if (compact.length < 40 || looksLikeUiChrome(title, text)) {
@@ -437,19 +442,44 @@ function sovereignIsLayoutShell(el) {
   return false;
 }
 
+/**
+ * SHADOW DOM COLLECTOR
+ * Recursively collects all shadow roots in the document so queries
+ * can pierce shadow boundaries on platforms like Workday, Greenhouse, etc.
+ */
+function collectShadowRoots(root, out) {
+  if (!root) return;
+  let nodes;
+  try {
+    nodes = root.querySelectorAll ? root.querySelectorAll('*') : [];
+  } catch {
+    return;
+  }
+  for (const node of nodes) {
+    if (node.shadowRoot) {
+      out.push(node.shadowRoot);
+      collectShadowRoots(node.shadowRoot, out);
+    }
+  }
+}
+
 function sovereignCollect(selectors, root) {
   const scope = root || document;
   const out = [];
   const seen = new Set();
-  for (const selector of selectors) {
-    try {
-      scope.querySelectorAll(selector).forEach((el) => {
-        if (seen.has(el)) return;
-        seen.add(el);
-        out.push(el);
-      });
-    } catch {
-      // invalid selector on this host
+  const roots = [scope];
+  collectShadowRoots(scope, roots);
+  for (const searchRoot of roots) {
+    for (const selector of selectors) {
+      try {
+        searchRoot.querySelectorAll(selector).forEach((el) => {
+          if (seen.has(el)) return;
+          seen.add(el);
+          out.push(el);
+        });
+      } catch {
+        // invalid selector on this host
+      }
     }
   }
   return out;
@@ -937,17 +967,32 @@ function _extractActiveJobImpl(options) {
     '[data-test="BudgetAmount"]',
     '[data-test="budget"]',
     '[data-test="Price"]',
-    '.jobsearch-JobMetadataHeader-item',
+    '[data-test="BudgetType"]',
     '[data-test="is-fixed-price"]',
     '[data-test="is-hourly"]',
+    '.jobsearch-JobMetadataHeader-item',
+    '[data-testid="salaryInfoAndJobType"]',
+    '#salaryInfoAndJobType',
+    '[data-test="salary"]',
+    '[aria-label*="budget" i]',
+    '[aria-label*="salary" i]',
+    '[aria-label*="hourly" i]',
+    '.up-card-section .air3-token',
   ];
 
   const CLIENT_SELECTORS = [
     '[data-test="AboutClient"]',
     '[data-test="client-info"]',
+    '[data-test="ClientInfo"]',
+    '[data-test="client-payment-verified"]',
+    '[data-test="client-rating"]',
+    '[data-test="client-feedbacks"]',
+    '[data-test="client-job-posting-stats"]',
+    '[data-test="client-location"]',
     '.about-client',
     '.jobsearch-CompanyReview--heading',
-    '[data-test="ClientInfo"]',
+    '[data-qa="client-info"]',
+    '[aria-label*="client" i]',
   ];
 
   const looksLikeFeed = (text) => {
@@ -955,11 +1000,33 @@ function _extractActiveJobImpl(options) {
     return titles >= 8 && text.length > 4000;
   };
 
+  const queryDeep = (scope, selector) => {
+    const roots = [scope];
+    collectShadowRoots(scope, roots);
+    for (const searchRoot of roots) {
+      try {
+        const hit = searchRoot.querySelector(selector);
+        if (hit) return hit;
+      } catch { /**/ }
+    }
+    return null;
+  };
+
+  const queryAllDeep = (scope, selector) => {
+    const roots = [scope];
+    collectShadowRoots(scope, roots);
+    const found = [];
+    for (const searchRoot of roots) {
+      try { found.push(...searchRoot.querySelectorAll(selector)); } catch { /**/ }
+    }
+    return found;
+  };
+
   const skillsFrom = (root) => {
     const nodes = [];
     for (const selector of SKILL_SELECTORS) {
       try {
-        nodes.push(...root.querySelectorAll(selector));
+        nodes.push(...queryAllDeep(root, selector));
       } catch {
         // skip
       }
@@ -979,18 +1046,36 @@ function _extractActiveJobImpl(options) {
   };
 
   const budgetFrom = (root, hay) => {
-    const el = pickBest(BUDGET_SELECTORS, root);
-    const direct = textOf(el, 160);
-    if (direct) return direct;
-    const match = String(hay || '').match(
-      /(?:hourly|fixed|budget|salary|pay)[:\s]*\$?\s?\d[\d,]*(?:\s?[-–]\s?\$?\d[\d,]*)?(?:\s?\/\s?(?:hr|hour|mo|yr))?/i,
-    );
-    return match ? match[0].trim() : '';
+    const parts = [];
+    for (const sel of BUDGET_SELECTORS) {
+      try {
+        const el = queryDeep(root, sel);
+        const text = textOf(el, 160);
+        if (text && !parts.includes(text)) { parts.push(text); break; }
+      } catch { /**/ }
+    }
+    if (!parts.length) {
+      const match = String(hay || '').match(
+        /(?:hourly|fixed|budget|salary|pay|rate)[:\s]*[$€£₹¥]?\s?\d[\d,.]*\s?[-–]?\s?[$€£₹¥]?\s?\d{0,6}(?:\s?\/\s?(?:hr|hour|mo|yr|month|year))?/i,
+      );
+      if (match) parts.push(match[0].trim());
+    }
+    return parts.join(' · ').slice(0, 200);
   };
 
   const clientFrom = (root) => {
-    const el = pickBest(CLIENT_SELECTORS, root);
-    return textOf(el, 500);
+    const collected = [];
+    for (const sel of CLIENT_SELECTORS) {
+      try {
+        const els = queryAllDeep(root, sel);
+        for (const el of els.slice(0, 4)) {
+          const t = textOf(el, 300);
+          if (t && !collected.some((c) => c.includes(t.slice(0, 40)))) collected.push(t);
+        }
+      } catch { /**/ }
+      if (collected.length >= 3) break;
+    }
+    return collected.join(' | ').slice(0, MAX_FIELD);
   };
 
   clearSovereignMarks();
@@ -1044,7 +1129,7 @@ function _extractActiveJobImpl(options) {
     for (const rootNode of roots) {
       for (const selector of selectors) {
         let el = null;
-        try { el = rootNode.querySelector(selector); } catch { el = null; }
+        try { el = queryDeep(rootNode, selector); } catch { el = null; }
         if (!el) continue;
         const raw = textOf(el, max, allowShort) || attrText(el, ['aria-label', 'title']) || '';
         const text = cleanText(raw, max);
@@ -1120,6 +1205,76 @@ function _extractActiveJobImpl(options) {
     ], scope, MAX_TEXT, false),
   });
 
+  const extractUpwork = (scope) => ({
+    title: readFirst([
+      '[data-test="job-title"]',
+      'h4[data-test="job-title"]',
+      'h2[data-test="job-title"]',
+      'h1[data-test="job-title"]',
+    ], scope, 180),
+    company: readFirst([
+      '[data-test="client-name"]',
+      '[data-qa="client-name"]',
+      '[data-test="AboutClient"] h5',
+    ], scope, 120),
+    location: readFirst([
+      '[data-test="client-location"]',
+      '[data-qa="client-location"]',
+      '[data-test="location"]',
+    ], scope, 120),
+    salary: readFirst([
+      '[data-test="BudgetAmount"]',
+      '[data-test="budget"]',
+      '[data-test="Price"]',
+      '[data-test="is-hourly"]',
+      '[data-test="is-fixed-price"]',
+    ], scope, 160),
+    rating: readFirst([
+      '[data-test="client-rating"]',
+      '[data-test="feedback-rating"]',
+      '[data-test="client-feedbacks"]',
+    ], scope, 80),
+    spent: readFirst([
+      '[data-test="client-spend"]',
+      '[data-test="total-spent"]',
+      '[data-test="client-job-posting-stats"]',
+    ], scope, 120),
+    description: readFirst([
+      '[data-test="Description"]',
+      '[data-test="JobDescription"]',
+      '[data-test="job-description"]',
+    ], scope, MAX_TEXT, false),
+  });
+
+  const extractLinkedIn = (scope) => ({
+    title: readFirst([
+      '.job-details-jobs-unified-top-card__job-title',
+      '.jobs-unified-top-card__job-title',
+      'h1.t-24',
+      'h1.text-heading-xlarge',
+    ], scope, 180),
+    company: readFirst([
+      '.job-details-jobs-unified-top-card__company-name',
+      '.jobs-unified-top-card__company-name',
+      'a.jobs-unified-top-card__company-name',
+    ], scope, 120),
+    location: readFirst([
+      '.job-details-jobs-unified-top-card__bullet',
+      '.jobs-unified-top-card__bullet',
+      '.jobs-unified-top-card__primary-description-without-tagline',
+    ], scope, 120),
+    salary: readFirst([
+      '.job-details-jobs-unified-top-card__job-insight',
+      '.jobs-unified-top-card__job-insight',
+      '[class*="salary"]',
+    ], scope, 160),
+    description: readFirst([
+      '.jobs-description__content',
+      '.jobs-box__html-content',
+      '#job-details',
+    ], scope, MAX_TEXT, false),
+  });
+
   const titleEl = pickBest(TITLE_SELECTORS, root);
   const descEl = pickBest(DESC_SELECTORS, root);
 
@@ -1177,10 +1332,14 @@ function _extractActiveJobImpl(options) {
 
   const onIndeed = /(^|\.)indeed\./.test(host);
   const onGlassdoor = /(^|\.)glassdoor\./.test(host);
+  const onUpwork = /(^|\.)upwork\.com$/.test(host);
+  const onLinkedIn = /(^|\.)linkedin\.com$/.test(host);
   let platformFields = null;
   try {
     if (onIndeed) platformFields = extractIndeed(root);
     else if (onGlassdoor) platformFields = extractGlassdoor(root);
+    else if (onUpwork) platformFields = extractUpwork(root);
+    else if (onLinkedIn) platformFields = extractLinkedIn(root);
   } catch {
     platformFields = null;
   }
@@ -1208,7 +1367,13 @@ function _extractActiveJobImpl(options) {
       jobDescription = platformFields.description;
     }
     if (platformFields.salary) budget = platformFields.salary;
-    if (platformFields.company) clientHistory = platformFields.company;
+    const clientBits = [
+      platformFields.company,
+      platformFields.location,
+      platformFields.rating,
+      platformFields.spent,
+    ].filter(Boolean);
+    if (clientBits.length) clientHistory = clientBits.join(' · ');
   }
 
   const platformName = onIndeed ? 'Indeed'

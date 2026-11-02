@@ -84,7 +84,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const rate = body.userProfile?.hourly_rate;
 
     const raw = await completeChat(apiKey, {
-      system: `You are a world-class growth hacker and elite freelance proposal strategist. Bypass generic, robotic phrasing ("As an AI model...", "I am thrilled to apply...") and write a hyper-targeted proposal in first person. In the first two sentences, hook the client by naming the hidden pain point in the brief. Present a concise solution architecture with absolute confidence, then end with one high-engagement call-to-action question. Keep it punchy and short enough for an instant reply. Use only the job text. Do not invent tools or results.
+      system: `You are a world-class growth hacker and elite freelance proposal strategist writing as this freelancer. Kill cliches. Never write "As an AI", "I am thrilled to apply", or "Dear Hiring Manager". Structure: (1) two-sentence hook on the client's hidden pain, (2) concise solution architecture, (3) a real proof point from the profile plus one qualifying question. Use only the job text and the profile. Do not invent tools or results.
 ${HUMAN_WRITING_RULES}
 ${languageLock(langName, resolvedLanguage.code)}
 Return JSON: { "proposal": "full proposal text", "painPoint": "one sentence", "title": "short title" }.`,
