@@ -15,15 +15,15 @@ const LANGUAGE_NAMES: Record<string, string> = {
   pl: 'Polish',
 };
 
-function scoreLanguage(text: string, marks: RegExp, words: RegExp) {
-  return (text.match(marks) || []).length * 3 + (text.match(words) || []).length;
+function scoreLanguage(text: string, marks: RegExp, words: RegExp): number {
+  return Number((text.match(marks) || []).length) * 3 + Number((text.match(words) || []).length);
 }
 
 /** Language of the job, resume, or brief. Never reads the browser locale. */
 export function detectTextLanguage(sample: unknown): string {
   const text = String(sample || '').replace(/\s+/g, ' ').slice(0, 4000);
   if (text.length < 40) return '';
-  const ranked: Array<[string, number]> = [
+  const ranked: [string, number][] = ([
     ['tr', scoreLanguage(text, /[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi)],
     ['de', scoreLanguage(text, /[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi)],
     ['fr', scoreLanguage(text, /[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi)],
@@ -38,9 +38,9 @@ export function detectTextLanguage(sample: unknown): string {
     ['ja', scoreLanguage(text, /[\u3040-\u30ff]/g, /$^/g)],
     ['ko', scoreLanguage(text, /[\uac00-\ud7af]/g, /$^/g)],
     ['en', scoreLanguage(text, /$^/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi)],
-  ].sort((a, b) => b[1] - a[1]);
-  if (ranked[0][1] < 3) return '';
-  if (ranked[0][1] < ranked[1][1] + 2) return '';
+  ] as [string, number][]).sort((a, b) => Number(b[1]) - Number(a[1]));
+  if (Number(ranked[0][1]) < 3) return '';
+  if (Number(ranked[0][1]) < Number(ranked[1][1]) + 2) return '';
   return ranked[0][0];
 }
 
