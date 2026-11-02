@@ -687,6 +687,12 @@ function renderCvList(list) {
   `).join('');
 }
 
+function clampScore(value) {
+  const score = Math.round(Number(value));
+  if (!Number.isFinite(score) || score <= 0) return 0;
+  return Math.min(99, score);
+}
+
 function matchBand(score) {
   if (score >= 80) return 'High Probability';
   if (score >= 60) return 'Strong Fit';
@@ -705,8 +711,8 @@ function humanMatchCopy(analysis, title) {
   if (raw && !skillBlock && !/here is your score|ai match result|match analytics|your score is/i.test(raw)) {
     return raw;
   }
-  const score = Number(analysis?.match_score ?? analysis?.matchScore ?? 0);
-  const accept = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? score);
+  const score = clampScore(analysis?.match_score ?? analysis?.matchScore ?? 0);
+  const accept = clampScore(analysis?.acceptanceScore ?? analysis?.overallScore ?? score);
   const strengths = Array.isArray(analysis?.strengths)
     ? analysis.strengths
     : (Array.isArray(analysis?.matchedSkills) ? analysis.matchedSkills : []);
@@ -726,10 +732,8 @@ function humanMatchCopy(analysis, title) {
 }
 
 function updateMatchUi(analysis, title) {
-  const score = Number(analysis?.match_score ?? analysis?.matchScore ?? analysis?.compatibilityScore ?? lastScore ?? 0);
-  const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
-  const acceptRaw = Number(analysis?.acceptanceScore ?? analysis?.overallScore ?? safeScore);
-  const accept = Number.isFinite(acceptRaw) ? Math.max(0, Math.min(100, Math.round(acceptRaw))) : safeScore;
+  const safeScore = clampScore(analysis?.match_score ?? analysis?.matchScore ?? analysis?.compatibilityScore ?? lastScore ?? 0);
+  const accept = clampScore(analysis?.acceptanceScore ?? analysis?.overallScore ?? safeScore);
   const label = analysis?.matchLabel && !/add skills/i.test(String(analysis.matchLabel))
     ? analysis.matchLabel
     : matchBand(safeScore);
@@ -803,8 +807,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   const isJob = mode === 'JOB_PROPOSAL' || data.intent === 'JOB_POSTINGS';
   const isCv = mode === 'CV_EVALUATION' || data.intent === 'CANDIDATE_POOL';
   const isB2b = mode === 'B2B_COMMAND';
-  const score = Number(data.match_score ?? data.matchScore ?? data.compatibilityScore ?? data.overallScore ?? 0);
-  const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+  const safeScore = clampScore(data.match_score ?? data.matchScore ?? data.compatibilityScore ?? data.overallScore ?? 0);
   lastTitle = cleanCardTitle(
     data.title || data.jobTitle || pageTitle || '',
     isJob ? 'Job posting' : isCv ? 'Candidate' : 'Company',
@@ -1478,7 +1481,9 @@ async function rescanActiveScreen() {
     if (pageData.discarded) {
       flushJobContext();
       setTargetBadge('idle');
-      const discardMsg = pageData.discardReason === 'no-center-card'
+      const discardMsg = pageData.discardReason === 'non-job'
+        ? 'No valid job listing detected on active tab. Please navigate to Upwork, LinkedIn, Indeed, or a job board, or paste/upload manually.'
+        : pageData.discardReason === 'no-center-card'
         ? 'Scroll a job card to the center of the screen, then click Scan again.'
         : pageData.discardReason === 'chrome'
           ? 'Focus the job description — the translate widget or nav was ignored.'
@@ -1515,17 +1520,6 @@ async function rescanActiveScreen() {
       : (lastJob.title ? `Tailoring for: ${lastJob.title}` : 'No job isolated yet.');
     if (titleEl) titleEl.textContent = lastJob.title || '';
 
-    // Non-blocking onboarding: show a hint but proceed with effectiveSkillList().
-    // Never hard-return here — the user deserves a proposal even on first run.
-    if (skillListFromSettings().length < 2) {
-      updateMatchUi({
-        onboardingRequired: false,
-        matchMessage: 'Add your skills in Settings for a personalized score. Showing generic analysis now.',
-        match_score: 0,
-        acceptanceScore: 0,
-      }, lastJob.title);
-    }
-
     // Use the analysis the background already computed — ZERO extra network calls.
     // IMPORTANT: only recycle the background's pre-baked analysis when its hash
     // matches the hash of the page we JUST scraped. A mismatch means the background
@@ -1559,18 +1553,27 @@ async function rescanActiveScreen() {
 
     if (thisSeq !== scanSeq) return;
 
-    if (!merged) {
-      setBusy(false, 'Analysis timed out. Check your connection and try again.');
-      analyzing = false;
-      return;
-    }
+    const profileText = [settings.skills, settings.experience].filter(Boolean).join('\n');
+    const localFit = scoreOverlap(pageText, profileText);
+    merged = {
+      ...(merged || {}),
+      matchScore: localFit.match,
+      match_score: localFit.match,
+      acceptanceScore: localFit.cv,
+      matchedSkills: localFit.matched,
+      missingSkills: localFit.missing,
+      strengths: localFit.matched,
+      gaps: localFit.missing,
+      matchNarrative: localFit.breakdown,
+      matchMessage: localFit.breakdown,
+    };
 
     updateMatchUi(merged, lastJob.title || pageData.pageTitle);
     if (titleEl && lastJob.title) titleEl.textContent = lastJob.title;
     if (scoreLabel) scoreLabel.textContent = humanMatchCopy(merged, lastJob.title);
-    const score = Number(merged.match_score ?? merged.matchScore ?? 0);
-    if (badge) badge.textContent = String(Math.max(0, Math.min(100, Math.round(score))));
-    scoreRing?.style.setProperty('--p', String(Math.max(0, Math.min(100, Math.round(score)))));
+    const score = clampScore(merged.match_score ?? merged.matchScore ?? 0);
+    if (badge) badge.textContent = String(score);
+    scoreRing?.style.setProperty('--p', String(score));
     setBusy(false, pageData.isolated
       ? `Scoring "${String(lastJob.title || 'this job').slice(0, 52)}" — the pane on screen.`
       : 'Scanned. Open the job detail pane and Re-Scan for a tighter read.');
@@ -1696,7 +1699,12 @@ function fillSettingsForm() {
   }
   const b2bHint = document.getElementById('b2bToggleHint');
   const b2bNote = document.getElementById('b2bUpgradeNote');
-  if (b2bHint) b2bHint.style.display = canB2b ? '' : 'none';
+  if (b2bHint) {
+    b2bHint.textContent = isExtensionAdmin()
+      ? 'Admin access granted. Agency tools are unlocked.'
+      : 'Route jobs through B2B lead extraction and team dispatch.';
+    b2bHint.style.display = canB2b ? '' : 'none';
+  }
   if (b2bNote) b2bNote.style.display = canB2b ? 'none' : '';
   applyPlanChrome();
   applyTheme(settings.theme);
@@ -1977,11 +1985,11 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
 
 document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
   const input = event.target;
-  if (!canUseDualWorkspace() || subscriptionLapsed()) {
+  if (!canUseDualWorkspace() || (subscriptionLapsed() && !isExtensionAdmin())) {
     input.checked = false;
     const note = document.getElementById('b2bUpgradeNote');
     if (note && !canUseDualWorkspace()) note.style.display = '';
-    if (subscriptionLapsed()) showPaywall('renew');
+    if (subscriptionLapsed() && !isExtensionAdmin()) showPaywall('renew');
     return;
   }
   void persistSettings({ workspaceMode: input.checked ? 'b2b' : 'b2c' }).catch((err) => {
@@ -2148,13 +2156,21 @@ async function resolveWorkspaceAccess() {
     }
     const nextTier = Number(data?.appsumo_tier ?? settings.appsumoTier ?? 0);
     const nextWorkspace = data?.workspace || settings.workspace || 'b2c';
-    const dual = Boolean(data?.is_admin || data?.isAdmin) || nextWorkspace === 'dual' || nextTier >= 3;
+    const email = String(data?.email || settings.accountEmail || '').trim().toLowerCase();
+    const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+    const admin = Boolean(data?.is_admin || data?.isAdmin)
+      || allow.includes(email)
+      || ['admin', 'superadmin'].includes(String(data?.role || settings.role || '').toLowerCase());
+    const granted = admin
+      || data?.b2bAccessState === 'granted'
+      || (Boolean(data?.b2b_access || data?.hasB2BAccess) && !data?.saasExpired);
+    const dual = admin || granted || nextWorkspace === 'dual' || nextTier >= 3;
     const previousStatus = String(settings.subscriptionStatus || '').toLowerCase();
     await persistSettings({
       accountEmail: data?.email || settings.accountEmail,
-      role: data?.role || settings.role,
-      isAdmin: Boolean(data?.is_admin || data?.isAdmin),
-      b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess) && !data?.saasExpired,
+      role: admin ? 'admin' : (data?.role || settings.role),
+      isAdmin: admin,
+      b2bAccess: granted,
       planType: data?.planType || settings.planType || '',
       referralCode: String(data?.referralCode || settings.referralCode || '').trim().toLowerCase(),
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
@@ -2170,7 +2186,7 @@ async function resolveWorkspaceAccess() {
     hidePaywall();
     if (data?.is_appsumo_user && Number(data?.remainingCredits ?? 0) <= 0) {
       showCreditResetBanner();
-    } else if (data?.saasExpired) {
+    } else if (data?.saasExpired && !admin) {
       showPaywall('renew');
     }
     const nextStatus = String(settings.subscriptionStatus || '').toLowerCase();
@@ -2508,27 +2524,95 @@ async function extractPdfText(buffer) {
   return joined.slice(0, 12000);
 }
 
+async function inflateRaw(bytes) {
+  if (typeof DecompressionStream !== 'function') {
+    throw new Error('This browser cannot unpack DOCX. Save the file as TXT or PDF.');
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  const buf = await new Response(stream).arrayBuffer();
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+async function extractDocxText(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let xml = '';
+  for (let offset = 0; offset + 30 < bytes.length;) {
+    if (bytes[offset] !== 0x50 || bytes[offset + 1] !== 0x4b || bytes[offset + 2] !== 0x03 || bytes[offset + 3] !== 0x04) {
+      offset += 1;
+      continue;
+    }
+    const method = bytes[offset + 8] | (bytes[offset + 9] << 8);
+    const compSize = bytes[offset + 18] | (bytes[offset + 19] << 8) | (bytes[offset + 20] << 16) | (bytes[offset + 21] << 24);
+    const nameLen = bytes[offset + 26] | (bytes[offset + 27] << 8);
+    const extraLen = bytes[offset + 28] | (bytes[offset + 29] << 8);
+    const nameStart = offset + 30;
+    const name = new TextDecoder('utf-8').decode(bytes.slice(nameStart, nameStart + nameLen));
+    const dataStart = nameStart + nameLen + extraLen;
+    if (!compSize || dataStart + compSize > bytes.length) {
+      offset = Math.max(dataStart, offset + 4);
+      continue;
+    }
+    if (name === 'word/document.xml') {
+      const slice = bytes.slice(dataStart, dataStart + compSize);
+      xml = method === 0 ? new TextDecoder('utf-8').decode(slice) : await inflateRaw(slice);
+      break;
+    }
+    offset = dataStart + compSize;
+  }
+  if (!xml) throw new Error('Could not read text from this DOCX. Export it as TXT or PDF.');
+  const text = xml
+    .replace(/<w:p[^>]*>/g, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (text.length < 20) throw new Error('That DOCX file has no readable text.');
+  return text.slice(0, 12000);
+}
+
+function sanitizeUploadText(text) {
+  return String(text || '')
+    .replace(/\u0000/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 12000);
+}
+
 async function extractDroppedFile(file) {
   const name = String(file?.name || 'file');
   const ext = name.split('.').pop()?.toLowerCase() || '';
   const type = String(file?.type || '');
-  if (ext === 'txt' || type.startsWith('text/plain')) {
-    const text = await file.text();
-    if (text.trim().length < 20) throw new Error('That text file is too short to analyze.');
-    return text.trim().slice(0, 12000);
+  try {
+    if (ext === 'txt' || type.startsWith('text/plain')) {
+      const text = sanitizeUploadText(await file.text());
+      if (text.length < 20) throw new Error('That text file is too short to analyze.');
+      return text;
+    }
+    if (ext === 'html' || ext === 'htm' || type === 'text/html') {
+      const raw = await file.text();
+      const doc = new DOMParser().parseFromString(raw, 'text/html');
+      doc.querySelectorAll('script, style, noscript').forEach((node) => node.remove());
+      const text = sanitizeUploadText(String(doc.body?.innerText || '').replace(/[ \t]{2,}/g, ' '));
+      if (text.length < 20) throw new Error('That HTML file has no readable text.');
+      return text;
+    }
+    if (ext === 'docx' || type.includes('wordprocessingml')) {
+      return extractDocxText(await file.arrayBuffer());
+    }
+    if (ext === 'pdf' || type === 'application/pdf') {
+      return sanitizeUploadText(await extractPdfText(await file.arrayBuffer()));
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message) throw err;
+    throw new Error('Could not read that file. Paste the text instead.');
   }
-  if (ext === 'html' || ext === 'htm' || type === 'text/html') {
-    const raw = await file.text();
-    const doc = new DOMParser().parseFromString(raw, 'text/html');
-    doc.querySelectorAll('script, style, noscript').forEach((node) => node.remove());
-    const text = String(doc.body?.innerText || '').replace(/\s+/g, ' ').trim();
-    if (text.length < 20) throw new Error('That HTML file has no readable text.');
-    return text.slice(0, 12000);
-  }
-  if (ext === 'pdf' || type === 'application/pdf') {
-    return extractPdfText(await file.arrayBuffer());
-  }
-  throw new Error('Use a PDF, TXT, or HTML file.');
+  throw new Error('Use a PDF, DOCX, TXT, or HTML file.');
 }
 
 function blockSpinner(mode) {
@@ -2538,7 +2622,7 @@ function blockSpinner(mode) {
 function fileAnalysisError(err) {
   const raw = String(err?.message || err || '').replace(/\s+/g, ' ').trim();
   console.error('[sovereign] file analysis failed', raw || err);
-  if (/too long to read|too short to analyze|no readable text|Could not read text|Use a PDF/i.test(raw)) return raw;
+  if (/too long to read|too short to analyze|no readable text|Could not read text|Use a PDF|DOCX|unpack/i.test(raw)) return raw;
   if (/took too long/i.test(raw)) return 'Analysis took too long. Try the file again.';
   if (/OPENAI|vercel|parse-dom|api[_ ]?key|stack|Check Vercel/i.test(raw)) {
     return 'Analysis could not finish. Try the file again.';
@@ -2604,7 +2688,7 @@ async function runB2bBlock(mode) {
     const pageOk = key === 'candidate' && pageText.length >= 40;
     if (!pageOk && source.length < 20) {
       block.phase = 'error';
-      block.error = 'Drop a PDF, TXT, or HTML resume or job brief.';
+      block.error = 'Drop a PDF, DOCX, TXT, or HTML resume or job brief.';
       setBlockStatus(key, block.error, true);
       return;
     }
@@ -2752,24 +2836,82 @@ async function acceptContextFile(file) {
 
 const INSTANT_SKILLS = ['react', 'typescript', 'javascript', 'node', 'python', 'supabase', 'sql', 'aws', 'figma', 'seo', 'wordpress', 'shopify', 'java', 'go', 'rust', 'docker', 'graphql', 'tailwind', 'next.js', 'vue', 'php', 'laravel', 'design', 'marketing', 'sales', 'copywriting'];
 
-function instantScores(jobText, cvText) {
+const SCORE_STOP = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'from', 'are', 'was', 'were', 'have', 'has', 'will', 'our', 'their', 'about', 'into', 'job', 'role', 'work', 'team', 'using', 'use', 'can', 'not', 'but', 'all', 'any', 'who', 'what', 'when', 'where', 'which', 'they', 'them', 'his', 'her', 'she', 'him', 'its', 'per', 'via', 'also', 'than', 'then', 'such', 'each', 'more', 'most', 'very', 'just', 'able', 'need', 'needs']);
+
+function scoreTokens(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.\s-]/g, ' ')
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2 && !SCORE_STOP.has(word));
+}
+
+function termFrequency(words) {
+  const map = new Map();
+  words.forEach((word) => map.set(word, (map.get(word) || 0) + 1));
+  return map;
+}
+
+function scoreOverlap(jobText, cvText) {
+  const jobWords = scoreTokens(jobText);
+  const cvWords = scoreTokens(cvText);
+  const jobTf = termFrequency(jobWords);
+  const cvTf = termFrequency(cvWords);
   const hay = String(jobText || '').toLowerCase();
   const cv = String(cvText || '').toLowerCase();
   const asked = INSTANT_SKILLS.filter((skill) => hay.includes(skill));
-  const profile = skillListFromSettings().map((skill) => skill.toLowerCase());
   const resumeSkills = INSTANT_SKILLS.filter((skill) => cv.includes(skill));
-  const basis = profile.length >= 2 ? profile : resumeSkills;
-  const matched = basis.filter((skill) => hay.includes(skill));
-  const denom = Math.max(asked.length || basis.length, 1);
-  const match = basis.length
-    ? Math.max(0, Math.min(100, Math.round((matched.length / denom) * 100)))
-    : (asked.length ? 40 : 0);
-  const cvMatched = resumeSkills.filter((skill) => !asked.length || asked.includes(skill));
-  const cvDenom = Math.max(asked.length || resumeSkills.length, 1);
+  const profile = skillListFromSettings().map((skill) => skill.toLowerCase());
+  const basis = resumeSkills.length ? resumeSkills : profile;
+  const skillHits = asked.filter((skill) => basis.some((item) => item.includes(skill) || skill.includes(item)) || cv.includes(skill));
+  let weight = 0;
+  let possible = 0;
+  const matched = [];
+  const missing = [];
+  jobTf.forEach((count, term) => {
+    const idf = 1 + Math.log((jobWords.length + 1) / (count + 1));
+    const importance = count * idf;
+    possible += importance;
+    if (cvTf.has(term) || basis.some((skill) => skill === term || skill.includes(term))) {
+      const seen = cvTf.get(term) || 1;
+      weight += importance * Math.min(1, seen / count);
+      if (matched.length < 6 && term.length > 3) matched.push(term);
+    } else if (importance > 1.6 && missing.length < 5 && term.length > 3) {
+      missing.push(term);
+    }
+  });
+  skillHits.forEach((skill) => {
+    if (!matched.includes(skill)) matched.unshift(skill);
+  });
+  const textScore = possible > 0 ? weight / possible : 0;
+  const skillScore = asked.length ? skillHits.length / asked.length : (basis.length && textScore ? textScore : 0);
+  const blended = asked.length ? (textScore * 0.45 + skillScore * 0.55) : textScore;
+  const match = (!jobWords.length || !cvWords.length && !basis.length) ? 0 : clampScore(blended * 100);
+  const cvBasis = Math.max(asked.length || resumeSkills.length, 1);
   const cvScore = resumeSkills.length
-    ? Math.max(0, Math.min(100, Math.round((cvMatched.length / cvDenom) * 100)))
+    ? clampScore((skillHits.length / cvBasis) * 100)
     : match;
-  return { match, cv: cvScore, missing: asked.filter((skill) => !matched.includes(skill)).slice(0, 3) };
+  const shown = matched.filter((term) => asked.includes(term) || term.length > 4).slice(0, 4);
+  const gap = asked.find((skill) => !skillHits.includes(skill)) || '';
+  const breakdown = !jobWords.length
+    ? 'Paste or upload a job brief to calculate a match.'
+    : (!cvWords.length && basis.length < 2)
+      ? 'Paste or upload a resume, or save at least two skills in Settings.'
+      : shown.length
+        ? `Overlap on ${shown.join(', ')}${gap ? `. The brief also asks for ${gap}` : ''}.`
+        : 'Little keyword overlap between the resume and this brief.';
+  return {
+    match,
+    cv: cvScore,
+    missing: asked.filter((skill) => !skillHits.includes(skill)).slice(0, 3),
+    matched: shown,
+    breakdown,
+  };
+}
+
+function instantScores(jobText, cvText) {
+  return scoreOverlap(jobText, cvText);
 }
 
 function previewProposal(jobText, lang) {
@@ -2787,18 +2929,22 @@ function previewProposal(jobText, lang) {
 
 let lastInstant = { match: 0, cv: 0, proposal: '' };
 
-function paintInstant(match, cv, proposal, status) {
+function paintInstant(match, cv, proposal, status, breakdown) {
+  const safeMatch = clampScore(match);
+  const safeCv = clampScore(cv);
   const matchEl = document.getElementById('instantMatch');
   const cvEl = document.getElementById('instantCvScore');
   const proposalEl = document.getElementById('instantProposal');
   const statusEl = document.getElementById('instantStatus');
   const summary = document.getElementById('shareSummary');
-  if (matchEl) matchEl.textContent = `${match}%`;
-  if (cvEl) cvEl.textContent = `${cv}%`;
+  const breakEl = document.getElementById('instantBreakdown');
+  if (matchEl) matchEl.textContent = `${safeMatch}%`;
+  if (cvEl) cvEl.textContent = `${safeCv}%`;
   if (proposalEl) proposalEl.textContent = proposal;
   if (statusEl) statusEl.textContent = status;
-  if (summary) summary.textContent = `Match ${match}% · CV ${cv}%`;
-  lastInstant = { match, cv, proposal };
+  if (breakEl) breakEl.textContent = breakdown || '';
+  if (summary) summary.textContent = `Match ${safeMatch}% · CV ${safeCv}%`;
+  lastInstant = { match: safeMatch, cv: safeCv, proposal };
 }
 
 async function runInstant(source) {
@@ -2812,7 +2958,7 @@ async function runInstant(source) {
   const scores = instantScores(job || cv, cv || job);
   const lang = detectSourceLanguage(`${job}\n${cv}`) || 'en';
   const preview = previewProposal(job || cv, lang);
-  paintInstant(scores.match, scores.cv, preview, 'Scores are ready. Preview draft is on screen.');
+  paintInstant(scores.match, scores.cv, preview, 'Scores are ready. Preview draft is on screen.', scores.breakdown);
   const signedIn = Boolean(settings.accountEmail || settings.referralCode);
   if (!signedIn || source === 'demo') return;
   if (!assertGenerationAllowed()) return;
@@ -2832,14 +2978,7 @@ async function runInstant(source) {
       'The proposal took too long. The scores above are still saved on screen.',
     );
     const proposal = String(data?.proposalText || data?.summary || preview).trim();
-    const match = Number(data?.matchScore ?? data?.match_score ?? scores.match);
-    const cvScore = Number(data?.overallScore ?? data?.compatibilityScore ?? scores.cv);
-    paintInstant(
-      Number.isFinite(match) ? Math.round(match) : scores.match,
-      Number.isFinite(cvScore) ? Math.round(cvScore) : scores.cv,
-      proposal || preview,
-      'AI proposal ready.',
-    );
+    paintInstant(scores.match, scores.cv, proposal || preview, 'AI proposal ready.', scores.breakdown);
     void noteAiSuccess();
   } catch (err) {
     console.error('[sovereign] instant analysis', err);
@@ -2919,26 +3058,77 @@ async function copyShareCard() {
   }
 }
 
+async function fillInstantFromFile(file, targetId) {
+  const statusEl = document.getElementById('instantStatus');
+  if (statusEl) statusEl.textContent = 'Reading the file…';
+  try {
+    const text = await withTimeout(extractDroppedFile(file), 12000, 'That file took too long to read.');
+    const kind = targetId
+      ? (targetId === 'instantCv' ? 'candidate' : 'proposal')
+      : detectUploadKind(file.name, text);
+    const target = document.getElementById(targetId || (kind === 'candidate' ? 'instantCv' : 'instantJob'));
+    if (target) target.value = text;
+    await runInstant('file');
+  } catch (err) {
+    console.error('[sovereign] instant file', err);
+    if (statusEl) statusEl.textContent = fileAnalysisError(err);
+  }
+}
+
+function bindFileDrop(zone, input, targetId) {
+  if (!zone) return;
+  const openPicker = () => input?.click();
+  zone.addEventListener('click', openPicker);
+  zone.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openPicker();
+    }
+  });
+  zone.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    zone.classList.add('over');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', (event) => {
+    event.preventDefault();
+    zone.classList.remove('over');
+    const file = event.dataTransfer?.files?.[0];
+    if (file) void fillInstantFromFile(file, targetId);
+  });
+  input?.addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) void fillInstantFromFile(file, targetId);
+  });
+}
+
 function bindInstant() {
+  bindFileDrop(document.getElementById('jobDrop'), document.getElementById('jobFile'), 'instantJob');
+  bindFileDrop(document.getElementById('cvDrop'), document.getElementById('cvFile'), 'instantCv');
   document.getElementById('instantPick')?.addEventListener('click', () => {
     document.getElementById('instantFile')?.click();
   });
-  document.getElementById('instantFile')?.addEventListener('change', async (event) => {
+  document.getElementById('instantFile')?.addEventListener('change', (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
-    const statusEl = document.getElementById('instantStatus');
-    if (statusEl) statusEl.textContent = 'Reading the file…';
-    try {
-      const text = await withTimeout(extractDroppedFile(file), 12000, 'That file took too long to read.');
-      const kind = detectUploadKind(file.name, text);
-      const target = document.getElementById(kind === 'candidate' ? 'instantCv' : 'instantJob');
-      if (target) target.value = text;
-      await runInstant('file');
-    } catch (err) {
-      console.error('[sovereign] instant file', err);
-      if (statusEl) statusEl.textContent = 'Could not read that file. Paste the text instead.';
-    }
+    if (file) void fillInstantFromFile(file, '');
+  });
+  ['instantJob', 'instantCv'].forEach((id) => {
+    const field = document.getElementById(id);
+    field?.addEventListener('dragover', (event) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return;
+      event.preventDefault();
+      field.classList.add('over');
+    });
+    field?.addEventListener('dragleave', () => field.classList.remove('over'));
+    field?.addEventListener('drop', (event) => {
+      const file = event.dataTransfer?.files?.[0];
+      if (!file) return;
+      event.preventDefault();
+      field.classList.remove('over');
+      void fillInstantFromFile(file, id);
+    });
   });
   document.getElementById('instantRun')?.addEventListener('click', () => {
     void runInstant('manual');

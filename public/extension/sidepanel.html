@@ -7,10 +7,10 @@
       :root {
         color-scheme: dark;
         --bg: #09090B;
-        --card: #111113;
-        --line: rgba(212, 175, 55, 0.22);
-        --gold: #d4af37;
-        --gold-2: #f5d76e;
+        --card: rgba(20, 20, 22, 0.7);
+        --line: rgba(212, 175, 55, 0.2);
+        --gold: #D4AF37;
+        --gold-2: #E6C657;
         --muted: #a8a29e;
         --text: #f5f5f4;
         --danger: #fca5a5;
@@ -22,9 +22,9 @@
         margin: 0;
         display: flex;
         flex-direction: column;
-        font-family: Inter, system-ui, sans-serif;
-        font-size: 15px;
-        line-height: 1.55;
+        font-family: "Plus Jakarta Sans", Inter, "Segoe UI", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
         background: radial-gradient(1100px 380px at 50% -90px, rgba(212, 175, 55, 0.14), transparent 55%), var(--bg);
         color: var(--text);
       }
@@ -108,10 +108,14 @@
       main {
         flex: 1;
         overflow: auto;
-        padding: 14px 16px 18px;
+        padding: 20px;
       }
       .tab-view { display: none; }
-      .tab-view.on { display: block; }
+      .tab-view.on { display: block; animation: tab-in 220ms ease; }
+      @keyframes tab-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: none; }
+      }
       button, select, input, textarea {
         font-family: inherit;
       }
@@ -189,8 +193,9 @@
         display: none;
         border: 1px solid var(--line);
         background: var(--card);
+        backdrop-filter: blur(16px);
         border-radius: 14px;
-        padding: 16px;
+        padding: 20px;
         box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.04), 0 18px 40px rgba(0, 0, 0, 0.35);
       }
       .card.on { display: block; }
@@ -437,7 +442,8 @@
         border-radius: 0;
         background: transparent;
         color: var(--muted);
-        font-size: 10px;
+        font-size: 12px;
+        transition: color 180ms ease, border-color 180ms ease;
         letter-spacing: .02em;
         padding: 10px 4px 12px;
         border-bottom: 2px solid transparent;
@@ -446,26 +452,57 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .instant-box, .share-card {
+      .instant-box, .share-card, .score-pair div, .list-item {
         border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #111113;
-        padding: 10px;
+        border-radius: 14px;
+        background: rgba(20, 20, 22, 0.7);
+        backdrop-filter: blur(16px);
+        padding: 16px;
       }
-      .instant-box textarea {
+      .instant-box label {
+        display: block;
+        margin-top: 14px;
+        font-size: 12px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--gold-2);
+      }
+      .instant-box textarea, .field textarea {
         width: 100%;
-        min-height: 72px;
+        min-height: 88px;
         resize: vertical;
-        margin-top: 6px;
+        margin-top: 8px;
+        line-height: 1.6;
+        font-size: 15px;
+        padding: 12px 14px;
       }
-      .score-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-      .score-pair div {
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 8px;
+      .drop-zone {
+        margin-top: 8px;
+        border: 1px dashed rgba(212, 175, 55, 0.45);
+        border-radius: 14px;
+        min-height: 72px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 16px;
         text-align: center;
+        color: var(--muted);
+        background: rgba(20, 20, 22, 0.45);
+        cursor: pointer;
+        transition: border-color 180ms ease, background 180ms ease;
       }
-      .score-pair strong { display: block; font-size: 22px; color: var(--gold-2); }
+      .drop-zone strong { color: var(--gold-2); font-size: 14px; font-weight: 700; }
+      .drop-zone small { font-size: 12px; }
+      .drop-zone.over, textarea.over {
+        border-color: var(--gold);
+        background: rgba(212, 175, 55, 0.08);
+        color: var(--text);
+      }
+      .score-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+      .score-pair div { text-align: center; }
+      .score-pair strong { display: block; font-size: 28px; color: var(--gold-2); line-height: 1.2; }
       .score-pair span { font-size: 10px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
       .share-card { margin-top: 10px; }
       .share-card p { margin: 6px 0; font-size: 12px; }
@@ -776,6 +813,23 @@
         color: var(--muted);
         border: 1px solid var(--line);
       }
+      .panel-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+        padding: 14px 20px 18px;
+        border-top: 1px solid rgba(212, 175, 55, 0.2);
+        background: rgba(20, 20, 22, 0.7);
+        flex-shrink: 0;
+      }
+      .panel-footer a {
+        color: #E6C657;
+        font-size: 13px;
+        line-height: 1.4;
+        text-decoration: none;
+      }
+      .panel-footer a:hover { text-decoration: underline; }
     </style>
   </head>
   <body data-theme="obsidian">
@@ -785,8 +839,8 @@
         <button id="contextDrawerClose" class="ghost" type="button">Close</button>
       </div>
       <p id="contextModeLabel" class="hint">Feeds Candidate analysis only</p>
-      <div id="contextDrop" class="context-drop">Drop a PDF, TXT, or HTML file. A resume is scored. A job brief becomes a proposal.</div>
-      <input id="contextFile" type="file" accept=".pdf,.txt,.html,.htm,application/pdf,text/plain,text/html" hidden />
+      <div id="contextDrop" class="context-drop">Drop a PDF, DOCX, TXT, or HTML file. A resume is scored. A job brief becomes a proposal.</div>
+      <input id="contextFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/html" hidden />
       <p id="contextFileName" class="hint">No file in this block.</p>
       <p id="contextStatus" class="hint"></p>
       <button id="contextClear" class="ghost" type="button">Clear this block</button>
@@ -863,10 +917,20 @@
         <p class="hint">Drop a resume or job brief, or paste both. Match and CV scores appear immediately. A signed-in account then replaces the preview with the AI proposal.</p>
         <div class="instant-box">
           <label for="instantJob">Job or brief</label>
-          <textarea id="instantJob" placeholder="Paste the job post"></textarea>
+          <div id="jobDrop" class="drop-zone" tabindex="0" role="button" aria-label="Upload a job brief">
+            <strong>Drop a job brief</strong>
+            <small>PDF, DOCX, TXT, or HTML</small>
+          </div>
+          <textarea id="instantJob" placeholder="Or paste the job post"></textarea>
           <label for="instantCv">Resume</label>
-          <textarea id="instantCv" placeholder="Paste a resume, or drop a PDF, TXT, or HTML file"></textarea>
-          <input id="instantFile" type="file" accept=".pdf,.txt,.html,.htm,text/plain,text/html,application/pdf" hidden />
+          <div id="cvDrop" class="drop-zone" tabindex="0" role="button" aria-label="Upload a resume">
+            <strong>Drop a resume</strong>
+            <small>PDF, DOCX, TXT, or HTML</small>
+          </div>
+          <textarea id="instantCv" placeholder="Or paste the resume"></textarea>
+          <input id="instantFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+          <input id="jobFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+          <input id="cvFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
           <div class="row" style="margin-top:8px">
             <button id="instantPick" class="ghost" type="button">Upload file</button>
             <button id="instantRun" class="fill" type="button">Score now</button>
@@ -876,6 +940,7 @@
           <div><strong id="instantMatch">—</strong><span>Match score</span></div>
           <div><strong id="instantCvScore">—</strong><span>CV score</span></div>
         </div>
+        <p id="instantBreakdown" class="hint"></p>
         <p id="instantStatus" class="hint">Scores use your skills and the text you provide. They are not a guessed placeholder.</p>
         <div class="k">Optimized proposal</div>
         <p id="instantProposal" class="proposal"></p>
@@ -1164,6 +1229,15 @@
         </div>
       </section>
     </main>
+    <footer class="panel-footer">
+      <a href="https://sovereignapp.pro/dashboard" target="_blank" rel="noopener noreferrer">Dashboard</a>
+      <a href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Pricing</a>
+      <a href="https://sovereignapp.pro/proposals" target="_blank" rel="noopener noreferrer">Proposals</a>
+      <a href="https://sovereignapp.pro/cv-builder" target="_blank" rel="noopener noreferrer">CVs</a>
+      <a href="https://sovereignapp.pro/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
+      <a href="https://sovereignapp.pro/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+      <a href="https://sovereignapp.pro/refund" target="_blank" rel="noopener noreferrer">Refunds</a>
+    </footer>
     <div id="b2bBackdrop" class="drawer-backdrop"></div>
     <aside id="b2bDrawer" class="b2b-drawer" aria-hidden="true">
       <div class="row" style="align-items:center;justify-content:space-between">

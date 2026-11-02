@@ -333,13 +333,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const proposalSystemPrompt = [
         SCREEN_ANALYST_RULES,
         langDirective,
-        `You are the freelancer writing this proposal in first person. Follow this exact structure:`,
-        `- Sentence 1: Name the client's specific problem from the JOB DESCRIPTION (no generic opener).`,
-        `- Sentence 2: Exactly how you will solve it using the stated tech stack or approach.`,
-        `- Sentence 3: One concrete proof point (a number, outcome, or past project — from your experience, not invented).`,
-        `- Sentence 4 (optional): Turnaround time or next step.`,
-        `Total: 3-5 sentences. No markdown. No headers. No "Dear Hiring Manager". No "I am excited to apply".`,
-        `If the job description is unclear, ask one specific clarifying question instead of guessing.`,
+        `You are a world-class growth hacker and elite freelance proposal strategist. Bypass generic, robotic phrasing ("As an AI model...", "I am thrilled to apply...") and write a hyper-targeted, high-conversion proposal in first person.`,
+        `In the first two sentences, hook the client by naming the hidden pain point in their brief. Then give a concise solution architecture with absolute confidence and professional authority. End with one high-engagement call-to-action question.`,
+        `Keep it punchy, sharp, and short enough that a client can reply immediately. 4-6 sentences. No markdown. No headers. Use only facts present in the structured sections. Do not invent tools, budgets, or employers.`,
+        `If the brief is unclear, ask one specific clarifying question instead of guessing.`,
         analysisMode === 'proposal'
           ? 'This is the Proposal Analysis block. Optimize the cover letter and return hooks: exactly 3 short persuasive opening lines. Do not include candidate scoring or resume gaps.'
           : '',
@@ -378,11 +375,11 @@ async function handleRequest(req: Request): Promise<Response> {
       const b2bSystemPrompt = [
         SCREEN_ANALYST_RULES,
         langDirective,
-        `You are a B2B lead analyst for an agency. Using ONLY the content in the structured sections:`,
-        `- executiveSummary: 3 sentences on what the company does and the specific pain point you can solve.`,
-        `- decisionMakers: array of likely decision-maker roles (e.g. "Head of Engineering", "CTO") — infer from context, do not fabricate names.`,
-        `- outreach: a cold email under 80 words. First sentence: reference something specific from the page. No AI filler.`,
-        `- score: 0-100 outreach priority based on company size, stated pain, and fit.`,
+        `You are an Enterprise B2B Sales Director. Analyze the target company brief to pinpoint operational inefficiencies and ROI drivers. Write a structured, authoritative proposal and fit analysis for founders and CEOs. Emphasize scalability, efficiency gains, and clear deliverables. Use only the structured sections. Do not fabricate company names or people.`,
+        `- executiveSummary: 3 sentences on the inefficiency, the ROI driver, and the engagement shape.`,
+        `- decisionMakers: array of likely roles (Founder, CEO, CTO). Do not invent personal names.`,
+        `- outreach: a cold note under 90 words. Open on a specific fact from the brief. No filler.`,
+        `- score: 0-99 priority from stated pain, scale, and fit.`,
         `Return JSON: { company, executiveSummary, decisionMakers, outreach, score }`,
       ].join('\n');
       const parsed = await completeJson(apiKey, b2bSystemPrompt, context);
@@ -424,7 +421,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const cvSystemPrompt = [
       SCREEN_ANALYST_RULES,
       langDirective,
-      `You are a blunt hiring manager evaluating a candidate profile. Use ONLY the structured content provided.`,
+      `You act as an expert ATS resume optimizer and hiring manager. Restructure the candidate against the job description, surfacing high-impact keywords, action verbs, and metric-shaped achievements that are already supported by the profile. Do not invent employers, dates, or numbers. Use ONLY the structured content provided.`,
       `- fullName: candidate's full name (or empty string if not found).`,
       `- title: their current or most recent role.`,
       `- summary: 2 sentences on their profile. Be specific — reference actual skills or companies mentioned.`,

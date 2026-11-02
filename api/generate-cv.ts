@@ -115,12 +115,12 @@ async function handleRequest(req: Request): Promise<Response> {
     let userPrompt: string;
 
     if (mode === 'optimize' && existingCvText) {
-      systemPrompt = `You are a hiring manager rewriting a colleague's CV so it sounds like a real person wrote it. Return ONLY the CV text. No commentary. ${langInstruction}
+      systemPrompt = `You act as an expert ATS Resume Optimizer. Restructure and optimize the candidate resume against the job description, embedding high-impact industry keywords, powerful action verbs, and quantifiable achievements that are already supported by the source. Preserve the factual timeline. Do not invent employers, dates, or metrics. Return ONLY the CV text. No commentary. ${langInstruction}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = `Optimize this CV${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}${jobDescription ? `\n\nTarget job:\n${jobDescription}` : ''}\n\nEXISTING CV:\n${existingCvText}`;
     } else if (mode === 'generate' && (formData.fullName || formData.experience || formData.skills)) {
-      systemPrompt = `You are a senior operator writing your own CV. Direct, specific, no fluff. Return ONLY the CV text. ${langInstruction}
+      systemPrompt = `You act as an expert ATS Resume Optimizer writing the candidate's own CV. Use powerful action verbs and keywords from the target job. Keep every employer, date, and metric factual. Return ONLY the CV text. ${langInstruction}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = [
@@ -141,7 +141,7 @@ ${CV_SECTION_FORMAT}`;
       if (!existingCvText || existingCvText.length < 20) {
         return jsonNoStore({ error: 'CV content is too short to generate.' }, 400);
       }
-      systemPrompt = `You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. Return ONLY the CV text. ${langInstruction}
+      systemPrompt = `You act as an expert ATS Resume Optimizer turning rough notes into a factual CV. Embed keywords from the job description and strong action verbs. Do not invent employers, dates, or metrics. Return ONLY the CV text. ${langInstruction}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = `Create a CV from this information${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}:\n\n${existingCvText}${jobDescription ? `\n\nJOB DESCRIPTION:\n${jobDescription}` : ''}`;

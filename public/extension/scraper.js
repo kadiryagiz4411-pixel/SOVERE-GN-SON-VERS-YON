@@ -292,6 +292,20 @@ function hashScrapedText(text) {
   return (h >>> 0).toString(16);
 }
 
+function isNonJobHost(hostname) {
+  const host = String(hostname || '').replace(/^www\./, '').toLowerCase();
+  if (!host) return false;
+  if (/(^|\.)youtube\.com$/.test(host) || host === 'youtu.be' || host === 'music.youtube.com') return true;
+  if (/^jobs\.google\./.test(host) || /^careers\.google\./.test(host)) return false;
+  if (/(^|\.)google\./.test(host)) return true;
+  const social = [
+    'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com',
+    'reddit.com', 'netflix.com', 'twitch.tv', 'pinterest.com', 'snapchat.com',
+    'threads.net',
+  ];
+  return social.some((name) => host === name || host.endsWith(`.${name}`));
+}
+
 function classifyScrapedContent(url, title, text, isolated) {
   const href = String(url || '').toLowerCase();
   const sample = `${title || ''}\n${text || ''}`.toLowerCase();
@@ -843,6 +857,27 @@ function _extractActiveJobImpl(options) {
 
   const host = String(location.hostname || '').replace(/^www\./, '').toLowerCase();
   const href = String(location.href || '');
+  if (isNonJobHost(host)) {
+    return {
+      pageText: '',
+      pageTitle: '',
+      pageUrl: href,
+      jobTitle: '',
+      jobDescription: '',
+      requiredSkills: [],
+      budget: '',
+      clientHistory: '',
+      structuredJob: { title: '', description: '', skills: [], budget: '', clientInfo: '' },
+      isolated: false,
+      host,
+      kind: 'job',
+      contentType: '',
+      discarded: true,
+      discardReason: 'non-job',
+      hash: hashScrapedText(`non-job|${href}`),
+      signature: hashScrapedText(`non-job|${href}`),
+    };
+  }
 
   const TITLE_SELECTORS = [
     '[data-test="job-title"]',

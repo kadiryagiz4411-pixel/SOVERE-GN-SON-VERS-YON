@@ -133,7 +133,7 @@ export function scoreOpportunity(
     !matchedSkills.some((user) => user.toLowerCase() === skill || skill.includes(user.toLowerCase())),
   );
   const denominator = Math.max(requiredSet.size || userSkills.length, 1);
-  const skillScore = Math.max(0, Math.min(100, Math.round((matchedSkills.length / denominator) * 100)));
+  const skillScore = Math.max(0, Math.min(99, Math.round((matchedSkills.length / denominator) * 100)));
 
   const domainWords = ['frontend', 'backend', 'full-stack', 'fullstack', 'mobile', 'devops', 'data', 'design', 'marketing'];
   const domainHits = domainWords.filter((word) => hay.includes(word) && userSkills.some((skill) => skill.toLowerCase().includes(word) || hay.includes(skill.toLowerCase())));
@@ -156,7 +156,7 @@ export function scoreOpportunity(
   const depth = options?.depth === 'deep' ? 'deep' : 'basic';
   let matchScore = skillScore;
   if (depth === 'deep') {
-    matchScore = Math.max(0, Math.min(100, Math.round(
+    matchScore = Math.max(0, Math.min(99, Math.round(
       skillScore * 0.55 + domainFit * 0.2 + expFit * 0.15 + clientFit * 0.1,
     )));
   }
@@ -169,7 +169,7 @@ export function scoreOpportunity(
   }
   if (/senior|lead|staff|principal/.test(exp) && /junior|intern|entry/.test(hay)) acceptanceScore -= 10;
   if (/junior|entry/.test(exp) && /senior|lead|architect/.test(hay)) acceptanceScore -= 8;
-  acceptanceScore = Math.max(0, Math.min(100, acceptanceScore));
+  acceptanceScore = Math.max(0, Math.min(99, acceptanceScore));
 
   const result: MatchResult = {
     complete: true,

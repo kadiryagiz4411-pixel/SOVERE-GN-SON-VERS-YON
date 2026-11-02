@@ -428,13 +428,21 @@ function persistPlanFromMe(data, fallbackEmail) {
   if (!data || data.success === false) return;
   chrome.storage.local.get('sovereign.settings.v1', (bag) => {
     const prev = bag['sovereign.settings.v1'] || {};
+    const email = String(data.email || fallbackEmail || prev.accountEmail || '').trim().toLowerCase();
+    const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+    const admin = Boolean(data.is_admin || data.isAdmin)
+      || allow.includes(email)
+      || ['admin', 'superadmin'].includes(String(data.role || '').toLowerCase());
+    const granted = admin
+      || data.b2bAccessState === 'granted'
+      || Boolean(data.b2b_access || data.hasB2BAccess);
     chrome.storage.local.set({
       'sovereign.settings.v1': {
         ...prev,
         accountEmail: data.email || fallbackEmail || prev.accountEmail || '',
-        role: data.role || prev.role || '',
-        isAdmin: Boolean(data.is_admin || data.isAdmin),
-        b2bAccess: Boolean(data.b2b_access || data.hasB2BAccess),
+        role: admin ? 'admin' : (data.role || prev.role || ''),
+        isAdmin: admin,
+        b2bAccess: granted,
         isAppsumoUser: Boolean(data.is_appsumo_user || data.isAppsumoUser),
         appsumoTier: Number(data.appsumo_tier || 0),
         remainingCredits: Number(data.remainingCredits ?? prev.remainingCredits ?? 0),

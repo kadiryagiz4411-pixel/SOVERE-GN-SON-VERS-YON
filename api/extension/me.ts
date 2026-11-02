@@ -132,8 +132,15 @@ async function handleRequest(req: Request): Promise<Response> {
     const profile = userId ? await fetchProfile(supabaseUrl, anon, token, userId) : {};
 
     const role = String(profile.role || '').toLowerCase();
+    const appMeta = asRecord(user.app_metadata);
+    const userMeta = asRecord(user.user_metadata);
+    const metaRole = String(appMeta.role || userMeta.role || userMeta.is_admin || '').toLowerCase();
     const isAdmin = email === OWNER_EMAIL
       || role === 'admin'
+      || role === 'superadmin'
+      || metaRole === 'admin'
+      || metaRole === 'superadmin'
+      || metaRole === 'true'
       || profile.is_admin === true;
     const planType = String(profile.plan_type || '').toLowerCase();
     const b2bStatus = String(profile.b2b_subscription_status || '').toLowerCase();
@@ -172,6 +179,7 @@ async function handleRequest(req: Request): Promise<Response> {
       isAdmin,
       b2b_access: hasB2BAccess,
       hasB2BAccess,
+      b2bAccessState: hasB2BAccess ? 'granted' : 'locked',
       planType: planType || 'free',
       workspace,
       is_appsumo_user: appsumo,
