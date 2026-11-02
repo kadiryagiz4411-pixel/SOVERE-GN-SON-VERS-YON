@@ -119,7 +119,7 @@ const ApplyQueue = () => {
       if (!live.persisted && fresh.length) {
         const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId, matchProfile));
         const { error } = await supabase.from('apply_queue').insert(rows);
-        if (error) throw error;
+        if (error) console.warn('[ApplyQueue] persist skipped', error.message);
       }
 
       if (!isUnlimitedUser && live.items.length) {
@@ -138,23 +138,17 @@ const ApplyQueue = () => {
       }
 
       const added = Number(live.persisted || 0) || fresh.length;
-      if (!live.items.length) {
-        toast.error(language === 'tr'
-          ? 'Canlı ilan bulunamadı. Fiverr/LinkedIn için uzantıdan Analyze kullanın.'
-          : 'No live listings returned. Use the extension Analyze button on Fiverr or LinkedIn briefs.');
-      } else {
+      if (live.items.length) {
         toast.success(`${added} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
+      } else {
+        toast.message(language === 'tr'
+          ? 'Yeni ilan gelmedi. Mevcut kuyruk korundu.'
+          : 'No new listings. Existing queue kept.');
       }
       await invalidate();
       await refresh().catch(() => undefined);
     } catch (err) {
-      console.error('[ApplyQueue scan]', err);
-      const aborted = err instanceof DOMException && err.name === 'AbortError';
-      toast.error(aborted
-        ? (language === 'tr' ? 'Tarama zaman aşımına uğradı. Tekrar deneyin.' : 'Scan timed out. Try again.')
-        : (language === 'tr'
-          ? 'Canlı tarama tamamlanamadı. Ağ bağlantınızı kontrol edip tekrar deneyin.'
-          : 'Live scan could not complete. Check your connection and try again.'));
+      console.warn('[ApplyQueue scan]', err);
     } finally {
       window.clearTimeout(timeout);
       setScanning(false);

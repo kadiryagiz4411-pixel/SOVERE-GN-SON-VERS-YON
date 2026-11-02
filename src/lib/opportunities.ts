@@ -134,53 +134,66 @@ export async function fetchLiveOpportunities(opts: {
   };
   persist?: boolean;
 } = {}): Promise<OpportunityScanResponse> {
-  const params = new URLSearchParams();
-  params.set('t', String(Date.now()));
-  if (opts.query) params.set('q', opts.query);
-  if (opts.platform && opts.platform !== 'All') params.set('platform', opts.platform);
+  try {
+    const params = new URLSearchParams();
+    params.set('t', String(Date.now()));
+    if (opts.query) params.set('q', opts.query);
+    if (opts.platform && opts.platform !== 'All') params.set('platform', opts.platform);
 
-  const persist = Boolean(opts.persist && opts.accessToken);
-  const response = await fetch(`/api/opportunities?${params.toString()}`, {
-    method: persist || opts.profile || opts.skills?.length ? 'POST' : 'GET',
-    cache: 'no-store',
-    signal: opts.signal,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      ...(opts.accessToken ? { Authorization: `Bearer ${opts.accessToken}` } : {}),
-    },
-    body: persist || opts.profile || opts.skills?.length
-      ? JSON.stringify({
-        q: opts.query,
-        query: opts.query,
-        platform: opts.platform || 'All',
-        skills: opts.skills,
-        profile: opts.profile,
-        refill: persist,
-      })
-      : undefined,
-  });
+    const persist = Boolean(opts.persist && opts.accessToken);
+    const response = await fetch(`/api/opportunities?${params.toString()}`, {
+      method: persist || opts.profile || opts.skills?.length ? 'POST' : 'GET',
+      cache: 'no-store',
+      signal: opts.signal,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        ...(opts.accessToken ? { Authorization: `Bearer ${opts.accessToken}` } : {}),
+      },
+      body: persist || opts.profile || opts.skills?.length
+        ? JSON.stringify({
+          q: opts.query,
+          query: opts.query,
+          platform: opts.platform || 'All',
+          skills: opts.skills,
+          profile: opts.profile,
+          refill: persist,
+        })
+        : undefined,
+    });
 
-  const data = await response.json().catch(() => ({ success: false, items: [] })) as OpportunityScanResponse & { opportunities?: OpportunityItem[] };
-  if (!response.ok) {
-    throw new Error(data.error || `Server returned ${response.status}`);
+    const data = await response.json().catch(() => ({ success: false, items: [] })) as OpportunityScanResponse & { opportunities?: OpportunityItem[] };
+    if (!response.ok) {
+      console.warn('[opportunities] scan skipped', data.error || response.status);
+      return {
+        success: false,
+        items: [],
+        count: 0,
+        sources: data.sources || {},
+        persisted: 0,
+        error: data.error,
+      };
+    }
+    const rawItems = Array.isArray(data.items) && data.items.length
+      ? data.items
+      : (Array.isArray(data.opportunities) ? data.opportunities : []);
+    const items = sortByMatchDesc(rawItems.map((item) => ({
+      ...item,
+      url: resolveOpportunityHref(item.platform, item.url, item.title),
+    })));
+    return {
+      success: Boolean(data.success),
+      generatedAt: data.generatedAt,
+      count: items.length,
+      items,
+      sources: data.sources || {},
+      persisted: Number(data.persisted || 0),
+      error: data.error,
+    };
+  } catch (err) {
+    console.warn('[opportunities] scan failed', err);
+    return { success: false, items: [], count: 0, sources: {}, persisted: 0 };
   }
-  const rawItems = Array.isArray(data.items) && data.items.length
-    ? data.items
-    : (Array.isArray(data.opportunities) ? data.opportunities : []);
-  const items = sortByMatchDesc(rawItems.map((item) => ({
-    ...item,
-    url: resolveOpportunityHref(item.platform, item.url, item.title),
-  })));
-  return {
-    success: Boolean(data.success),
-    generatedAt: data.generatedAt,
-    count: items.length,
-    items,
-    sources: data.sources || {},
-    persisted: Number(data.persisted || 0),
-    error: data.error,
-  };
 }

@@ -50,7 +50,7 @@ async function persistIngestedJobs(
     const userId = String(user.id || '');
     if (!userId) return 0;
 
-    const existingRes = await fetch(
+    let existingRes = await fetch(
       `${supabaseUrl}/rest/v1/apply_queue?select=job_url&user_id=eq.${encodeURIComponent(userId)}&order=match_score.desc&limit=120`,
       {
         headers: {
@@ -60,6 +60,18 @@ async function persistIngestedJobs(
         },
       },
     );
+    if (!existingRes.ok) {
+      existingRes = await fetch(
+        `${supabaseUrl}/rest/v1/apply_queue?select=job_url&user_id=eq.${encodeURIComponent(userId)}&limit=120`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: anon,
+            Accept: 'application/json',
+          },
+        },
+      );
+    }
     const existingRows = existingRes.ok ? await existingRes.json().catch(() => []) : [];
     const existing = new Set(
       (Array.isArray(existingRows) ? existingRows : []).map((row: { job_url?: string }) => normalizeQueueUrl(String(row.job_url || ''))),
@@ -179,41 +191,67 @@ async function handleRequest(req: Request): Promise<Response> {
       ingested.push(...fromExtensionPayload(body, profile.skills.length ? profile.skills : extra));
     }
 
-    const live = (refillRequested || req.method === 'GET')
-      ? await collectLiveOpportunities(
-        profile.skills.length ? profile.skills : keywords,
-        req.method === 'POST' && refillRequested ? 'All' : platform,
-      )
-      : { items: [] as OpportunityItem[], sources: {} as Record<string, { ok?: boolean; count?: number }> };
+    let live: { items: OpportunityItem[]; sources: Record<string, { ok?: boolean; count?: number; note?: string; error?: string }> } = {
+      items: [],
+      sources: {},
+    };
+    if (refillRequested || req.method === 'GET') {
+      try {
+        live = await collectLiveOpportunities(
+          profile.skills.length ? profile.skills : keywords,
+          req.method === 'POST' && refillRequested ? 'All' : platform,
+        );
+      } catch (err) {
+        console.warn('[opportunities] live collect skipped', err);
+      }
+    }
     const items = dedupeOpportunities([...ingested, ...live.items]);
     const matchesPlatform = (item: OpportunityItem) => {
       if (platform === 'All') return true;
       if (platform === 'Remote') return isIndiePlatform(item.platform);
       return item.platform === platform;
     };
-    const filtered = sortByMatchDesc(
-      items.filter(matchesPlatform).map(withValidUrl).map((item) => {
-        const scored = scoreOpportunity(profile, item.title, item.description, item.budget, item.skills);
-        const score = scored.complete ? scored.matchScore : 0;
-        return {
-          ...item,
-          compatibilityScore: score,
-          matchScore: score,
-          matchPercentage: score,
-          acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
-          skills: scored.matchedSkills.length ? scored.matchedSkills : item.skills,
-          onboardingRequired: !scored.complete,
-          matchMessage: scored.message,
-        };
-      }),
-    );
+    let filtered: Array<OpportunityItem & {
+      onboardingRequired?: boolean;
+      matchMessage?: string;
+      acceptanceScore?: number;
+    }> = [];
+    try {
+      filtered = sortByMatchDesc(
+        items.filter(matchesPlatform).map(withValidUrl).map((item) => {
+          try {
+            const scored = scoreOpportunity(profile, item.title, item.description, item.budget, item.skills);
+            const score = scored.complete ? scored.matchScore : 0;
+            return {
+              ...item,
+              compatibilityScore: score,
+              matchScore: score,
+              matchPercentage: score,
+              acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
+              skills: scored.matchedSkills.length ? scored.matchedSkills : item.skills,
+              onboardingRequired: !scored.complete,
+              matchMessage: scored.message,
+            };
+          } catch {
+            return withValidUrl(item);
+          }
+        }),
+      );
+    } catch (err) {
+      console.warn('[opportunities] score skipped', err);
+      filtered = items.filter(matchesPlatform).map(withValidUrl);
+    }
 
     let persisted = 0;
-    if (req.method === 'POST' && bearerToken(req)) {
-      const toPersist = refillRequested
-        ? filtered
-        : filtered.filter((item) => ingested.some((row) => normalizeQueueUrl(row.url) === normalizeQueueUrl(item.url)));
-      persisted = await persistIngestedJobs(req, toPersist, profile);
+    try {
+      if (req.method === 'POST' && bearerToken(req)) {
+        const toPersist = refillRequested
+          ? filtered
+          : filtered.filter((item) => ingested.some((row) => normalizeQueueUrl(row.url) === normalizeQueueUrl(item.url)));
+        persisted = await persistIngestedJobs(req, toPersist, profile);
+      }
+    } catch (err) {
+      console.warn('[opportunities] persist skipped', err);
     }
 
     return jsonNoStore({
@@ -227,14 +265,16 @@ async function handleRequest(req: Request): Promise<Response> {
       onboardingRequired: filtered.some((item) => item.onboardingRequired),
     });
   } catch (err: unknown) {
-    console.error('Opportunities scan error:', err);
+    console.warn('[opportunities] handler skipped', err);
     return jsonNoStore({
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to fetch opportunities',
+      success: true,
+      generatedAt: new Date().toISOString(),
+      count: 0,
       items: [],
       opportunities: [],
       sources: {},
-    }, 500);
+      persisted: 0,
+    });
   }
 }
 

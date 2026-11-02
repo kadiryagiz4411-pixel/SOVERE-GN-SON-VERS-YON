@@ -57,7 +57,7 @@ export async function refillApplyQueue(opts: {
       persisted: Number(live.persisted || 0),
     };
   } catch (err) {
-    console.error('[Apply Queue refill]', err);
+    console.warn('[Apply Queue refill]', err);
     return { count: 0, persisted: 0 };
   } finally {
     inflight = false;

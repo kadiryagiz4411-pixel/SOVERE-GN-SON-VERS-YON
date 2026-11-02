@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export const APPLY_QUEUE_QUERY_KEY = 'applyQueue';
@@ -35,24 +34,44 @@ function queueMatchScore(item: ApplyQueueItem): number {
   return Number.isFinite(raw) ? raw : 0;
 }
 
-async function fetchApplyQueue(userId: string): Promise<ApplyQueueItem[]> {
-  const { data, error } = await supabase
-    .from('apply_queue')
-    .select('*')
-    .eq('user_id', userId)
-    .order('match_score', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(80);
-
-  if (error) {
-    throw new Error(error.message || 'Could not load Apply Queue');
-  }
-  const rows = (data ?? []) as unknown as ApplyQueueItem[];
+function sortQueue(rows: ApplyQueueItem[]): ApplyQueueItem[] {
   return [...rows].sort((a, b) => {
     const delta = queueMatchScore(b) - queueMatchScore(a);
     if (delta !== 0) return delta;
     return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
   });
+}
+
+async function fetchApplyQueue(userId: string): Promise<ApplyQueueItem[] | null> {
+  try {
+    const ranked = await supabase
+      .from('apply_queue')
+      .select('*')
+      .eq('user_id', userId)
+      .order('match_score', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(80);
+
+    if (!ranked.error && Array.isArray(ranked.data)) {
+      return sortQueue(ranked.data as unknown as ApplyQueueItem[]);
+    }
+    console.warn('[Apply Queue] ranked fetch skipped', ranked.error?.message);
+
+    const plain = await supabase
+      .from('apply_queue')
+      .select('*')
+      .eq('user_id', userId)
+      .limit(80);
+
+    if (plain.error) {
+      console.warn('[Apply Queue] fallback fetch skipped', plain.error.message);
+      return null;
+    }
+    return sortQueue((plain.data ?? []) as unknown as ApplyQueueItem[]);
+  } catch (err) {
+    console.warn('[Apply Queue] fetch failed', err);
+    return null;
+  }
 }
 
 export function useApplyQueue(userId: string | undefined | null) {
@@ -64,20 +83,26 @@ export function useApplyQueue(userId: string | undefined | null) {
 
   const query = useQuery({
     queryKey,
-    queryFn: () => fetchApplyQueue(String(userId)),
+    queryFn: async () => {
+      try {
+        const next = await fetchApplyQueue(String(userId));
+        if (next) return next;
+        const cached = queryClient.getQueryData<ApplyQueueItem[]>(queryKey);
+        return Array.isArray(cached) ? cached : [];
+      } catch (err) {
+        console.warn('[Apply Queue] refresh skipped', err);
+        const cached = queryClient.getQueryData<ApplyQueueItem[]>(queryKey);
+        return Array.isArray(cached) ? cached : [];
+      }
+    },
     enabled: Boolean(userId),
-    staleTime: 0,
+    staleTime: 15_000,
+    placeholderData: (previous) => previous,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchInterval: 5_000,
-    retry: 1,
+    refetchInterval: 15_000,
+    retry: false,
   });
-
-  useEffect(() => {
-    if (query.isError && query.error) {
-      toast.error('Apply Queue could not refresh. Try Refresh Queue.');
-    }
-  }, [query.isError, query.error]);
 
   useEffect(() => {
     if (!userId) return;

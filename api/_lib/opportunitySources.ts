@@ -276,6 +276,7 @@ function parseRssItems(xml: string): Array<{ title: string; link: string; descri
 }
 
 export async function fetchUpwork(keywords: string[]): Promise<OpportunityItem[]> {
+  try {
   const queries = keywords.slice(0, 5);
   const feeds = await Promise.allSettled(
     queries.map((q) => fetchText(
@@ -312,9 +313,13 @@ export async function fetchUpwork(keywords: string[]): Promise<OpportunityItem[]
   }
   const unique = dedupeOpportunities(items);
   if (!unique.length && blocked) {
-    throw new Error('Upwork RSS blocked. Open an Upwork job and click Analyze in the extension.');
+    console.warn('[opportunities] Upwork RSS blocked or empty');
   }
   return unique;
+  } catch (err) {
+    console.warn('[opportunities] Upwork skipped', err);
+    return [];
+  }
 }
 
 type FreelancerProject = {
@@ -332,6 +337,7 @@ type FreelancerProject = {
 };
 
 export async function fetchFreelancer(keywords: string[]): Promise<OpportunityItem[]> {
+  try {
   const queries = keywords.slice(0, 3);
   const payloads = await Promise.allSettled(
     queries.map((query) => fetchText(
@@ -351,7 +357,8 @@ export async function fetchFreelancer(keywords: string[]): Promise<OpportunityIt
     }
   }
   if (!projects.length) {
-    throw new Error('Freelancer API returned no active projects');
+    console.warn('[opportunities] Freelancer returned no active projects');
+    return [];
   }
 
   return dedupeOpportunities(projects.slice(0, 24).map((project) => {
@@ -381,9 +388,14 @@ export async function fetchFreelancer(keywords: string[]): Promise<OpportunityIt
       clientCountry: project.location?.country?.name,
     };
   }));
+  } catch (err) {
+    console.warn('[opportunities] Freelancer skipped', err);
+    return [];
+  }
 }
 
 export async function fetchLinkedIn(keywords: string[]): Promise<OpportunityItem[]> {
+  try {
   const queries = keywords.slice(0, 3);
   const pages = await Promise.allSettled(
     queries.map((query) => fetchText(
@@ -419,6 +431,10 @@ export async function fetchLinkedIn(keywords: string[]): Promise<OpportunityItem
     }
   }
   return dedupeOpportunities(items.map(withValidUrl));
+  } catch (err) {
+    console.warn('[opportunities] LinkedIn skipped', err);
+    return [];
+  }
 }
 
 function parseHtmlJobLinks(
@@ -459,6 +475,7 @@ function parseHtmlJobLinks(
 }
 
 export async function fetchWeWorkRemotely(keywords: string[]): Promise<OpportunityItem[]> {
+  try {
   const feeds = [
     'https://weworkremotely.com/categories/remote-programming-jobs.rss',
     'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
@@ -484,9 +501,14 @@ export async function fetchWeWorkRemotely(keywords: string[]): Promise<Opportuni
     }
   }
   return dedupeOpportunities(items);
+  } catch (err) {
+    console.warn('[opportunities] We Work Remotely skipped', err);
+    return [];
+  }
 }
 
 export async function fetchRemoteCo(keywords: string[]): Promise<OpportunityItem[]> {
+  try {
   const query = encodeURIComponent(keywords[0] || 'developer');
   const urls = [
     'https://remote.co/remote-jobs/developer/',
@@ -570,41 +592,55 @@ export async function fetchRemoteCo(keywords: string[]): Promise<OpportunityItem
     ));
   }
   return dedupeOpportunities(items);
+  } catch (err) {
+    console.warn('[opportunities] Remote.co skipped', err);
+    return [];
+  }
 }
 
 export async function fetchIndieHackers(keywords: string[]): Promise<OpportunityItem[]> {
-  const html = await fetchText('https://www.indiehackers.com/jobs', 5000);
-  return dedupeOpportunities(parseHtmlJobLinks(
-    html,
-    'Indie Hackers',
-    'https://www.indiehackers.com',
-    /indiehackers\.com\/job|\/jobs?\/|\/job\//i,
-    keywords,
-  ));
+  try {
+    const html = await fetchText('https://www.indiehackers.com/jobs', 5000);
+    return dedupeOpportunities(parseHtmlJobLinks(
+      html,
+      'Indie Hackers',
+      'https://www.indiehackers.com',
+      /indiehackers\.com\/job|\/jobs?\/|\/job\//i,
+      keywords,
+    ));
+  } catch (err) {
+    console.warn('[opportunities] Indie Hackers skipped', err);
+    return [];
+  }
 }
 
 export async function fetchFiverr(keywords: string[]): Promise<OpportunityItem[]> {
-  const query = encodeURIComponent(keywords[0] || 'react');
-  const urls = [
-    `https://www.fiverr.com/search/gigs?query=${query}&source=drop_down_filters`,
-    'https://www.fiverr.com/categories/programming-tech',
-  ];
-  const pages = await Promise.allSettled(urls.map((url) => fetchText(url, 5000)));
-  const items: OpportunityItem[] = [];
-  for (const page of pages) {
-    if (page.status !== 'fulfilled') continue;
-    const html = page.value;
-    if (/cloudflare|attention required|captcha/i.test(html)) continue;
-    const requestLinks = parseHtmlJobLinks(
-      html,
-      'Fiverr',
-      'https://www.fiverr.com',
-      /fiverr\.com\/(?:[^"]*request[^"]*|job\/|jobs\/)/i,
-      keywords,
-    );
-    items.push(...requestLinks);
+  try {
+    const query = encodeURIComponent(keywords[0] || 'react');
+    const urls = [
+      `https://www.fiverr.com/search/gigs?query=${query}&source=drop_down_filters`,
+      'https://www.fiverr.com/categories/programming-tech',
+    ];
+    const pages = await Promise.allSettled(urls.map((url) => fetchText(url, 5000)));
+    const items: OpportunityItem[] = [];
+    for (const page of pages) {
+      if (page.status !== 'fulfilled') continue;
+      const html = page.value;
+      if (/cloudflare|attention required|captcha/i.test(html)) continue;
+      const requestLinks = parseHtmlJobLinks(
+        html,
+        'Fiverr',
+        'https://www.fiverr.com',
+        /fiverr\.com\/(?:[^"]*request[^"]*|job\/|jobs\/)/i,
+        keywords,
+      );
+      items.push(...requestLinks);
+    }
+    return dedupeOpportunities(items);
+  } catch (err) {
+    console.warn('[opportunities] Fiverr skipped', err);
+    return [];
   }
-  return dedupeOpportunities(items);
 }
 
 export function fromExtensionPayload(body: {
@@ -682,73 +718,78 @@ export async function collectLiveOpportunities(
   const bucket: OpportunityItem[] = [];
   const query = keywords.length ? keywords : searchKeywords('');
 
+  const runSource = (
+    name: string,
+    task: () => Promise<OpportunityItem[]>,
+    onFail: (err: unknown) => void,
+  ) => {
+    tasks.push(
+      Promise.resolve()
+        .then(task)
+        .then((rows) => {
+          const list = Array.isArray(rows) ? rows : [];
+          sources[name] = { ok: true, count: list.length, ...(sources[name]?.note ? { note: sources[name].note } : {}) };
+          bucket.push(...list);
+        })
+        .catch((err: unknown) => {
+          console.warn(`[opportunities] ${name} skipped`, err);
+          onFail(err);
+        }),
+    );
+  };
+
   if (want('Upwork')) {
-    tasks.push(fetchUpwork(query).then((rows) => {
-      sources.Upwork = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('Upwork', () => fetchUpwork(query), (err) => {
       sources.Upwork = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Upwork feed unavailable' };
-    }));
+    });
   }
   if (want('Freelancer')) {
-    tasks.push(fetchFreelancer(query).then((rows) => {
-      sources.Freelancer = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('Freelancer', () => fetchFreelancer(query), (err) => {
       sources.Freelancer = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Freelancer API unavailable' };
-    }));
+    });
   }
   if (want('LinkedIn')) {
-    tasks.push(fetchLinkedIn(query).then((rows) => {
-      sources.LinkedIn = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('LinkedIn', () => fetchLinkedIn(query), (err) => {
       sources.LinkedIn = {
         ok: false,
         count: 0,
         error: err instanceof Error ? err.message : 'LinkedIn guest feed unavailable',
         note: 'Use Analyze Active Page on a LinkedIn job to ingest it.',
       };
-    }));
+    });
   }
   if (want('Fiverr')) {
-    tasks.push(fetchFiverr(query).then((rows) => {
-      sources.Fiverr = {
-        ok: true,
-        count: rows.length,
-        note: rows.length ? undefined : 'Fiverr buyer briefs ingest from the Chrome extension when the public board is gated.',
-      };
-      bucket.push(...rows);
-    }).catch(() => {
+    runSource('Fiverr', () => fetchFiverr(query), () => {
       sources.Fiverr = { ok: true, count: 0, note: 'Fiverr buyer briefs ingest on-demand from the Chrome extension.' };
-    }));
+    });
   }
   if (want('We Work Remotely')) {
-    tasks.push(fetchWeWorkRemotely(query).then((rows) => {
-      sources['We Work Remotely'] = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('We Work Remotely', () => fetchWeWorkRemotely(query), (err) => {
       sources['We Work Remotely'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'We Work Remotely feed unavailable' };
-    }));
+    });
   }
   if (want('Remote.co')) {
-    tasks.push(fetchRemoteCo(query).then((rows) => {
-      sources['Remote.co'] = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('Remote.co', () => fetchRemoteCo(query), (err) => {
       sources['Remote.co'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Remote.co feed unavailable' };
-    }));
+    });
   }
   if (want('Indie Hackers')) {
-    tasks.push(fetchIndieHackers(query).then((rows) => {
-      sources['Indie Hackers'] = { ok: true, count: rows.length };
-      bucket.push(...rows);
-    }).catch((err: unknown) => {
+    runSource('Indie Hackers', () => fetchIndieHackers(query), (err) => {
       sources['Indie Hackers'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Indie Hackers board unavailable' };
-    }));
+    });
   }
 
-  await Promise.all(tasks);
-  const items = sortByMatchDesc(dedupeOpportunities(bucket.map(withValidUrl))).slice(0, 80);
-  return { items, sources };
+  try {
+    await Promise.allSettled(tasks);
+    return {
+      items: sortByMatchDesc(dedupeOpportunities(bucket.map(withValidUrl))).slice(0, 80),
+      sources,
+    };
+  } catch (err) {
+    console.warn('[opportunities] collect skipped', err);
+    return {
+      items: sortByMatchDesc(dedupeOpportunities(bucket.map(withValidUrl))).slice(0, 80),
+      sources,
+    };
+  }
 }
