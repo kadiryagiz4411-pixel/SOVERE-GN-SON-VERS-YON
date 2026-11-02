@@ -25,6 +25,7 @@ import CandidateScoreCard from "@/components/b2b/CandidateScoreCard";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 import { resolveOrgProfile, SUPERADMIN_ORG } from "@/lib/superadminOrg";
+import { isSuperAdminUser } from "@/lib/superadmin";
 import { useSession } from "@/contexts/SessionContext";
 
 const VERDICT_COLORS: Record<string, string> = {
@@ -78,15 +79,19 @@ export default function TalentPool() {
 
       // ── Superadmin bypass ────────────────────────────────────────────────────
       const profile = resolveOrgProfile(rawProfile, user.email);
+      const adminUnlock = profile.isSuperAdmin || isSuperAdminUser(user);
+      const planBlob = String(profile.plan_type || '').toLowerCase();
+      const enterprisePlan = planBlob.includes('enterprise')
+        || planBlob.includes('agency')
+        || planBlob.includes('b2b');
 
-      if (!profile.isSuperAdmin) {
+      if (!adminUnlock) {
         const sessionB2B = hasB2BAccess;
-        // Only redirect if they truly lack both DB org AND session B2B access.
-        if (!profile.org_id && !sessionB2B) {
+        if (!profile.org_id && !sessionB2B && !enterprisePlan) {
           navigate("/b2b");
           return;
         }
-        if (profile.plan_type && profile.plan_type !== "B2B_ENTERPRISE" && !sessionB2B) {
+        if (profile.plan_type && !enterprisePlan && !sessionB2B) {
           navigate("/b2b");
           return;
         }

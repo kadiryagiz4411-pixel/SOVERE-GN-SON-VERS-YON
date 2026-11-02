@@ -137,12 +137,15 @@ async function handleRequest(req: Request): Promise<Response> {
     const userMeta = asRecord(user.user_metadata);
     const flagTrue = (value: unknown) =>
       value === true || String(value || '').trim().toLowerCase() === 'true';
-    const metaRole = `${appMeta.role || ''} ${userMeta.role || ''}`.toLowerCase();
+    const metaRoles = `${appMeta.role || ''} ${userMeta.role || ''}`
+      .toLowerCase()
+      .split(/[\s,|]+/)
+      .filter(Boolean);
     const isAdmin = email === OWNER_EMAIL
       || role === 'admin'
       || role === 'superadmin'
-      || metaRole.includes('admin')
-      || metaRole.includes('superadmin')
+      || metaRoles.includes('admin')
+      || metaRoles.includes('superadmin')
       || flagTrue(appMeta.is_admin)
       || flagTrue(userMeta.is_admin)
       || flagTrue(profile.is_admin);

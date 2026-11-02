@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
-import { OWNER_EMAIL } from '@/lib/superadmin';
+import { OWNER_EMAIL, isSuperAdminUser } from '@/lib/superadmin';
 import { resolveOrgProfile, SUPERADMIN_ORG } from '@/lib/superadminOrg';
 import { useSession } from '@/contexts/SessionContext';
 import {
@@ -110,6 +110,7 @@ const Organization = () => {
       // Role access check: superadmin always passes; regular users need org_admin/owner/admin.
       const hasOrgAccess =
         profile.isSuperAdmin ||
+        isSuperAdminUser(authData.user) ||
         profile.org_role === 'org_admin' ||
         profile.org_role === 'owner' ||
         profile.org_role === 'admin';
