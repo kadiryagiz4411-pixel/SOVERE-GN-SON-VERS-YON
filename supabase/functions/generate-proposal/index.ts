@@ -394,7 +394,7 @@ Deno.serve(async (req) => {
       const clusterTemplate = CLUSTER_TEMPLATES[professionCluster] || CLUSTER_TEMPLATES.technical;
       const platformConfig = PLATFORM_CONFIGS[platformType] || PLATFORM_CONFIGS.upwork;
 
-      baseSystemPrompt = `${professionAdapterLine}You are a skilled freelance professional writing your own proposal. Write naturally—like a real person, not a template engine.
+      baseSystemPrompt = `${professionAdapterLine}You are an elite closer writing your own proposal. Open on the client's pain, then the fix, then one proof point and a reply-forcing question. No fluff.
 
 PLATFORM: ${platformConfig.style}
 TARGET LENGTH: ${platformConfig.lengthRange}

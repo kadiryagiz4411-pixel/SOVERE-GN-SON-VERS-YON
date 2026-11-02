@@ -657,7 +657,10 @@
       .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; }
       .toggle-label { font-size:11px; color:var(--muted); letter-spacing:.04em; }
       .toggle-wrap { position:relative; width:38px; height:20px; flex-shrink:0; }
-      .toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+      .toggle-wrap input {
+        opacity:0; position:absolute; inset:0; width:100%; height:100%;
+        margin:0; cursor:pointer; z-index:2;
+      }
       .toggle-track { position:absolute; inset:0; border-radius:999px; background:var(--line); transition:background .2s; cursor:pointer; }
       .toggle-wrap input:checked + .toggle-track { background:var(--gold); }
       .toggle-thumb { position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .2s; pointer-events:none; }
@@ -1150,16 +1153,15 @@
           </div>
           <p id="b2bToggleHint" class="hint" style="margin-top:2px"></p>
           <p id="b2bUpgradeNote" class="hint" style="margin-top:2px;display:none">
-            Agency Mode needs an active Agency subscription or AppSumo Tier 3.
-            <a data-upgrade href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Upgrade</a>
+            Agency Mode is available on Standard, Pro, Elite, Admin, and Unlimited plans.
           </p>
         </div>
 
         <div class="field">
           <label for="outputLanguage">AI output language</label>
           <select id="outputLanguage">
-            <option value="auto" selected>Match the job or file</option>
-            <option value="en">English</option>
+            <option value="en" selected>English</option>
+            <option value="auto">Match the job or file</option>
             <option value="tr">Turkish</option>
             <option value="de">German</option>
             <option value="fr">French</option>

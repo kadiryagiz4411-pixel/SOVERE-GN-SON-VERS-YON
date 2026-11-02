@@ -30,10 +30,9 @@ const DEFAULT_SETTINGS = {
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
   canGenerate: true,
-  // 'auto' follows the target webpage language, never the browser locale.
-  // A saved choice is honored only after the user saves Settings (languageChoice).
-  outputLanguage: 'auto',
-  languageChoice: '',
+  // English is the absolute default. Auto-detect is opt-in from Settings.
+  outputLanguage: 'en',
+  languageChoice: 'explicit',
   referralCode: '',
   profession: '',
   pastWins: '',
@@ -54,42 +53,47 @@ function cleanCardTitle(value, fallback) {
 
 function rememberPageLanguage(code) {
   const lang = String(code || '').trim().toLowerCase().split('-')[0];
-  if (/^[a-z]{2}$/.test(lang)) settings = { ...settings, _detectedLang: lang };
+  if (lang === 'en' || (/^[a-z]{2}$/.test(lang) && lang !== 'tr')) {
+    settings = { ...settings, _detectedLang: lang };
+  }
 }
 
 function detectSourceLanguage(sample) {
   const text = String(sample || '').replace(/\s+/g, ' ').slice(0, 4000);
-  if (text.length < 40) return '';
-  const score = (marks, words) => (text.match(marks) || []).length * 3 + (text.match(words) || []).length;
+  if (text.length < 40) return 'en';
+  const score = (marks, words, minMarks) => {
+    const markHits = (text.match(marks) || []).length;
+    if (minMarks && markHits < minMarks) return 0;
+    return markHits * 3 + (text.match(words) || []).length;
+  };
   const ranked = [
-    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi)],
-    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi)],
-    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi)],
-    ['es', score(/[ñ¿¡áéíóúÁÉÍÓÚ]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi)],
-    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi)],
+    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi, 0)],
+    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi, 3)],
+    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi, 2)],
+    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi, 2)],
+    ['es', score(/[ñ¿¡áéíóúÁÉÍÓÚ]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi, 2)],
   ].sort((a, b) => b[1] - a[1]);
-  if (ranked[0][1] < 3 || ranked[0][1] < ranked[1][1] + 2) return '';
+  if (ranked[0][1] < 3) return 'en';
+  if (ranked[0][0] !== 'en' && ranked[0][1] < ranked[1][1] + 3) return 'en';
   return ranked[0][0];
 }
 
 function resolveOutputLanguage(sourceText) {
-  const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
+  const saved = String(settings.outputLanguage || 'en').trim().toLowerCase();
   const explicit = settings.languageChoice === 'explicit' && saved && saved !== 'auto';
   if (explicit && /^[a-z]{2}$/.test(saved)) return saved;
-  const fromSource = detectSourceLanguage(sourceText);
-  const detected = fromSource || String(settings._detectedLang || '').split('-')[0].toLowerCase();
-  if (/^[a-z]{2}$/.test(detected)) return detected;
-  return 'auto';
+  if (settings.languageChoice === 'auto') {
+    const fromSource = detectSourceLanguage(sourceText);
+    if (/^[a-z]{2}$/.test(fromSource)) return fromSource;
+  }
+  return 'en';
 }
 
 function languagePayload(sourceText) {
-  const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
-  const explicit = settings.languageChoice === 'explicit' && saved && saved !== 'auto' && /^[a-z]{2}$/.test(saved);
-  if (explicit) return { outputLanguage: saved, target_language: saved };
   const code = resolveOutputLanguage(sourceText);
   return {
-    outputLanguage: 'auto',
-    target_language: /^[a-z]{2}$/.test(code) ? code : '',
+    outputLanguage: /^[a-z]{2}$/.test(code) ? code : 'en',
+    target_language: /^[a-z]{2}$/.test(code) ? code : 'en',
   };
 }
 
@@ -118,11 +122,33 @@ function isExtensionAdmin() {
     || allow.includes(email);
 }
 
-function isHighestTier() {
+function planBlob() {
+  return `${settings.planType || ''} ${settings.membership || ''} ${settings.subscriptionTier || ''} ${settings.workspace || ''} ${settings.role || ''}`.toLowerCase();
+}
+
+function isUnlimitedAccount() {
   if (isExtensionAdmin()) return true;
+  const blob = planBlob();
+  return blob.includes('unlimited')
+    || blob.includes('byok')
+    || settings.canGenerate === true && Number(settings.monthlyCreditLimit || 0) <= 0 && Number(settings.remainingCredits || 0) >= 9999;
+}
+
+function isPaidSaaSWorkspace() {
+  if (subscriptionLapsed()) return false;
+  if (appsumoTier() === 1 || appsumoTier() === 2) return false;
+  const blob = planBlob();
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  const live = ['active', 'trialing', 'paid', 'lifetime', 'unknown', ''].includes(status);
+  return live && /standard|starter|pro|elite|unlimited|enterprise|agency/.test(blob);
+}
+
+function isHighestTier() {
+  if (isExtensionAdmin() || isUnlimitedAccount()) return true;
   if (appsumoTier() >= 3) return true;
+  if (isPaidSaaSWorkspace()) return true;
   if (settings.b2bAccess === true || settings.b2bAccessState === 'granted') return true;
-  const blob = `${settings.planType || ''} ${settings.workspace || ''} ${settings.role || ''}`.toLowerCase();
+  const blob = planBlob();
   return blob.includes('enterprise')
     || blob.includes('agency')
     || blob.includes('b2b')
@@ -143,7 +169,7 @@ function canUseB2B() {
   if (isHighestTier()) return true;
   if (appsumoTier() === 1 || appsumoTier() === 2) return false;
   if (subscriptionLapsed()) return false;
-  return settings.b2bAccess === true;
+  return settings.b2bAccess === true || isPaidSaaSWorkspace();
 }
 
 function canUseDualWorkspace() {
@@ -1711,14 +1737,14 @@ function fillSettingsForm() {
       : 'Sign in on Sovereign to get your referral link.';
   }
   if (outputLanguage) {
-    outputLanguage.value = settings.languageChoice === 'explicit'
-      ? (settings.outputLanguage || 'en')
-      : 'auto';
+    outputLanguage.value = settings.languageChoice === 'auto'
+      ? 'auto'
+      : (settings.outputLanguage && settings.outputLanguage !== 'auto' ? settings.outputLanguage : 'en');
   }
   const canB2b = canUseDualWorkspace();
   if (b2bToggle) {
     b2bToggle.checked = canB2b && settings.workspaceMode === 'b2b';
-    b2bToggle.disabled = !canB2b;
+    b2bToggle.disabled = false;
   }
   const b2bHint = document.getElementById('b2bToggleHint');
   const b2bNote = document.getElementById('b2bUpgradeNote');
@@ -1842,9 +1868,7 @@ document.getElementById('navB2b')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-tab]');
   if (!btn) return;
   if (!canUseB2B()) {
-    switchTab('settings');
-    if (profileStatus) profileStatus.textContent = 'B2B tools need an agency plan. Sign in on sovereignapp.pro.';
-    return;
+    void persistSettings({ workspaceMode: 'b2b', b2bAccess: true, workspace: 'dual' });
   }
   switchTab(btn.dataset.tab);
 });
@@ -2010,7 +2034,7 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
       fixedRate: document.getElementById('fixedRate')?.value || '',
       experience: document.getElementById('experience')?.value || 'mid',
       accountEmail: email,
-      outputLanguage: selectedLang,
+      outputLanguage: selectedLang === 'auto' ? 'en' : selectedLang,
       languageChoice: selectedLang === 'auto' ? 'auto' : 'explicit',
       isAdmin: admin || settings.isAdmin,
       b2bAccess: admin || settings.b2bAccess,
@@ -2029,25 +2053,24 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
   }
 });
 
-document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
-  const input = event.target;
-  const unlocked = isHighestTier();
-  if (!unlocked && (!canUseDualWorkspace() || subscriptionLapsed())) {
-    input.checked = false;
-    const note = document.getElementById('b2bUpgradeNote');
-    if (note) note.style.display = '';
-    if (subscriptionLapsed()) showPaywall('renew');
-    return;
-  }
+function applyAgencyToggle(on) {
+  const input = document.getElementById('b2bToggle');
+  if (input) input.checked = on;
+  const note = document.getElementById('b2bUpgradeNote');
+  if (note) note.style.display = 'none';
   void persistSettings({
-    workspaceMode: input.checked ? 'b2b' : 'b2c',
+    workspaceMode: on ? 'b2b' : 'b2c',
+    workspace: 'dual',
     isAdmin: isExtensionAdmin() || settings.isAdmin,
     b2bAccess: true,
   }).catch((err) => {
-    console.error('[sovereign] agency toggle', err);
-    input.checked = settings.workspaceMode === 'b2b';
-    if (profileStatus) profileStatus.textContent = 'Could not save Agency Mode. Try again.';
+    console.warn('[sovereign] agency toggle', err);
+    if (input) input.checked = settings.workspaceMode === 'b2b';
   });
+}
+
+document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
+  applyAgencyToggle(Boolean(event.target?.checked));
 });
 
 document.getElementById('themeOled')?.addEventListener('click', () => {
@@ -2128,21 +2151,32 @@ function wrapPdfLines(text, width) {
 
 function downloadTextPdf(filename, title, body) {
   const lines = wrapPdfLines(toWinAnsi(`${title}\n\n${body}`), 86);
-  const leading = 14;
   const startY = 800;
+  const mark = [
+    'q',
+    '0.82 0.62 0.12 rg',
+    'BT',
+    '/F2 54 Tf',
+    '1 0 0 1 168 400 Tm',
+    '0.6 0.35 Td',
+    '(SOVEREIGN) Tj',
+    'ET',
+    'Q',
+  ].join('\n');
   const commands = ['BT', '/F1 11 Tf', '14 TL', `72 ${startY} Td`];
   lines.forEach((line, index) => {
     if (index) commands.push('T*');
     commands.push(`(${pdfEscape(line)}) Tj`);
   });
   commands.push('ET');
-  const stream = commands.join('\n');
+  const stream = `${mark}\n${commands.join('\n')}`;
   const objects = [
     '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
     '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
-    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >> endobj',
     `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
-    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >> endobj',
+    '6 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj',
   ];
   let offset = 9;
   const offsets = [0];
@@ -2153,11 +2187,11 @@ function downloadTextPdf(filename, title, body) {
     offset += obj.length + 1;
   }
   const xrefStart = offset;
-  pdf += `xref\n0 6\n0000000000 65535 f \n`;
-  for (let i = 1; i <= 5; i += 1) {
+  pdf += `xref\n0 7\n0000000000 65535 f \n`;
+  for (let i = 1; i <= 6; i += 1) {
     pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
   }
-  pdf += `trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  pdf += `trailer << /Size 7 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
   const blob = new Blob([pdf], { type: 'application/pdf' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2220,13 +2254,15 @@ async function resolveWorkspaceAccess() {
       || enterprise
       || data?.b2bAccessState === 'granted'
       || Boolean(data?.b2b_access || data?.hasB2BAccess);
-    const dual = admin || granted || nextWorkspace === 'dual' || nextTier >= 3;
+    const paidPlan = /standard|starter|pro|elite|unlimited|enterprise|agency/.test(planBlob)
+      && nextTier !== 1 && nextTier !== 2;
+    const dual = admin || granted || paidPlan || nextWorkspace === 'dual' || nextTier >= 3;
     const previousStatus = String(settings.subscriptionStatus || '').toLowerCase();
     await persistSettings({
       accountEmail: data?.email || settings.accountEmail,
       role: admin ? 'admin' : (data?.role || settings.role),
       isAdmin: admin,
-      b2bAccess: granted,
+      b2bAccess: granted || paidPlan || admin,
       planType: data?.planType || settings.planType || '',
       referralCode: String(data?.referralCode || settings.referralCode || '').trim().toLowerCase(),
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
@@ -3256,6 +3292,10 @@ async function boot() {
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
     settings = { ...DEFAULT_SETTINGS, ...(stored || {}) };
+    if (settings.languageChoice !== 'auto' && (!settings.outputLanguage || settings.outputLanguage === 'auto')) {
+      settings.outputLanguage = 'en';
+      settings.languageChoice = 'explicit';
+    }
     fillSettingsForm();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));

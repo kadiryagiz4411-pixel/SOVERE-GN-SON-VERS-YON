@@ -7,7 +7,7 @@ import { exposeApi } from './_lib/http.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
-import { HUMAN_WRITING_RULES } from './_lib/tone.js';
+import { HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
@@ -84,7 +84,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const rate = body.userProfile?.hourly_rate;
 
     const raw = await completeChat(apiKey, {
-      system: `You are a world-class growth hacker and elite freelance proposal strategist writing as this freelancer. Kill cliches. Never write "As an AI", "I am thrilled to apply", or "Dear Hiring Manager". Structure: (1) two-sentence hook on the client's hidden pain, (2) concise solution architecture, (3) a real proof point from the profile plus one qualifying question. Use only the job text and the profile. Do not invent tools or results.
+      system: `${PROPOSAL_CLOSER_RULES}
 ${HUMAN_WRITING_RULES}
 ${languageLock(langName, resolvedLanguage.code)}
 Return JSON: { "proposal": "full proposal text", "painPoint": "one sentence", "title": "short title" }.`,

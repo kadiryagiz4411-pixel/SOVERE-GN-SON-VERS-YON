@@ -19,6 +19,16 @@ const WHITE = { r: 248, g: 250, b: 252 };
 const GRAY = { r: 148, g: 163, b: 184 };
 const BODY = { r: 226, g: 232, b: 240 };
 const MARGIN = 18;
+const FONT_DISPLAY = 'times';
+const FONT_LABEL = 'helvetica';
+
+function setDisplayFont(doc: jsPDF, style: 'normal' | 'bold' | 'italic' = 'normal') {
+  doc.setFont(FONT_DISPLAY, style);
+}
+
+function setLabelFont(doc: jsPDF, style: 'normal' | 'bold' = 'bold') {
+  doc.setFont(FONT_LABEL, style);
+}
 
 // ========== PDF EXPORT ==========
 
@@ -31,22 +41,41 @@ function drawBrandWatermark(doc: jsPDF) {
     restoreGraphicsState?: () => void;
     setGState?: (state: unknown) => void;
   };
+  const paint = (opacity: number) => {
+    setDisplayFont(doc, 'bold');
+    doc.setFontSize(42);
+    doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+    try {
+      doc.text('SOVEREIGN', pw / 2, ph / 2, { align: 'center', angle: 32 });
+    } catch {
+      doc.text('SOVEREIGN', 36, ph / 2);
+    }
+    setLabelFont(doc, 'bold');
+    doc.setFontSize(64);
+    doc.text('S', pw - 22, ph - 18);
+    return opacity;
+  };
   try {
     if (pdf.GState && pdf.setGState && pdf.saveGraphicsState && pdf.restoreGraphicsState) {
       pdf.saveGraphicsState();
-      pdf.setGState(new pdf.GState({ opacity: 0.06 }));
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(96);
-      doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-      doc.text('S', pw - 28, ph - 24);
+      pdf.setGState(new pdf.GState({ opacity: 0.09 }));
+      paint(0.09);
       pdf.restoreGraphicsState();
       return;
     }
   } catch {
-    /* fall through */
+    /* fall through to solid brand mark */
   }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setTextColor(58, 42, 14);
+  setDisplayFont(doc, 'bold');
+  doc.setFontSize(28);
+  try {
+    doc.text('SOVEREIGN', pw / 2, ph / 2, { align: 'center', angle: 32 });
+  } catch {
+    doc.text('SOVEREIGN', 36, ph / 2);
+  }
+  setLabelFont(doc, 'bold');
+  doc.setFontSize(18);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
   doc.text('S', pw - 16, ph - 18);
 }
@@ -81,7 +110,7 @@ function drawCVHeader(doc: jsPDF, opts: ExportOptions): number {
   // Name
   const displayName = opts.fullName || '';
   if (displayName) {
-    doc.setFont('helvetica', 'bold');
+    setDisplayFont(doc, 'bold');
     doc.setFontSize(20);
     doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
     doc.text(displayName.toUpperCase(), leftX, nameY);
@@ -95,7 +124,7 @@ function drawCVHeader(doc: jsPDF, opts: ExportOptions): number {
   if (opts.location) contactParts.push(opts.location);
   
   if (contactParts.length > 0) {
-    doc.setFont('helvetica', 'normal');
+    setDisplayFont(doc, 'normal');
     doc.setFontSize(8);
     doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
     doc.text(contactParts.join('  |  '), leftX, nameY);
@@ -103,7 +132,7 @@ function drawCVHeader(doc: jsPDF, opts: ExportOptions): number {
   }
 
   // Brand label
-  doc.setFont('helvetica', 'normal');
+  setLabelFont(doc, 'bold');
   doc.setFontSize(7);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
   const brandText = opts.type === 'proposal' ? 'SOVEREIGN · PROPOSAL' : 'SOVEREIGN · CV';
@@ -144,7 +173,7 @@ function drawPageFooter(doc: jsPDF, showWatermark: boolean, pageNum: number) {
   doc.line(15, ph - 14, pw - 15, ph - 14);
 
   // Page number
-  doc.setFont('helvetica', 'normal');
+  setDisplayFont(doc, 'normal');
   doc.setFontSize(7);
   doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
   doc.text(`${pageNum}`, pw / 2, ph - 8, { align: 'center' });
@@ -159,12 +188,12 @@ function drawPageFooter(doc: jsPDF, showWatermark: boolean, pageNum: number) {
   // Gold S brand mark
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  setLabelFont(doc, 'bold');
   doc.text('S', pw - 15, ph - 8);
 }
 
 function renderSectionTitle(doc: jsPDF, title: string, y: number, margin: number): number {
-  doc.setFont('helvetica', 'bold');
+  setLabelFont(doc, 'bold');
   doc.setFontSize(9);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
   doc.text(title.toUpperCase(), margin, y);
@@ -203,7 +232,7 @@ function renderContentLines(
       doc.circle(margin + 2, y - 1, 0.7, 'F');
     }
 
-    doc.setFont('helvetica', 'normal');
+    setDisplayFont(doc, 'normal');
     doc.setFontSize(10);
     doc.setTextColor(BODY.r, BODY.g, BODY.b);
 
@@ -215,6 +244,9 @@ function renderContentLines(
         pageNum.value++;
         drawDarkBackground(doc);
         y = 18;
+        setDisplayFont(doc, 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(BODY.r, BODY.g, BODY.b);
       }
       doc.text(wLine, indent, y);
       y += 4.8;
@@ -306,7 +338,7 @@ function escapeXml(str: string): string {
 
 function buildDocxParagraphs(sections: DocumentSection[]): string {
   let xml = '';
-  const font = 'Arial';
+  const font = 'Times New Roman';
 
   for (const section of sections) {
     if (section.title) {
@@ -349,7 +381,7 @@ function buildDocxParagraphs(sections: DocumentSection[]): string {
 function buildDocxHeader(opts: ExportOptions): string {
   const name = opts.fullName ? escapeXml(opts.fullName) : '';
   const brandLabel = opts.type === 'proposal' ? 'SOVEREIGN \u00B7 PROPOSAL' : 'SOVEREIGN \u00B7 CV';
-  const font = 'Arial';
+  const font = 'Times New Roman';
 
   let headerXml = '';
 
@@ -409,7 +441,7 @@ function buildDocxFooter(showWatermark: boolean): string {
       <w:spacing w:before="400"/>
       <w:jc w:val="center"/>
     </w:pPr>
-    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>S O V E R E I G N</w:t></w:r>
+    <w:r><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr><w:t>S O V E R E I G N</w:t></w:r>
   </w:p>`;
 
   if (showWatermark) {
@@ -418,7 +450,7 @@ function buildDocxFooter(showWatermark: boolean): string {
         <w:jc w:val="center"/>
         <w:shd w:val="clear" w:color="auto" w:fill="0B0F17"/>
       </w:pPr>
-      <w:r><w:rPr><w:sz w:val="12"/><w:szCs w:val="12"/><w:color w:val="64748B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>Generated by Sovereign (Free) \u00B7 sovereignapp.pro</w:t></w:r>
+      <w:r><w:rPr><w:sz w:val="12"/><w:szCs w:val="12"/><w:color w:val="64748B"/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr><w:t>Generated by Sovereign (Free) \u00B7 sovereignapp.pro</w:t></w:r>
     </w:p>`;
   }
 
@@ -434,18 +466,18 @@ async function generateDOCX(content: string, opts: ExportOptions) {
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
-    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/><w:color w:val="E2E8F0"/></w:rPr></w:rPrDefault>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:color w:val="E2E8F0"/></w:rPr></w:rPrDefault>
     <w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
   </w:docDefaults>
   <w:style w:type="paragraph" w:styleId="Heading1">
     <w:name w:val="heading 1"/><w:qFormat/>
     <w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="0" w:after="120"/></w:pPr>
-    <w:rPr><w:b/><w:sz w:val="40"/><w:color w:val="F8FAFC"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>
+    <w:rPr><w:b/><w:sz w:val="40"/><w:color w:val="F8FAFC"/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading2">
     <w:name w:val="heading 2"/><w:qFormat/>
     <w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="240" w:after="80"/></w:pPr>
-    <w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>
+    <w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="F59E0B"/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr>
   </w:style>
 </w:styles>`;
 

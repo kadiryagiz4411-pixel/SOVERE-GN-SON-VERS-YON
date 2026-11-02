@@ -20,29 +20,27 @@ function detectPageLanguage(doc) {
     sample = String(root.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 4000);
   } catch { sample = ''; }
   const heuristic = heuristicPageLanguage(sample);
-  if (heuristic && PAGE_LANGUAGE_CODES.has(heuristic)) {
-    if (!PAGE_LANGUAGE_CODES.has(attr)) return heuristic;
-    if (attr === 'en' && heuristic !== 'en') return heuristic;
-    if (attr === heuristic) return attr;
-    if (heuristic !== 'en') return heuristic;
-  }
-  if (PAGE_LANGUAGE_CODES.has(attr)) return attr;
+  if (heuristic && PAGE_LANGUAGE_CODES.has(heuristic)) return heuristic;
   return 'en';
 }
 
 function heuristicPageLanguage(sample) {
   const text = String(sample || '');
-  if (text.length < 40) return '';
-  const score = (marks, words) => (text.match(marks) || []).length * 3 + (text.match(words) || []).length;
+  if (text.length < 40) return 'en';
+  const score = (marks, words, minMarks) => {
+    const markHits = (text.match(marks) || []).length;
+    if (minMarks && markHits < minMarks) return 0;
+    return markHits * 3 + (text.match(words) || []).length;
+  };
   const ranked = [
-    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi)],
-    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi)],
-    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi)],
-    ['es', score(/[ñ¿¡]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi)],
-    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi)],
+    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi, 0)],
+    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi, 3)],
+    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi, 2)],
+    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi, 2)],
+    ['es', score(/[ñ¿¡]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi, 2)],
   ].sort((a, b) => b[1] - a[1]);
-  if (ranked[0][1] < 3) return '';
-  if (ranked[0][1] < ranked[1][1] + 2) return '';
+  if (ranked[0][1] < 3) return 'en';
+  if (ranked[0][0] !== 'en' && ranked[0][1] < ranked[1][1] + 3) return 'en';
   return ranked[0][0];
 }
 

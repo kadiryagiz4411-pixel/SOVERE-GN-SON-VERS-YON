@@ -17,6 +17,9 @@ import { APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
 
 export function AccountEnginePanel({ userId }: { userId: string }) {
   const { hasBYOKAccess, user } = useSession();
+  const [agencyMode, setAgencyMode] = useState(() => {
+    try { return localStorage.getItem('sovereign.workspaceMode') === 'b2b'; } catch { return false; }
+  });
   const [codes, setCodes] = useState(0);
   const [tier, setTier] = useState(0);
   const [licensed, setLicensed] = useState(false);
@@ -172,6 +175,24 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
           Custom OpenAI key setup unlocks on AppSumo Agency (stack 3 codes).
         </div>
       )}
+
+      <div className="rounded-xl border border-amber-500/30 bg-card p-5 flex items-center justify-between gap-4">
+        <div>
+          <Label htmlFor="agency-mode" className="text-sm font-semibold">B2B / Agency Mode</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Standard, Pro, Elite, Admin, and Unlimited plans can switch instantly.
+          </p>
+        </div>
+        <Switch
+          id="agency-mode"
+          checked={agencyMode}
+          onCheckedChange={(next) => {
+            setAgencyMode(next);
+            try { localStorage.setItem('sovereign.workspaceMode', next ? 'b2b' : 'b2c'); } catch { /* ignore */ }
+            toast.success(next ? 'Agency Mode on' : 'Agency Mode off');
+          }}
+        />
+      </div>
 
       <div className="rounded-xl border border-border bg-card p-5 flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">

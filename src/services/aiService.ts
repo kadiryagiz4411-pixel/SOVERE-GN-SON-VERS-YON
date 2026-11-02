@@ -567,10 +567,10 @@ export async function generateProposalFallback(
 
   const systemPrompt =
     professionLine +
-    ' Name the client problem, say how you will fix it, end with a clear next step.' +
-    ' No markdown dividers, no AI disclaimers, no synergy/leverage/spearhead.';
+    ' First sentence names the client pain. Second paragraph is the fix and first deliverable. Third paragraph is one proof point and a reply-forcing question.' +
+    ' No greetings, no markdown, no AI disclaimers, no synergy/leverage/passionate/cutting-edge.';
 
-  const userPrompt = `Write a professional, high-converting proposal for this opportunity.
+  const userPrompt = `Write an aggressive, high-converting proposal I can send immediately.
 
 JOB / CLIENT BRIEF:
 ${jobDescription.slice(0, 2500)}
@@ -581,12 +581,8 @@ ${profession ? `- Profession: ${profession}` : ''}
 - Experience: ${experience}
 ${profile?.hourly_rate ? `- Rate: $${profile.hourly_rate}/hr` : ''}
 
-Structure:
-1. Hook — address the client's core problem directly (2-3 sentences)
-2. Value proof — specific experience that solves their problem (3-4 sentences)
-3. CTA — confident, clear next step (1-2 sentences)
-
-Tone: professional, warm, confident. No generic phrases like "I am excited to apply".`;
+Ban: I am excited to apply, Dear Hiring Manager, as a seasoned, looking forward to hearing from you.
+Use only the brief and this profile. Do not invent tools or results.`;
 
   try {
     const result = await callOpenAI(

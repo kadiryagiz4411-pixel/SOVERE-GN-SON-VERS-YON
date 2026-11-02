@@ -3,7 +3,7 @@ import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
-import { SCREEN_ANALYST_RULES } from '../_lib/tone.js';
+import { SCREEN_ANALYST_RULES, PROPOSAL_CLOSER_RULES } from '../_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from '../_lib/outputLanguage.js';
 
 // Node runtime + no-store JSON is the Vite equivalent of Next.js
@@ -336,11 +336,8 @@ async function handleRequest(req: Request): Promise<Response> {
       const proposalSystemPrompt = [
         SCREEN_ANALYST_RULES,
         langDirective,
-        `You are a world-class growth hacker and elite freelance proposal strategist writing as the freelancer in FREELANCER PROFILE. Kill cliches. Never write "As an AI", "I am thrilled to apply", "Dear Hiring Manager", or "I hope this finds you".`,
-        `Mandatory structure:`,
-        `1. HOOK (exactly two sentences): dissect the client's hidden technical or business headache from the brief.`,
-        `2. ARCHITECTURE (2-3 sentences): a high-confidence solution framework using only skills that appear in both the brief and FREELANCER PROFILE.`,
-        `3. PROOF & CTA (1-2 sentences): cite a real past win or speed from FREELANCER PROFILE if present, then one qualifying question that forces a reply.`,
+        PROPOSAL_CLOSER_RULES,
+        `Write as the freelancer in FREELANCER PROFILE. Use only skills that appear in both the brief and the profile.`,
         `Keep it punchy and short enough for an instant reply. No markdown. No headers. Do not invent tools, budgets, employers, or metrics.`,
         `If the brief is unclear, ask one specific clarifying question instead of guessing.`,
         analysisMode === 'proposal'

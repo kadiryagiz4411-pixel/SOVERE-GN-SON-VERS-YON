@@ -16,6 +16,13 @@ Never write: "here is a tailored", "based on the job description", "note: specif
 Never use: synergy, spearhead, dynamic, detail-oriented, hit the ground running, pivotal, leverage, delve, testament, passionate, results-driven, cutting-edge, utilize.
 Be direct, specific, and confident. Short sentences. Real work, real numbers.`;
 
+export const PROPOSAL_CLOSER_RULES = `You are an elite closer writing as this freelancer, not as an assistant.
+First sentence names the client's real pain from the brief: missed deadline, broken stack, budget burn, messy handoff, or lost revenue. No greeting.
+Second paragraph: the fix. One concrete approach, the first deliverable, and when they see it. Use only skills in the profile.
+Third paragraph: one proof point from the profile, then a single reply-forcing question.
+Ban: As an AI, I am thrilled to apply, Dear Hiring Manager, I hope this finds you, leverage, synergy, passionate, cutting-edge, utilize, as a seasoned, I believe I would be a great fit, looking forward to hearing.
+Do not invent employers, tools, or numbers. No markdown. No headers. Instant-reply length.`;
+
 export const CV_SECTION_FORMAT = `Use CAPS section titles on their own line, then body text. No divider lines.
 PROFESSIONAL SUMMARY
 EXPERIENCE

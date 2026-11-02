@@ -275,16 +275,15 @@ async function forceViewportScan() {
 }
 
 function languageFields(settings, data) {
-  const hinted = String(data?.pageLanguage || data?.target_language || '').trim().toLowerCase().split('-')[0];
   const fromText = typeof heuristicPageLanguage === 'function'
     ? heuristicPageLanguage(`${data?.uploadedText || ''} ${data?.jobDescription || ''} ${data?.pageText || ''}`)
-    : '';
-  const target = /^[a-z]{2}$/.test(fromText) ? fromText : hinted;
-  const saved = String(settings?.outputLanguage || 'auto').trim().toLowerCase();
-  const explicit = settings?.languageChoice === 'explicit' && saved && saved !== 'auto';
+    : 'en';
+  const saved = String(settings?.outputLanguage || 'en').trim().toLowerCase();
+  const explicit = settings?.languageChoice !== 'auto' && saved && saved !== 'auto';
+  const target = explicit ? saved : (/^[a-z]{2}$/.test(fromText) ? fromText : 'en');
   return {
-    outputLanguage: explicit ? saved : 'auto',
-    target_language: /^[a-z]{2}$/.test(target) ? target : '',
+    outputLanguage: /^[a-z]{2}$/.test(target) ? target : 'en',
+    target_language: /^[a-z]{2}$/.test(target) ? target : 'en',
   };
 }
 

@@ -163,7 +163,14 @@ async function handleRequest(req: Request): Promise<Response> {
     const agencyPlan = planType.includes('enterprise')
       || planType.includes('agency')
       || planType.includes('b2b');
-    const hasB2BAccess = isAdmin || (
+    const paidSaaS = !forcedB2C && !saasExpired && (
+      planType.includes('standard')
+      || planType.includes('starter')
+      || planType.includes('pro')
+      || planType.includes('elite')
+      || planType.includes('unlimited')
+    );
+    const hasB2BAccess = isAdmin || paidSaaS || (
       !forcedB2C && (
         appsumoTier >= 3
         || agencyPlan

@@ -16,6 +16,7 @@ import { firstPaidPlanLabel, hasActiveAppSumoLicense, resolveDisplayTier, type D
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 import { resolveRemainingCredits } from '@/lib/credits';
 import { QUEUE_REFILL_EVENT, refillApplyQueue, requestQueueRefill } from '@/lib/queueRefill';
+import { isPaidPlan } from '@/lib/plans';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -461,7 +462,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const liveTrial = owner || isTrialWindowOpen(isTrialActive, trialEndsAt);
   const paidB2B = owner || b2bSubscriptionStatus === 'active';
-  const hasB2BAccessValue = owner || paidB2B || liveTrial || b2bAccessFlag;
+  const paidWorkspace = owner
+    || isByokUnlimited
+    || (isPaidPlan(planType) && !(appsumoLicensed && appsumoTier > 0 && appsumoTier < 3));
+  const hasB2BAccessValue = owner || paidB2B || liveTrial || b2bAccessFlag || paidWorkspace;
   const displayTier = resolveDisplayTier({
     isSuperAdmin: owner,
     hasB2BAccess: hasB2BAccessValue,
