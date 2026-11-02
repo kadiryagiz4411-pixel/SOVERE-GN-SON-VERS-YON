@@ -360,8 +360,7 @@ function assertGenerationAllowed() {
 }
 
 function effectiveMode() {
-  if (canUseDualWorkspace()) return settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c';
-  return 'b2c';
+  return settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c';
 }
 
 function publicError(raw) {
@@ -1676,24 +1675,7 @@ function applyAdminUi() {
 
 function applyWorkspaceUi() {
   const mode = effectiveMode();
-  const admin = isExtensionAdmin();
-  const dual = canUseDualWorkspace();
-  const pill = document.getElementById('planBadge');
   const slider = document.getElementById('adminSlider');
-  if (pill) {
-    pill.classList.remove('b2c', 'b2b', 'admin');
-    if (admin) {
-      pill.textContent = mode === 'b2b' ? 'ADMIN · B2B' : 'ADMIN · B2C';
-      pill.classList.add('admin');
-    } else if (mode === 'b2b') {
-      pill.textContent = 'B2B';
-      pill.classList.add('b2b');
-    } else {
-      pill.textContent = 'B2C';
-      pill.classList.add('b2c');
-    }
-  }
-  slider?.classList.toggle('on', dual);
   if (slider) slider.dataset.mode = mode;
   slider?.querySelectorAll('button[data-mode]').forEach((btn) => {
     btn.classList.toggle('on', btn.dataset.mode === mode);
@@ -1704,7 +1686,7 @@ function applyWorkspaceUi() {
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
     ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
-    : ['instant', 'demo', 'proposal', 'cv', 'match', 'settings'];
+    : ['instant', 'proposal', 'cv', 'match', 'settings'];
   if (!allowed.includes(current)) switchTab(allowed[0]);
   else {
     document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
@@ -1720,8 +1702,6 @@ function fillSettingsForm() {
   const experience = document.getElementById('experience');
   const accountEmail = document.getElementById('accountEmail');
   const outputLanguage = document.getElementById('outputLanguage');
-  const b2bToggle = document.getElementById('b2bToggle');
-  const b2bToggleRow = document.getElementById('b2bToggleRow');
   if (skills) skills.value = settings.skills || '';
   if (hourlyRate) hourlyRate.value = settings.hourlyRate || '';
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
@@ -1741,22 +1721,6 @@ function fillSettingsForm() {
       ? 'auto'
       : (settings.outputLanguage && settings.outputLanguage !== 'auto' ? settings.outputLanguage : 'en');
   }
-  const canB2b = canUseDualWorkspace();
-  if (b2bToggle) {
-    b2bToggle.checked = canB2b && settings.workspaceMode === 'b2b';
-    b2bToggle.disabled = false;
-  }
-  const b2bHint = document.getElementById('b2bToggleHint');
-  const b2bNote = document.getElementById('b2bUpgradeNote');
-  if (b2bHint) {
-    b2bHint.textContent = isExtensionAdmin()
-      ? 'Admin access granted.'
-      : isHighestTier()
-        ? 'Agency tools unlocked.'
-        : 'Route jobs through B2B lead extraction and team dispatch.';
-    b2bHint.style.display = canB2b ? '' : 'none';
-  }
-  if (b2bNote) b2bNote.style.display = canB2b ? 'none' : '';
   applyPlanChrome();
   applyTheme(settings.theme);
   applyMembership(settings.membership);
@@ -1841,7 +1805,7 @@ function switchTab(tab) {
   const mode = effectiveMode();
   const allowed = mode === 'b2b'
     ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
-    : ['instant', 'demo', 'proposal', 'cv', 'match', 'settings'];
+    : ['instant', 'proposal', 'cv', 'match', 'settings'];
   const id = allowed.includes(tab) ? tab : allowed[0];
   if (id === 'candidate' || id === 'b2b-proposal') {
     b2bBlock = id === 'b2b-proposal' ? 'proposal' : 'candidate';
@@ -1867,15 +1831,15 @@ document.getElementById('navB2c')?.addEventListener('click', (event) => {
 document.getElementById('navB2b')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-tab]');
   if (!btn) return;
-  if (!canUseB2B()) {
-    void persistSettings({ workspaceMode: 'b2b', b2bAccess: true, workspace: 'dual' });
-  }
   switchTab(btn.dataset.tab);
 });
 document.getElementById('adminSlider')?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-mode]');
-  if (!btn || !canUseDualWorkspace()) return;
-  void persistSettings({ workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c' });
+  if (!btn) return;
+  void persistSettings({
+    workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c',
+    workspace: 'dual',
+  });
 });
 
 (function bindModeSliderSwipe() {
@@ -1891,10 +1855,9 @@ document.getElementById('adminSlider')?.addEventListener('click', (event) => {
   const finish = (event) => {
     if (!dragging) return;
     dragging = false;
-    if (!canUseDualWorkspace()) return;
     const dx = event.clientX - startX;
     if (Math.abs(dx) < 36) return;
-    void persistSettings({ workspaceMode: dx < 0 ? 'b2b' : 'b2c' });
+    void persistSettings({ workspaceMode: dx < 0 ? 'b2b' : 'b2c', workspace: 'dual' });
   };
   slider.addEventListener('pointerup', finish);
   slider.addEventListener('pointercancel', () => { dragging = false; });
@@ -2051,26 +2014,6 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
   } finally {
     if (btn) btn.disabled = false;
   }
-});
-
-function applyAgencyToggle(on) {
-  const input = document.getElementById('b2bToggle');
-  if (input) input.checked = on;
-  const note = document.getElementById('b2bUpgradeNote');
-  if (note) note.style.display = 'none';
-  void persistSettings({
-    workspaceMode: on ? 'b2b' : 'b2c',
-    workspace: 'dual',
-    isAdmin: isExtensionAdmin() || settings.isAdmin,
-    b2bAccess: true,
-  }).catch((err) => {
-    console.warn('[sovereign] agency toggle', err);
-    if (input) input.checked = settings.workspaceMode === 'b2b';
-  });
-}
-
-document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
-  applyAgencyToggle(Boolean(event.target?.checked));
 });
 
 document.getElementById('themeOled')?.addEventListener('click', () => {
@@ -2272,7 +2215,7 @@ async function resolveWorkspaceAccess() {
       subscriptionStatus: data?.subscriptionStatus || settings.subscriptionStatus,
       canGenerate: data?.canGenerate !== false,
       workspace: nextWorkspace,
-      workspaceMode: dual ? (settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c') : 'b2c',
+      workspaceMode: settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c',
       skills: (Array.isArray(data?.profileSkills) && data.profileSkills.length)
         ? data.profileSkills.join(', ')
         : settings.skills,
@@ -2381,11 +2324,9 @@ async function generateTailoredCv() {
 }
 
 document.getElementById('extractLead')?.addEventListener('click', () => {
-  if (!canUseB2B()) return;
   void analyzeActivePage();
 });
 document.getElementById('dispatchProposal')?.addEventListener('click', () => {
-  if (!canUseB2B()) return;
   void analyzeActivePage();
 });
 document.getElementById('copyLead')?.addEventListener('click', async () => {
@@ -3082,21 +3023,6 @@ async function runInstant(source) {
   }
 }
 
-function loadDemoSample() {
-  const job = 'We need a freelance React and TypeScript developer to ship a Supabase dashboard. The work includes Tailwind UI, API routes, and a clear first-week deliverable.';
-  const cv = 'Frontend developer. React, TypeScript, Tailwind, and Supabase. Shipped client dashboards and API integrations for small teams.';
-  const scores = instantScores(job, cv);
-  const proposal = previewProposal(job, 'en');
-  const matchEl = document.getElementById('demoMatch');
-  const cvEl = document.getElementById('demoCv');
-  const statusEl = document.getElementById('demoStatus');
-  const proposalEl = document.getElementById('demoProposal');
-  if (matchEl) matchEl.textContent = `${scores.match}%`;
-  if (cvEl) cvEl.textContent = `${scores.cv}%`;
-  if (proposalEl) proposalEl.textContent = proposal;
-  if (statusEl) statusEl.textContent = 'Sample ready. No AI call and no credits used.';
-}
-
 function shareCanvas() {
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -3232,8 +3158,18 @@ function bindInstant() {
   document.getElementById('instantRun')?.addEventListener('click', () => {
     void runInstant('manual');
   });
-  document.getElementById('loadDemo')?.addEventListener('click', () => {
-    try { loadDemoSample(); } catch (err) { console.error('[sovereign] demo', err); }
+  document.getElementById('headerUpload')?.addEventListener('click', () => {
+    try {
+      if (effectiveMode() === 'b2b') {
+        setContextDrawer(true);
+        document.getElementById('contextFile')?.click();
+        return;
+      }
+      switchTab('instant');
+      document.getElementById('instantFile')?.click();
+    } catch (err) {
+      console.error('[sovereign] upload', err);
+    }
   });
   document.getElementById('copyShare')?.addEventListener('click', () => { void copyShareCard(); });
   document.getElementById('copyReferral')?.addEventListener('click', async () => {

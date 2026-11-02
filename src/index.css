@@ -330,6 +330,39 @@
   }
 }
 
+.workspace-switcher {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  background: #09090b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 0.5rem;
+}
+
+.workspace-switcher button {
+  width: 100%;
+  margin: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: #a8a29e;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.65rem 0.5rem;
+}
+
+.workspace-switcher button.on,
+.workspace-switcher button[aria-selected="true"] {
+  color: #111;
+  background: linear-gradient(90deg, #d4af37, #b8860b);
+  border-color: rgba(212, 175, 55, 0.55);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.22);
+}
+
 @layer utilities {
   /* Stagger children animations */
   .stagger-children > * {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { WorkspaceModeSwitcher } from '@/components/ExtensionPopup';
 import { RedeemModal } from '@/components/auth/RedeemModal';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { numericAppSumoTier, canUseFeature } from '@/lib/appsumoGating';
@@ -176,20 +177,20 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         </div>
       )}
 
-      <div className="rounded-xl border border-amber-500/30 bg-card p-5 flex items-center justify-between gap-4">
+      <div className="space-y-3">
         <div>
-          <Label htmlFor="agency-mode" className="text-sm font-semibold">B2B / Agency Mode</Label>
+          <Label className="text-sm font-semibold text-amber-200">Workspace</Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Standard, Pro, Elite, Admin, and Unlimited plans can switch instantly.
+            Switch between Personal and B2B Agency without leaving this page.
           </p>
         </div>
-        <Switch
-          id="agency-mode"
-          checked={agencyMode}
-          onCheckedChange={(next) => {
-            setAgencyMode(next);
-            try { localStorage.setItem('sovereign.workspaceMode', next ? 'b2b' : 'b2c'); } catch { /* ignore */ }
-            toast.success(next ? 'Agency Mode on' : 'Agency Mode off');
+        <WorkspaceModeSwitcher
+          value={agencyMode ? 'b2b' : 'b2c'}
+          onChange={(next) => {
+            const on = next === 'b2b';
+            setAgencyMode(on);
+            try { localStorage.setItem('sovereign.workspaceMode', next); } catch { /* ignore */ }
+            toast.success(on ? 'Agency Mode on' : 'Personal mode on');
           }}
         />
       </div>
