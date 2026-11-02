@@ -103,13 +103,30 @@ function withTimeout(promise, ms, message) {
   return race.finally(() => clearTimeout(t));
 }
 
+function liveAccountEmail() {
+  const typed = document.getElementById('accountEmail')?.value;
+  return String(typed || settings.accountEmail || '').trim().toLowerCase();
+}
+
 function isExtensionAdmin() {
-  const email = String(settings.accountEmail || '').trim().toLowerCase();
+  const email = liveAccountEmail();
   const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+  const role = String(settings.role || '').toLowerCase();
   return settings.isAdmin === true
-    || settings.role === 'admin'
-    || settings.role === 'superadmin'
+    || role === 'admin'
+    || role === 'superadmin'
     || allow.includes(email);
+}
+
+function isHighestTier() {
+  if (isExtensionAdmin()) return true;
+  if (appsumoTier() >= 3) return true;
+  if (settings.b2bAccess === true || settings.b2bAccessState === 'granted') return true;
+  const blob = `${settings.planType || ''} ${settings.workspace || ''} ${settings.role || ''}`.toLowerCase();
+  return blob.includes('enterprise')
+    || blob.includes('agency')
+    || blob.includes('b2b')
+    || settings.workspace === 'dual';
 }
 
 function appsumoTier() {
@@ -123,23 +140,20 @@ function subscriptionLapsed() {
 }
 
 function canUseB2B() {
-  if (isExtensionAdmin()) return true;
-  if (appsumoTier() >= 3) return true;
+  if (isHighestTier()) return true;
   if (appsumoTier() === 1 || appsumoTier() === 2) return false;
   if (subscriptionLapsed()) return false;
   return settings.b2bAccess === true;
 }
 
 function canUseDualWorkspace() {
-  return isExtensionAdmin()
-    || appsumoTier() >= 3
-    || (canUseB2B() && appsumoTier() !== 1 && appsumoTier() !== 2);
+  if (isHighestTier()) return true;
+  return canUseB2B() && appsumoTier() !== 1 && appsumoTier() !== 2;
 }
 
 function isTopActiveTier() {
+  if (isHighestTier()) return true;
   if (subscriptionLapsed()) return false;
-  if (isExtensionAdmin()) return true;
-  if (appsumoTier() >= 3) return true;
   return settings.b2bAccess === true;
 }
 
@@ -1702,7 +1716,6 @@ function fillSettingsForm() {
       : 'auto';
   }
   const canB2b = canUseDualWorkspace();
-  // Always show the B2B toggle — disabled with an upgrade note for ineligible users.
   if (b2bToggle) {
     b2bToggle.checked = canB2b && settings.workspaceMode === 'b2b';
     b2bToggle.disabled = !canB2b;
@@ -1711,8 +1724,10 @@ function fillSettingsForm() {
   const b2bNote = document.getElementById('b2bUpgradeNote');
   if (b2bHint) {
     b2bHint.textContent = isExtensionAdmin()
-      ? 'Admin access granted. Agency tools are unlocked.'
-      : 'Route jobs through B2B lead extraction and team dispatch.';
+      ? 'Admin access granted.'
+      : isHighestTier()
+        ? 'Agency tools unlocked.'
+        : 'Route jobs through B2B lead extraction and team dispatch.';
     b2bHint.style.display = canB2b ? '' : 'none';
   }
   if (b2bNote) b2bNote.style.display = canB2b ? 'none' : '';
@@ -1986,14 +2001,20 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
     profileStatus.textContent = 'Saving…';
   }
   try {
+    const email = String(document.getElementById('accountEmail')?.value || '').trim().toLowerCase();
+    const allow = typeof ADMIN_EMAILS !== 'undefined' ? ADMIN_EMAILS : ['kadiryagiz4411@gmail.com'];
+    const admin = allow.includes(email);
     await persistSettings({
       skills: document.getElementById('skills')?.value || '',
       hourlyRate: document.getElementById('hourlyRate')?.value || '',
       fixedRate: document.getElementById('fixedRate')?.value || '',
       experience: document.getElementById('experience')?.value || 'mid',
-      accountEmail: document.getElementById('accountEmail')?.value || '',
+      accountEmail: email,
       outputLanguage: selectedLang,
       languageChoice: selectedLang === 'auto' ? 'auto' : 'explicit',
+      isAdmin: admin || settings.isAdmin,
+      b2bAccess: admin || settings.b2bAccess,
+      role: admin ? 'admin' : settings.role,
     });
     const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
     if (profileStatus) profileStatus.textContent = `Saved (${langLabel}).`;
@@ -2010,14 +2031,19 @@ document.getElementById('saveProfile')?.addEventListener('click', async () => {
 
 document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
   const input = event.target;
-  if (!canUseDualWorkspace() || (subscriptionLapsed() && !isExtensionAdmin())) {
+  const unlocked = isHighestTier();
+  if (!unlocked && (!canUseDualWorkspace() || subscriptionLapsed())) {
     input.checked = false;
     const note = document.getElementById('b2bUpgradeNote');
-    if (note && !canUseDualWorkspace()) note.style.display = '';
-    if (subscriptionLapsed() && !isExtensionAdmin()) showPaywall('renew');
+    if (note) note.style.display = '';
+    if (subscriptionLapsed()) showPaywall('renew');
     return;
   }
-  void persistSettings({ workspaceMode: input.checked ? 'b2b' : 'b2c' }).catch((err) => {
+  void persistSettings({
+    workspaceMode: input.checked ? 'b2b' : 'b2c',
+    isAdmin: isExtensionAdmin() || settings.isAdmin,
+    b2bAccess: true,
+  }).catch((err) => {
     console.error('[sovereign] agency toggle', err);
     input.checked = settings.workspaceMode === 'b2b';
     if (profileStatus) profileStatus.textContent = 'Could not save Agency Mode. Try again.';
@@ -2186,9 +2212,14 @@ async function resolveWorkspaceAccess() {
     const admin = Boolean(data?.is_admin || data?.isAdmin)
       || allow.includes(email)
       || ['admin', 'superadmin'].includes(String(data?.role || settings.role || '').toLowerCase());
+    const planBlob = `${data?.planType || ''} ${data?.plan_type || ''}`.toLowerCase();
+    const enterprise = planBlob.includes('enterprise')
+      || planBlob.includes('agency')
+      || planBlob.includes('b2b');
     const granted = admin
+      || enterprise
       || data?.b2bAccessState === 'granted'
-      || (Boolean(data?.b2b_access || data?.hasB2BAccess) && !data?.saasExpired);
+      || Boolean(data?.b2b_access || data?.hasB2BAccess);
     const dual = admin || granted || nextWorkspace === 'dual' || nextTier >= 3;
     const previousStatus = String(settings.subscriptionStatus || '').toLowerCase();
     await persistSettings({
@@ -3107,7 +3138,10 @@ async function fillInstantFromFile(file, targetId) {
 function bindFileDrop(zone, input, targetId) {
   if (!zone) return;
   const openPicker = () => input?.click();
-  zone.addEventListener('click', openPicker);
+  zone.addEventListener('click', (event) => {
+    if (event.target.closest('textarea, input, button, a')) return;
+    openPicker();
+  });
   zone.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();

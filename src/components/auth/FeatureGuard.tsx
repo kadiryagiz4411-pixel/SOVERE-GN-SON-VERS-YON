@@ -7,6 +7,7 @@ import {
   SUPERADMIN_EMAIL,
   type GuardFeature,
 } from '@/lib/permissions';
+import { isSuperAdminUser } from '@/lib/superadmin';
 import type { ReactNode } from 'react';
 
 interface FeatureGuardProps {
@@ -27,7 +28,7 @@ export function FeatureGuard({ feature, children, mode = 'render', lockedFallbac
     appsumoLicensed: isAppsumoUser,
     planTier: planType,
   });
-  const allowed = user?.email === SUPERADMIN_EMAIL || canUseGuardFeature(feature, flags);
+  const allowed = user?.email === SUPERADMIN_EMAIL || isSuperAdminUser(user) || canUseGuardFeature(feature, flags);
 
   if (allowed) return <>{children}</>;
 

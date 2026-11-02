@@ -124,7 +124,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         console.error(LOG, 'plan profile fetch failed', error.message);
       }
 
-      const access = resolveB2BAccess({ email, user: { email }, profile });
+      const access = resolveB2BAccess({ email, user, profile });
       if (profile?.is_trial_active && !access.isTrialActive && access.b2bStatus !== 'active') {
         await supabase.rpc('expire_stale_b2b_trials');
       }
@@ -162,7 +162,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     } finally {
       if (mounted.current) setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;

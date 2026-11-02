@@ -499,22 +499,22 @@ const DemoPage = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="block text-sm text-zinc-200">
                       Resume
-                      <textarea value={profileText} onChange={(event) => setProfileText(event.target.value)} rows={8} placeholder="Paste a resume, or load the sample." className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-400/60" />
+                      <textarea value={profileText} onChange={(event) => setProfileText(event.target.value)} rows={8} placeholder="Paste a resume, or load the sample." className="mt-2 w-full rounded-xl border border-amber-500/30 bg-black px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
                     </label>
                     <label className="block text-sm text-zinc-200">
                       Job to match
-                      <textarea value={candidateJob} onChange={(event) => setCandidateJob(event.target.value)} rows={8} placeholder="Paste the role this candidate is being scored against." className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-400/60" />
+                      <textarea value={candidateJob} onChange={(event) => setCandidateJob(event.target.value)} rows={8} placeholder="Paste the role this candidate is being scored against." className="mt-2 w-full rounded-xl border border-amber-500/30 bg-black px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
                     </label>
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="block text-sm text-zinc-200">
                       Job brief
-                      <textarea value={proposalJob} onChange={(event) => setProposalJob(event.target.value)} rows={8} placeholder="Paste the client job." className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-400/60" />
+                      <textarea value={proposalJob} onChange={(event) => setProposalJob(event.target.value)} rows={8} placeholder="Paste the client job." className="mt-2 w-full rounded-xl border border-amber-500/30 bg-black px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
                     </label>
                     <label className="block text-sm text-zinc-200">
                       Draft to tune
-                      <textarea value={proposalDraft} onChange={(event) => setProposalDraft(event.target.value)} rows={8} placeholder="Paste a rough cover letter, or load the sample." className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-400/60" />
+                      <textarea value={proposalDraft} onChange={(event) => setProposalDraft(event.target.value)} rows={8} placeholder="Paste a rough cover letter, or load the sample." className="mt-2 w-full rounded-xl border border-amber-500/30 bg-black px-4 py-3 text-base leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
                     </label>
                   </div>
                 )}

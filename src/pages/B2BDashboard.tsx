@@ -23,6 +23,8 @@ import { BulkApplicantRanker } from "@/components/b2b/BulkApplicantRanker";
 import { FeatureGate } from "@/components/entitlements/FeatureGate";
 import { toast } from "sonner";
 import { resolveOrgProfile, SUPERADMIN_ORG, isSuperadminEmail } from "@/lib/superadminOrg";
+import { isSuperAdminUser } from "@/lib/superadmin";
+import { fetchProfileByAuthId } from "@/lib/profileQuery";
 import { useSession } from "@/contexts/SessionContext";
 
 interface OrgInfo {
@@ -73,31 +75,32 @@ export default function B2BDashboard() {
 
       console.log('[Auth Check]', { component: 'B2BDashboard', userId: user.id, email: user.email });
 
-      // Get profile with org info
-      const { data: rawProfile } = await supabase
-        .from("profiles")
-        .select("org_id, org_role, plan_type")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data: rawProfile } = await fetchProfileByAuthId<{
+        org_id?: string | null;
+        org_role?: string | null;
+        plan_type?: string | null;
+        is_admin?: boolean | null;
+        role?: string | null;
+      }>(user.id, '*');
 
-      // ── Superadmin bypass ────────────────────────────────────────────────────
-      // kadiryagiz4411@gmail.com always gets owner access without an org row.
       const profile = resolveOrgProfile(rawProfile, user.email);
+      const adminUnlock = profile.isSuperAdmin
+        || isSuperAdminUser(user)
+        || isSuperadminEmail(user.email)
+        || rawProfile?.is_admin === true;
+      const planBlob = String(profile.plan_type || rawProfile?.plan_type || '').toLowerCase();
+      const enterprisePlan = planBlob.includes('enterprise')
+        || planBlob.includes('agency')
+        || planBlob.includes('b2b');
 
-      // ── Access gate ───────────────────────────────────────────────────────────
-      // Skip for superadmin. For regular users, hasB2BAccess (from SessionContext)
-      // covers active trials + paid subscriptions; if they have access but no org
-      // row yet (just purchased), fall through to the sentinel org rather than
-      // redirecting with an error toast.
-      if (!profile.isSuperAdmin) {
-        const sessionHasB2BAccess = hasB2BAccess; // captured from hook
-        if (!profile.org_id && !sessionHasB2BAccess) {
-          // Genuinely not a B2B user.
+      if (!adminUnlock) {
+        const sessionHasB2BAccess = hasB2BAccess;
+        if (!profile.org_id && !sessionHasB2BAccess && !enterprisePlan) {
           toast.error("This dashboard requires a B2B / Enterprise subscription.");
           navigate("/dashboard");
           return;
         }
-        if (profile.plan_type && profile.plan_type !== "B2B_ENTERPRISE" && !sessionHasB2BAccess) {
+        if (profile.plan_type && !enterprisePlan && !sessionHasB2BAccess) {
           toast.error("This dashboard requires an Enterprise B2B subscription.");
           navigate("/dashboard");
           return;
@@ -110,7 +113,7 @@ export default function B2BDashboard() {
       // Sentinel path: superadmin with no real org, OR B2B user whose org hasn't
       // been provisioned yet — populate from constants and try to find a real org.
       const useSentinel = profile.org_id === SUPERADMIN_ORG.id ||
-        (!profile.org_id && (profile.isSuperAdmin || hasB2BAccess));
+        (!profile.org_id && (adminUnlock || hasB2BAccess));
 
       if (useSentinel) {
         setOrg({

@@ -108,7 +108,7 @@
       main {
         flex: 1;
         overflow: auto;
-        padding: 20px;
+        padding: 14px 16px 16px;
       }
       .tab-view { display: none; }
       .tab-view.on { display: block; animation: tab-in 220ms ease; }
@@ -306,17 +306,25 @@
         color: var(--gold);
         margin-bottom: 6px;
       }
-      .field input, .field select, .field textarea {
+      .field input, .field select, .field textarea,
+      .instant-box textarea, .input-shell textarea {
         width: 100%;
-        border-radius: 10px;
-        border: 1px solid #27272a;
-        background: #09090B;
+        border-radius: 12px;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        background: #000;
         color: var(--text);
-        padding: 10px 11px;
+        padding: 10px 12px;
         font-size: 13px;
       }
+      .field input:focus, .field select:focus, .field textarea:focus,
+      .instant-box textarea:focus, .input-shell textarea:focus {
+        outline: none;
+        border-color: rgba(245, 158, 11, 0.55);
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+      }
       .field textarea { min-height: 72px; resize: vertical; }
-      .hint { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
+      .hint { font-size: 12px; line-height: 1.45; color: var(--muted); margin: 0 0 8px; }
+      .hint:empty { display: none; }
       .b2b-drawer {
         position: fixed;
         top: 0;
@@ -461,44 +469,36 @@
       }
       .instant-box label {
         display: block;
-        margin-top: 14px;
-        font-size: 12px;
+        margin-top: 10px;
+        font-size: 11px;
         letter-spacing: .12em;
         text-transform: uppercase;
         color: var(--gold-2);
       }
-      .instant-box textarea, .field textarea {
-        width: 100%;
-        min-height: 88px;
+      .instant-box label:first-of-type { margin-top: 0; }
+      .instant-box textarea {
+        min-height: 96px;
         resize: vertical;
-        margin-top: 8px;
-        line-height: 1.6;
-        font-size: 15px;
+        margin: 0;
+        line-height: 1.55;
+        font-size: 14px;
         padding: 12px 14px;
       }
-      .drop-zone {
-        margin-top: 8px;
-        border: 1px dashed rgba(212, 175, 55, 0.45);
-        border-radius: 14px;
-        min-height: 72px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 16px;
-        text-align: center;
-        color: var(--muted);
-        background: rgba(20, 20, 22, 0.45);
-        cursor: pointer;
-        transition: border-color 180ms ease, background 180ms ease;
+      .input-shell {
+        margin-top: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        background: #000;
+        padding: 0;
       }
-      .drop-zone strong { color: var(--gold-2); font-size: 14px; font-weight: 700; }
-      .drop-zone small { font-size: 12px; }
-      .drop-zone.over, textarea.over {
-        border-color: var(--gold);
-        background: rgba(212, 175, 55, 0.08);
-        color: var(--text);
+      .input-shell textarea {
+        border: 0;
+        background: transparent;
+        border-radius: 12px;
+      }
+      .input-shell.over, textarea.over {
+        border-color: rgba(245, 158, 11, 0.7);
+        background: rgba(245, 158, 11, 0.06);
       }
       .score-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
       .score-pair div { text-align: center; }
@@ -835,11 +835,11 @@
   <body data-theme="obsidian">
     <aside id="contextDrawer" class="context-drawer" aria-hidden="true">
       <div class="context-head">
-        <h2>Context files</h2>
+        <h2>Files</h2>
         <button id="contextDrawerClose" class="ghost" type="button">Close</button>
       </div>
-      <p id="contextModeLabel" class="hint">Feeds Candidate analysis only</p>
-      <div id="contextDrop" class="context-drop">Drop a PDF, DOCX, TXT, or HTML file. A resume is scored. A job brief becomes a proposal.</div>
+      <p id="contextModeLabel" class="hint"></p>
+      <div id="contextDrop" class="context-drop">Drop PDF, DOCX, TXT, or HTML</div>
       <input id="contextFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/html" hidden />
       <p id="contextFileName" class="hint">No file in this block.</p>
       <p id="contextStatus" class="hint"></p>
@@ -850,7 +850,7 @@
         <img class="logo" src="assets/logo.png" alt="Sovereign" />
         <div>
           <h1>Sovereign</h1>
-          <p>Scan the job or CV on screen</p>
+          <p>Monster Engine</p>
         </div>
       </div>
       <div class="header-tools">
@@ -914,20 +914,15 @@
     </div>
     <main>
       <section id="tab-instant" class="tab-view on">
-        <p class="hint">Drop a resume or job brief, or paste both. Match and CV scores appear immediately. A signed-in account then replaces the preview with the AI proposal.</p>
         <div class="instant-box">
           <label for="instantJob">Job or brief</label>
-          <div id="jobDrop" class="drop-zone" tabindex="0" role="button" aria-label="Upload a job brief">
-            <strong>Drop a job brief</strong>
-            <small>PDF, DOCX, TXT, or HTML</small>
+          <div id="jobDrop" class="input-shell" tabindex="0" role="group" aria-label="Job brief">
+            <textarea id="instantJob" placeholder="Paste or drop the job brief"></textarea>
           </div>
-          <textarea id="instantJob" placeholder="Or paste the job post"></textarea>
           <label for="instantCv">Resume</label>
-          <div id="cvDrop" class="drop-zone" tabindex="0" role="button" aria-label="Upload a resume">
-            <strong>Drop a resume</strong>
-            <small>PDF, DOCX, TXT, or HTML</small>
+          <div id="cvDrop" class="input-shell" tabindex="0" role="group" aria-label="Resume">
+            <textarea id="instantCv" placeholder="Paste or drop the resume"></textarea>
           </div>
-          <textarea id="instantCv" placeholder="Or paste the resume"></textarea>
           <input id="instantFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
           <input id="jobFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
           <input id="cvFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
@@ -937,33 +932,31 @@
           </div>
         </div>
         <div class="score-pair" aria-live="polite">
-          <div><strong id="instantMatch">—</strong><span>Match score</span></div>
-          <div><strong id="instantCvScore">—</strong><span>CV score</span></div>
+          <div><strong id="instantMatch">—</strong><span>Match</span></div>
+          <div><strong id="instantCvScore">—</strong><span>CV</span></div>
         </div>
         <p id="instantBreakdown" class="hint"></p>
-        <p id="instantStatus" class="hint">Scores use your skills and the text you provide. They are not a guessed placeholder.</p>
-        <div class="k">Optimized proposal</div>
+        <p id="instantStatus" class="hint"></p>
+        <div class="k">Proposal</div>
         <p id="instantProposal" class="proposal"></p>
         <div class="share-card" id="shareCard">
           <p class="watermark">Sovereign AI | Secure Your Gig</p>
-          <p id="shareSummary">Share a match card after you score a brief.</p>
-          <p id="referralLine" class="hint">Sign in on Sovereign to get your referral link.</p>
+          <p id="shareSummary">Score a brief to share a card.</p>
+          <p id="referralLine" class="hint"></p>
           <div class="row">
             <button id="copyShare" class="ghost" type="button">Copy card</button>
             <button id="copyReferral" class="fill" type="button">Copy referral link</button>
           </div>
-          <p class="hint">Five people who sign up with your link add 50 credits to your balance. Agency tools stay on the B2B plan.</p>
         </div>
       </section>
 
       <section id="tab-demo" class="tab-view">
-        <p class="hint">Sample only. This sandbox does not call the AI and does not use credits.</p>
         <button id="loadDemo" class="primary" type="button">Load sample brief</button>
         <div class="score-pair" style="margin-top:10px">
-          <div><strong id="demoMatch">—</strong><span>Match score</span></div>
-          <div><strong id="demoCv">—</strong><span>CV score</span></div>
+          <div><strong id="demoMatch">—</strong><span>Match</span></div>
+          <div><strong id="demoCv">—</strong><span>CV</span></div>
         </div>
-        <p id="demoStatus" class="hint">Load the sample to see a match score, a CV score, and a preview proposal.</p>
+        <p id="demoStatus" class="hint"></p>
         <p id="demoProposal" class="proposal"></p>
       </section>
 
@@ -971,7 +964,7 @@
         <div id="errorBadge" class="error-badge hidden"></div>
         <button id="analyze" class="primary" type="button">Generate Proposal</button>
         <div id="spinner" class="spinner"></div>
-        <p id="status">Opening this panel reads the active job automatically.</p>
+        <p id="status"></p>
         <div id="card" class="card">
           <div id="modeBadge" class="mode-badge">⚡ Detected: Page</div>
           <div class="score-row">
@@ -1007,16 +1000,14 @@
           </div>
         </div>
         <div class="k">Saved proposals</div>
-        <p class="hint">Kept on this device. One click copies them back.</p>
         <div id="proposalList"></div>
       </section>
 
       <section id="tab-cv" class="tab-view">
-        <p class="hint">Tailors your profile to the exact job open in the active tab. Open a job posting, then generate.</p>
-        <p id="cvJobMeta" class="meta" style="margin-bottom:10px">No job detected — open a job post and scan it first.</p>
+        <p id="cvJobMeta" class="meta" style="margin-bottom:10px">No job detected.</p>
         <button id="generateCv" class="primary" type="button">Generate Tailored CV</button>
         <div id="cvSpinner" class="spinner"></div>
-        <p id="cvStatus" class="hint">Scan a job posting first, then generate your CV.</p>
+        <p id="cvStatus" class="hint"></p>
         <div id="cvCard" class="card">
           <div id="cvPreview" class="cv-preview"></div>
           <div class="row" style="margin-top:12px">
@@ -1029,8 +1020,7 @@
       </section>
 
       <section id="tab-match" class="tab-view">
-        <p class="hint">Live fit for the job currently on screen. Scores come from your skills vs this brief — never a guessed placeholder.</p>
-        <div id="matchEmpty" class="empty">Generate a proposal or CV on the open job to see strengths and gaps.</div>
+        <div id="matchEmpty" class="empty">Scan a job to see strengths and gaps.</div>
         <div id="matchCard" class="card">
           <div class="score-row">
             <div id="matchRing" class="score" style="--p:0"><span id="matchBadge">—</span></div>
@@ -1048,9 +1038,8 @@
       </section>
 
       <section id="tab-candidate" class="tab-view">
-        <p class="hint">Resume parsing, skill match, gaps, and a candidate score. This block does not use the proposal draft.</p>
         <div id="candidateBlockSpinner" class="spinner"></div>
-        <p id="candidateBlockStatus" class="hint">Drop a resume from Files. Scoring starts as soon as the file is read.</p>
+        <p id="candidateBlockStatus" class="hint"></p>
         <div class="card on">
           <div class="k">Score</div>
           <p id="candidateScore" class="title">—</p>
@@ -1066,9 +1055,8 @@
       </section>
 
       <section id="tab-b2b-proposal" class="tab-view">
-        <p class="hint">Cover letter, opening hooks, and proposal tuning. This block does not use the candidate resume.</p>
         <div id="proposalBlockSpinner" class="spinner"></div>
-        <p id="proposalBlockStatus" class="hint">Drop a job brief from Files. The proposal draft starts as soon as the file is read.</p>
+        <p id="proposalBlockStatus" class="hint"></p>
         <div class="card on">
           <div class="k">Opening hooks</div>
           <p id="proposalHooks" class="pain"></p>
@@ -1078,9 +1066,8 @@
       </section>
 
       <section id="tab-lead" class="tab-view">
-        <p class="hint">Agency lead capture from the open page. Pulls client details for team routing — never auto-sends.</p>
         <button id="extractLead" class="b2b" type="button" style="width:100%">Extract Lead</button>
-        <p id="leadStatus" class="hint">Open a company page or job brief, then extract.</p>
+        <p id="leadStatus" class="hint"></p>
         <div id="leadCard" class="card">
           <p id="leadTitle" class="title"></p>
           <p id="leadMeta" class="meta"></p>
@@ -1098,9 +1085,8 @@
       </section>
 
       <section id="tab-dispatch" class="tab-view">
-        <p class="hint">Draft a team-ready pitch for the open opportunity, then copy it. Sovereign never auto-submits.</p>
         <button id="dispatchProposal" class="primary" type="button">Draft Team Proposal</button>
-        <p id="dispatchStatus" class="hint">Same human-tone engine as individual mode.</p>
+        <p id="dispatchStatus" class="hint"></p>
         <p id="dispatchOutput" class="proposal hidden"></p>
         <div id="dispatchActions" class="row hidden">
           <button id="copyDispatch" class="ghost" type="button">Copy for team</button>
@@ -1109,7 +1095,6 @@
       </section>
 
       <section id="tab-team" class="tab-view">
-        <p class="hint">Route captured leads and pitches to your agency workspace. Dispatch stays manual.</p>
         <div class="row single">
           <a class="fill" href="https://sovereignapp.pro/b2b" target="_blank" rel="noopener noreferrer">Team client dashboard ↗</a>
         </div>
@@ -1122,8 +1107,7 @@
       </section>
 
       <section id="tab-settings" class="tab-view">
-        <div class="k">Profile Settings</div>
-        <p class="hint">These fields feed the match score. Leave skills blank and Sovereign uses Freelance and General.</p>
+        <div class="k">Profile</div>
         <div class="field">
           <label for="skills">Primary skills</label>
           <textarea id="skills" placeholder="React, TypeScript, Supabase, Python"></textarea>
@@ -1154,7 +1138,6 @@
         <div class="field">
           <label for="referralLink">Referral link</label>
           <input id="referralLink" type="text" readonly placeholder="Sign in to generate your link" />
-          <p class="hint">Standard and Pro accounts can share this link. Five signups add 50 credits. B2B agency tools stay on an Agency plan.</p>
         </div>
         <div class="field" id="b2bToggleRow">
           <div class="toggle-row">
@@ -1165,7 +1148,7 @@
               <span class="toggle-thumb"></span>
             </label>
           </div>
-          <p id="b2bToggleHint" class="hint" style="margin-top:2px">Route jobs through B2B lead extraction and team dispatch.</p>
+          <p id="b2bToggleHint" class="hint" style="margin-top:2px"></p>
           <p id="b2bUpgradeNote" class="hint" style="margin-top:2px;display:none">
             Agency Mode needs an active Agency subscription or AppSumo Tier 3.
             <a data-upgrade href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Upgrade</a>
@@ -1191,14 +1174,13 @@
             <option value="ko">Korean</option>
             <option value="pl">Polish</option>
           </select>
-          <p class="hint" style="margin-top:2px">Auto follows the job, resume, or brief. It does not follow the browser language. A saved choice overrides it.</p>
+          <p class="hint" style="margin-top:2px">Follows the job or file. Never the browser language.</p>
         </div>
 
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
         <p id="profileStatus" class="hint"></p>
 
         <div class="k">History</div>
-        <p class="hint">Proposals and CVs saved on this device. Copy any item without leaving Settings.</p>
         <div id="settingsHistory"></div>
 
         <div class="k">Appearance &amp; Theme</div>
@@ -1208,7 +1190,7 @@
         </div>
 
         <div class="k">Billing &amp; Subscription</div>
-        <p class="hint">Membership is billed by LemonSqueezy (Merchant of Record). AppSumo lifetime deals follow AppSumo’s 60-day refund window.</p>
+        <p class="hint">LemonSqueezy for SaaS. AppSumo LTD follows AppSumo’s refund window.</p>
         <div class="plan-row">
           <button id="planPro" class="choice" type="button" data-plan="pro">Pro SaaS<small>Active subscription</small></button>
           <button id="planLtd" class="choice" type="button" data-plan="appsumo">AppSumo LTD<small>Lifetime deal</small></button>
@@ -1247,7 +1229,7 @@
         <h2>B2B clients</h2>
         <button id="closeB2bPanel" class="ghost" type="button">Close</button>
       </div>
-      <p class="hint">Pitch and client notes for the page you just scanned. Nothing is sent until you copy it.</p>
+      <p class="hint">Notes stay on this device until you copy them.</p>
       <div class="field">
         <label for="b2bClient">Client</label>
         <input id="b2bClient" type="text" placeholder="Client or company" />

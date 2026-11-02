@@ -163,7 +163,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setOnboardingResolved(true);
       } else {
         const slice = data as TrialProfileSlice;
-        const access = resolveB2BAccess({ email, user: { email }, profile: slice });
+        const access = resolveB2BAccess({ email, user, profile: slice });
         setCreditsBalance(remaining);
         setRemainingCredits(remaining);
         setMonthlyCreditLimit(limit);
@@ -266,7 +266,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setOnboardingResolved(true);
       }
     }
-  }, []);
+  }, [user]);
 
   const refreshCredits = useCallback(async () => {
     if (!user?.id) return;

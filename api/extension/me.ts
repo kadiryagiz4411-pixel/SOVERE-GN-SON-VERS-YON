@@ -35,9 +35,10 @@ async function fetchProfile(
   token: string,
   userId: string,
 ): Promise<Record<string, unknown>> {
-  const selects = [
+    const selects = [
     'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier,referral_code,skills,hourly_rate,experience,profession,portfolio_projects',
     'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,remaining_credits,monthly_credit_limit,subscription_status',
+    'role,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,subscription_status',
     'b2b_access,plan_type,b2b_subscription_status,appsumo_tier',
     'plan_type',
   ];
@@ -134,15 +135,18 @@ async function handleRequest(req: Request): Promise<Response> {
     const role = String(profile.role || '').toLowerCase();
     const appMeta = asRecord(user.app_metadata);
     const userMeta = asRecord(user.user_metadata);
-    const metaRole = String(appMeta.role || userMeta.role || userMeta.is_admin || '').toLowerCase();
+    const flagTrue = (value: unknown) =>
+      value === true || String(value || '').trim().toLowerCase() === 'true';
+    const metaRole = `${appMeta.role || ''} ${userMeta.role || ''}`.toLowerCase();
     const isAdmin = email === OWNER_EMAIL
       || role === 'admin'
       || role === 'superadmin'
-      || metaRole === 'admin'
-      || metaRole === 'superadmin'
-      || metaRole === 'true'
-      || profile.is_admin === true;
-    const planType = String(profile.plan_type || '').toLowerCase();
+      || metaRole.includes('admin')
+      || metaRole.includes('superadmin')
+      || flagTrue(appMeta.is_admin)
+      || flagTrue(userMeta.is_admin)
+      || flagTrue(profile.is_admin);
+    const planType = String(profile.plan_type || profile.subscription_plan || appMeta.plan || userMeta.plan || '').toLowerCase();
     const b2bStatus = String(profile.b2b_subscription_status || '').toLowerCase();
     const appsumo = isAdmin || isAppsumoUser(profile);
     const appsumoTier = Number(profile.appsumo_tier || 0);
@@ -152,18 +156,17 @@ async function handleRequest(req: Request): Promise<Response> {
     const monthlyCreditLimit = Number(profile.monthly_credit_limit ?? 0);
     const subscriptionStatus = String(profile.subscription_status || 'active').toLowerCase();
     const saasExpired = !appsumo && ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(subscriptionStatus);
-    const forcedB2C = appsumoTier === 1 || appsumoTier === 2;
+    const forcedB2C = !isAdmin && (appsumoTier === 1 || appsumoTier === 2);
     const agencyPlan = planType.includes('enterprise')
-      || planType.includes('b2b')
-      || planType.includes('agency');
-    const hasB2BAccess = !forcedB2C && (
-      isAdmin
-      || appsumoTier >= 3
-      || (!saasExpired && (
-        profile.b2b_access === true
-        || b2bStatus === 'active'
+      || planType.includes('agency')
+      || planType.includes('b2b');
+    const hasB2BAccess = isAdmin || (
+      !forcedB2C && (
+        appsumoTier >= 3
         || agencyPlan
-      ))
+        || profile.b2b_access === true
+        || b2bStatus === 'active'
+      )
     );
     const workspace = isAdmin || hasB2BAccess ? 'dual' : 'b2c';
     const creditsDepleted = !isAdmin && remainingCredits <= 0;

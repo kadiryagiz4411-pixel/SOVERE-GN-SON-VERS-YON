@@ -17,6 +17,7 @@ export const OWNER_PRIVILEGES = {
 type AuthLike = {
   email?: string | null;
   user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
 } | null | undefined;
 
 export function resolveAuthEmail(user: AuthLike): string {
@@ -29,8 +30,19 @@ export function isOwnerEmail(email: string | null | undefined): boolean {
   return (email ?? '').trim().toLowerCase() === OWNER_EMAIL;
 }
 
+function flagTrue(value: unknown): boolean {
+  return value === true || String(value ?? '').trim().toLowerCase() === 'true';
+}
+
 export function isSuperAdminUser(user: AuthLike): boolean {
-  return isOwnerEmail(user?.email) || resolveAuthEmail(user) === OWNER_EMAIL;
+  if (isOwnerEmail(user?.email) || resolveAuthEmail(user) === OWNER_EMAIL) return true;
+  const app = user?.app_metadata ?? {};
+  const meta = user?.user_metadata ?? {};
+  const role = `${app.role || ''} ${meta.role || ''}`.toLowerCase();
+  return flagTrue(app.is_admin)
+    || flagTrue(meta.is_admin)
+    || role.includes('superadmin')
+    || role.split(/\s+/).includes('admin');
 }
 
 /**

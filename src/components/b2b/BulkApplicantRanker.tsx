@@ -367,7 +367,7 @@ export function BulkApplicantRanker({ jobTitle = "", jobDescription = "" }: Bulk
             value={jdText}
             onChange={e => setJdText(e.target.value)}
             placeholder="Paste the full job description here to score all applicants against it…"
-            className="w-full h-28 text-sm bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/40 resize-none"
+            className="w-full h-28 text-sm bg-black border border-amber-500/30 rounded-xl px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
           />
         </div>
       </div>

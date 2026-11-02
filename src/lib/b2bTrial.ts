@@ -81,11 +81,17 @@ export type TrialProfileSlice = {
   appsumo_codes_count?: number | null;
   b2b_access?: boolean | null;
   apply_queue_access?: boolean | null;
+  is_admin?: boolean | null;
+  role?: string | null;
 };
 
 export function resolveB2BAccess(input: {
   email?: string | null;
-  user?: { email?: string | null } | null;
+  user?: {
+    email?: string | null;
+    user_metadata?: Record<string, unknown> | null;
+    app_metadata?: Record<string, unknown> | null;
+  } | null;
   profile?: TrialProfileSlice | null;
 }): {
   isSuperAdmin: boolean;
@@ -97,10 +103,14 @@ export function resolveB2BAccess(input: {
   hasEnterpriseAccess: boolean;
   trialExpiredUnpaid: boolean;
 } {
+  const profileRole = String(input.profile?.role || '').toLowerCase();
   const isSuperAdmin =
     input.user?.email === OWNER_EMAIL ||
     isOwnerEmail(input.email) ||
-    isSuperAdminUser(input.user);
+    isSuperAdminUser(input.user) ||
+    input.profile?.is_admin === true ||
+    profileRole === 'admin' ||
+    profileRole === 'superadmin';
 
   const statusRaw = (input.profile?.b2b_subscription_status ?? 'none') as string;
   const b2bStatus: B2BSubscriptionStatus =
@@ -125,13 +135,14 @@ export function resolveB2BAccess(input: {
       : 0;
 
   const belowAgency = license.licensed && license.rank > 0 && license.rank < 3;
+  const planBlob = `${input.profile?.plan_type || ''} ${input.profile?.subscription_plan || ''} ${input.profile?.subscription_tier || ''} ${input.profile?.plan_tier || ''} ${input.profile?.tier || ''}`.toLowerCase();
   const planTypeIsEnterprise =
     license.rank >= 3 ||
     (!belowAgency && (
-      input.profile?.plan_type === 'B2B_ENTERPRISE' ||
-      input.profile?.plan_type === 'appsumo_b2b' ||
-      input.profile?.subscription_plan === 'B2B_ENTERPRISE' ||
-      input.profile?.subscription_plan === 'appsumo_b2b' ||
+      planBlob.includes('enterprise') ||
+      planBlob.includes('agency') ||
+      planBlob.includes('appsumo_b2b') ||
+      planBlob.includes('b2b_enterprise') ||
       input.profile?.b2b_access === true
     ));
 

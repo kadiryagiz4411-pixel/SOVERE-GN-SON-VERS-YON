@@ -215,7 +215,7 @@ export function ATSAnalyzer({ prefillResume = "", prefillJD = "", plan = "free",
               value={resumeText}
               onChange={e => setResumeText(e.target.value)}
               placeholder="Paste your full resume text here…"
-              className="w-full h-44 text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none"
+              className="w-full h-44 text-sm bg-black border border-amber-500/30 rounded-xl px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
             />
           </div>
           <div className="space-y-2">
@@ -227,7 +227,7 @@ export function ATSAnalyzer({ prefillResume = "", prefillJD = "", plan = "free",
               value={jdText}
               onChange={e => setJdText(e.target.value)}
               placeholder="Paste the full job description here…"
-              className="w-full h-44 text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none"
+              className="w-full h-44 text-sm bg-black border border-amber-500/30 rounded-xl px-3 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 resize-none"
             />
           </div>
         </div>
