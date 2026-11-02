@@ -17,6 +17,7 @@ import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 import { resolveRemainingCredits } from '@/lib/credits';
 import { QUEUE_REFILL_EVENT, refillApplyQueue, requestQueueRefill } from '@/lib/queueRefill';
 import { isPaidPlan } from '@/lib/plans';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -125,9 +126,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loadProfileCredits = useCallback(async (userId: string | undefined | null, email?: string | null) => {
     if (!userId) return;
     profileLoadStarted.current = true;
-    if (!readOnboardingDoneFlag() && !onboardingHydrated.current) {
-      setOnboardingResolved(false);
-    }
     const superAdmin = hasFullWorkspaceAccess({ email });
     try {
       const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
@@ -209,7 +207,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setOnboardingCompleted((current) => {
           if (readOnboardingDoneFlag()) return true;
           if (onboardingHydrated.current && current) return true;
-          return data?.onboarding_completed !== false;
+          if (!data) return current;
+          return data.onboarding_completed !== false;
         });
         onboardingHydrated.current = true;
         setOnboardingResolved(true);
@@ -264,6 +263,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (readOnboardingDoneFlag() || superAdmin || !onboardingHydrated.current) {
           setOnboardingCompleted(true);
         }
+      }
+    } finally {
+      if (mounted.current) {
         onboardingHydrated.current = true;
         setOnboardingResolved(true);
       }
@@ -328,27 +330,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Failsafe: if neither getSession() nor onAuthStateChange resolves within
-    // 3 s, unblock the UI so the user is never stuck on the loading spinner.
-    // Reduced from 4 s → 3 s for snappier perceived performance.
+    // Always unblock first paint. Cached hydration must not skip this —
+    // a hung profile fetch used to leave onboardingResolved false forever.
     const sessionTimeout = window.setTimeout(() => {
-      if (!mounted.current || hydrated.current) return;
+      if (!mounted.current) return;
       hydrated.current = true;
       setSessionReady(true);
-      if (!profileLoadStarted.current) setOnboardingResolved(true);
-    }, 3000);
+      setOnboardingResolved(true);
+    }, STARTUP_TIMEOUT_MS);
 
-    supabase.auth.getSession()
-      .then(async ({ data: { session: next }, error }) => {
+    withTimeout(
+      supabase.auth.getSession(),
+      STARTUP_TIMEOUT_MS,
+      { data: { session: cached }, error: null },
+    )
+      .then(async ({ data, error }) => {
         if (!mounted.current) return;
+        const next = data?.session ?? cached ?? null;
         if (error) {
           console.error(LOG, 'getSession failed', error.message);
         }
         let authedUser = next?.user ?? cached?.user ?? null;
         if (authedUser?.id && !authedUser.email) {
           try {
-            const { data } = await supabase.auth.getUser();
-            authedUser = data.user ?? authedUser;
+            const { data: live } = await withTimeout(
+              supabase.auth.getUser(),
+              STARTUP_TIMEOUT_MS,
+              { data: { user: authedUser } },
+            );
+            authedUser = live.user ?? authedUser;
           } catch { /* keep cached user */ }
         }
         setSession(next ?? cached ?? null);
@@ -367,7 +377,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (mounted.current) {
           hydrated.current = true;
           setSessionReady(true);
-          if (!profileLoadStarted.current) setOnboardingResolved(true);
+          setOnboardingResolved(true);
         }
       });
 

@@ -1,5 +1,6 @@
 import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -57,10 +58,10 @@ export async function fetchProfileByAuthId<Row extends Record<string, unknown> =
   };
 
   try {
-    const first = await lookup(select);
+    const first = await withTimeout(lookup(select), STARTUP_TIMEOUT_MS, { data: null, error: null });
     if (first.data) return first;
     if (select.includes('appsumo_tier')) {
-      const fallback = await lookup('*');
+      const fallback = await withTimeout(lookup('*'), STARTUP_TIMEOUT_MS, { data: null, error: null });
       if (fallback.data) return fallback;
     }
     if (first.error) {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { fetchProfileByAuthId, profileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 
 interface Profile {
   id: string;
@@ -36,22 +37,28 @@ export const useProfile = (user: User | null) => {
       return;
     }
 
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+
     const fetchProfile = async () => {
       try {
         const { data, error } = await fetchProfileByAuthId<Profile>(user.id, PROFILE_SELECT_WITH_TIER);
+        if (cancelled) return;
         if (error) {
           console.error('[Sovereign Load Error]:', 'useProfile fetch failed', error.message);
         }
         setProfile(data);
       } catch (err) {
         console.error('[Sovereign Load Error]:', 'useProfile threw', err);
-        setProfile(null);
+        if (!cancelled) setProfile(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    fetchProfile();
+    void fetchProfile();
 
     const channel = supabase
       .channel(`use-profile-${user.id}`)
@@ -68,6 +75,8 @@ export const useProfile = (user: User | null) => {
       .subscribe();
 
     return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
       void supabase.removeChannel(channel);
     };
   }, [user?.id]);

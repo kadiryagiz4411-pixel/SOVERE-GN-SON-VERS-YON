@@ -49,6 +49,22 @@ if (isMisconfigured) {
 
 const authStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
 
+/** Abort hung PostgREST/auth fetches so the UI never waits forever. */
+const FETCH_HANG_MS = 12000;
+
+function fetchWithHangTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_HANG_MS);
+  const parent = init?.signal;
+  if (parent) {
+    if (parent.aborted) controller.abort();
+    else parent.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
 export const supabase = createClient<Database>(
   SUPABASE_URL || 'https://placeholder.supabase.co',
   SUPABASE_PUBLISHABLE_KEY || 'placeholder-key',
@@ -57,6 +73,9 @@ export const supabase = createClient<Database>(
       storage: authStorage,
       persistSession: true,
       autoRefreshToken: true,
+    },
+    global: {
+      fetch: fetchWithHangTimeout,
     },
   },
 );

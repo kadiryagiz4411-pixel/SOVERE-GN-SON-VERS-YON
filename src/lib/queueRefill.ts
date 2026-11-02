@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { skillsForMatching } from '@/lib/matchScore';
 import { fetchLiveOpportunities } from '@/lib/opportunities';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 
 export const QUEUE_REFILL_EVENT = 'sovereign:queue-refill';
 
@@ -23,8 +24,14 @@ export async function refillApplyQueue(opts: {
   }
   inflight = true;
   lastAt = now;
+  const controller = new AbortController();
+  const kill = window.setTimeout(() => controller.abort(), STARTUP_TIMEOUT_MS + 1000);
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await withTimeout(
+      supabase.auth.getSession(),
+      STARTUP_TIMEOUT_MS,
+      { data: { session: null }, error: null },
+    );
     const token = session?.access_token || '';
     const userId = session?.user?.id || '';
     if (!token || !userId) return { count: 0, persisted: 0 };
@@ -38,20 +45,24 @@ export async function refillApplyQueue(opts: {
       ],
       profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
     });
-    const live = await fetchLiveOpportunities({
-      query: skills.join(','),
-      platform: 'All',
-      signal: opts.signal,
-      accessToken: token,
-      skills,
-      persist: true,
-      profile: {
+    const live = await withTimeout(
+      fetchLiveOpportunities({
+        query: skills.join(','),
+        platform: 'All',
+        signal: opts.signal ?? controller.signal,
+        accessToken: token,
         skills,
-        experience: String(profile?.experience || ''),
-        profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
-        hourlyRate: typeof profile?.hourly_rate === 'number' ? profile.hourly_rate : null,
-      },
-    });
+        persist: true,
+        profile: {
+          skills,
+          experience: String(profile?.experience || ''),
+          profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
+          hourlyRate: typeof profile?.hourly_rate === 'number' ? profile.hourly_rate : null,
+        },
+      }),
+      STARTUP_TIMEOUT_MS + 1000,
+      { items: [], persisted: 0, success: false },
+    );
     return {
       count: live.items.length,
       persisted: Number(live.persisted || 0),
@@ -60,6 +71,7 @@ export async function refillApplyQueue(opts: {
     console.warn('[Apply Queue refill]', err);
     return { count: 0, persisted: 0 };
   } finally {
+    window.clearTimeout(kill);
     inflight = false;
   }
 }

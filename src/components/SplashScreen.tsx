@@ -6,11 +6,19 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
       setVisible(false);
-      setTimeout(onComplete, 600); // wait for exit animation
-    }, 1800);
-    return () => clearTimeout(timer);
+      window.setTimeout(onComplete, 400);
+    };
+    const timer = window.setTimeout(finish, 1800);
+    const hard = window.setTimeout(finish, 3000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(hard);
+    };
   }, [onComplete]);
 
   return (

@@ -5,8 +5,10 @@
  * While either is still loading, a skeleton is shown so the guard cannot bounce
  * between /onboarding and /dashboard.
  */
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSession } from '@/contexts/SessionContext';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -39,8 +41,14 @@ function RouteSkeleton() {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, sessionReady, onboardingCompleted, onboardingResolved } = useSession();
   const location = useLocation();
+  const [gateTimedOut, setGateTimedOut] = useState(false);
 
-  if (!sessionReady || (Boolean(user) && !onboardingResolved)) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => setGateTimedOut(true), STARTUP_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if ((!sessionReady || (Boolean(user) && !onboardingResolved)) && !gateTimedOut) {
     return <RouteSkeleton />;
   }
 

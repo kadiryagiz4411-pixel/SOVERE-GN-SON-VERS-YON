@@ -15,6 +15,8 @@ import { hasFullWorkspaceAccess, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE } f
 import { SUBSCRIPTION_PLANS, numericTierFromPlanType, type CatalogPlan } from '@/data/plans';
 import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { resolveDisplayTier } from '@/lib/displayTier';
+import { fallbackPlanAfterTrial, resolveB2BAccess, type TrialProfileSlice } from '@/lib/b2bTrial';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -172,7 +174,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mounted.current = true;
-    if (!sessionReady) return;
+    const watchdog = window.setTimeout(() => {
+      if (mounted.current) setIsLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+    if (!sessionReady) {
+      return () => {
+        mounted.current = false;
+        window.clearTimeout(watchdog);
+      };
+    }
     void loadPlan(user?.id, user?.email);
     const onProfileUpdated = () => {
       if (user?.id) void loadPlan(user.id, user.email);
@@ -180,6 +190,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     window.addEventListener('sovereign:profile-updated', onProfileUpdated);
     return () => {
       mounted.current = false;
+      window.clearTimeout(watchdog);
       window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
   }, [sessionReady, user?.id, user?.email, loadPlan]);

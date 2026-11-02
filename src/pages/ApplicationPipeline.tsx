@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottomNav';
 import {
@@ -126,23 +127,51 @@ const ApplicationPipeline = () => {
   const [newApp, setNewApp] = useState({ job_title: '', company: '', job_url: '', notes: '' });
 
   useEffect(() => {
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate('/auth'); return; }
-      setUser(session.user);
-      await fetchApplications(session.user.id);
-      setLoading(false);
+      try {
+        const result = await withTimeout(
+          supabase.auth.getSession().then((r) => ({ timedOut: false as const, ...r })),
+          STARTUP_TIMEOUT_MS,
+          { timedOut: true as const, data: { session: null }, error: null },
+        );
+        if (cancelled) return;
+        if (result.timedOut) return;
+        if (!result.data.session) { navigate('/auth'); return; }
+        setUser(result.data.session.user);
+        await fetchApplications(result.data.session.user.id);
+      } catch (err) {
+        console.error('[Sovereign Load Error]:', 'ApplicationPipeline session', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
-    init();
+    void init();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
   }, [navigate]);
 
   const fetchApplications = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (!error && data) setApplications(data as Application[]);
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        STARTUP_TIMEOUT_MS,
+        { data: null, error: null },
+      );
+      if (!error && data) setApplications(data as Application[]);
+    } catch (err) {
+      console.error('[Sovereign Load Error]:', 'ApplicationPipeline fetch', err);
+    }
   };
 
   const handleAdd = async () => {

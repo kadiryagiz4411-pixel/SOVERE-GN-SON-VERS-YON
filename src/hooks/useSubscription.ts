@@ -60,25 +60,30 @@ export function useSubscription() {
       return;
     }
     setLoading(true);
-    const { data } = await fetchProfileByAuthId(user.id,
-      "plan_type, subscription_plan, subscription_status, billing_period, subscription_paused_at, subscription_pause_until, subscription_pause_reason, remaining_credits, credits_balance",
-    );
-    const planType = String((data as any)?.plan_type ?? (data as any)?.subscription_plan ?? "free");
-    const audience: PauseAudience = isB2BPlan(planType) ? "b2b" : "b2c";
-    const periodRaw = String((data as any)?.billing_period ?? "");
-    setState({
-      status: normalizeStatus((data as any)?.subscription_status),
-      planType,
-      billingPeriod: periodRaw.includes("year") || periodRaw === "annual" ? "yearly" : periodRaw === "monthly" ? "monthly" : null,
-      pausedAt: (data as any)?.subscription_paused_at ?? null,
-      pauseUntil: (data as any)?.subscription_pause_until ?? null,
-      pauseReason: (data as any)?.subscription_pause_reason ?? null,
-      remainingCredits: Number((data as any)?.remaining_credits ?? (data as any)?.credits_balance ?? 0),
-      audience,
-      maxPauseMonths: audience === "b2b" ? B2B_PAUSE_MONTHS : B2C_PAUSE_MONTHS,
-      isPaid: PAID_PLANS.has(planType) && planType !== "free",
-    });
-    setLoading(false);
+    try {
+      const { data } = await fetchProfileByAuthId(user.id,
+        "plan_type, subscription_plan, subscription_status, billing_period, subscription_paused_at, subscription_pause_until, subscription_pause_reason, remaining_credits, credits_balance",
+      );
+      const planType = String((data as any)?.plan_type ?? (data as any)?.subscription_plan ?? "free");
+      const audience: PauseAudience = isB2BPlan(planType) ? "b2b" : "b2c";
+      const periodRaw = String((data as any)?.billing_period ?? "");
+      setState({
+        status: normalizeStatus((data as any)?.subscription_status),
+        planType,
+        billingPeriod: periodRaw.includes("year") || periodRaw === "annual" ? "yearly" : periodRaw === "monthly" ? "monthly" : null,
+        pausedAt: (data as any)?.subscription_paused_at ?? null,
+        pauseUntil: (data as any)?.subscription_pause_until ?? null,
+        pauseReason: (data as any)?.subscription_pause_reason ?? null,
+        remainingCredits: Number((data as any)?.remaining_credits ?? (data as any)?.credits_balance ?? 0),
+        audience,
+        maxPauseMonths: audience === "b2b" ? B2B_PAUSE_MONTHS : B2C_PAUSE_MONTHS,
+        isPaid: PAID_PLANS.has(planType) && planType !== "free",
+      });
+    } catch (err) {
+      console.error('[Sovereign Load Error]:', 'useSubscription load', err);
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
 
   useEffect(() => {

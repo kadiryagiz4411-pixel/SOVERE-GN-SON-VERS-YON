@@ -9,6 +9,7 @@ import { MobileBottomNav, SwipeablePageWrapper } from '@/components/MobileBottom
 import { supabase } from '@/integrations/supabase/client';
 import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 import { useSession } from '@/contexts/SessionContext';
 import { usePlan } from '@/contexts/PlanContext';
 import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL, SUPERADMIN_PLAN_TYPE, hasFullWorkspaceAccess } from '@/lib/superadmin';
@@ -424,12 +425,16 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchCreditActivity = async (userId: string) => {
       try {
-        const { data, error } = await supabase
-          .from('credit_transactions')
-          .select('id, amount, balance_after, created_at, transaction_type, description, reference_type')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(CREDIT_ACTIVITY_LIMIT);
+        const { data, error } = await withTimeout(
+          supabase
+            .from('credit_transactions')
+            .select('id, amount, balance_after, created_at, transaction_type, description, reference_type')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(CREDIT_ACTIVITY_LIMIT),
+          STARTUP_TIMEOUT_MS,
+          { data: null, error: null },
+        );
 
         if (error) {
           console.warn('Failed to fetch credit activity:', error);
@@ -491,11 +496,15 @@ const Dashboard = () => {
           trial_claimed: false,
         };
 
-        const { data: created, error: createErr } = await supabase
-          .from('profiles')
-          .upsert(defaultProfile, { onConflict: 'user_id' })
-          .select('*')
-          .maybeSingle();
+        const { data: created, error: createErr } = await withTimeout(
+          supabase
+            .from('profiles')
+            .upsert(defaultProfile, { onConflict: 'user_id' })
+            .select('*')
+            .maybeSingle(),
+          STARTUP_TIMEOUT_MS,
+          { data: null, error: null },
+        );
 
         if (createErr) {
           console.error('[Sovereign Load Error]:', 'Could not create default profile (non-fatal):', createErr.message);
@@ -507,6 +516,11 @@ const Dashboard = () => {
         return buildDefaultProfile(userId);
       }
     };
+
+    const watchdog = window.setTimeout(() => {
+      setLoading(false);
+      setProfile((current) => current ?? buildDefaultProfile(session?.user?.id || ''));
+    }, STARTUP_TIMEOUT_MS);
 
     const checkAuth = async () => {
       if (!sessionReady) return;
@@ -591,12 +605,15 @@ const Dashboard = () => {
         }
       } catch (err) {
         console.error('[Sovereign Load Error]:', 'Dashboard auth/load error:', err);
+        setProfile((current) => current ?? buildDefaultProfile(session?.user?.id || ''));
       } finally {
+        window.clearTimeout(watchdog);
         setLoading(false);
       }
     };
 
     void checkAuth();
+    return () => window.clearTimeout(watchdog);
   }, [navigate, searchParams, sessionReady, session?.user?.id]);
 
   const handleSegmentSelect = useCallback((segment: UserSegment) => {
@@ -1126,7 +1143,7 @@ const Dashboard = () => {
     toast.success('DOCX downloaded!');
   };
 
-  if (loading || !sessionReady || !user || !profile) {
+  if ((loading || !sessionReady) && !profile) {
     return (
       <div className="min-h-screen bg-background px-4 py-8">
         <div className="mx-auto max-w-6xl space-y-4">

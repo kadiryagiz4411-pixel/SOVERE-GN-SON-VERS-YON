@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId, PROFILE_SELECT_WITH_TIER } from '@/lib/profileQuery';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 import { useSession } from '@/contexts/SessionContext';
 import { OWNER_EMAIL } from '@/lib/superadmin';
 import { invokeCvFunction } from '@/lib/edgeFunctions';
@@ -141,9 +142,15 @@ const CVBuilder = () => {
     isElitePlan(plan);
 
   useEffect(() => {
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+
     const init = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         if (!session?.user?.id) { navigate('/auth'); return; }
         setUser(session.user);
 
@@ -171,10 +178,14 @@ const CVBuilder = () => {
       } catch (err) {
         console.error('[Sovereign Load Error]:', 'CVBuilder init failed', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     void init();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
   }, [navigate]);
 
   const handleGenerate = async () => {

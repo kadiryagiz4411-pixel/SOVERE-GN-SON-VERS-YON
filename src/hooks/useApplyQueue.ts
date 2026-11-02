@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 
 export const APPLY_QUEUE_QUERY_KEY = 'applyQueue';
 
@@ -44,24 +45,32 @@ function sortQueue(rows: ApplyQueueItem[]): ApplyQueueItem[] {
 
 async function fetchApplyQueue(userId: string): Promise<ApplyQueueItem[] | null> {
   try {
-    const ranked = await supabase
-      .from('apply_queue')
-      .select('*')
-      .eq('user_id', userId)
-      .order('match_score', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(80);
+    const ranked = await withTimeout(
+      supabase
+        .from('apply_queue')
+        .select('*')
+        .eq('user_id', userId)
+        .order('match_score', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(80),
+      STARTUP_TIMEOUT_MS,
+      { data: null, error: { message: 'timeout' } },
+    );
 
     if (!ranked.error && Array.isArray(ranked.data)) {
       return sortQueue(ranked.data as unknown as ApplyQueueItem[]);
     }
     console.warn('[Apply Queue] ranked fetch skipped', ranked.error?.message);
 
-    const plain = await supabase
-      .from('apply_queue')
-      .select('*')
-      .eq('user_id', userId)
-      .limit(80);
+    const plain = await withTimeout(
+      supabase
+        .from('apply_queue')
+        .select('*')
+        .eq('user_id', userId)
+        .limit(80),
+      STARTUP_TIMEOUT_MS,
+      { data: null, error: { message: 'timeout' } },
+    );
 
     if (plain.error) {
       console.warn('[Apply Queue] fallback fetch skipped', plain.error.message);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,17 +68,33 @@ const ProposalsHistory = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/auth');
-        return;
+      try {
+        const result = await withTimeout(
+          supabase.auth.getSession().then((r) => ({ timedOut: false as const, ...r })),
+          STARTUP_TIMEOUT_MS,
+          { timedOut: true as const, data: { session: null }, error: null },
+        );
+        if (cancelled) return;
+        if (result.timedOut) return;
+        if (!result.data.session) {
+          navigate('/auth');
+          return;
+        }
+        setUser(result.data.session.user);
+        void fetchProposals(result.data.session.user.id);
+      } catch (err) {
+        console.error('[Sovereign Load Error]:', 'ProposalsHistory session', err);
+        if (!cancelled) setLoading(false);
       }
-      setUser(session.user);
-      fetchProposals(session.user.id);
     };
 
-    checkAuth();
+    void checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
@@ -85,24 +102,36 @@ const ProposalsHistory = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const fetchProposals = async (userId: string) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('proposals')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('proposals')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        STARTUP_TIMEOUT_MS,
+        { data: null, error: null },
+      );
 
-    if (error) {
-      console.error('Error fetching proposals:', error);
-      toast.error('Failed to load proposals');
-    } else {
-      setProposals(data || []);
+      if (error) {
+        console.error('Error fetching proposals:', error);
+      } else {
+        setProposals(data || []);
+      }
+    } catch (err) {
+      console.error('[Sovereign Load Error]:', 'ProposalsHistory fetch', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDelete = async (id: string) => {

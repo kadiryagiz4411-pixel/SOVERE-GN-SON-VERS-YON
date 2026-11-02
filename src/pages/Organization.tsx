@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 import { User } from '@supabase/supabase-js';
 import { GuaranteeBadge } from '@/components/GuaranteeBadge';
 import { OWNER_EMAIL, isSuperAdminUser } from '@/lib/superadmin';
@@ -80,15 +81,29 @@ const Organization = () => {
 
   // ── Auth + org load ──────────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) { navigate('/auth'); return; }
-      setUser(session.user);
-      loadOrgData(session.user.id);
-    });
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+    void supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        if (!session?.user) { navigate('/auth'); return; }
+        setUser(session.user);
+        void loadOrgData(session.user.id);
+      })
+      .catch((err) => {
+        console.error('[Sovereign Load Error]:', 'Organization session', err);
+        if (!cancelled) setLoading(false);
+      });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session?.user) navigate('/auth');
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadOrgData = async (userId: string) => {

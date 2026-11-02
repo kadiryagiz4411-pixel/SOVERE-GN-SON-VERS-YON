@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { isSuperAdminUser, resolveAuthEmail } from '@/lib/superadmin';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 
 function adminEmails(): string[] {
   const fromEnv = String(
@@ -30,6 +31,11 @@ export const useAdmin = (user: User | null) => {
       return;
     }
 
+    let cancelled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, STARTUP_TIMEOUT_MS);
+
     const checkAdminRole = async () => {
       try {
         const { data, error } = await supabase
@@ -39,6 +45,7 @@ export const useAdmin = (user: User | null) => {
           .eq('role', 'admin')
           .maybeSingle();
 
+        if (cancelled) return;
         if (error) {
           console.error('[Sovereign Load Error]:', 'Error checking admin role:', error);
           setIsAdmin(false);
@@ -47,13 +54,17 @@ export const useAdmin = (user: User | null) => {
         }
       } catch (err) {
         console.error('[Sovereign Load Error]:', 'admin role check threw', err);
-        setIsAdmin(false);
+        if (!cancelled) setIsAdmin(false);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    checkAdminRole();
+    void checkAdminRole();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
   }, [user]);
 
   return { isAdmin, loading };
