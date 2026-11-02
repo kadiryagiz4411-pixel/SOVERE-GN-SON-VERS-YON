@@ -7,6 +7,8 @@ const STORE = {
   CVS: 'sovereign.tailored-cvs.v1',
   SESSION: 'sovereign.session.v1',
   LEADS: 'sovereign.leads.v1',
+  ACTIONS: 'sovereign.actions.v1',
+  RATED: 'sovereign.rated.v1',
   VIEWPORT: 'sovereign.viewport.v1',
 };
 const DEFAULT_SETTINGS = {
@@ -32,6 +34,7 @@ const DEFAULT_SETTINGS = {
   // A saved choice is honored only after the user saves Settings (languageChoice).
   outputLanguage: 'auto',
   languageChoice: '',
+  referralCode: '',
 };
 
 /** Page language drives analysis unless the user saved an explicit Settings choice.
@@ -194,6 +197,67 @@ function showPaywall(kind) {
     cta.hidden = hideUpgrade;
   }
   document.getElementById('paywall')?.classList.add('on');
+}
+
+const RATE_COPY = {
+  en: { title: 'How is Sovereign so far?', body: 'A short review helps other freelancers find it.', cta: 'Rate on the Chrome Web Store', later: 'Not now' },
+  tr: { title: 'Sovereign şimdiye kadar nasıl?', body: 'Kısa bir değerlendirme, diğer freelancerların ürünü bulmasına yardım eder.', cta: 'Chrome Web Mağazasında puan ver', later: 'Şimdi değil' },
+  de: { title: 'Wie gefällt dir Sovereign?', body: 'Eine kurze Bewertung hilft anderen Freelancern, es zu finden.', cta: 'Im Chrome Web Store bewerten', later: 'Nicht jetzt' },
+  fr: { title: 'Sovereign vous convient-il?', body: 'Un court avis aide d’autres freelances à le trouver.', cta: 'Noter sur le Chrome Web Store', later: 'Pas maintenant' },
+  es: { title: '¿Qué te parece Sovereign?', body: 'Una reseña breve ayuda a otros freelancers a encontrarlo.', cta: 'Valorar en Chrome Web Store', later: 'Ahora no' },
+};
+
+function reviewUrl() {
+  try {
+    const id = chrome.runtime?.id || '';
+    if (/^[a-p]{32}$/.test(id)) return `https://chromewebstore.google.com/detail/${id}/reviews`;
+  } catch { /* opened outside the extension */ }
+  return 'https://sovereignapp.pro/reviews';
+}
+
+function uiLanguage() {
+  const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
+  if (settings.languageChoice === 'explicit' && RATE_COPY[saved]) return saved;
+  const detected = String(settings._detectedLang || '').split('-')[0];
+  return RATE_COPY[detected] ? detected : 'en';
+}
+
+async function showRatePrompt() {
+  try {
+    if (await storageGet(STORE.RATED, false)) return;
+    const copy = RATE_COPY[uiLanguage()] || RATE_COPY.en;
+    const modal = document.getElementById('rateModal');
+    const title = document.getElementById('rateTitle');
+    const body = document.getElementById('rateBody');
+    const store = document.getElementById('rateStore');
+    const later = document.getElementById('rateLater');
+    if (title) title.textContent = copy.title;
+    if (body) body.textContent = copy.body;
+    if (store) {
+      store.textContent = copy.cta;
+      store.href = reviewUrl();
+    }
+    if (later) later.textContent = copy.later;
+    modal?.classList.add('on');
+  } catch (err) {
+    console.error('[sovereign] rate prompt', err);
+  }
+}
+
+async function noteAiSuccess() {
+  try {
+    const count = Number(await storageGet(STORE.ACTIONS, 0)) + 1;
+    await storageSet(STORE.ACTIONS, count);
+    if (count > 0 && count % 10 === 0) await showRatePrompt();
+  } catch (err) {
+    console.error('[sovereign] action count', err);
+  }
+}
+
+function referralUrl() {
+  const code = String(settings.referralCode || '').trim().toLowerCase();
+  if (!/^[a-z0-9_-]{4,32}$/.test(code)) return '';
+  return `https://sovereignapp.pro/ref?code=${encodeURIComponent(code)}`;
 }
 
 function applyCreditBadge() {
@@ -1311,6 +1375,7 @@ async function analyzeActivePage() {
       pageData.pageTitle,
       pageData.pageUrl,
     );
+    void noteAiSuccess();
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
@@ -1586,7 +1651,7 @@ function applyWorkspaceUi() {
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
     ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
-    : ['proposal', 'cv', 'match', 'settings'];
+    : ['instant', 'demo', 'proposal', 'cv', 'match', 'settings'];
   if (!allowed.includes(current)) switchTab(allowed[0]);
   else {
     document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
@@ -1609,6 +1674,15 @@ function fillSettingsForm() {
   if (fixedRate) fixedRate.value = settings.fixedRate || '';
   if (experience) experience.value = settings.experience || 'mid';
   if (accountEmail) accountEmail.value = settings.accountEmail || '';
+  const referralLink = document.getElementById('referralLink');
+  const referralLine = document.getElementById('referralLine');
+  const refUrl = referralUrl();
+  if (referralLink) referralLink.value = refUrl;
+  if (referralLine) {
+    referralLine.textContent = refUrl
+      ? refUrl
+      : 'Sign in on Sovereign to get your referral link.';
+  }
   if (outputLanguage) {
     outputLanguage.value = settings.languageChoice === 'explicit'
       ? (settings.outputLanguage || 'en')
@@ -1708,7 +1782,7 @@ function switchTab(tab) {
   const mode = effectiveMode();
   const allowed = mode === 'b2b'
     ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
-    : ['proposal', 'cv', 'match', 'settings'];
+    : ['instant', 'demo', 'proposal', 'cv', 'match', 'settings'];
   const id = allowed.includes(tab) ? tab : allowed[0];
   if (id === 'candidate' || id === 'b2b-proposal') {
     b2bBlock = id === 'b2b-proposal' ? 'proposal' : 'candidate';
@@ -2075,12 +2149,14 @@ async function resolveWorkspaceAccess() {
     const nextTier = Number(data?.appsumo_tier ?? settings.appsumoTier ?? 0);
     const nextWorkspace = data?.workspace || settings.workspace || 'b2c';
     const dual = Boolean(data?.is_admin || data?.isAdmin) || nextWorkspace === 'dual' || nextTier >= 3;
+    const previousStatus = String(settings.subscriptionStatus || '').toLowerCase();
     await persistSettings({
       accountEmail: data?.email || settings.accountEmail,
       role: data?.role || settings.role,
       isAdmin: Boolean(data?.is_admin || data?.isAdmin),
       b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess) && !data?.saasExpired,
       planType: data?.planType || settings.planType || '',
+      referralCode: String(data?.referralCode || settings.referralCode || '').trim().toLowerCase(),
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
       appsumoTier: nextTier,
       remainingCredits: Number(data?.remainingCredits ?? settings.remainingCredits ?? 0),
@@ -2096,6 +2172,12 @@ async function resolveWorkspaceAccess() {
       showCreditResetBanner();
     } else if (data?.saasExpired) {
       showPaywall('renew');
+    }
+    const nextStatus = String(settings.subscriptionStatus || '').toLowerCase();
+    const wasPaid = ['active', 'trialing', 'paid', 'lifetime'].includes(previousStatus);
+    const nowPaid = ['active', 'trialing', 'paid', 'lifetime'].includes(nextStatus);
+    if (previousStatus && previousStatus !== 'unknown' && !wasPaid && nowPaid) {
+      void showRatePrompt();
     }
   } catch {
     applyWorkspaceUi();
@@ -2176,6 +2258,7 @@ async function generateTailoredCv() {
       at: Date.now(),
     });
     setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');
+    void noteAiSuccess();
   } catch (err) {
     const msg = publicError(err?.message || err);
     setCvBusy(false, msg);
@@ -2544,6 +2627,7 @@ async function runB2bBlock(mode) {
     block.phase = 'ready';
     renderB2bBlock(key);
     setBlockStatus(key, key === 'proposal' ? 'Proposal draft ready.' : 'Resume scored.', false);
+    void noteAiSuccess();
   } catch (err) {
     if (!current()) return;
     block.phase = 'error';
@@ -2666,6 +2750,239 @@ async function acceptContextFile(file) {
   }
 }
 
+const INSTANT_SKILLS = ['react', 'typescript', 'javascript', 'node', 'python', 'supabase', 'sql', 'aws', 'figma', 'seo', 'wordpress', 'shopify', 'java', 'go', 'rust', 'docker', 'graphql', 'tailwind', 'next.js', 'vue', 'php', 'laravel', 'design', 'marketing', 'sales', 'copywriting'];
+
+function instantScores(jobText, cvText) {
+  const hay = String(jobText || '').toLowerCase();
+  const cv = String(cvText || '').toLowerCase();
+  const asked = INSTANT_SKILLS.filter((skill) => hay.includes(skill));
+  const profile = skillListFromSettings().map((skill) => skill.toLowerCase());
+  const resumeSkills = INSTANT_SKILLS.filter((skill) => cv.includes(skill));
+  const basis = profile.length >= 2 ? profile : resumeSkills;
+  const matched = basis.filter((skill) => hay.includes(skill));
+  const denom = Math.max(asked.length || basis.length, 1);
+  const match = basis.length
+    ? Math.max(0, Math.min(100, Math.round((matched.length / denom) * 100)))
+    : (asked.length ? 40 : 0);
+  const cvMatched = resumeSkills.filter((skill) => !asked.length || asked.includes(skill));
+  const cvDenom = Math.max(asked.length || resumeSkills.length, 1);
+  const cvScore = resumeSkills.length
+    ? Math.max(0, Math.min(100, Math.round((cvMatched.length / cvDenom) * 100)))
+    : match;
+  return { match, cv: cvScore, missing: asked.filter((skill) => !matched.includes(skill)).slice(0, 3) };
+}
+
+function previewProposal(jobText, lang) {
+  const line = String(jobText || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const subject = line || 'the first deliverable';
+  const packs = {
+    en: `I can start this week. I will ship a concrete first version of ${subject} within two days, then adjust it against your notes.`,
+    tr: `Bu hafta başlayabilirim. ${subject} için iki gün içinde somut bir ilk sürüm gönderir, sonra notlarınıza göre düzeltirim.`,
+    de: `Ich kann diese Woche starten. Eine erste Fassung von ${subject} liegt in zwei Tagen vor, danach passe ich sie an dein Feedback an.`,
+    fr: `Je peux commencer cette semaine. Une première version de ${subject} part sous deux jours, puis je l’ajuste selon vos retours.`,
+    es: `Puedo empezar esta semana. Envío una primera versión de ${subject} en dos días y luego la ajusto con tus notas.`,
+  };
+  return packs[lang] || packs.en;
+}
+
+let lastInstant = { match: 0, cv: 0, proposal: '' };
+
+function paintInstant(match, cv, proposal, status) {
+  const matchEl = document.getElementById('instantMatch');
+  const cvEl = document.getElementById('instantCvScore');
+  const proposalEl = document.getElementById('instantProposal');
+  const statusEl = document.getElementById('instantStatus');
+  const summary = document.getElementById('shareSummary');
+  if (matchEl) matchEl.textContent = `${match}%`;
+  if (cvEl) cvEl.textContent = `${cv}%`;
+  if (proposalEl) proposalEl.textContent = proposal;
+  if (statusEl) statusEl.textContent = status;
+  if (summary) summary.textContent = `Match ${match}% · CV ${cv}%`;
+  lastInstant = { match, cv, proposal };
+}
+
+async function runInstant(source) {
+  const statusEl = document.getElementById('instantStatus');
+  const job = document.getElementById('instantJob')?.value || '';
+  const cv = document.getElementById('instantCv')?.value || '';
+  if (job.trim().length < 20 && cv.trim().length < 20) {
+    if (statusEl) statusEl.textContent = 'Paste a job or a resume with at least a few sentences.';
+    return;
+  }
+  const scores = instantScores(job || cv, cv || job);
+  const lang = detectSourceLanguage(`${job}\n${cv}`) || 'en';
+  const preview = previewProposal(job || cv, lang);
+  paintInstant(scores.match, scores.cv, preview, 'Scores are ready. Preview draft is on screen.');
+  const signedIn = Boolean(settings.accountEmail || settings.referralCode);
+  if (!signedIn || source === 'demo') return;
+  if (!assertGenerationAllowed()) return;
+  if (statusEl) statusEl.textContent = 'Scores are ready. Writing the AI proposal…';
+  try {
+    const pageData = {
+      pageText: job || cv,
+      pageTitle: 'Instant brief',
+      pageUrl: '',
+      jobTitle: 'Instant brief',
+      jobDescription: job || cv,
+      requiredSkills: scores.missing,
+    };
+    const data = await withTimeout(
+      postParseDom(pageData, { analysisMode: cv.trim().length > job.trim().length ? 'candidate' : 'proposal', uploadedText: cv || job }),
+      35000,
+      'The proposal took too long. The scores above are still saved on screen.',
+    );
+    const proposal = String(data?.proposalText || data?.summary || preview).trim();
+    const match = Number(data?.matchScore ?? data?.match_score ?? scores.match);
+    const cvScore = Number(data?.overallScore ?? data?.compatibilityScore ?? scores.cv);
+    paintInstant(
+      Number.isFinite(match) ? Math.round(match) : scores.match,
+      Number.isFinite(cvScore) ? Math.round(cvScore) : scores.cv,
+      proposal || preview,
+      'AI proposal ready.',
+    );
+    void noteAiSuccess();
+  } catch (err) {
+    console.error('[sovereign] instant analysis', err);
+    if (statusEl) statusEl.textContent = 'Scores stayed on screen. The AI proposal did not finish. Try again.';
+  }
+}
+
+function loadDemoSample() {
+  const job = 'We need a freelance React and TypeScript developer to ship a Supabase dashboard. The work includes Tailwind UI, API routes, and a clear first-week deliverable.';
+  const cv = 'Frontend developer. React, TypeScript, Tailwind, and Supabase. Shipped client dashboards and API integrations for small teams.';
+  const scores = instantScores(job, cv);
+  const proposal = previewProposal(job, 'en');
+  const matchEl = document.getElementById('demoMatch');
+  const cvEl = document.getElementById('demoCv');
+  const statusEl = document.getElementById('demoStatus');
+  const proposalEl = document.getElementById('demoProposal');
+  if (matchEl) matchEl.textContent = `${scores.match}%`;
+  if (cvEl) cvEl.textContent = `${scores.cv}%`;
+  if (proposalEl) proposalEl.textContent = proposal;
+  if (statusEl) statusEl.textContent = 'Sample ready. No AI call and no credits used.';
+}
+
+function shareCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  ctx.fillStyle = '#09090B';
+  ctx.fillRect(0, 0, 1080, 1080);
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(48, 48, 984, 984);
+  ctx.fillStyle = '#f5e6b8';
+  ctx.font = '700 42px sans-serif';
+  ctx.fillText('Sovereign AI | Secure Your Gig', 90, 180);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 120px sans-serif';
+  ctx.fillText(`${lastInstant.match || 0}%`, 90, 460);
+  ctx.font = '600 36px sans-serif';
+  ctx.fillStyle = '#a1a1aa';
+  ctx.fillText('MATCH SCORE', 90, 520);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 92px sans-serif';
+  ctx.fillText(`${lastInstant.cv || 0}%`, 90, 700);
+  ctx.font = '600 36px sans-serif';
+  ctx.fillStyle = '#a1a1aa';
+  ctx.fillText('CV SCORE', 90, 760);
+  ctx.fillStyle = '#d4af37';
+  ctx.font = '600 28px sans-serif';
+  ctx.fillText('sovereignapp.pro', 90, 960);
+  return canvas;
+}
+
+async function copyShareCard() {
+  const statusEl = document.getElementById('instantStatus');
+  try {
+    const canvas = shareCanvas();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('card');
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      if (statusEl) statusEl.textContent = 'Share card copied.';
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sovereign-score.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    if (statusEl) statusEl.textContent = 'Share card downloaded.';
+  } catch (err) {
+    console.error('[sovereign] share card', err);
+    const text = `Match ${lastInstant.match}% · CV ${lastInstant.cv}%\nSovereign AI | Secure Your Gig`;
+    await copyText(text);
+    if (statusEl) statusEl.textContent = 'Copied the score text.';
+  }
+}
+
+function bindInstant() {
+  document.getElementById('instantPick')?.addEventListener('click', () => {
+    document.getElementById('instantFile')?.click();
+  });
+  document.getElementById('instantFile')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const statusEl = document.getElementById('instantStatus');
+    if (statusEl) statusEl.textContent = 'Reading the file…';
+    try {
+      const text = await withTimeout(extractDroppedFile(file), 12000, 'That file took too long to read.');
+      const kind = detectUploadKind(file.name, text);
+      const target = document.getElementById(kind === 'candidate' ? 'instantCv' : 'instantJob');
+      if (target) target.value = text;
+      await runInstant('file');
+    } catch (err) {
+      console.error('[sovereign] instant file', err);
+      if (statusEl) statusEl.textContent = 'Could not read that file. Paste the text instead.';
+    }
+  });
+  document.getElementById('instantRun')?.addEventListener('click', () => {
+    void runInstant('manual');
+  });
+  document.getElementById('loadDemo')?.addEventListener('click', () => {
+    try { loadDemoSample(); } catch (err) { console.error('[sovereign] demo', err); }
+  });
+  document.getElementById('copyShare')?.addEventListener('click', () => { void copyShareCard(); });
+  document.getElementById('copyReferral')?.addEventListener('click', async () => {
+    const url = referralUrl();
+    const statusEl = document.getElementById('instantStatus');
+    if (!url) {
+      window.open('https://sovereignapp.pro/auth?mode=signup', '_blank', 'noopener');
+      if (statusEl) statusEl.textContent = 'Sign in to generate your referral link.';
+      return;
+    }
+    try {
+      await copyText(url);
+      if (statusEl) statusEl.textContent = 'Referral link copied.';
+    } catch (err) {
+      console.error('[sovereign] referral copy', err);
+      if (statusEl) statusEl.textContent = 'Could not copy the link. Select it in Settings.';
+    }
+  });
+  document.getElementById('rateLater')?.addEventListener('click', () => {
+    document.getElementById('rateModal')?.classList.remove('on');
+  });
+  document.getElementById('rateStars')?.addEventListener('click', async (event) => {
+    const star = event.target.closest('[data-star]');
+    if (!star) return;
+    try {
+      await storageSet(STORE.RATED, true);
+      document.getElementById('rateModal')?.classList.remove('on');
+      window.open(reviewUrl(), '_blank', 'noopener');
+    } catch (err) {
+      console.error('[sovereign] rate', err);
+    }
+  });
+  document.getElementById('rateStore')?.addEventListener('click', () => {
+    void storageSet(STORE.RATED, true);
+    document.getElementById('rateModal')?.classList.remove('on');
+  });
+}
+
 function bindPlatformButtons() {
   document.querySelectorAll('[data-channel][data-open]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -2682,6 +2999,7 @@ function bindPlatformButtons() {
 
 async function boot() {
   bindPlatformButtons();
+  bindInstant();
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
     settings = { ...DEFAULT_SETTINGS, ...(stored || {}) };

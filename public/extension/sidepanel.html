@@ -424,8 +424,8 @@
       }
       .choice small { display: block; color: var(--muted); font-weight: 500; margin-top: 4px; }
       .nav {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        display: flex;
+        overflow-x: auto;
         gap: 0;
         border-bottom: 1px solid var(--line);
         background: #09090B;
@@ -433,6 +433,7 @@
       }
       body[data-theme="oled"] .nav { background: #000; }
       .nav button {
+        flex: 1 0 64px;
         border-radius: 0;
         background: transparent;
         color: var(--muted);
@@ -443,7 +444,52 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
+      .instant-box, .share-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #111113;
+        padding: 10px;
+      }
+      .instant-box textarea {
+        width: 100%;
+        min-height: 72px;
+        resize: vertical;
+        margin-top: 6px;
+      }
+      .score-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+      .score-pair div {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        text-align: center;
+      }
+      .score-pair strong { display: block; font-size: 22px; color: var(--gold-2); }
+      .score-pair span { font-size: 10px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+      .share-card { margin-top: 10px; }
+      .share-card p { margin: 6px 0; font-size: 12px; }
+      .watermark { color: var(--gold-2); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+      .rate-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: rgba(0, 0, 0, 0.72);
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .rate-modal.on { display: flex; }
+      .rate-card {
+        width: min(100%, 320px);
+        background: #111113;
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        border-radius: 16px;
+        padding: 16px;
+      }
+      .rate-stars { display: flex; gap: 6px; margin: 10px 0; }
+      .rate-stars button { padding: 6px 8px; background: transparent; color: var(--gold-2); font-size: 20px; }
       .nav button.on {
         color: var(--gold-2);
         border-bottom-color: var(--gold);
@@ -793,8 +839,10 @@
       </div>
     </div>
     <nav class="nav" id="navB2c">
-      <button type="button" data-tab="proposal" class="on"><span>⚡</span>Proposal</button>
-      <button type="button" data-tab="cv"><span>📄</span>CV Builder</button>
+      <button type="button" data-tab="instant" class="on"><span>⚡</span>Instant</button>
+      <button type="button" data-tab="demo"><span>▶</span>Demo</button>
+      <button type="button" data-tab="proposal"><span>✎</span>Proposal</button>
+      <button type="button" data-tab="cv"><span>📄</span>CV</button>
       <button type="button" data-tab="match"><span>◎</span>Match</button>
       <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
     </nav>
@@ -811,7 +859,50 @@
       <span id="matchBannerLabel">Analyze the open job to score fit.</span>
     </div>
     <main>
-      <section id="tab-proposal" class="tab-view on">
+      <section id="tab-instant" class="tab-view on">
+        <p class="hint">Drop a resume or job brief, or paste both. Match and CV scores appear immediately. A signed-in account then replaces the preview with the AI proposal.</p>
+        <div class="instant-box">
+          <label for="instantJob">Job or brief</label>
+          <textarea id="instantJob" placeholder="Paste the job post"></textarea>
+          <label for="instantCv">Resume</label>
+          <textarea id="instantCv" placeholder="Paste a resume, or drop a PDF, TXT, or HTML file"></textarea>
+          <input id="instantFile" type="file" accept=".pdf,.txt,.html,.htm,text/plain,text/html,application/pdf" hidden />
+          <div class="row" style="margin-top:8px">
+            <button id="instantPick" class="ghost" type="button">Upload file</button>
+            <button id="instantRun" class="fill" type="button">Score now</button>
+          </div>
+        </div>
+        <div class="score-pair" aria-live="polite">
+          <div><strong id="instantMatch">—</strong><span>Match score</span></div>
+          <div><strong id="instantCvScore">—</strong><span>CV score</span></div>
+        </div>
+        <p id="instantStatus" class="hint">Scores use your skills and the text you provide. They are not a guessed placeholder.</p>
+        <div class="k">Optimized proposal</div>
+        <p id="instantProposal" class="proposal"></p>
+        <div class="share-card" id="shareCard">
+          <p class="watermark">Sovereign AI | Secure Your Gig</p>
+          <p id="shareSummary">Share a match card after you score a brief.</p>
+          <p id="referralLine" class="hint">Sign in on Sovereign to get your referral link.</p>
+          <div class="row">
+            <button id="copyShare" class="ghost" type="button">Copy card</button>
+            <button id="copyReferral" class="fill" type="button">Copy referral link</button>
+          </div>
+          <p class="hint">Five people who sign up with your link add 50 credits to your balance. Agency tools stay on the B2B plan.</p>
+        </div>
+      </section>
+
+      <section id="tab-demo" class="tab-view">
+        <p class="hint">Sample only. This sandbox does not call the AI and does not use credits.</p>
+        <button id="loadDemo" class="primary" type="button">Load sample brief</button>
+        <div class="score-pair" style="margin-top:10px">
+          <div><strong id="demoMatch">—</strong><span>Match score</span></div>
+          <div><strong id="demoCv">—</strong><span>CV score</span></div>
+        </div>
+        <p id="demoStatus" class="hint">Load the sample to see a match score, a CV score, and a preview proposal.</p>
+        <p id="demoProposal" class="proposal"></p>
+      </section>
+
+      <section id="tab-proposal" class="tab-view">
         <div id="errorBadge" class="error-badge hidden"></div>
         <button id="analyze" class="primary" type="button">Generate Proposal</button>
         <div id="spinner" class="spinner"></div>
@@ -992,6 +1083,11 @@
           <label for="accountEmail">Account email</label>
           <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="email" />
         </div>
+        <div class="field">
+          <label for="referralLink">Referral link</label>
+          <input id="referralLink" type="text" readonly placeholder="Sign in to generate your link" />
+          <p class="hint">Standard and Pro accounts can share this link. Five signups add 50 credits. B2B agency tools stay on an Agency plan.</p>
+        </div>
         <div class="field" id="b2bToggleRow">
           <div class="toggle-row">
             <span class="toggle-label">B2B / Agency Mode</span>
@@ -1091,6 +1187,21 @@
       <div class="k">Saved clients</div>
       <div id="b2bNoteList"></div>
     </aside>
+    <div id="rateModal" class="rate-modal" role="dialog" aria-modal="true" aria-labelledby="rateTitle">
+      <div class="rate-card">
+        <h2 id="rateTitle">How is Sovereign so far?</h2>
+        <p id="rateBody">A short review helps other freelancers find it.</p>
+        <div class="rate-stars" id="rateStars">
+          <button type="button" data-star="1" aria-label="1 star">★</button>
+          <button type="button" data-star="2" aria-label="2 stars">★</button>
+          <button type="button" data-star="3" aria-label="3 stars">★</button>
+          <button type="button" data-star="4" aria-label="4 stars">★</button>
+          <button type="button" data-star="5" aria-label="5 stars">★</button>
+        </div>
+        <a id="rateStore" class="fill" href="https://sovereignapp.pro/reviews" target="_blank" rel="noopener noreferrer">Rate on the Chrome Web Store</a>
+        <button id="rateLater" type="button" style="margin-top:8px;background:transparent;color:var(--muted)">Not now</button>
+      </div>
+    </div>
     <script src="config.js"></script>
     <script src="sidepanel.js"></script>
   </body>

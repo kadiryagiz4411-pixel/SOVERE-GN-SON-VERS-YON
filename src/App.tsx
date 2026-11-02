@@ -105,6 +105,7 @@ const ProposalLanguagePage = lazy(() => import("./pages/seo/LanguageSEOPages").t
 const ResumeLanguagePage = lazy(() => import("./pages/seo/LanguageSEOPages").then(m => ({ default: m.ResumeLanguagePage })));
 const ProposalTemplatePage = lazy(() => import("./pages/seo/LanguageSEOPages").then(m => ({ default: m.ProposalTemplatePage })));
 const AcceptanceRatePage = lazy(() => import("./pages/seo/AcceptanceRatePage").then(m => ({ default: m.AcceptanceRatePage })));
+const ReferralLanding = lazy(() => import("./pages/ReferralLanding"));
 
 const AffiliateTracker = () => {
   const [searchParams] = useSearchParams();
@@ -204,6 +205,7 @@ const AppRoutes = () => (
       <Route path="/share/:shareCode" element={<SharePortal />} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />
+      <Route path="/ref" element={<ReferralLanding />} />
       <Route path="/get-hired-at/:company" element={<GetHiredAtPage />} />
       <Route path="/how-to-get-job-at/:company" element={<HowToGetJobPage />} />
       <Route path="/resume-for/:company/:role" element={<ResumeForPage />} />

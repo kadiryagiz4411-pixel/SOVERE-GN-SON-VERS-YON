@@ -36,7 +36,7 @@ async function fetchProfile(
   userId: string,
 ): Promise<Record<string, unknown>> {
   const selects = [
-    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier',
+    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier,referral_code',
     'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,remaining_credits,monthly_credit_limit,subscription_status',
     'b2b_access,plan_type,b2b_subscription_status,appsumo_tier',
     'plan_type',
@@ -186,6 +186,7 @@ async function handleRequest(req: Request): Promise<Response> {
       accountLocked: false,
       saasExpired,
       creditPrompt: appsumo && creditsDepleted ? APPSUMO_ZERO_MESSAGE : null,
+      referralCode: String(profile.referral_code || '').trim().toLowerCase(),
     });
   } catch (error: unknown) {
     const err = error as { message?: string };
