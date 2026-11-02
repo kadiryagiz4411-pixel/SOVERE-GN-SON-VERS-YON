@@ -6,7 +6,9 @@ import {
   collectLiveOpportunities,
   dedupeOpportunities,
   fromExtensionPayload,
+  isIndiePlatform,
   parseKeywords,
+  sortByMatchDesc,
   withValidUrl,
   type OpportunityItem,
   type OpportunityPlatform,
@@ -27,25 +29,29 @@ function normalizeQueueUrl(url: string): string {
   return String(url || '').trim().replace(/\/+$/, '').toLowerCase();
 }
 
-async function persistIngestedJobs(req: Request, items: OpportunityItem[]): Promise<void> {
-  if (!items.length) return;
+async function persistIngestedJobs(
+  req: Request,
+  items: OpportunityItem[],
+  profile: MatchProfile,
+): Promise<number> {
+  if (!items.length) return 0;
   const token = bearerToken(req);
-  if (!token) return;
+  if (!token) return 0;
   const supabaseUrl = firstEnv('SUPABASE_URL', 'VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
   const anon = firstEnv('SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY');
-  if (!supabaseUrl || !anon) return;
+  if (!supabaseUrl || !anon) return 0;
 
   try {
     const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: anon },
     });
-    if (!userRes.ok) return;
+    if (!userRes.ok) return 0;
     const user = await userRes.json().catch(() => ({})) as { id?: string };
     const userId = String(user.id || '');
-    if (!userId) return;
+    if (!userId) return 0;
 
     const existingRes = await fetch(
-      `${supabaseUrl}/rest/v1/apply_queue?select=job_url&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=80`,
+      `${supabaseUrl}/rest/v1/apply_queue?select=job_url&user_id=eq.${encodeURIComponent(userId)}&order=match_score.desc&limit=120`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -60,14 +66,15 @@ async function persistIngestedJobs(req: Request, items: OpportunityItem[]): Prom
     );
 
     const batchId = crypto.randomUUID();
-    const rows = items
+    const rows = sortByMatchDesc(items)
       .filter((item) => {
         const url = normalizeQueueUrl(item.url);
         return url && !existing.has(url);
       })
+      .slice(0, 60)
       .map((item) => {
         const scored = scoreOpportunity(
-          { skills: item.skills || [] },
+          profile,
           item.title,
           item.description,
           item.budget,
@@ -101,7 +108,7 @@ async function persistIngestedJobs(req: Request, items: OpportunityItem[]): Prom
         };
       });
 
-    if (!rows.length) return;
+    if (!rows.length) return 0;
     await fetch(`${supabaseUrl}/rest/v1/apply_queue`, {
       method: 'POST',
       headers: {
@@ -112,17 +119,23 @@ async function persistIngestedJobs(req: Request, items: OpportunityItem[]): Prom
       },
       body: JSON.stringify(rows),
     });
+    return rows.length;
   } catch {
-    /* Apply Queue persist is best-effort; never fail the live scan. */
+    return 0;
   }
 }
 
-function platformParam(raw: string | null): OpportunityPlatform | 'All' {
+function platformParam(raw: string | null): OpportunityPlatform | 'All' | 'Remote' {
   const value = String(raw || '').trim();
   if (!value || value.toLowerCase() === 'all') return 'All';
-  if (value === 'Fiverr' || value === 'Upwork' || value === 'Freelancer' || value === 'LinkedIn') return value;
+  if (value === 'Remote' || value.toLowerCase() === 'remote') return 'Remote';
+  if (
+    value === 'Fiverr' || value === 'Upwork' || value === 'Freelancer' || value === 'LinkedIn'
+    || value === 'We Work Remotely' || value === 'Remote.co' || value === 'Indie Hackers'
+  ) return value;
   const titled = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
   if (titled === 'Fiverr' || titled === 'Upwork' || titled === 'Freelancer' || titled === 'LinkedIn') return titled;
+  if (isIndiePlatform(value)) return value as OpportunityPlatform;
   return 'All';
 }
 
@@ -135,9 +148,10 @@ async function handleRequest(req: Request): Promise<Response> {
   try {
     const url = new URL(req.url);
     const keywords = parseKeywords(url.searchParams.get('q') || url.searchParams.get('query') || '');
-    const platform = platformParam(url.searchParams.get('platform'));
+    let platform = platformParam(url.searchParams.get('platform'));
     const ingested: OpportunityItem[] = [];
     let profile: MatchProfile = { skills: keywords };
+    let refillRequested = req.method === 'GET';
 
     if (req.method === 'POST') {
       const body = await readJsonBody<{
@@ -150,9 +164,12 @@ async function handleRequest(req: Request): Promise<Response> {
         query?: string;
         skills?: string[];
         profile?: MatchProfile;
+        refill?: boolean;
       }>(req);
       const extra = parseKeywords(body.q || body.query || '');
       const skillList = Array.isArray(body.skills) ? body.skills : extra;
+      if (body.platform) platform = platformParam(body.platform);
+      refillRequested = body.refill === true;
       profile = {
         skills: [...(body.profile?.skills || skillList || keywords)],
         experience: body.profile?.experience,
@@ -162,28 +179,41 @@ async function handleRequest(req: Request): Promise<Response> {
       ingested.push(...fromExtensionPayload(body, profile.skills.length ? profile.skills : extra));
     }
 
-    const live = await collectLiveOpportunities(profile.skills.length ? profile.skills : keywords, platform);
+    const live = (refillRequested || req.method === 'GET')
+      ? await collectLiveOpportunities(
+        profile.skills.length ? profile.skills : keywords,
+        req.method === 'POST' && refillRequested ? 'All' : platform,
+      )
+      : { items: [] as OpportunityItem[], sources: {} as Record<string, { ok?: boolean; count?: number }> };
     const items = dedupeOpportunities([...ingested, ...live.items]);
-    const ingestedUrls = new Set(ingested.map((item) => String(item.url || '').trim()).filter(Boolean));
-    const filtered = (platform !== 'All'
-      ? items.filter((item) => item.platform === platform)
-      : items).map(withValidUrl).map((item) => {
-      const scored = scoreOpportunity(profile, item.title, item.description, item.budget, item.skills);
-      return {
-        ...item,
-        compatibilityScore: scored.complete ? scored.matchScore : 0,
-        acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
-        skills: scored.matchedSkills.length ? scored.matchedSkills : item.skills,
-        onboardingRequired: !scored.complete,
-        matchMessage: scored.message,
-      };
-    });
+    const matchesPlatform = (item: OpportunityItem) => {
+      if (platform === 'All') return true;
+      if (platform === 'Remote') return isIndiePlatform(item.platform);
+      return item.platform === platform;
+    };
+    const filtered = sortByMatchDesc(
+      items.filter(matchesPlatform).map(withValidUrl).map((item) => {
+        const scored = scoreOpportunity(profile, item.title, item.description, item.budget, item.skills);
+        const score = scored.complete ? scored.matchScore : 0;
+        return {
+          ...item,
+          compatibilityScore: score,
+          matchScore: score,
+          matchPercentage: score,
+          acceptanceScore: scored.complete ? scored.acceptanceScore : 0,
+          skills: scored.matchedSkills.length ? scored.matchedSkills : item.skills,
+          onboardingRequired: !scored.complete,
+          matchMessage: scored.message,
+        };
+      }),
+    );
 
-    if (req.method === 'POST' && ingestedUrls.size) {
-      await persistIngestedJobs(
-        req,
-        filtered.filter((item) => ingestedUrls.has(String(item.url || '').trim())),
-      );
+    let persisted = 0;
+    if (req.method === 'POST' && bearerToken(req)) {
+      const toPersist = refillRequested
+        ? filtered
+        : filtered.filter((item) => ingested.some((row) => normalizeQueueUrl(row.url) === normalizeQueueUrl(item.url)));
+      persisted = await persistIngestedJobs(req, toPersist, profile);
     }
 
     return jsonNoStore({
@@ -193,6 +223,7 @@ async function handleRequest(req: Request): Promise<Response> {
       items: filtered,
       opportunities: filtered,
       sources: live.sources,
+      persisted,
       onboardingRequired: filtered.some((item) => item.onboardingRequired),
     });
   } catch (err: unknown) {

@@ -29,18 +29,30 @@ export interface ApplyQueueItem {
   created_at: string;
 }
 
+function queueMatchScore(item: ApplyQueueItem): number {
+  const row = item as ApplyQueueItem & { matchScore?: number; matchPercentage?: number };
+  const raw = Number(row.match_score ?? row.matchScore ?? row.matchPercentage ?? 0);
+  return Number.isFinite(raw) ? raw : 0;
+}
+
 async function fetchApplyQueue(userId: string): Promise<ApplyQueueItem[]> {
   const { data, error } = await supabase
     .from('apply_queue')
     .select('*')
     .eq('user_id', userId)
+    .order('match_score', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(80);
 
   if (error) {
     throw new Error(error.message || 'Could not load Apply Queue');
   }
-  return (data ?? []) as unknown as ApplyQueueItem[];
+  const rows = (data ?? []) as unknown as ApplyQueueItem[];
+  return [...rows].sort((a, b) => {
+    const delta = queueMatchScore(b) - queueMatchScore(a);
+    if (delta !== 0) return delta;
+    return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
+  });
 }
 
 export function useApplyQueue(userId: string | undefined | null) {

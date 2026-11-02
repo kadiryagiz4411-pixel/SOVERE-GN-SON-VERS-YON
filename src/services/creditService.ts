@@ -176,6 +176,12 @@ export async function deductCredit(userId: string, amount = COST_PER_ACTION): Pr
 
     // Fetch updated balance
     const status = await fetchCreditStatus(userId);
+    try {
+      const { requestQueueRefill } = await import('@/lib/queueRefill');
+      requestQueueRefill();
+    } catch {
+      /* refill is best-effort */
+    }
     return { success: true, remaining: status?.remainingCredits ?? 0 };
   } catch {
     return { success: false, remaining: 0, reason: 'db_error' };

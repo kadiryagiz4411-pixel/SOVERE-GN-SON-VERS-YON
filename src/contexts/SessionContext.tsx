@@ -15,6 +15,7 @@ import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { firstPaidPlanLabel, hasActiveAppSumoLicense, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
 import { resolveRemainingCredits } from '@/lib/credits';
+import { QUEUE_REFILL_EVENT, refillApplyQueue, requestQueueRefill } from '@/lib/queueRefill';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -272,6 +273,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return;
     await loadProfileCredits(user.id, user.email);
   }, [user?.id, user?.email, loadProfileCredits]);
+
+  const previousCredits = useRef<number | null>(null);
+  useEffect(() => {
+    if (hasFullWorkspaceAccess(user)) return;
+    if (previousCredits.current === null) {
+      previousCredits.current = remainingCredits;
+      return;
+    }
+    if (remainingCredits < previousCredits.current) {
+      requestQueueRefill();
+    }
+    previousCredits.current = remainingCredits;
+  }, [remainingCredits, user]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const onRefill = () => {
+      void refillApplyQueue({ force: false });
+    };
+    window.addEventListener(QUEUE_REFILL_EVENT, onRefill);
+    return () => window.removeEventListener(QUEUE_REFILL_EVENT, onRefill);
+  }, [user?.id]);
 
   useEffect(() => {
     mounted.current = true;

@@ -2,7 +2,7 @@ import type { ComponentType, SVGProps } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { OPPORTUNITY_PLATFORMS, resolveOpportunityHref, type OpportunityPlatform } from '@/lib/opportunities';
+import { OPPORTUNITY_PLATFORMS, resolveOpportunityHref, type OpportunityFilter, type OpportunityPlatform } from '@/lib/opportunities';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -18,15 +18,15 @@ function SafeIcon({ icon: Icon, className }: { icon?: IconComponent; className?:
 }
 
 interface OpportunitiesScannerProps {
-  platform: 'All' | OpportunityPlatform;
-  onPlatformChange: (platform: 'All' | OpportunityPlatform) => void;
+  platform: OpportunityFilter;
+  onPlatformChange: (platform: OpportunityFilter) => void;
   scanning: boolean;
   onScan: () => void | Promise<void>;
   scanLabel: string;
   scanningLabel: string;
   creditLabel: string;
   disabled?: boolean;
-  counts?: Partial<Record<'All' | OpportunityPlatform, number>>;
+  counts?: Partial<Record<OpportunityFilter, number>>;
   /** @deprecated Refresh is merged into the scan action — prop is accepted but not rendered. */
   onRefresh?: () => void | Promise<void>;
   /** @deprecated Label ignored — merged into scan button. */
@@ -41,6 +41,10 @@ const PLATFORM_TONE: Record<string, string> = {
   Upwork: 'border-green-500/40 text-green-300',
   Freelancer: 'border-sky-500/40 text-sky-300',
   LinkedIn: 'border-blue-500/40 text-blue-300',
+  Remote: 'border-teal-500/40 text-teal-300',
+  'We Work Remotely': 'border-orange-500/40 text-orange-300',
+  'Remote.co': 'border-teal-500/40 text-teal-300',
+  'Indie Hackers': 'border-yellow-500/40 text-yellow-300',
 };
 
 export function OpportunityJobLink({

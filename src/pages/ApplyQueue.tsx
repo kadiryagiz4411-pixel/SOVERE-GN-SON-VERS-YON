@@ -11,7 +11,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { useSession } from '@/contexts/SessionContext';
 import { isOwnerEmail } from '@/lib/superadmin';
 import { opportunityToQueueRow } from '@/lib/opportunityFallback';
-import { fetchLiveOpportunities, normalizeOpportunityUrl, type OpportunityPlatform } from '@/lib/opportunities';
+import { fetchLiveOpportunities, isIndiePlatform, normalizeOpportunityUrl, type OpportunityFilter } from '@/lib/opportunities';
 import { skillsForMatching } from '@/lib/matchScore';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import { useApplyQueue } from '@/hooks/useApplyQueue';
@@ -26,6 +26,9 @@ const PLATFORM_COLORS: Record<string, string> = {
   Fiverr: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30',
   Freelancer: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
   LinkedIn: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
+  'We Work Remotely': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  'Remote.co': 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+  'Indie Hackers': 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
 };
 
 const ApplyQueue = () => {
@@ -44,7 +47,7 @@ const ApplyQueue = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingProposal, setEditingProposal] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'all' | 'pending'>('all');
-  const [platformFilter, setPlatformFilter] = useState<'All' | OpportunityPlatform>('All');
+  const [platformFilter, setPlatformFilter] = useState<OpportunityFilter>('All');
 
   const txt = {
     title: language === 'tr' ? 'Akıllı Başvuru Kuyruğu' : language === 'de' ? 'Intelligente Bewerbungswarteschlange' : language === 'fr' ? 'File de candidature intelligente' : 'Preloaded Apply Queue',
@@ -83,14 +86,24 @@ const ApplyQueue = () => {
     });
     setScanning(true);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 9000);
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
 
     try {
       const query = profileSkills.join(',');
+      const { data: sessionData } = await supabase.auth.getSession();
       const live = await fetchLiveOpportunities({
         query,
-        platform: platformFilter,
+        platform: 'All',
         signal: controller.signal,
+        accessToken: sessionData.session?.access_token,
+        skills: profileSkills,
+        persist: true,
+        profile: {
+          skills: profileSkills,
+          experience: String(profile?.experience || ''),
+          profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
+          hourlyRate: typeof profile?.hourly_rate === 'number' ? profile.hourly_rate : null,
+        },
       });
 
       const existing = new Set(items.map((item) => normalizeOpportunityUrl(item.job_url)));
@@ -102,9 +115,9 @@ const ApplyQueue = () => {
         profession: String(profile?.profession_cluster || profile?.onboarding_role || ''),
         hourlyRate: typeof profile?.hourly_rate === 'number' ? profile.hourly_rate : null,
       };
-      const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId, matchProfile));
 
-      if (rows.length) {
+      if (!live.persisted && fresh.length) {
+        const rows = fresh.map((item) => opportunityToQueueRow(item, user.id, batchId, matchProfile));
         const { error } = await supabase.from('apply_queue').insert(rows);
         if (error) throw error;
       }
@@ -124,14 +137,14 @@ const ApplyQueue = () => {
         }
       }
 
+      const added = Number(live.persisted || 0) || fresh.length;
       if (!live.items.length) {
         toast.error(language === 'tr'
           ? 'Canlı ilan bulunamadı. Fiverr/LinkedIn için uzantıdan Analyze kullanın.'
           : 'No live listings returned. Use the extension Analyze button on Fiverr or LinkedIn briefs.');
       } else {
-        toast.success(`${fresh.length} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
+        toast.success(`${added} ${language === 'tr' ? 'yeni canlı fırsat eklendi' : 'new live opportunities added'} (${live.items.length} scanned)`);
       }
-      // Auto-refresh queue from Supabase after scan — no separate Refresh button needed.
       await invalidate();
       await refresh().catch(() => undefined);
     } catch (err) {
@@ -148,17 +161,26 @@ const ApplyQueue = () => {
     }
   };
 
-  const filtered = items.filter((i) => {
-    const statusOk = filter === 'all' || i.status === filter;
-    const platformOk = platformFilter === 'All' || i.platform === platformFilter;
-    return statusOk && platformOk;
-  });
+  const filtered = [...items]
+    .filter((i) => {
+      const statusOk = filter === 'all' || i.status === filter;
+      const platformOk = platformFilter === 'All'
+        || (platformFilter === 'Remote' && isIndiePlatform(i.platform))
+        || i.platform === platformFilter;
+      return statusOk && platformOk;
+    })
+    .sort((a, b) => {
+      const aScore = Number(a.match_score || 0);
+      const bScore = Number(b.match_score || 0);
+      return bScore - aScore;
+    });
   const platformCounts = {
     All: items.length,
     Fiverr: items.filter((i) => i.platform === 'Fiverr').length,
     Upwork: items.filter((i) => i.platform === 'Upwork').length,
     Freelancer: items.filter((i) => i.platform === 'Freelancer').length,
     LinkedIn: items.filter((i) => i.platform === 'LinkedIn').length,
+    Remote: items.filter((i) => isIndiePlatform(i.platform)).length,
   };
 
   const getScoreColor = (s: number) => s >= 70 ? 'text-green-400' : s >= 45 ? 'text-amber-400' : 'text-red-400';

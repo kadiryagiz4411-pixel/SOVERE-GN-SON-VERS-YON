@@ -1,4 +1,22 @@
-export type OpportunityPlatform = 'Fiverr' | 'Upwork' | 'Freelancer' | 'LinkedIn';
+export type OpportunityPlatform =
+  | 'Fiverr'
+  | 'Upwork'
+  | 'Freelancer'
+  | 'LinkedIn'
+  | 'We Work Remotely'
+  | 'Remote.co'
+  | 'Indie Hackers';
+
+export const INDIE_PLATFORMS: OpportunityPlatform[] = [
+  'We Work Remotely',
+  'Remote.co',
+  'Indie Hackers',
+];
+
+export function isIndiePlatform(platform: string): boolean {
+  return INDIE_PLATFORMS.includes(platform as OpportunityPlatform)
+    || platform === 'Remote';
+}
 
 export interface OpportunityItem {
   id: string;
@@ -44,8 +62,20 @@ export function detectPlatform(url: string, fallback?: string): OpportunityPlatf
   if (u.includes('upwork.com') || fallback === 'Upwork') return 'Upwork';
   if (u.includes('freelancer.com') || fallback === 'Freelancer') return 'Freelancer';
   if (u.includes('linkedin.com') || fallback === 'LinkedIn') return 'LinkedIn';
+  if (u.includes('weworkremotely.com') || fallback === 'We Work Remotely') return 'We Work Remotely';
+  if (u.includes('indiehackers.com') || fallback === 'Indie Hackers') return 'Indie Hackers';
+  if (
+    u.includes('remote.co')
+    || u.includes('remoteok.com')
+    || u.includes('remotive.com')
+    || fallback === 'Remote.co'
+    || fallback === 'Remote'
+  ) return 'Remote.co';
   const named = String(fallback || '');
-  if (named === 'Fiverr' || named === 'Upwork' || named === 'Freelancer' || named === 'LinkedIn') {
+  if (
+    named === 'Fiverr' || named === 'Upwork' || named === 'Freelancer' || named === 'LinkedIn'
+    || named === 'We Work Remotely' || named === 'Remote.co' || named === 'Indie Hackers'
+  ) {
     return named;
   }
   return 'Upwork';
@@ -56,6 +86,9 @@ export function platformSearchUrl(platform: string, query?: string): string {
   if (platform === 'Fiverr') return `https://www.fiverr.com/search/gigs?query=${q}`;
   if (platform === 'Freelancer') return `https://www.freelancer.com/search/projects?q=${q}`;
   if (platform === 'LinkedIn') return `https://www.linkedin.com/jobs/search/?keywords=${q}`;
+  if (platform === 'We Work Remotely') return `https://weworkremotely.com/remote-jobs/search?term=${q}`;
+  if (platform === 'Indie Hackers') return `https://www.indiehackers.com/jobs?q=${q}`;
+  if (platform === 'Remote.co' || platform === 'Remote') return `https://remote.co/remote-jobs/search/?search_keywords=${q}`;
   return `https://www.upwork.com/nx/search/jobs/?q=${q}`;
 }
 
@@ -63,6 +96,9 @@ export function platformOrigin(platform: string): string {
   if (platform === 'Fiverr') return 'https://www.fiverr.com';
   if (platform === 'Freelancer') return 'https://www.freelancer.com';
   if (platform === 'LinkedIn') return 'https://www.linkedin.com';
+  if (platform === 'We Work Remotely') return 'https://weworkremotely.com';
+  if (platform === 'Indie Hackers') return 'https://www.indiehackers.com';
+  if (platform === 'Remote.co' || platform === 'Remote') return 'https://remote.co';
   return 'https://www.upwork.com';
 }
 
@@ -114,6 +150,31 @@ export function dedupeOpportunities(items: OpportunityItem[]): OpportunityItem[]
     out.push(item);
   }
   return out;
+}
+
+export function opportunityMatchScore(item: {
+  compatibilityScore?: number;
+  matchScore?: number;
+  match_score?: number;
+  matchPercentage?: number;
+}): number {
+  const raw = Number(
+    item.compatibilityScore
+    ?? item.matchScore
+    ?? item.match_score
+    ?? item.matchPercentage
+    ?? 0,
+  );
+  return Number.isFinite(raw) ? raw : 0;
+}
+
+export function sortByMatchDesc<T extends {
+  compatibilityScore?: number;
+  matchScore?: number;
+  match_score?: number;
+  matchPercentage?: number;
+}>(items: T[]): T[] {
+  return [...items].sort((a, b) => opportunityMatchScore(b) - opportunityMatchScore(a));
 }
 
 function decodeXml(value: string): string {
@@ -218,7 +279,7 @@ export async function fetchUpwork(keywords: string[]): Promise<OpportunityItem[]
   const queries = keywords.slice(0, 5);
   const feeds = await Promise.allSettled(
     queries.map((q) => fetchText(
-      `https://www.upwork.com/ab/feed/jobs/rss?q=${encodeURIComponent(q)}&sort=recency&paging=0%3B10`,
+      `https://www.upwork.com/ab/feed/jobs/rss?q=${encodeURIComponent(q)}&sort=recency&paging=0%3B20`,
       4500,
     )),
   );
@@ -323,40 +384,227 @@ export async function fetchFreelancer(keywords: string[]): Promise<OpportunityIt
 }
 
 export async function fetchLinkedIn(keywords: string[]): Promise<OpportunityItem[]> {
-  const query = keywords[0] || 'React';
-  const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}&start=0&f_TPR=r86400`;
-  const html = await fetchText(url, 4500);
-  const cards = html.split(/base-card|job-search-card/i).slice(1, 21);
+  const queries = keywords.slice(0, 3);
+  const pages = await Promise.allSettled(
+    queries.map((query) => fetchText(
+      `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}&start=0&f_TPR=r86400`,
+      5000,
+    )),
+  );
   const items: OpportunityItem[] = [];
-  for (const card of cards) {
-    const href = ((card.match(/href="(https:\/\/www\.linkedin\.com\/jobs\/view\/[^"]+)"/i) || [])[1] || '')
-      .replace(/&amp;/g, '&');
-    const title = stripHtml((card.match(/base-search-card__title[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
-    const company = stripHtml((card.match(/base-search-card__subtitle[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
-    const location = stripHtml((card.match(/job-search-card__location[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
-    const listed = stripHtml((card.match(/datetime="([^"]+)"/i) || [])[1] || '');
-    if (!href || !title) continue;
-    const description = [company, location].filter(Boolean).join(' · ');
-    items.push({
-      id: makeId('LinkedIn', href, title),
-      platform: 'LinkedIn',
-      title,
-      description: description || title,
-      budget: '',
-      postedAt: toIso(listed),
-      url: href.split('?')[0],
-      skills: extractSkills(`${title} ${description}`, keywords),
-      compatibilityScore: scoreAgainstKeywords(title, description, keywords),
-      clientCountry: location || undefined,
-    });
+  for (const page of pages) {
+    if (page.status !== 'fulfilled') continue;
+    const cards = page.value.split(/base-card|job-search-card/i).slice(1, 21);
+    for (const card of cards) {
+      const href = ((card.match(/href="(https:\/\/www\.linkedin\.com\/jobs\/view\/[^"]+)"/i) || [])[1] || '')
+        .replace(/&amp;/g, '&');
+      const title = stripHtml((card.match(/base-search-card__title[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
+      const company = stripHtml((card.match(/base-search-card__subtitle[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
+      const location = stripHtml((card.match(/job-search-card__location[^>]*>([\s\S]*?)<\//i) || [])[1] || '');
+      const listed = stripHtml((card.match(/datetime="([^"]+)"/i) || [])[1] || '');
+      if (!href || !title) continue;
+      const description = [company, location].filter(Boolean).join(' · ');
+      items.push({
+        id: makeId('LinkedIn', href, title),
+        platform: 'LinkedIn',
+        title,
+        description: description || title,
+        budget: '',
+        postedAt: toIso(listed),
+        url: href.split('?')[0],
+        skills: extractSkills(`${title} ${description}`, keywords),
+        compatibilityScore: scoreAgainstKeywords(title, description, keywords),
+        clientCountry: location || undefined,
+      });
+    }
   }
   return dedupeOpportunities(items.map(withValidUrl));
 }
 
-export async function fetchFiverr(): Promise<OpportunityItem[]> {
-  // Buyer requests are behind seller auth. Live Fiverr briefs arrive via the
-  // Chrome extension POST ingest on click — never fabricate gigs as jobs.
-  return [];
+function parseHtmlJobLinks(
+  html: string,
+  platform: OpportunityPlatform,
+  origin: string,
+  hrefPattern: RegExp,
+  keywords: string[],
+): OpportunityItem[] {
+  const items: OpportunityItem[] = [];
+  const seen = new Set<string>();
+  const blocks = html.split(/<a\b/i).slice(1, 80);
+  for (const block of blocks) {
+    const hrefRaw = ((block.match(/href="([^"]+)"/i) || [])[1] || '').replace(/&amp;/g, '&');
+    if (!hrefRaw || !hrefPattern.test(hrefRaw)) continue;
+    const href = hrefRaw.startsWith('http') ? hrefRaw.split('?')[0] : `${origin}${hrefRaw.startsWith('/') ? '' : '/'}${hrefRaw.split('?')[0]}`;
+    const title = stripHtml(
+      (block.match(/<(?:h[1-4]|span|p)[^>]*>([\s\S]*?)<\//i) || [])[1]
+      || (block.match(/title="([^"]+)"/i) || [])[1]
+      || '',
+    );
+    if (!title || title.length < 8 || seen.has(href)) continue;
+    seen.add(href);
+    const snippet = stripHtml(block).slice(0, 400);
+    items.push({
+      id: makeId(platform, href, title),
+      platform,
+      title: title.slice(0, 180),
+      description: snippet || title,
+      budget: extractBudget(snippet),
+      postedAt: new Date().toISOString(),
+      url: href,
+      skills: extractSkills(`${title} ${snippet}`, keywords),
+      compatibilityScore: scoreAgainstKeywords(title, snippet, keywords),
+    });
+  }
+  return items;
+}
+
+export async function fetchWeWorkRemotely(keywords: string[]): Promise<OpportunityItem[]> {
+  const feeds = [
+    'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+    'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
+    'https://weworkremotely.com/remote-jobs.rss',
+  ];
+  const pages = await Promise.allSettled(feeds.map((url) => fetchText(url, 5000)));
+  const items: OpportunityItem[] = [];
+  for (const page of pages) {
+    if (page.status !== 'fulfilled') continue;
+    for (const entry of parseRssItems(page.value).slice(0, 16)) {
+      const description = entry.description.slice(0, 1200);
+      items.push({
+        id: makeId('We Work Remotely', entry.link, entry.title),
+        platform: 'We Work Remotely',
+        title: entry.title,
+        description,
+        budget: extractBudget(`${entry.title} ${description}`),
+        postedAt: toIso(entry.pubDate),
+        url: entry.link,
+        skills: extractSkills(`${entry.title} ${description}`, keywords),
+        compatibilityScore: scoreAgainstKeywords(entry.title, description, keywords),
+      });
+    }
+  }
+  return dedupeOpportunities(items);
+}
+
+export async function fetchRemoteCo(keywords: string[]): Promise<OpportunityItem[]> {
+  const query = encodeURIComponent(keywords[0] || 'developer');
+  const urls = [
+    'https://remote.co/remote-jobs/developer/',
+    `https://remote.co/remote-jobs/search/?search_keywords=${query}`,
+    `https://remotive.com/api/remote-jobs?search=${query}&limit=20`,
+    'https://remoteok.com/api',
+  ];
+  const pages = await Promise.allSettled(urls.map((url) => fetchText(url, 5000, {
+    Accept: url.includes('/api') ? 'application/json' : 'text/html,application/xhtml+xml',
+  })));
+  const items: OpportunityItem[] = [];
+  for (let i = 0; i < pages.length; i += 1) {
+    const page = pages[i];
+    if (page.status !== 'fulfilled') continue;
+    const raw = page.value;
+    if (urls[i].includes('remotive.com/api')) {
+      try {
+        const parsed = JSON.parse(raw) as { jobs?: Array<{
+          id?: number;
+          url?: string;
+          title?: string;
+          description?: string;
+          company_name?: string;
+          salary?: string;
+          publication_date?: string;
+          candidate_required_location?: string;
+        }> };
+        for (const job of (parsed.jobs || []).slice(0, 20)) {
+          const title = String(job.title || '').trim();
+          const href = String(job.url || '').trim();
+          if (!title || !href) continue;
+          const description = stripHtml(String(job.description || job.company_name || '')).slice(0, 1200);
+          items.push({
+            id: makeId('Remote.co', href, title),
+            platform: 'Remote.co',
+            title,
+            description,
+            budget: String(job.salary || extractBudget(description)),
+            postedAt: toIso(job.publication_date),
+            url: href,
+            skills: extractSkills(`${title} ${description}`, keywords),
+            compatibilityScore: scoreAgainstKeywords(title, description, keywords),
+            clientCountry: job.candidate_required_location || undefined,
+          });
+        }
+      } catch { /* ignore malformed remotive payload */ }
+      continue;
+    }
+    if (urls[i].includes('remoteok.com/api')) {
+      try {
+        const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
+        const jobs = Array.isArray(parsed) ? parsed.slice(1, 25) : [];
+        for (const job of jobs) {
+          const title = String(job.position || job.title || '').trim();
+          const href = String(job.url || job.apply_url || '').trim();
+          if (!title || !href) continue;
+          const description = stripHtml(String(job.description || job.company || '')).slice(0, 1200);
+          const tags = Array.isArray(job.tags) ? job.tags.map(String) : [];
+          items.push({
+            id: makeId('Remote.co', href, title),
+            platform: 'Remote.co',
+            title,
+            description,
+            budget: extractBudget(`${job.salary_min || ''} ${job.salary_max || ''} ${description}`),
+            postedAt: toIso(Number(job.epoch) || String(job.date || '')),
+            url: href,
+            skills: tags.length ? tags.slice(0, 6) : extractSkills(`${title} ${description}`, keywords),
+            compatibilityScore: scoreAgainstKeywords(title, `${description} ${tags.join(' ')}`, keywords),
+            clientCountry: String(job.location || '') || undefined,
+          });
+        }
+      } catch { /* ignore malformed remoteok payload */ }
+      continue;
+    }
+    items.push(...parseHtmlJobLinks(
+      raw,
+      'Remote.co',
+      'https://remote.co',
+      /(?:remote\.co)?\/(?:remote-jobs|job)\//i,
+      keywords,
+    ));
+  }
+  return dedupeOpportunities(items);
+}
+
+export async function fetchIndieHackers(keywords: string[]): Promise<OpportunityItem[]> {
+  const html = await fetchText('https://www.indiehackers.com/jobs', 5000);
+  return dedupeOpportunities(parseHtmlJobLinks(
+    html,
+    'Indie Hackers',
+    'https://www.indiehackers.com',
+    /indiehackers\.com\/job|\/jobs?\/|\/job\//i,
+    keywords,
+  ));
+}
+
+export async function fetchFiverr(keywords: string[]): Promise<OpportunityItem[]> {
+  const query = encodeURIComponent(keywords[0] || 'react');
+  const urls = [
+    `https://www.fiverr.com/search/gigs?query=${query}&source=drop_down_filters`,
+    'https://www.fiverr.com/categories/programming-tech',
+  ];
+  const pages = await Promise.allSettled(urls.map((url) => fetchText(url, 5000)));
+  const items: OpportunityItem[] = [];
+  for (const page of pages) {
+    if (page.status !== 'fulfilled') continue;
+    const html = page.value;
+    if (/cloudflare|attention required|captcha/i.test(html)) continue;
+    const requestLinks = parseHtmlJobLinks(
+      html,
+      'Fiverr',
+      'https://www.fiverr.com',
+      /fiverr\.com\/(?:[^"]*request[^"]*|job\/|jobs\/)/i,
+      keywords,
+    );
+    items.push(...requestLinks);
+  }
+  return dedupeOpportunities(items);
 }
 
 export function fromExtensionPayload(body: {
@@ -413,15 +661,21 @@ export function fromExtensionPayload(body: {
 export async function collectLiveOpportunities(
   keywords: string[],
   platformFilter?: string,
-): Promise<{ items: OpportunityItem[]; sources: Record<OpportunityPlatform, SourceStatus> }> {
+): Promise<{ items: OpportunityItem[]; sources: Record<string, SourceStatus> }> {
+  const filter = String(platformFilter || 'All');
+  const wantAll = !filter || filter === 'All';
+  const wantIndie = wantAll || filter === 'Remote' || isIndiePlatform(filter);
   const want = (name: OpportunityPlatform) =>
-    !platformFilter || platformFilter === 'All' || platformFilter === name;
+    wantAll || filter === name || (wantIndie && isIndiePlatform(name));
 
-  const sources: Record<OpportunityPlatform, SourceStatus> = {
-    Fiverr: { ok: true, count: 0, note: 'Fiverr buyer briefs ingest on-demand from the Chrome extension.' },
+  const sources: Record<string, SourceStatus> = {
+    Fiverr: { ok: true, count: 0, note: 'Fiverr buyer briefs also ingest from the Chrome extension.' },
     Upwork: { ok: false, count: 0 },
     Freelancer: { ok: false, count: 0 },
     LinkedIn: { ok: false, count: 0 },
+    'We Work Remotely': { ok: false, count: 0 },
+    'Remote.co': { ok: false, count: 0 },
+    'Indie Hackers': { ok: false, count: 0 },
   };
 
   const tasks: Array<Promise<void>> = [];
@@ -458,17 +712,43 @@ export async function collectLiveOpportunities(
     }));
   }
   if (want('Fiverr')) {
-    tasks.push(fetchFiverr().then((rows) => {
-      sources.Fiverr.count = rows.length;
+    tasks.push(fetchFiverr(query).then((rows) => {
+      sources.Fiverr = {
+        ok: true,
+        count: rows.length,
+        note: rows.length ? undefined : 'Fiverr buyer briefs ingest from the Chrome extension when the public board is gated.',
+      };
       bucket.push(...rows);
     }).catch(() => {
       sources.Fiverr = { ok: true, count: 0, note: 'Fiverr buyer briefs ingest on-demand from the Chrome extension.' };
     }));
   }
+  if (want('We Work Remotely')) {
+    tasks.push(fetchWeWorkRemotely(query).then((rows) => {
+      sources['We Work Remotely'] = { ok: true, count: rows.length };
+      bucket.push(...rows);
+    }).catch((err: unknown) => {
+      sources['We Work Remotely'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'We Work Remotely feed unavailable' };
+    }));
+  }
+  if (want('Remote.co')) {
+    tasks.push(fetchRemoteCo(query).then((rows) => {
+      sources['Remote.co'] = { ok: true, count: rows.length };
+      bucket.push(...rows);
+    }).catch((err: unknown) => {
+      sources['Remote.co'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Remote.co feed unavailable' };
+    }));
+  }
+  if (want('Indie Hackers')) {
+    tasks.push(fetchIndieHackers(query).then((rows) => {
+      sources['Indie Hackers'] = { ok: true, count: rows.length };
+      bucket.push(...rows);
+    }).catch((err: unknown) => {
+      sources['Indie Hackers'] = { ok: false, count: 0, error: err instanceof Error ? err.message : 'Indie Hackers board unavailable' };
+    }));
+  }
 
   await Promise.all(tasks);
-  const items = dedupeOpportunities(bucket.map(withValidUrl))
-    .sort((a, b) => String(b.postedAt).localeCompare(String(a.postedAt)))
-    .slice(0, 40);
+  const items = sortByMatchDesc(dedupeOpportunities(bucket.map(withValidUrl))).slice(0, 80);
   return { items, sources };
 }
