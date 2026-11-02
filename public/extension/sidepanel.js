@@ -373,8 +373,8 @@ function escapeHtml(value) {
 
 async function storageGet(key, fallback) {
   try {
-    const bag = await chrome.storage.local.get(key);
-    if (bag[key] != null) return bag[key];
+    const bag = await withTimeout(chrome.storage.local.get(key), 2500, 'storage');
+    if (bag?.[key] != null) return bag[key];
   } catch {}
   try {
     const raw = localStorage.getItem(key);
@@ -2698,15 +2698,17 @@ async function boot() {
   void pingApi();
 }
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local') return;
-  if (changes[STORE.SETTINGS]?.newValue) {
-    settings = { ...DEFAULT_SETTINGS, ...changes[STORE.SETTINGS].newValue };
-    fillSettingsForm();
-  }
-  if (changes[STORE.SESSION]?.newValue) {
-    void resolveWorkspaceAccess();
-  }
-});
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes[STORE.SETTINGS]?.newValue) {
+      settings = { ...DEFAULT_SETTINGS, ...changes[STORE.SETTINGS].newValue };
+      fillSettingsForm();
+    }
+    if (changes[STORE.SESSION]?.newValue) {
+      void resolveWorkspaceAccess();
+    }
+  });
+}
 
 boot();
