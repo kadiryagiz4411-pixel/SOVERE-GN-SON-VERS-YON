@@ -8,6 +8,7 @@ import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { HUMAN_WRITING_RULES } from './_lib/tone.js';
+import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
 
@@ -104,7 +105,12 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const body = await readJsonBody<Record<string, unknown>>(req);
   const type = String(body.type || body.mode || 'followup').toLowerCase();
-  const language = textOf(body.language || body.outputLanguage, 12) || 'en';
+  const resolvedLanguage = resolveOutputLanguage(
+    body.language || body.outputLanguage,
+    body.jobDescription || body.jobContext || body.pageText,
+    body.proposal || body.proposalHistory,
+  );
+  const language = resolvedLanguage.code;
   const jobDescription = firstText([
     body.jobDescription,
     body.jobContext,
@@ -140,7 +146,8 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
-  const langName = language === 'tr' ? 'Turkish' : language === 'de' ? 'German' : language === 'fr' ? 'French' : 'English';
+  const langName = resolvedLanguage.name;
+  const lock = languageLock(langName, language);
   const context = [
     jobDescription ? `JOB:\n${jobDescription}` : '',
     proposal ? `PREVIOUS NOTE:\n${proposal}` : '',
@@ -155,7 +162,7 @@ async function handleRequest(req: Request): Promise<Response> {
         system: `You write interview prep for a specific role. Return ONLY JSON:
 {"questions":[{"question":"...","suggestedAnswer":"...","tip":"..."}]}
 Exactly 3 questions. ${HUMAN_WRITING_RULES}
-Write in ${langName}.`,
+${lock}`,
         user: context,
         json: true,
         temperature: 0.4,
@@ -181,7 +188,7 @@ Write in ${langName}.`,
 followUp3: 2-3 sentences, light check-in, not pushy.
 followUp7: 3-4 sentences, add one practical next step.
 ${HUMAN_WRITING_RULES}
-Write in ${langName}. No markdown.`,
+${lock} No markdown.`,
       user: context,
       json: true,
       temperature: 0.45,

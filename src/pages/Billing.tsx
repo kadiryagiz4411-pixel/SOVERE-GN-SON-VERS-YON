@@ -89,6 +89,10 @@ export default function Billing() {
   };
 
   const currentPlan = billing ? getTierByPlanType(billing.planType) : undefined;
+  const planKey = String(billing?.planType || "").toLowerCase();
+  const onTopTier = ["b2b_enterprise", "enterprise", "agency", "appsumo_b2b"].includes(planKey);
+  const lapsed = ["canceled", "cancelled", "expired", "past_due", "unpaid", "paused"].includes(String(subscription.status || "").toLowerCase());
+  const showRenew = lapsed && !planKey.includes("appsumo");
   const planLabel = billing
     ? (resolveDisplayTier({ planType: billing.planType, subscriptionPlan: billing.planType }).label || "Standart")
     : "Standart";
@@ -258,11 +262,19 @@ export default function Billing() {
           onOpenPortal={subscription.openPortal}
         />
 
+        {showRenew && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-4">
+            <p className="text-sm font-semibold text-amber-100">Your subscription has ended</p>
+            <p className="text-xs text-amber-200/80 mt-1">Renew to restore premium tools. AppSumo lifetime access is unchanged.</p>
+          </div>
+        )}
+
         {/* Upgrade / plan comparison */}
+        {!onTopTier || showRenew ? (
         <div>
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-slate-100">
-              {billing?.planType === "free" ? "Upgrade Your Plan" : "Switch Plan"}
+              {showRenew ? "Renew your plan" : billing?.planType === "free" ? "Upgrade Your Plan" : "Switch Plan"}
             </h2>
             <p className="text-slate-400 text-sm mt-1">
               All plans are billed by Lemon Squeezy · 14-day money-back guarantee
@@ -275,6 +287,7 @@ export default function Billing() {
             showEnterprise
           />
         </div>
+        ) : null}
       </div>
     </div>
   );

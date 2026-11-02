@@ -144,9 +144,15 @@ async function handleRequest(req: Request): Promise<Response> {
     );
     const productName = String(attrs.product_name ?? (attrs.first_order_item as Record<string, unknown> | undefined)?.product_name ?? '');
     const variantName = String(attrs.variant_name ?? (attrs.first_order_item as Record<string, unknown> | undefined)?.variant_name ?? '');
+    const rawStatus = String(attrs.status ?? 'active').toLowerCase();
     const status = eventName === 'subscription_cancelled'
       ? 'cancelled'
-      : String(attrs.status ?? 'active').toLowerCase();
+      : eventName === 'subscription_expired'
+        ? 'expired'
+        : rawStatus;
+    const terminal = eventName === 'subscription_cancelled'
+      || eventName === 'subscription_expired'
+      || ['cancelled', 'canceled', 'expired', 'unpaid', 'past_due', 'paused'].includes(status);
     const customerId = attrs.customer_id != null ? String(attrs.customer_id) : null;
     const renewsAt = (attrs.renews_at as string | null) ?? null;
     const endsAt = (attrs.ends_at as string | null) ?? null;
@@ -202,7 +208,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     if (lsId) {
       await upsertSubscription(supabaseUrl, serviceKey, ledger);
-      if (userId && (eventName === 'subscription_created' || eventName === 'subscription_updated' || eventName === 'subscription_cancelled')) {
+      if (userId && (eventName === 'subscription_created' || eventName === 'subscription_updated' || eventName === 'subscription_cancelled' || eventName === 'subscription_expired')) {
         await upsertCanonicalSubscription(supabaseUrl, serviceKey, canonical, 'user_id');
       } else {
         await upsertCanonicalSubscription(supabaseUrl, serviceKey, canonical, 'lemon_squeezy_id');
@@ -213,37 +219,50 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ received: true, queued: true, event: eventName });
     }
 
-    if (eventName === 'subscription_created' || eventName === 'subscription_updated' || eventName === 'order_created') {
-      if (planTier && planTier !== 'free' && status !== 'cancelled' && status !== 'expired') {
+    const agency = planTier === 'B2B_ENTERPRISE';
+
+    if (!terminal && (eventName === 'subscription_created' || eventName === 'subscription_updated' || eventName === 'order_created')) {
+      if (planTier && planTier !== 'free') {
         await updateProfile(supabaseUrl, serviceKey, userId, {
           plan_type: planTier,
           subscription_plan: planTier,
           subscription_status: status === 'on_trial' ? 'active' : (status || 'active'),
-          subscription_tier: planTier === 'B2B_ENTERPRISE' ? 'enterprise' : planTier,
+          subscription_tier: agency ? 'enterprise' : planTier,
           billing_period: billingPeriod === 'once' ? null : billingPeriod,
           ls_subscription_id: lsId || undefined,
           ls_customer_id: customerId,
           subscription_expires_at: endsAt || renewsAt,
           subscription_paused_at: null,
-          ...(planTier === 'B2B_ENTERPRISE' ? { b2b_subscription_status: 'active', is_trial_active: false } : {}),
+          ...(agency ? { b2b_access: true, b2b_subscription_status: 'active', is_trial_active: false } : {}),
         });
       }
     }
 
-    if (eventName === 'subscription_cancelled') {
+    if (terminal) {
+      const nextStatus = eventName === 'subscription_expired' || status === 'expired'
+        ? 'expired'
+        : status === 'past_due'
+          ? 'past_due'
+          : status === 'paused'
+            ? 'paused'
+            : status === 'unpaid'
+              ? 'unpaid'
+              : 'canceled';
       if (!(await isAppsumoLifetime(supabaseUrl, serviceKey, userId))) {
         await updateProfile(supabaseUrl, serviceKey, userId, {
-          subscription_status: 'canceled',
+          subscription_status: nextStatus,
           ls_subscription_id: lsId || undefined,
           ls_customer_id: customerId,
-          b2b_subscription_status: planTier === 'B2B_ENTERPRISE' ? 'canceled' : undefined,
+          ...(agency ? { b2b_access: false, b2b_subscription_status: nextStatus === 'expired' ? 'expired' : 'canceled' } : {}),
         });
       }
-      await upsertSubscription(supabaseUrl, serviceKey, {
-        ...ledger,
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-      });
+      if (lsId) {
+        await upsertSubscription(supabaseUrl, serviceKey, {
+          ...ledger,
+          status: nextStatus === 'canceled' ? 'cancelled' : nextStatus,
+          cancelled_at: nextStatus === 'canceled' ? new Date().toISOString() : ledger.cancelled_at,
+        });
+      }
     }
 
     return json({ received: true, event: eventName, userId, tier: planTier });

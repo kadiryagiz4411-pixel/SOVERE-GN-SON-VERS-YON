@@ -38,7 +38,8 @@ export const UpgradeBanner = ({ currentPlan }: UpgradeBannerProps) => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
 
-  if (currentPlan === 'elite' || currentPlan === 'B2B_ENTERPRISE' || currentPlan === 'enterprise') return null;
+  const planKey = String(currentPlan || '').toLowerCase();
+  if (['elite', 'enterprise', 'b2b', 'b2b_enterprise', 'agency', 'appsumo_b2b', 'appsumo_tier3'].includes(planKey)) return null;
 
   const isFreePlan = currentPlan !== 'pro' && currentPlan !== 'elite';
 

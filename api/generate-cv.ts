@@ -11,6 +11,7 @@ import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES } from './_lib/tone.js';
 import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
 import { handleSmartMatchPost } from './_lib/smartMatch.js';
 import { handleOptimizeProposalPost, isOptimizeType } from './_lib/optimizeProposal.js';
+import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -95,17 +96,20 @@ async function handleRequest(req: Request): Promise<Response> {
     const targetRole = textOf(body.targetRole, 200);
     const targetCompany = textOf(body.targetCompany, 200);
     const jobDescription = textOf(body.jobDescription, 5000);
-    const outputLanguage = textOf(body.outputLanguage, 12) || 'en';
+    const resolvedLanguage = resolveOutputLanguage(
+      body.outputLanguage,
+      body.jobDescription,
+      body.existingCvText || body.pageText || body.text,
+    );
+    const outputLanguage = resolvedLanguage.code;
     const existingCvText = textOf(
       body.existingCvText || body.pageText || body.text || body.domContent,
       10000,
     );
     const formData = body.formData && typeof body.formData === 'object' ? body.formData : {};
 
-    const langName = outputLanguage === 'tr' ? 'Turkish' : outputLanguage === 'de' ? 'German' : outputLanguage === 'fr' ? 'French' : 'English';
-    const langInstruction = outputLanguage !== 'en'
-      ? `Write the ENTIRE CV in ${langName}. Do not write in English.`
-      : 'Write in professional English.';
+    const langName = resolvedLanguage.name;
+    const langInstruction = languageLock(langName, outputLanguage);
 
     let systemPrompt: string;
     let userPrompt: string;

@@ -51,29 +51,47 @@ function rememberPageLanguage(code) {
   if (/^[a-z]{2}$/.test(lang)) settings = { ...settings, _detectedLang: lang };
 }
 
-function resolveOutputLanguage() {
+function detectSourceLanguage(sample) {
+  const text = String(sample || '').replace(/\s+/g, ' ').slice(0, 4000);
+  if (text.length < 40) return '';
+  const score = (marks, words) => (text.match(marks) || []).length * 3 + (text.match(words) || []).length;
+  const ranked = [
+    ['tr', score(/[ğüşıöçĞÜŞİÖÇ]/g, /\b(ve|bir|için|ile|olan|değil|bu|çok|daha|veya)\b/gi)],
+    ['de', score(/[äöüßÄÖÜ]/g, /\b(und|der|die|das|mit|für|nicht|eine|ist)\b/gi)],
+    ['fr', score(/[éèêëàùçœÉÈÊËÀÙÇ]/g, /\b(les|des|une|pour|dans|avec|vous|est|pas)\b/gi)],
+    ['es', score(/[ñ¿¡áéíóúÁÉÍÓÚ]/g, /\b(los|las|para|con|una|que|del|por|como)\b/gi)],
+    ['en', score(/$/g, /\b(the|and|with|for|you|your|this|that|from|have|will)\b/gi)],
+  ].sort((a, b) => b[1] - a[1]);
+  if (ranked[0][1] < 3 || ranked[0][1] < ranked[1][1] + 2) return '';
+  return ranked[0][0];
+}
+
+function resolveOutputLanguage(sourceText) {
   const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
   const explicit = settings.languageChoice === 'explicit' && saved && saved !== 'auto';
   if (explicit && /^[a-z]{2}$/.test(saved)) return saved;
-  const detected = String(settings._detectedLang || '').split('-')[0].toLowerCase();
+  const fromSource = detectSourceLanguage(sourceText);
+  const detected = fromSource || String(settings._detectedLang || '').split('-')[0].toLowerCase();
   if (/^[a-z]{2}$/.test(detected)) return detected;
   return 'auto';
 }
 
-function languagePayload() {
-  const outputLanguage = resolveOutputLanguage();
-  const target = String(settings._detectedLang || '').split('-')[0].toLowerCase();
+function languagePayload(sourceText) {
+  const saved = String(settings.outputLanguage || 'auto').trim().toLowerCase();
+  const explicit = settings.languageChoice === 'explicit' && saved && saved !== 'auto' && /^[a-z]{2}$/.test(saved);
+  if (explicit) return { outputLanguage: saved, target_language: saved };
+  const code = resolveOutputLanguage(sourceText);
   return {
-    outputLanguage,
-    target_language: /^[a-z]{2}$/.test(target) ? target : 'en',
+    outputLanguage: 'auto',
+    target_language: /^[a-z]{2}$/.test(code) ? code : '',
   };
 }
 
 /** Race a promise against a timeout (ms). Resolves/rejects with whichever fires first. */
-function withTimeout(promise, ms) {
+function withTimeout(promise, ms, message) {
   let t;
   const race = new Promise((resolve, reject) => {
-    t = setTimeout(() => reject(new Error('timeout')), ms);
+    t = setTimeout(() => reject(new Error(message || 'timeout')), ms);
     Promise.resolve(promise).then(resolve, reject);
   });
   return race.finally(() => clearTimeout(t));
@@ -92,20 +110,31 @@ function appsumoTier() {
   return Number(settings.appsumoTier || 0);
 }
 
+function subscriptionLapsed() {
+  if (settings.isAppsumoUser || appsumoTier() >= 1) return false;
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  return ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(status);
+}
+
 function canUseB2B() {
   if (isExtensionAdmin()) return true;
   if (appsumoTier() >= 3) return true;
   if (appsumoTier() === 1 || appsumoTier() === 2) return false;
-  return settings.b2bAccess === true
-    || settings.workspace === 'dual'
-    || settings.workspace === 'b2b';
+  if (subscriptionLapsed()) return false;
+  return settings.b2bAccess === true;
 }
 
 function canUseDualWorkspace() {
   return isExtensionAdmin()
     || appsumoTier() >= 3
-    || settings.workspace === 'dual'
     || (canUseB2B() && appsumoTier() !== 1 && appsumoTier() !== 2);
+}
+
+function isTopActiveTier() {
+  if (subscriptionLapsed()) return false;
+  if (isExtensionAdmin()) return true;
+  if (appsumoTier() >= 3) return true;
+  return settings.b2bAccess === true;
 }
 
 function canUseDeepMatch() {
@@ -158,6 +187,11 @@ function showPaywall(kind) {
       cta.textContent = 'Upgrade Account';
       cta.href = 'https://sovereignapp.pro/pricing';
     }
+  }
+  if (cta) {
+    const hideUpgrade = (kind !== 'renew' && kind !== 'appsumo' && isTopActiveTier())
+      || (kind === 'appsumo' && appsumoTier() >= 3);
+    cta.hidden = hideUpgrade;
   }
   document.getElementById('paywall')?.classList.add('on');
 }
@@ -350,12 +384,19 @@ async function storageGet(key, fallback) {
 }
 
 async function storageSet(key, value) {
+  let chromeOk = false;
+  let chromeError = null;
   try {
     await chrome.storage.local.set({ [key]: value });
-  } catch {}
+    chromeOk = true;
+  } catch (err) {
+    chromeError = err;
+  }
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
+  } catch (err) {
+    if (!chromeOk) throw chromeError || err;
+  }
 }
 
 function skillListFromSettings() {
@@ -427,7 +468,11 @@ function setActiveChannel(url) {
     : host.includes('upwork.com') ? 'upwork'
     : '';
   document.querySelectorAll('[data-channel]').forEach((el) => {
-    el.classList.toggle('on', Boolean(key) && el.getAttribute('data-channel') === key);
+    const on = Boolean(key) && el.getAttribute('data-channel') === key;
+    el.classList.toggle('on', on);
+    const badge = el.querySelector('[data-live]');
+    if (badge) badge.textContent = on ? 'Live' : 'Connect';
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
 }
 
@@ -518,11 +563,20 @@ function formatWhen(ts) {
 }
 
 async function saveProposalRecord(record) {
-  const list = await storageGet(STORE.PROPOSALS, []);
-  const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
-  await storageSet(STORE.PROPOSALS, next);
-  renderProposalList(next);
-  void renderSettingsHistory();
+  try {
+    const list = await withTimeout(storageGet(STORE.PROPOSALS, []), 4000, 'Save took too long. Try again.');
+    const next = [record, ...(Array.isArray(list) ? list : [])].slice(0, 40);
+    await withTimeout(storageSet(STORE.PROPOSALS, next), 4000, 'Save took too long. Try again.');
+    renderProposalList(next);
+    void renderSettingsHistory();
+    if (statusEl && !analyzing) statusEl.textContent = 'Proposal saved on this device.';
+  } catch (err) {
+    console.error('[sovereign] save proposal', err);
+    if (statusEl) {
+      statusEl.textContent = 'Could not save this proposal. Try again.';
+      statusEl.classList.add('err');
+    }
+  }
 }
 
 async function saveCandidateRecord(record) {
@@ -1122,7 +1176,7 @@ async function postParseDom(pageData, options = {}) {
     scoreOnly: Boolean(options.scoreOnly),
     analysisMode: options.analysisMode || '',
     uploadedText: options.uploadedText || '',
-    ...languagePayload(),
+    ...languagePayload(options.uploadedText || pageData.jobDescription || pageData.pageText),
   };
 
   const viaWorker = await chrome.runtime.sendMessage({
@@ -1570,15 +1624,30 @@ function fillSettingsForm() {
   const b2bNote = document.getElementById('b2bUpgradeNote');
   if (b2bHint) b2bHint.style.display = canB2b ? '' : 'none';
   if (b2bNote) b2bNote.style.display = canB2b ? 'none' : '';
+  applyPlanChrome();
   applyTheme(settings.theme);
   applyMembership(settings.membership);
   applyAdminUi();
   applyWorkspaceUi();
 }
 
+function applyPlanChrome() {
+  const pricing = document.getElementById('pricingLink');
+  const billing = document.getElementById('billingLink');
+  const note = document.getElementById('planStatus');
+  const lapsed = subscriptionLapsed();
+  const top = isTopActiveTier();
+  if (pricing) pricing.hidden = Boolean(top && !lapsed);
+  document.querySelectorAll('[data-upgrade]').forEach((el) => {
+    el.hidden = Boolean(top && !lapsed);
+  });
+  if (billing) billing.textContent = lapsed ? 'Renew plan' : 'Billing';
+  if (note && lapsed) note.textContent = 'This subscription has ended. Renew to restore premium tools.';
+}
+
 async function persistSettings(partial) {
   settings = { ...settings, ...partial };
-  await storageSet(STORE.SETTINGS, settings);
+  await withTimeout(storageSet(STORE.SETTINGS, settings), 4000, 'Save took too long. Try again.');
   fillSettingsForm();
 }
 
@@ -1802,25 +1871,50 @@ cvListEl?.addEventListener('click', async (event) => {
 });
 
 document.getElementById('saveProfile')?.addEventListener('click', async () => {
-  const selectedLang = document.getElementById('outputLanguage')?.value || 'en';
-  await persistSettings({
-    skills: document.getElementById('skills')?.value || '',
-    hourlyRate: document.getElementById('hourlyRate')?.value || '',
-    fixedRate: document.getElementById('fixedRate')?.value || '',
-    experience: document.getElementById('experience')?.value || 'mid',
-    accountEmail: document.getElementById('accountEmail')?.value || '',
-    outputLanguage: selectedLang,
-    languageChoice: 'explicit',
-  });
-  const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
+  const btn = document.getElementById('saveProfile');
+  const selectedLang = document.getElementById('outputLanguage')?.value || 'auto';
+  if (btn) btn.disabled = true;
   if (profileStatus) {
-    profileStatus.textContent = `Saved (${langLabel}).`;
+    profileStatus.classList.remove('err');
+    profileStatus.textContent = 'Saving…';
+  }
+  try {
+    await persistSettings({
+      skills: document.getElementById('skills')?.value || '',
+      hourlyRate: document.getElementById('hourlyRate')?.value || '',
+      fixedRate: document.getElementById('fixedRate')?.value || '',
+      experience: document.getElementById('experience')?.value || 'mid',
+      accountEmail: document.getElementById('accountEmail')?.value || '',
+      outputLanguage: selectedLang,
+      languageChoice: selectedLang === 'auto' ? 'auto' : 'explicit',
+    });
+    const langLabel = selectedLang === 'auto' ? 'auto-detect' : selectedLang.toUpperCase();
+    if (profileStatus) profileStatus.textContent = `Saved (${langLabel}).`;
+  } catch (err) {
+    console.error('[sovereign] save profile', err);
+    if (profileStatus) {
+      profileStatus.textContent = 'Could not save. Try again.';
+      profileStatus.classList.add('err');
+    }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 });
 
-document.getElementById('b2bToggle')?.addEventListener('change', (e) => {
-  if (!canUseDualWorkspace()) return;
-  void persistSettings({ workspaceMode: e.target.checked ? 'b2b' : 'b2c' });
+document.getElementById('b2bToggle')?.addEventListener('change', (event) => {
+  const input = event.target;
+  if (!canUseDualWorkspace() || subscriptionLapsed()) {
+    input.checked = false;
+    const note = document.getElementById('b2bUpgradeNote');
+    if (note && !canUseDualWorkspace()) note.style.display = '';
+    if (subscriptionLapsed()) showPaywall('renew');
+    return;
+  }
+  void persistSettings({ workspaceMode: input.checked ? 'b2b' : 'b2c' }).catch((err) => {
+    console.error('[sovereign] agency toggle', err);
+    input.checked = settings.workspaceMode === 'b2b';
+    if (profileStatus) profileStatus.textContent = 'Could not save Agency Mode. Try again.';
+  });
 });
 
 document.getElementById('themeOled')?.addEventListener('click', () => {
@@ -1985,7 +2079,8 @@ async function resolveWorkspaceAccess() {
       accountEmail: data?.email || settings.accountEmail,
       role: data?.role || settings.role,
       isAdmin: Boolean(data?.is_admin || data?.isAdmin),
-      b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess),
+      b2bAccess: Boolean(data?.b2b_access || data?.hasB2BAccess) && !data?.saasExpired,
+      planType: data?.planType || settings.planType || '',
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
       appsumoTier: nextTier,
       remainingCredits: Number(data?.remainingCredits ?? settings.remainingCredits ?? 0),
@@ -2357,16 +2452,6 @@ function blockSpinner(mode) {
   return document.getElementById(mode === 'proposal' ? 'proposalBlockSpinner' : 'candidateBlockSpinner');
 }
 
-function withTimeout(promise, ms, message) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    Promise.resolve(promise).then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (err) => { clearTimeout(timer); reject(err); },
-    );
-  });
-}
-
 function fileAnalysisError(err) {
   const raw = String(err?.message || err || '').replace(/\s+/g, ' ').trim();
   console.error('[sovereign] file analysis failed', raw || err);
@@ -2581,7 +2666,22 @@ async function acceptContextFile(file) {
   }
 }
 
+function bindPlatformButtons() {
+  document.querySelectorAll('[data-channel][data-open]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const url = btn.getAttribute('data-open');
+      if (!url) return;
+      if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+        chrome.tabs.create({ url }).catch(() => window.open(url, '_blank', 'noopener'));
+        return;
+      }
+      window.open(url, '_blank', 'noopener');
+    });
+  });
+}
+
 async function boot() {
+  bindPlatformButtons();
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
     settings = { ...DEFAULT_SETTINGS, ...(stored || {}) };

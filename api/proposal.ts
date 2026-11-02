@@ -8,6 +8,7 @@ import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { HUMAN_WRITING_RULES } from './_lib/tone.js';
+import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
 
@@ -78,14 +79,14 @@ async function handleRequest(req: Request): Promise<Response> {
       : [];
     const experience = textOf(body.userProfile?.experience, 800);
     const profession = textOf(body.customProfession || body.selectedProfession, 120);
-    const outputLanguage = textOf(body.outputLanguage, 12) || 'en';
-    const langName = outputLanguage === 'tr' ? 'Turkish' : outputLanguage === 'de' ? 'German' : outputLanguage === 'fr' ? 'French' : 'English';
+    const resolvedLanguage = resolveOutputLanguage(body.outputLanguage, jobDescription);
+    const langName = resolvedLanguage.name;
     const rate = body.userProfile?.hourly_rate;
 
     const raw = await completeChat(apiKey, {
       system: `You are the freelancer writing this pitch yourself. Name the client's real problem, say how you will fix it, end with a clear next step.
 ${HUMAN_WRITING_RULES}
-Write the entire proposal in ${langName}.
+${languageLock(langName, resolvedLanguage.code)}
 Return JSON: { "proposal": "full proposal text", "painPoint": "one sentence", "title": "short title" }.`,
       user: `URL: ${textOf(body.pageUrl, 500)}
 Profession: ${profession || 'not specified'}

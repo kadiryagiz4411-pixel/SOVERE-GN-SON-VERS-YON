@@ -144,17 +144,21 @@ async function handleRequest(req: Request): Promise<Response> {
     );
     const monthlyCreditLimit = Number(profile.monthly_credit_limit ?? 0);
     const subscriptionStatus = String(profile.subscription_status || 'active').toLowerCase();
+    const saasExpired = !appsumo && ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(subscriptionStatus);
     const forcedB2C = appsumoTier === 1 || appsumoTier === 2;
+    const agencyPlan = planType.includes('enterprise')
+      || planType.includes('b2b')
+      || planType.includes('agency');
     const hasB2BAccess = !forcedB2C && (
       isAdmin
       || appsumoTier >= 3
-      || profile.b2b_access === true
-      || b2bStatus === 'active'
-      || planType.includes('enterprise')
-      || planType.includes('b2b')
+      || (!saasExpired && (
+        profile.b2b_access === true
+        || b2bStatus === 'active'
+        || agencyPlan
+      ))
     );
     const workspace = isAdmin || hasB2BAccess ? 'dual' : 'b2c';
-    const saasExpired = !appsumo && ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(subscriptionStatus);
     const creditsDepleted = !isAdmin && remainingCredits <= 0;
     const canGenerate = isAdmin || (appsumo ? remainingCredits > 0 : !saasExpired && remainingCredits > 0);
 

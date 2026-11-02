@@ -4,6 +4,7 @@ import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
 import { SCREEN_ANALYST_RULES } from '../_lib/tone.js';
+import { languageLock, resolveOutputLanguage } from '../_lib/outputLanguage.js';
 
 // Node runtime + no-store JSON is the Vite equivalent of Next.js
 // force-dynamic / revalidate 0 / fetchCache force-no-store.
@@ -201,29 +202,14 @@ async function handleRequest(req: Request): Promise<Response> {
     const pageTitle    = jobTitle  || String(body.pageTitle  || '').trim();
     const pageUrl      = String(body.pageUrl   || body.sourceUrl   || '').trim();
 
-    const LANGUAGE_NAMES: Record<string, string> = {
-      en: 'English', tr: 'Turkish', de: 'German', fr: 'French', es: 'Spanish',
-      pt: 'Portuguese', nl: 'Dutch', it: 'Italian', ru: 'Russian', ar: 'Arabic',
-      zh: 'Chinese', ja: 'Japanese', ko: 'Korean', pl: 'Polish',
-    };
-    const asLang = (value: unknown) => {
-      const code = String(value || '').trim().toLowerCase().split('-')[0];
-      return /^[a-z]{2}$/.test(code) ? code : '';
-    };
-    const requested = asLang(body.outputLanguage);
-    const pageLanguage = asLang(body.target_language || body.targetLanguage);
-    const outputLanguage = (requested && requested !== 'auto')
-      ? requested
-      : (pageLanguage || 'en');
-    const languageName = LANGUAGE_NAMES[outputLanguage] || 'English';
-    const langDirective = [
-      `LANGUAGE LOCK: The target webpage language is ${languageName} (${outputLanguage}).`,
-      `Write the ENTIRE analysis in ${languageName}.`,
-      `That includes scores labels, summaries, strengths, gaps, recommendations, proposals, hooks, and candidate notes.`,
-      outputLanguage === 'en'
-        ? 'Do not mix in another language.'
-        : 'Do not fall back to English and do not mix languages.',
-    ].join(' ');
+    const uploadedForLanguage = String(body.uploadedText || '').trim();
+    const sourceForLanguage = uploadedForLanguage || pageText;
+    const explicitLanguage = String(body.outputLanguage || '').trim().toLowerCase();
+    const requestedLanguage = explicitLanguage && explicitLanguage !== 'auto' ? explicitLanguage : 'auto';
+    const resolvedLanguage = resolveOutputLanguage(requestedLanguage, sourceForLanguage, pageText);
+    const outputLanguage = resolvedLanguage.code;
+    const languageName = resolvedLanguage.name;
+    const langDirective = languageLock(languageName, outputLanguage);
 
     if (!pageText || pageText.length < 20) {
       return jsonNoStore({ error: 'Page content is too short to analyze.' }, 400);

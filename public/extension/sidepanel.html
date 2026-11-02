@@ -646,21 +646,36 @@
         gap: 6px;
         padding: 8px 16px 0;
       }
-      .channels span {
+      .channels button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: .04em;
         text-transform: uppercase;
         color: var(--muted);
+        background: transparent;
         border: 1px solid var(--line);
         border-radius: 999px;
-        padding: 3px 8px;
+        padding: 4px 8px;
+        line-height: 1;
       }
-      .channels span.on {
+      .channels button [data-live] {
+        font-style: normal;
+        letter-spacing: 0;
+        text-transform: none;
+        font-weight: 700;
+        color: var(--gold-2);
+      }
+      .channels button.on {
         color: #111;
         background: linear-gradient(90deg, var(--gold), #b8860b);
         border-color: transparent;
       }
+      .channels button.on [data-live] { color: #111; }
+      .toggle-wrap input:disabled + .toggle-track { cursor: not-allowed; opacity: .45; }
+      #profileStatus.err { color: var(--danger); }
       .credit-reset {
         display: none;
         margin: 0 16px 10px;
@@ -760,11 +775,11 @@
       <span class="dot" aria-hidden="true"></span>
       <span id="targetBadgeText">Click Scan Active Screen</span>
     </div>
-    <div class="channels" aria-label="Supported job boards">
-      <span data-channel="linkedin">LinkedIn</span>
-      <span data-channel="upwork">Upwork</span>
-      <span data-channel="indeed">Indeed</span>
-      <span data-channel="glassdoor">Glassdoor</span>
+    <div class="channels" aria-label="Connect a job board">
+      <button type="button" data-channel="linkedin" data-open="https://www.linkedin.com/jobs/">LinkedIn <span data-live>Connect</span></button>
+      <button type="button" data-channel="upwork" data-open="https://www.upwork.com/nx/find-work/">Upwork <span data-live>Connect</span></button>
+      <button type="button" data-channel="indeed" data-open="https://www.indeed.com/">Indeed <span data-live>Connect</span></button>
+      <button type="button" data-channel="glassdoor" data-open="https://www.glassdoor.com/Job/index.htm">Glassdoor <span data-live>Connect</span></button>
     </div>
     <div id="creditResetBanner" class="credit-reset" role="status">
       Monthly AppSumo credits reached. Credits refresh next month — your workspace stays open.
@@ -988,31 +1003,31 @@
           </div>
           <p id="b2bToggleHint" class="hint" style="margin-top:2px">Route jobs through B2B lead extraction and team dispatch.</p>
           <p id="b2bUpgradeNote" class="hint" style="margin-top:2px;display:none">
-            Requires AppSumo Tier 3 or an active Pro/Elite plan.
-            <a href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Upgrade ↗</a>
+            Agency Mode needs an active Agency subscription or AppSumo Tier 3.
+            <a data-upgrade href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">Upgrade</a>
           </p>
         </div>
 
         <div class="field">
           <label for="outputLanguage">AI output language</label>
           <select id="outputLanguage">
-            <option value="auto" selected>Match the page language</option>
+            <option value="auto" selected>Match the job or file</option>
             <option value="en">English</option>
-            <option value="tr">Türkçe</option>
-            <option value="de">Deutsch</option>
-            <option value="fr">Français</option>
-            <option value="es">Español</option>
-            <option value="pt">Português</option>
-            <option value="nl">Nederlands</option>
-            <option value="it">Italiano</option>
-            <option value="ru">Русский</option>
-            <option value="ar">العربية</option>
-            <option value="zh">中文</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-            <option value="pl">Polski</option>
+            <option value="tr">Turkish</option>
+            <option value="de">German</option>
+            <option value="fr">French</option>
+            <option value="es">Spanish</option>
+            <option value="pt">Portuguese</option>
+            <option value="nl">Dutch</option>
+            <option value="it">Italian</option>
+            <option value="ru">Russian</option>
+            <option value="ar">Arabic</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="pl">Polish</option>
           </select>
-          <p class="hint" style="margin-top:2px">Match the page reads the job's language, not the browser language. A saved choice overrides it.</p>
+          <p class="hint" style="margin-top:2px">Auto follows the job, resume, or brief. It does not follow the browser language. A saved choice overrides it.</p>
         </div>
 
         <button id="saveProfile" class="primary" type="button">Save Profile</button>
@@ -1035,8 +1050,8 @@
           <button id="planLtd" class="choice" type="button" data-plan="appsumo">AppSumo LTD<small>Lifetime deal</small></button>
         </div>
         <div class="row" style="margin-top:10px">
-          <a class="ghost" href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Pricing</a>
-          <a class="fill" href="https://sovereignapp.pro/settings/billing" target="_blank" rel="noopener noreferrer">Billing ↗</a>
+          <a class="ghost" id="pricingLink" data-upgrade href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Pricing</a>
+          <a class="fill" id="billingLink" href="https://sovereignapp.pro/settings/billing" target="_blank" rel="noopener noreferrer">Billing</a>
         </div>
         <div class="row" style="margin-top:8px">
           <a class="ghost" href="https://sovereignapp.pro/proposals" target="_blank" rel="noopener noreferrer">My Proposals</a>

@@ -6,6 +6,7 @@ import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
 import { completeChat, parseJsonObject } from './complete.js';
 import { sanitizeAiText } from './sanitize.js';
 import { HUMAN_WRITING_RULES, SCREEN_ANALYST_RULES } from './tone.js';
+import { languageLock, resolveOutputLanguage } from './outputLanguage.js';
 import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
 function textOf(value: unknown, max = 8000): string {
@@ -175,7 +176,12 @@ function normalize(raw: Record<string, unknown>, fallback: ReturnType<typeof fal
 
 export async function handleSmartMatchPost(body: Record<string, unknown>): Promise<Response> {
   const jobDescription = textOf(body.jobDescription ?? body.jobContext ?? body.job, 8000);
-  const outputLanguage = textOf(body.outputLanguage ?? body.language, 12) || 'en';
+  const resolvedLanguage = resolveOutputLanguage(
+    body.outputLanguage ?? body.language,
+    jobDescription,
+    body.pageText,
+    body.uploadedText,
+  );
   const skills = asList(body.skills, 16);
   const extras = {
     experience: textOf(body.experience, 40),
@@ -211,14 +217,14 @@ export async function handleSmartMatchPost(body: Record<string, unknown>): Promi
   const apiKey = resolveRequestApiKey(body);
   if (!apiKey) return jsonNoStore({ success: true, fallback: true, ...fallback });
 
-  const lang = outputLanguage === 'tr' ? 'Turkish' : outputLanguage === 'de' ? 'German' : outputLanguage === 'fr' ? 'French' : 'English';
+  const lang = resolvedLanguage.name;
   try {
     const raw = await completeChat(apiKey, {
       system: `${SCREEN_ANALYST_RULES}
 You analyze a job brief and a candidate. Return ONLY JSON with keys:
 jobParsing, matchScore, matchBreakdown, platformAcceptance, gapAnalysis, coverLetter, linkedInOutreach, sampleJobListings, topAlignmentPoints, applicationTips, status.
 status must be analysis_complete. ${HUMAN_WRITING_RULES}
-Write user-facing text in ${lang}. No markdown. If the brief is UI chrome, return empty arrays and scores of 0.`,
+${languageLock(lang, resolvedLanguage.code)} No markdown. If the brief is UI chrome, return empty arrays and scores of 0.`,
       user: `JOB:\n${jobDescription}\n\nCANDIDATE SKILLS:\n${skills.join(', ') || 'not listed'}`,
       json: true,
       temperature: 0.2,
