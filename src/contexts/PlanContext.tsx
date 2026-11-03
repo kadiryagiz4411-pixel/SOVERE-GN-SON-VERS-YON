@@ -17,6 +17,7 @@ import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { resolveDisplayTier } from '@/lib/displayTier';
 import { fallbackPlanAfterTrial, resolveB2BAccess, type TrialProfileSlice } from '@/lib/b2bTrial';
 import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
+import { BOOT_TIMEOUT_EVENT } from '@/lib/resetAppState';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -177,10 +178,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const watchdog = window.setTimeout(() => {
       if (mounted.current) setIsLoading(false);
     }, STARTUP_TIMEOUT_MS);
+    const onBootTimeout = () => {
+      if (mounted.current) setIsLoading(false);
+    };
+    window.addEventListener(BOOT_TIMEOUT_EVENT, onBootTimeout);
     if (!sessionReady) {
       return () => {
         mounted.current = false;
         window.clearTimeout(watchdog);
+        window.removeEventListener(BOOT_TIMEOUT_EVENT, onBootTimeout);
       };
     }
     void loadPlan(user?.id, user?.email);
@@ -191,6 +197,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted.current = false;
       window.clearTimeout(watchdog);
+      window.removeEventListener(BOOT_TIMEOUT_EVENT, onBootTimeout);
       window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
   }, [sessionReady, user?.id, user?.email, loadPlan]);

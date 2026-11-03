@@ -1,5 +1,5 @@
 /** Hard cap for session, profile, and queue work during first paint. */
-export const STARTUP_TIMEOUT_MS = 4000;
+export const STARTUP_TIMEOUT_MS = 3500;
 
 export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {

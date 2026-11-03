@@ -15,6 +15,7 @@ import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
 import { captureAffiliateCode } from "@/lib/lemonsqueezy";
+import { BOOT_TIMEOUT_MS, emitBootTimeout, resetAppState } from "@/lib/resetAppState";
 
 // ── ENV Configuration Banner ─────────────────────────────────────────────────
 // Shown as a fixed top bar whenever VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY
@@ -178,11 +179,44 @@ const queryClient = new QueryClient({
   },
 });
 
-const RouteFallback = () => (
-  <div className="min-h-[40vh] bg-background flex items-center justify-center">
-    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-  </div>
-);
+const RouteFallback = () => {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStalled(true), BOOT_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (stalled) {
+    return (
+      <div className="min-h-[40vh] bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-sm text-muted-foreground">This is taking longer than expected.</p>
+        <button
+          type="button"
+          onClick={() => resetAppState()}
+          className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          Force Refresh / Reset App State
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[40vh] bg-background flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    </div>
+  );
+};
+
+const BootSafeguard = () => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      emitBootTimeout();
+    }, BOOT_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return null;
+};
 
 const AppRoutes = () => (
   <Suspense fallback={<RouteFallback />}>
@@ -266,6 +300,13 @@ const App = () => {
     setShowSplash(false);
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowSplash(false);
+    }, BOOT_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
@@ -275,6 +316,7 @@ const App = () => {
       {/* Visible banner when Supabase env vars are missing — rendered outside all providers
           so it works even when the app fails to initialise. */}
       <EnvConfigBanner />
+      <BootSafeguard />
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <SessionProvider>

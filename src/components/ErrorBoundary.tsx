@@ -10,6 +10,7 @@
  */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { resetAppState } from '@/lib/resetAppState';
 
 interface Props {
   children: ReactNode;
@@ -40,9 +41,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReload = () => {
-    // Clear cached React state and force a clean reload
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.reload();
+  };
+
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    resetAppState();
   };
 
   private handleGoHome = () => {
@@ -81,13 +86,18 @@ export class ErrorBoundary extends Component<Props, State> {
               </details>
             )}
 
-            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={this.handleReload}
+                onClick={this.handleReset}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
+                Force Refresh / Reset App State
+              </button>
+              <button
+                onClick={this.handleReload}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              >
                 Reload page
               </button>
               <button

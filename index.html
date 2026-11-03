@@ -72,11 +72,11 @@
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="https://sovereignapp.pro/sitemap.xml" />
 
-    <!-- Lemon Squeezy affiliate tracking — config must exist before affiliate.js runs -->
+    <!-- Lemon Squeezy affiliate tracking — config is inline so affiliate.js can stay non-blocking -->
     <script>window.lemonSqueezyAffiliateConfig = { store: "sovereignapp" };</script>
     <script src="https://lmsqueezy.com/affiliate.js" defer></script>
 
-    <!-- Lemon Squeezy overlay — single canonical script; no duplicate load -->
+    <!-- Lemon Squeezy overlay — defer so it never blocks React mount -->
     <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
     <script>
       // Initialise the LS overlay as soon as the script is ready.

@@ -18,6 +18,7 @@ import { resolveRemainingCredits } from '@/lib/credits';
 import { QUEUE_REFILL_EVENT, refillApplyQueue, requestQueueRefill } from '@/lib/queueRefill';
 import { isPaidPlan } from '@/lib/plans';
 import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
+import { BOOT_TIMEOUT_EVENT } from '@/lib/resetAppState';
 
 const LOG = '[Sovereign Load Error]:';
 
@@ -272,6 +273,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const loadProfileCreditsRef = useRef(loadProfileCredits);
+  loadProfileCreditsRef.current = loadProfileCredits;
+
   const refreshCredits = useCallback(async () => {
     if (!user?.id) return;
     await loadProfileCredits(user.id, user.email);
@@ -301,6 +305,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mounted.current = true;
+    let released = false;
+
+    const releaseBoot = () => {
+      if (released) return;
+      released = true;
+      hydrated.current = true;
+      setSessionReady(true);
+      setOnboardingResolved(true);
+    };
 
     const recoverCachedSession = (): Session | null => {
       try {
@@ -319,37 +332,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return null;
     };
 
-    const cached = recoverCachedSession();
-    if (cached) {
-      setSession(cached);
-      setUser(cached.user ?? null);
-      hydrated.current = true;
-      setSessionReady(true);
-      if (cached.user?.id) {
-        void loadProfileCredits(cached.user.id, cached.user.email);
-      }
-    }
+    const watchdog = window.setTimeout(releaseBoot, STARTUP_TIMEOUT_MS);
+    const onGlobalBootTimeout = () => releaseBoot();
+    window.addEventListener(BOOT_TIMEOUT_EVENT, onGlobalBootTimeout);
 
-    // Always unblock first paint. Cached hydration must not skip this —
-    // a hung profile fetch used to leave onboardingResolved false forever.
-    const sessionTimeout = window.setTimeout(() => {
-      if (!mounted.current) return;
-      hydrated.current = true;
-      setSessionReady(true);
-      setOnboardingResolved(true);
-    }, STARTUP_TIMEOUT_MS);
+    const initSession = async () => {
+      const cached = recoverCachedSession();
+      try {
+        if (cached) {
+          setSession(cached);
+          setUser(cached.user ?? null);
+          if (cached.user?.id) {
+            void loadProfileCreditsRef.current(cached.user.id, cached.user.email);
+          }
+        }
 
-    withTimeout(
-      supabase.auth.getSession(),
-      STARTUP_TIMEOUT_MS,
-      { data: { session: cached }, error: null },
-    )
-      .then(async ({ data, error }) => {
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          STARTUP_TIMEOUT_MS,
+          { data: { session: cached }, error: null },
+        );
+
         if (!mounted.current) return;
-        const next = data?.session ?? cached ?? null;
         if (error) {
           console.error(LOG, 'getSession failed', error.message);
         }
+
+        const next = data?.session ?? cached ?? null;
         let authedUser = next?.user ?? cached?.user ?? null;
         if (authedUser?.id && !authedUser.email) {
           try {
@@ -359,27 +368,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               { data: { user: authedUser } },
             );
             authedUser = live.user ?? authedUser;
-          } catch { /* keep cached user */ }
+          } catch {
+            /* keep cached user */
+          }
         }
-        setSession(next ?? cached ?? null);
+        setSession(next);
         setUser(authedUser);
         if (authedUser?.id) {
-          void loadProfileCredits(authedUser.id, authedUser.email);
-        } else {
-          setOnboardingResolved(true);
+          void loadProfileCreditsRef.current(authedUser.id, authedUser.email);
         }
-        if (!mounted.current) return;
-        hydrated.current = true;
-        setSessionReady(true);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(LOG, 'getSession threw', err);
-        if (mounted.current) {
-          hydrated.current = true;
-          setSessionReady(true);
-          setOnboardingResolved(true);
-        }
-      });
+      } finally {
+        if (mounted.current) releaseBoot();
+        window.clearTimeout(watchdog);
+      }
+    };
+
+    void initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
       if (!mounted.current) return;
@@ -388,10 +394,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setSession(next);
           setUser(next.user);
         }
-        hydrated.current = true;
-        setSessionReady(true);
+        releaseBoot();
         if (next?.user?.id) {
-          void loadProfileCredits(next.user.id, next.user.email);
+          void loadProfileCreditsRef.current(next.user.id, next.user.email);
           void syncPreOnboardingMemory(next.user.id);
         }
         return;
@@ -399,12 +404,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       setSession(next);
       setUser(next?.user ?? null);
-      if (!hydrated.current) {
-        hydrated.current = true;
-        setSessionReady(true);
-      }
+      releaseBoot();
       if (next?.user?.id) {
-        void loadProfileCredits(next.user.id, next.user.email);
+        void loadProfileCreditsRef.current(next.user.id, next.user.email);
         void syncPreOnboardingMemory(next.user.id);
       } else {
         setCreditsBalance(0);
@@ -432,19 +434,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const onProfileUpdated = () => {
       void supabase.auth.getSession().then(({ data }) => {
         if (data.session?.user?.id) {
-          void loadProfileCredits(data.session.user.id, data.session.user.email);
+          void loadProfileCreditsRef.current(data.session.user.id, data.session.user.email);
         }
-      });
+      }).catch(() => {});
     };
     window.addEventListener('sovereign:profile-updated', onProfileUpdated);
 
     return () => {
       mounted.current = false;
-      window.clearTimeout(sessionTimeout);
+      window.clearTimeout(watchdog);
+      window.removeEventListener(BOOT_TIMEOUT_EVENT, onGlobalBootTimeout);
       subscription.unsubscribe();
       window.removeEventListener('sovereign:profile-updated', onProfileUpdated);
     };
-  }, [loadProfileCredits]);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;

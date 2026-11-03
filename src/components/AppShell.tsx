@@ -26,6 +26,7 @@ import { isB2BEnterprisePath } from '@/lib/b2bTrial';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { SafeIcon } from '@/lib/safeIcon';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { BOOT_TIMEOUT_MS, resetAppState } from '@/lib/resetAppState';
 import { BrandLogo } from '@/components/common/BrandLogo';
 import { QuickNavUpload } from '@/components/upload/QuickNavUpload';
 import { SidebarNav } from '@/components/layout/Sidebar';
@@ -41,17 +42,38 @@ interface AppShellProps {
   orgRole?: string;
 }
 
+function ShellRouteFallback() {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStalled(true), BOOT_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (stalled) {
+    return (
+      <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-sm text-muted-foreground">This is taking longer than expected.</p>
+        <button
+          type="button"
+          onClick={() => resetAppState()}
+          className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          Force Refresh / Reset App State
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    </div>
+  );
+}
+
 export function AppShellLayout() {
   const { user, creditsBalance, planType } = useSession();
   return (
     <AppShell user={user} plan={planType || 'free'} creditsBalance={creditsBalance}>
-      <Suspense
-        fallback={
-          <div className="min-h-[40vh] flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
-        }
-      >
+      <Suspense fallback={<ShellRouteFallback />}>
         <Outlet />
       </Suspense>
     </AppShell>

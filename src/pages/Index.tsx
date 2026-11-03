@@ -48,10 +48,6 @@ const Index = () => {
     }
   }, [searchParams, navigate, sessionReady, user]);
 
-  // While an authenticated session is loading, don't flash the landing page
-  // briefly before the dashboard redirect fires.
-  if (user) return null;
-
   return (
     <div className="min-h-screen bg-[#09090b]">
       <Header />
