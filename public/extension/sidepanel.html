@@ -641,8 +641,11 @@
         border: 1px solid rgba(245, 158, 11, 0.4);
         border-radius: 8px;
         overflow: hidden;
-        touch-action: pan-y;
+        touch-action: manipulation;
         user-select: none;
+        position: relative;
+        z-index: 6;
+        pointer-events: auto;
       }
       .mode-slider button {
         width: 100%;
@@ -656,6 +659,8 @@
         letter-spacing: .08em;
         text-transform: uppercase;
         padding: 10px 8px;
+        cursor: pointer;
+        pointer-events: auto;
       }
       .mode-slider button.on {
         color: #111;
@@ -859,7 +864,7 @@
           <img class="logo" src="assets/logo.png" alt="Sovereign" />
           <div>
             <h1>Sovereign</h1>
-            <p>Monster Engine</p>
+            <p>Personal and agency workspace</p>
           </div>
         </div>
         <div class="header-meta">
@@ -868,8 +873,8 @@
         </div>
       </div>
       <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode" data-mode="b2c">
-        <button type="button" data-mode="b2c" class="on">B2C Personal</button>
-        <button type="button" data-mode="b2b">B2B Agency</button>
+        <button id="modeB2c" type="button" role="tab" data-mode="b2c" class="on" aria-selected="true">B2C Personal</button>
+        <button id="modeB2b" type="button" role="tab" data-mode="b2b" aria-selected="false">B2B Agency</button>
       </div>
       <div class="scan-actions">
         <button id="rescan" class="rescan" type="button">Scan Active Screen</button>
@@ -941,18 +946,18 @@
           </div>
         </div>
         <div class="score-pair" aria-live="polite">
-          <div><strong id="instantMatch">—</strong><span>Monster</span></div>
+          <div><strong id="instantMatch">—</strong><span>Fit</span></div>
           <div><strong id="instantCvScore">—</strong><span>CV</span></div>
         </div>
         <div id="monsterCard" class="monster-card">
           <div class="score-row">
             <div id="monsterRing" class="score" style="--p:0"><span id="monsterBadge">—</span></div>
             <div>
-              <p class="k" style="margin-top:0">Monster Score</p>
+              <p class="k" style="margin-top:0">Fit Score</p>
               <p id="monsterLabel" class="meta">Scan a listing to lock the score.</p>
             </div>
           </div>
-          <button id="shareMonster" class="ghost" type="button">Share Monster Score to X 𝕏</button>
+          <button id="shareMonster" class="ghost" type="button">Share fit score</button>
         </div>
         <div id="armorCard" class="armor-card">
           <div class="armor-tabs">
@@ -1007,7 +1012,7 @@
             <button id="deploy" class="b2b" type="button">Deploy Proposal</button>
           </div>
           <div id="actionsJobLink" class="row single hidden" style="margin-top:8px">
-            <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="#">View / Apply on Platform ↗</a>
+            <a id="viewJob" class="fill" target="_blank" rel="noopener noreferrer" href="https://sovereignapp.pro/apply-queue">View / Apply on Platform ↗</a>
           </div>
           <div id="actionsCv" class="row single hidden">
             <button id="saveCandidate" class="cv" type="button">Save Candidate</button>
@@ -1119,6 +1124,7 @@
           <a class="ghost" href="https://sovereignapp.pro/organization" target="_blank" rel="noopener noreferrer">Organization</a>
           <a class="ghost" href="https://sovereignapp.pro/team" target="_blank" rel="noopener noreferrer">Team workspace</a>
         </div>
+        <button id="openB2bPanel" class="ghost" type="button" style="width:100%;margin-top:8px">Client notes</button>
         <div class="k">Captured this session</div>
         <div id="teamLeadList"></div>
       </section>

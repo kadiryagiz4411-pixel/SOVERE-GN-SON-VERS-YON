@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { buttonVariants, type ButtonProps } from '@/components/ui/button';
 import { useSession } from '@/contexts/SessionContext';
 import {
+  attachAffiliateTracking,
   attachCheckoutIdentity,
   getLemonStoreUrl,
   isBrokenCheckoutUrl,
@@ -47,7 +48,7 @@ export function openLemonSqueezyCheckout(
   userId?: string | null,
 ): void {
   const safeBase = isBrokenCheckoutUrl(checkoutUrl) ? getLemonStoreUrl() : sanitizeCheckoutUrl(checkoutUrl);
-  const enrichedUrl = buildLemonSqueezyUrl(safeBase, userEmail, userId);
+  const enrichedUrl = attachAffiliateTracking(buildLemonSqueezyUrl(safeBase, userEmail, userId));
 
   // Final absolute-URL guard — React Router only intercepts relative paths;
   // if somehow a non-http URL slips through, open the store instead.
@@ -123,7 +124,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
           .catch((err) => {
             console.warn('[LemonSqueezy] Hosted checkout API failed, using store URL', err);
             if (isBrokenCheckoutUrl(href)) {
-              toast.warning('Opening the Lemon Squeezy store. Set LEMONSQUEEZY_API_KEY on the server for linked checkouts.');
+              toast.warning('Opening the Lemon Squeezy store.');
             }
             open(href);
           })

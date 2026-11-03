@@ -764,7 +764,7 @@ function paintMonster(score) {
   card?.classList.add('on');
   ring?.style.setProperty('--p', String(safe));
   if (badge) badge.textContent = String(safe);
-  if (label) label.textContent = `${safe}/100 · listing destroyed`;
+  if (label) label.textContent = `${safe}/100 fit score`;
   lastScore = safe;
 }
 
@@ -1016,9 +1016,9 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (autofillBtn) autofillBtn.disabled = !isJob || !lastProposal;
   if (deployBtn) deployBtn.disabled = !isJob || !lastProposal;
   if (viewJobLink) {
-    const href = /^https?:\/\//i.test(lastJobUrl) ? lastJobUrl : '#';
-    viewJobLink.href = href;
-    const showLink = isJob && href !== '#';
+    const href = /^https?:\/\//i.test(lastJobUrl) ? lastJobUrl : '';
+    viewJobLink.href = href || 'https://sovereignapp.pro/apply-queue';
+    const showLink = isJob && Boolean(href);
     viewJobLink.classList.toggle('hidden', !showLink);
     actionsJobLink?.classList.toggle('hidden', !showLink);
   }
@@ -1749,11 +1749,14 @@ function applyWorkspaceUi() {
   const slider = document.getElementById('adminSlider');
   if (slider) slider.dataset.mode = mode;
   slider?.querySelectorAll('button[data-mode]').forEach((btn) => {
-    btn.classList.toggle('on', btn.dataset.mode === mode);
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.setAttribute('tabindex', on ? '0' : '-1');
   });
   document.getElementById('navB2c')?.classList.toggle('hidden', mode !== 'b2c');
   document.getElementById('navB2b')?.classList.toggle('hidden', mode !== 'b2b');
-  applyCreditBadge();
+  try { applyCreditBadge(); } catch (err) { console.error('[sovereign] credit badge', err); }
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
     ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
@@ -1813,10 +1816,43 @@ function applyPlanChrome() {
   if (note && lapsed) note.textContent = 'This subscription has ended. Renew to restore premium tools.';
 }
 
+let settingsRevision = 0;
+let settingsSaveChain = Promise.resolve();
+
 async function persistSettings(partial) {
-  settings = { ...settings, ...partial };
-  await withTimeout(storageSet(STORE.SETTINGS, settings), 4000, 'Save took too long. Try again.');
-  fillSettingsForm();
+  const revision = ++settingsRevision;
+  settings = { ...settings, ...partial, _settingsRev: revision };
+  try { applyWorkspaceUi(); } catch (err) { console.error('[sovereign] workspace ui', err); }
+  try { fillSettingsForm(); } catch (err) { console.error('[sovereign] settings ui', err); }
+  const snapshot = settings;
+  const write = settingsSaveChain
+    .catch(() => undefined)
+    .then(() => withTimeout(storageSet(STORE.SETTINGS, snapshot), 2500, 'Save took too long. Try again.'));
+  settingsSaveChain = write.catch(() => undefined);
+  try {
+    await write;
+  } catch (err) {
+    console.error('[sovereign] save settings', err);
+  }
+}
+
+function closestControl(event, selector) {
+  const node = event?.target;
+  const el = node && node.nodeType === 1 ? node : node?.parentElement;
+  try {
+    return el?.closest?.(selector) || null;
+  } catch {
+    return null;
+  }
+}
+
+function setWorkspaceMode(mode) {
+  const next = mode === 'b2b' ? 'b2b' : 'b2c';
+  if (settings.workspaceMode === next) {
+    try { applyWorkspaceUi(); } catch (err) { console.error('[sovereign] workspace ui', err); }
+    return;
+  }
+  void persistSettings({ workspaceMode: next, workspace: 'dual' });
 }
 
 function setApiStatus(ok, detail) {
@@ -1873,65 +1909,70 @@ const b2bBlocks = {
 const b2bRunSeq = { candidate: 0, proposal: 0 };
 
 function switchTab(tab) {
-  const mode = effectiveMode();
-  const allowed = mode === 'b2b'
-    ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
-    : ['instant', 'proposal', 'cv', 'match', 'settings'];
-  const id = allowed.includes(tab) ? tab : allowed[0];
-  if (id === 'candidate' || id === 'b2b-proposal') {
-    b2bBlock = id === 'b2b-proposal' ? 'proposal' : 'candidate';
-    renderContextDrawer();
-  }
-  document.querySelectorAll('.tab-view').forEach((view) => {
-    view.classList.toggle('on', view.id === `tab-${id}`);
-  });
-  document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
-    btn.classList.toggle('on', btn.dataset.tab === id);
-  });
-  if (id === 'settings') {
-    void pingApi();
-    void renderSettingsHistory();
+  try {
+    const mode = effectiveMode();
+    const allowed = mode === 'b2b'
+      ? ['candidate', 'b2b-proposal', 'lead', 'dispatch', 'team', 'settings']
+      : ['instant', 'proposal', 'cv', 'match', 'settings'];
+    const id = allowed.includes(tab) ? tab : allowed[0];
+    if (id === 'candidate' || id === 'b2b-proposal') {
+      b2bBlock = id === 'b2b-proposal' ? 'proposal' : 'candidate';
+      renderContextDrawer();
+    }
+    document.querySelectorAll('.tab-view').forEach((view) => {
+      view.classList.toggle('on', view.id === `tab-${id}`);
+    });
+    document.querySelectorAll('#navB2c button, #navB2b button').forEach((btn) => {
+      btn.classList.toggle('on', btn.dataset.tab === id);
+    });
+    if (id === 'settings') {
+      void pingApi().catch((err) => console.error('[sovereign] ping', err));
+      void Promise.resolve().then(() => renderSettingsHistory()).catch((err) => console.error('[sovereign] history', err));
+    }
+  } catch (err) {
+    console.error('[sovereign] switch tab', err);
   }
 }
 
 document.getElementById('navB2c')?.addEventListener('click', (event) => {
-  const btn = event.target.closest('button[data-tab]');
+  const btn = closestControl(event, 'button[data-tab]');
   if (!btn) return;
   switchTab(btn.dataset.tab);
 });
 document.getElementById('navB2b')?.addEventListener('click', (event) => {
-  const btn = event.target.closest('button[data-tab]');
+  const btn = closestControl(event, 'button[data-tab]');
   if (!btn) return;
   switchTab(btn.dataset.tab);
 });
-document.getElementById('adminSlider')?.addEventListener('click', (event) => {
-  const btn = event.target.closest('button[data-mode]');
-  if (!btn) return;
-  void persistSettings({
-    workspaceMode: btn.dataset.mode === 'b2b' ? 'b2b' : 'b2c',
-    workspace: 'dual',
-  });
-});
 
-(function bindModeSliderSwipe() {
+(function bindModeSlider() {
   const slider = document.getElementById('adminSlider');
-  if (!slider) return;
-  let startX = 0;
-  let dragging = false;
-  slider.addEventListener('pointerdown', (event) => {
-    dragging = true;
-    startX = event.clientX;
-    try { slider.setPointerCapture(event.pointerId); } catch { /* ignore */ }
-  });
-  const finish = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    const dx = event.clientX - startX;
-    if (Math.abs(dx) < 36) return;
-    void persistSettings({ workspaceMode: dx < 0 ? 'b2b' : 'b2c', workspace: 'dual' });
+  if (!slider || slider.dataset.bound === '1') return;
+  slider.dataset.bound = '1';
+  const choose = (raw) => {
+    try {
+      setWorkspaceMode(raw === 'b2b' ? 'b2b' : 'b2c');
+    } catch (err) {
+      console.error('[sovereign] workspace switch', err);
+    }
   };
-  slider.addEventListener('pointerup', finish);
-  slider.addEventListener('pointercancel', () => { dragging = false; });
+  slider.querySelectorAll('button[data-mode]').forEach((btn) => {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      choose(btn.dataset.mode);
+    });
+  });
+  slider.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    if (event.key === 'ArrowRight') choose('b2b');
+    else if (event.key === 'ArrowLeft') choose('b2c');
+    else {
+      const btn = closestControl(event, 'button[data-mode]');
+      if (btn) choose(btn.dataset.mode);
+    }
+  });
 })();
 
 document.getElementById('rescan')?.addEventListener('click', () => {
@@ -2244,10 +2285,14 @@ async function resolveWorkspaceAccess() {
   try {
     const sessionBag = await storageGet(STORE.SESSION, null);
     const accessToken = sessionBag?.accessToken || '';
-    const viaWorker = await chrome.runtime.sendMessage({
-      type: 'FETCH_ME',
-      accessToken,
-    }).catch(() => null);
+    const viaWorker = await withTimeout(
+      chrome.runtime.sendMessage({
+        type: 'FETCH_ME',
+        accessToken,
+      }).catch(() => null),
+      4000,
+      null,
+    );
     const data = viaWorker?.success ? viaWorker.data : null;
     if (!data?.success && !data?.signedIn && !accessToken) {
       applyWorkspaceUi();
@@ -2286,7 +2331,6 @@ async function resolveWorkspaceAccess() {
       subscriptionStatus: data?.subscriptionStatus || settings.subscriptionStatus,
       canGenerate: data?.canGenerate !== false,
       workspace: nextWorkspace,
-      workspaceMode: settings.workspaceMode === 'b2b' ? 'b2b' : 'b2c',
       skills: (Array.isArray(data?.profileSkills) && data.profileSkills.length)
         ? data.profileSkills.join(', ')
         : settings.skills,
@@ -3240,7 +3284,7 @@ function bindInstant() {
   });
   document.getElementById('shareMonster')?.addEventListener('click', () => {
     const safe = clampScore(lastScore || lastInstant.match);
-    const text = `Just scanned and destroyed this listing with Sovereign’s Monster Engine. ⚡ Monster Score: ${safe}/100. Automated proposals built different. 🚀 https://sovereignapp.pro #Sovereign #Freelance #AI`;
+    const text = `Sovereign fit score: ${safe}/100. https://sovereignapp.pro #Sovereign`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
   });
   document.querySelectorAll('[data-armor]').forEach((btn) => {
@@ -3342,8 +3386,17 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes[STORE.SETTINGS]?.newValue) {
-      settings = { ...DEFAULT_SETTINGS, ...changes[STORE.SETTINGS].newValue };
-      fillSettingsForm();
+      const incoming = { ...DEFAULT_SETTINGS, ...changes[STORE.SETTINGS].newValue };
+      const incomingRev = Number(incoming._settingsRev || 0);
+      if (incomingRev < settingsRevision) {
+        incoming.workspaceMode = settings.workspaceMode;
+        incoming.workspace = settings.workspace;
+        incoming._settingsRev = settingsRevision;
+      } else if (incomingRev > settingsRevision) {
+        settingsRevision = incomingRev;
+      }
+      settings = incoming;
+      try { fillSettingsForm(); } catch (err) { console.error('[sovereign] settings sync', err); }
     }
     if (changes[STORE.SESSION]?.newValue) {
       void resolveWorkspaceAccess();

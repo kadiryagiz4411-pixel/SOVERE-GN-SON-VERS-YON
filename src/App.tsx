@@ -14,6 +14,7 @@ import SplashScreen from "@/components/SplashScreen";
 import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
+import { captureAffiliateCode } from "@/lib/lemonsqueezy";
 
 // ── ENV Configuration Banner ─────────────────────────────────────────────────
 // Shown as a fixed top bar whenever VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY
@@ -126,6 +127,7 @@ const AffiliateTracker = () => {
     if (ref && ref.trim() && !localStorage.getItem('affiliate_ref')) {
       localStorage.setItem('affiliate_ref', ref.trim().toUpperCase());
     }
+    captureAffiliateCode(searchParams.toString());
   }, [searchParams]);
   return null;
 };
@@ -134,9 +136,11 @@ const LemonSqueezyInit = () => {
   useEffect(() => {
     const init = () => {
       try {
+        captureAffiliateCode();
         if (typeof window.createLemonSqueezy === 'function') {
           window.createLemonSqueezy();
         }
+        window.LemonSqueezy?.Refresh?.();
       } catch (err) {
         console.error('[LemonSqueezy] createLemonSqueezy() failed', err);
       }
@@ -148,6 +152,18 @@ const LemonSqueezyInit = () => {
       window.removeEventListener('load', init);
       window.clearTimeout(retry);
     };
+  }, []);
+  return null;
+};
+
+const FailSafe = () => {
+  useEffect(() => {
+    const onReject = (event: PromiseRejectionEvent) => {
+      event.preventDefault();
+      console.error('[Sovereign]', event.reason);
+    };
+    window.addEventListener('unhandledrejection', onReject);
+    return () => window.removeEventListener('unhandledrejection', onReject);
   }, []);
   return null;
 };
@@ -270,6 +286,7 @@ const App = () => {
                     <AffiliateTracker />
                     <PoachBridge />
                     <LemonSqueezyInit />
+                    <FailSafe />
                     <AppRoutes />
                     <DevSandbox />
                   </ErrorBoundary>

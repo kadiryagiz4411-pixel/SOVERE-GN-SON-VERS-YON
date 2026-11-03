@@ -14,7 +14,7 @@ interface AppSumoBadgeProps {
 
 export function AppSumoBadge({
   className,
-  href = 'https://appsumo.com/products/sovereign',
+  href = 'https://sovereignapp.pro/pricing#appsumo',
   variant = 'full',
 }: AppSumoBadgeProps) {
   const Wrapper = href ? 'a' : 'div';

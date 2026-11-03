@@ -55,7 +55,7 @@ export function computeMonsterScore(input: {
 
 export function monsterTweetUrl(score: number): string {
   const safe = Math.max(0, Math.min(99, Math.round(Number(score) || 0)));
-  const text = `Just scanned and destroyed this listing with Sovereign’s Monster Engine. ⚡ Monster Score: ${safe}/100. Automated proposals built different. 🚀 ${MONSTER_APP_URL} #Sovereign #Freelance #AI`;
+  const text = `Sovereign fit score: ${safe}/100. ${MONSTER_APP_URL} #Sovereign`;
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 }
 

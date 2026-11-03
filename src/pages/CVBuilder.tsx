@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { CheckoutButton, openLemonSqueezyCheckout } from '@/components/checkout/CheckoutButton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -489,6 +489,7 @@ const CVBuilder = () => {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     const maxSize = 5 * 1024 * 1024;
@@ -617,7 +618,7 @@ const CVBuilder = () => {
                 {!isPro && (
                   <button
                     type="button"
-                    onClick={() => window.location.href = getCheckoutUrl('pro')}
+                    onClick={() => openLemonSqueezyCheckout(getCheckoutUrl('pro'))}
                     className="text-xs text-primary hover:underline mt-1 inline-block text-left"
                   >
                     {cv.upgradeHint}
@@ -816,8 +817,8 @@ const CVBuilder = () => {
                     <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-3">{language === 'tr' ? 'PDF, DOCX veya TXT dosyası yükleyin' : 'Upload a PDF, DOCX, or TXT file'}</p>
                     <input type="file" accept=".txt,.pdf,.docx,.doc" onChange={handleFileUpload} className="hidden" id="cv-upload" />
-                    <label htmlFor="cv-upload">
-                      <Button variant="outline" size="sm" asChild><span>{cv.chooseFile || 'Choose File'}</span></Button>
+                    <label htmlFor="cv-upload" className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                      {cv.chooseFile || 'Choose File'}
                     </label>
                     {uploadedText && (
                       <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border text-left">

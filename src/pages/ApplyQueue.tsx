@@ -46,6 +46,11 @@ const ApplyQueue = () => {
   const { language } = useLanguage();
   const credits = profile?.credits_balance || 0;
   const { isByokUnlimited, hasApplyQueueAccess, displayTier } = useSession();
+  const isUnlimitedUser =
+    isOwnerEmail(user?.email) ||
+    hasApplyQueueAccess ||
+    isByokUnlimited ||
+    Boolean((profile as { is_superadmin?: boolean } | null)?.is_superadmin);
 
   const { items, loading, refresh, invalidate } = useApplyQueue(user?.id);
   const [scanning, setScanning] = useState(false);
@@ -154,6 +159,9 @@ const ApplyQueue = () => {
       await refresh().catch(() => undefined);
     } catch (err) {
       console.warn('[ApplyQueue scan]', err);
+      toast.error(language === 'tr'
+        ? 'Tarama tamamlanamadı. Mevcut kuyruk korundu.'
+        : 'Scan could not finish. Existing queue kept.');
     } finally {
       window.clearTimeout(timeout);
       setScanning(false);
@@ -184,12 +192,6 @@ const ApplyQueue = () => {
 
   const getScoreColor = (s: number) => s >= 70 ? 'text-green-400' : s >= 45 ? 'text-amber-400' : 'text-red-400';
   const getScoreBg = (s: number) => s >= 70 ? 'from-green-500/20 to-green-500/5' : s >= 45 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
-
-  const isUnlimitedUser =
-    isOwnerEmail(user?.email) ||
-    hasApplyQueueAccess ||
-    isByokUnlimited ||
-    Boolean((profile as any)?.is_superadmin);
 
   const isPaid = isUnlimitedUser;
 

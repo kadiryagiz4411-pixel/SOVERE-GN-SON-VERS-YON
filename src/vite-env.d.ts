@@ -1,5 +1,32 @@
 /// <reference types="vite/client" />
 
+interface LemonSqueezyAffiliateConfig {
+  store: string;
+  debug?: boolean;
+  trackOnLoad?: boolean;
+  onReady?: (api: { Track: (code: string) => void }) => void;
+  onTrack?: (event: unknown) => void;
+}
+
+interface Window {
+  lemonSqueezyAffiliateConfig?: LemonSqueezyAffiliateConfig;
+  createLemonSqueezy?: () => void;
+  LemonSqueezy?: {
+    Setup?: (opts?: unknown) => void;
+    Refresh?: () => void;
+    Url?: {
+      Open: (url: string) => void;
+      Close: () => void;
+      Build?: (url: string) => string;
+    };
+    Affiliate?: {
+      GetID?: () => string | null;
+      GetId?: () => string | null;
+      Build?: (url: string) => string;
+    };
+  };
+}
+
 interface ImportMetaEnv {
   readonly VITE_LEMONSQUEEZY_STORE_URL?: string;
   readonly VITE_LEMONSQUEEZY_TIER1_URL?: string;

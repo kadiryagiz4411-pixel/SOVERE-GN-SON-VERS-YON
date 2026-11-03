@@ -12,17 +12,31 @@ function appsumoEnv(key: string): string {
 }
 
 /**
- * AppSumo.com product listing URLs — these are where users BUY the LTD.
- * They are NOT LemonSqueezy checkout URLs.
- *
- * Override with env vars (e.g. VITE_APPSUMO_TIER1_PRODUCT_URL) when the
- * exact per-tier product slugs are known. The hardcoded defaults land on the
- * canonical AppSumo product page so users can see and select any tier there.
+ * Lemon Squeezy checkout URLs for lifetime purchases on sovereignapp.pro.
+ * These buy pages respond. The old appsumo.com/products/sovereign-* slugs 404.
  */
+export const APPSUMO_LS_CHECKOUT_URLS = {
+  tier1: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1b6e35ec-fba6-441f-8b9a-7ac90d5fa4c2',
+  tier2: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6c9a1e9f-3870-49b2-a248-092a20718e48',
+  tier3: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/9075cf3d-2e73-4c22-b200-3b8db0c91e02',
+} as const;
+
+/**
+ * Where a lifetime-tier button sends the buyer.
+ * A real AppSumo product URL from env wins. Otherwise the live Lemon Squeezy checkout is used.
+ */
+function lifetimePurchaseUrl(envKey: string, checkoutUrl: string): string {
+  const fromEnv = appsumoEnv(envKey);
+  if (/^https?:\/\//i.test(fromEnv) && !/appsumo\.com\/products\/sovereign-(starter|pro|agency)/i.test(fromEnv)) {
+    return fromEnv;
+  }
+  return checkoutUrl;
+}
+
 export const APPSUMO_PRODUCT_URLS = {
-  tier1: appsumoEnv('VITE_APPSUMO_TIER1_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-starter',
-  tier2: appsumoEnv('VITE_APPSUMO_TIER2_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-pro',
-  tier3: appsumoEnv('VITE_APPSUMO_TIER3_PRODUCT_URL') || 'https://appsumo.com/products/sovereign-agency',
+  tier1: lifetimePurchaseUrl('VITE_APPSUMO_TIER1_PRODUCT_URL', APPSUMO_LS_CHECKOUT_URLS.tier1),
+  tier2: lifetimePurchaseUrl('VITE_APPSUMO_TIER2_PRODUCT_URL', APPSUMO_LS_CHECKOUT_URLS.tier2),
+  tier3: lifetimePurchaseUrl('VITE_APPSUMO_TIER3_PRODUCT_URL', APPSUMO_LS_CHECKOUT_URLS.tier3),
 } as const;
 
 export type AppsumoLtdId = 'appsumo_tier1' | 'appsumo_tier2' | 'appsumo_tier3';
@@ -45,16 +59,6 @@ export const APPSUMO_MONTHLY_CREDITS = {
   1: 50,
   2: 200,
   3: 1000,
-} as const;
-
-/**
- * Lemon Squeezy checkout URLs for NEW AppSumo purchases on sovereignapp.pro.
- * These are LS-hosted checkout pages (not the AppSumo marketplace itself).
- */
-export const APPSUMO_LS_CHECKOUT_URLS = {
-  tier1: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1b6e35ec-fba6-441f-8b9a-7ac90d5fa4c2',
-  tier2: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/6c9a1e9f-3870-49b2-a248-092a20718e48',
-  tier3: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/9075cf3d-2e73-4c22-b200-3b8db0c91e02',
 } as const;
 
 export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [

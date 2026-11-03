@@ -15,17 +15,18 @@
  */
 
 import { createCheckout, type CheckoutPlanId } from "./plans";
-import { getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
+import { LS_CHECKOUT_URLS, getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
 export { APPSUMO_LTD_TIERS, APPSUMO_MONTHLY_CREDITS } from "./appsumo";
 
 // ─── URL helper (safe env read) ───────────────────────────────────────────────
 
-const url = (key: string): string => {
+const url = (key: string, fallback?: string): string => {
   const raw =
     typeof import.meta !== "undefined"
       ? String((import.meta.env as Record<string, string | undefined>)[key] ?? "")
       : "";
   if (raw && !isBrokenCheckoutUrl(raw)) return sanitizeCheckoutUrl(raw);
+  if (fallback && !isBrokenCheckoutUrl(fallback)) return fallback;
   return getLemonStoreUrl();
 };
 
@@ -76,7 +77,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Instant PDF Export",
     ],
     checkoutUrls: {
-      oneTime: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL"),
+      oneTime: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL", LS_CHECKOUT_URLS.single_pass.oneTime),
     },
   },
 
@@ -96,8 +97,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Basic ATS Match Analysis",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL"),
-      annual: url("VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL"),
+      monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL", LS_CHECKOUT_URLS.standard.monthly),
+      annual: url("VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL", LS_CHECKOUT_URLS.standard.yearly),
     },
   },
 
@@ -120,8 +121,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Multi-Language Support (EN, DE, TR, ES, FR)",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_PRO_MONTHLY_URL"),
-      annual: url("VITE_LEMONSQUEEZY_PRO_ANNUAL_URL"),
+      monthly: url("VITE_LEMONSQUEEZY_PRO_MONTHLY_URL", LS_CHECKOUT_URLS.pro.monthly),
+      annual: url("VITE_LEMONSQUEEZY_PRO_ANNUAL_URL", LS_CHECKOUT_URLS.pro.yearly),
     },
   },
 
@@ -144,8 +145,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Priority High-Speed LLM Execution Queue",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL"),
-      annual: url("VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL"),
+      monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL", LS_CHECKOUT_URLS.elite.monthly),
+      annual: url("VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL", LS_CHECKOUT_URLS.elite.yearly),
     },
   },
 
@@ -170,8 +171,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "AI Fraud, Fluff & Contradiction Detector",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL"),
-      annual: url("VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL"),
+      monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL", LS_CHECKOUT_URLS.enterprise.monthly),
+      annual: url("VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL", LS_CHECKOUT_URLS.enterprise.yearly),
     },
   },
 ];

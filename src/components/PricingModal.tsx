@@ -7,7 +7,7 @@
  *   <PricingModal open={show} onClose={() => setShow(false)} highlightTier="appsumo_tier2" />
  *
  * Features:
- *  - Tier cards: Starter ($49), Pro ($149), B2B / Agency ($299)
+ *  - Tier cards: Starter ($59), Pro ($139), B2B / Agency ($249)
  *  - Highlighted features per tier (bolded)
  *  - CTA button → Lemon Squeezy / AppSumo checkout URL from env vars
  *  - "Already have a code?" → navigate to /redeem
@@ -18,8 +18,10 @@ import { useNavigate } from 'react-router-dom';
 import { X, Check, Zap, Users, Sparkles, Star, ExternalLink, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APPSUMO_TIER_CONFIGS, type AppSumoTierConfig } from '@/utils/tierPermissions';
-import { APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
-import { useSession } from '@/contexts/SessionContext';
+import { APPSUMO_LS_CHECKOUT_URLS, APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
+import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { createCheckout } from '@/config/plans';
+import { LS_CHECKOUT_URLS, sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
 
 // ─── Tier card ────────────────────────────────────────────────────────────────
 
@@ -32,15 +34,16 @@ function TierCard({
   isHighlighted: boolean;
   currentTier?: string;
 }) {
-  // user is kept for session context but not used in checkout anymore.
-  const { user: _user } = useSession();
   const isCurrent = currentTier === cfg.tier;
   const Icon = cfg.tier === 'appsumo_b2b' ? Users
              : cfg.tier === 'appsumo_tier2' ? Sparkles
              : Zap;
 
-  // AppSumo LTD purchases happen on AppSumo.com, not on LemonSqueezy.
-  // Map each tier to its canonical AppSumo product listing URL.
+  const lsHref = sanitizeCheckoutUrl(
+    cfg.tier === 'appsumo_b2b' ? APPSUMO_LS_CHECKOUT_URLS.tier3
+    : cfg.tier === 'appsumo_tier2' ? APPSUMO_LS_CHECKOUT_URLS.tier2
+    : cfg.checkoutUrl || APPSUMO_LS_CHECKOUT_URLS.tier1,
+  );
   const appsumoHref =
     cfg.tier === 'appsumo_b2b'    ? APPSUMO_PRODUCT_URLS.tier3
     : cfg.tier === 'appsumo_tier2' ? APPSUMO_PRODUCT_URLS.tier2
@@ -111,25 +114,33 @@ function TierCard({
           Current Plan
         </div>
       ) : (
-        /* Plain <a> — never a button with onClick or an internal Link.
-           AppSumo purchases happen on AppSumo.com; target="_blank" prevents
-           React Router from capturing the navigation. */
-        <a
-          href={appsumoHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            'w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
-            cfg.tier === 'appsumo_b2b'
-              ? 'bg-amber-500 hover:bg-amber-600 text-black'
-              : cfg.tier === 'appsumo_tier2'
-                ? 'bg-violet-600 hover:bg-violet-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white',
-          )}
-        >
-          Get {cfg.label} on AppSumo
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        <div className="space-y-2">
+          <CheckoutButton
+            href={lsHref}
+            overlay
+            className={cn(
+              'w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 border-0',
+              cfg.tier === 'appsumo_b2b'
+                ? 'bg-amber-500 hover:bg-amber-600 text-black'
+                : cfg.tier === 'appsumo_tier2'
+                  ? 'bg-violet-600 hover:bg-violet-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white',
+            )}
+          >
+            Get {cfg.label}
+            <ExternalLink className="w-3.5 h-3.5" />
+          </CheckoutButton>
+          {appsumoHref.includes('appsumo.com') && appsumoHref !== lsHref ? (
+            <a
+              href={appsumoHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Or buy on AppSumo
+            </a>
+          ) : null}
+        </div>
       )}
     </div>
   );
@@ -209,6 +220,18 @@ export function PricingModal({ open, onClose, highlightTier, currentTier }: Pric
               currentTier={currentTier}
             />
           ))}
+        </div>
+
+        <div className="px-6 pb-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <CheckoutButton href={sanitizeCheckoutUrl(createCheckout('standard') || LS_CHECKOUT_URLS.standard.monthly)} overlay className="w-full text-xs">
+            SaaS Standard
+          </CheckoutButton>
+          <CheckoutButton href={sanitizeCheckoutUrl(createCheckout('pro') || LS_CHECKOUT_URLS.pro.monthly)} overlay className="w-full text-xs">
+            SaaS Pro
+          </CheckoutButton>
+          <CheckoutButton href={sanitizeCheckoutUrl(createCheckout('elite') || LS_CHECKOUT_URLS.elite.monthly)} overlay className="w-full text-xs">
+            SaaS Elite
+          </CheckoutButton>
         </div>
 
         {/* Footer */}

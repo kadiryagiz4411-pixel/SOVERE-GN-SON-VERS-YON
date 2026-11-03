@@ -5,14 +5,97 @@
 
 declare global {
   interface Window {
+    lemonSqueezyAffiliateConfig?: {
+      store: string;
+      debug?: boolean;
+      trackOnLoad?: boolean;
+      onReady?: (api: { Track: (code: string) => void }) => void;
+      onTrack?: (event: unknown) => void;
+    };
     createLemonSqueezy?: () => void;
     LemonSqueezy?: {
       Setup?: (opts?: unknown) => void;
+      Refresh?: () => void;
       Url?: {
         Open: (url: string) => void;
         Close: () => void;
+        Build?: (url: string) => string;
+      };
+      Affiliate?: {
+        GetID?: () => string | null;
+        GetId?: () => string | null;
+        Build?: (url: string) => string;
       };
     };
+  }
+}
+
+const AFFILIATE_QUERY_KEYS = ['aff', 'via', 'aff_ref'] as const;
+const LS_AFFILIATE_STORAGE = 'ls_aff';
+
+function firstSearchParam(params: URLSearchParams, keys: readonly string[]): string {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+/** Persist `?aff=` / `?via=` from a landing URL so SPA navigations still attribute checkout. */
+export function captureAffiliateCode(search?: string): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const params = new URLSearchParams(search ?? window.location.search);
+    const code = firstSearchParam(params, AFFILIATE_QUERY_KEYS);
+    if (code) {
+      try { localStorage.setItem(LS_AFFILIATE_STORAGE, code); } catch { /* private mode */ }
+    }
+    return code;
+  } catch {
+    return '';
+  }
+}
+
+function readAffiliateCode(): string {
+  if (typeof window === 'undefined') return '';
+  const fromUrl = captureAffiliateCode();
+  if (fromUrl) return fromUrl;
+  try {
+    const stored = localStorage.getItem(LS_AFFILIATE_STORAGE);
+    if (stored?.trim()) return stored.trim();
+  } catch { /* ignore */ }
+  try {
+    const id = window.LemonSqueezy?.Affiliate?.GetID?.()
+      || window.LemonSqueezy?.Affiliate?.GetId?.();
+    if (id) return String(id).trim();
+  } catch { /* overlay not ready */ }
+  return '';
+}
+
+/**
+ * Keep affiliate attribution on checkout URLs.
+ * Lemon.js rewrites static <a> tags automatically; programmatic Url.Open does not,
+ * so we append aff_ref (and aff) ourselves and prefer LemonSqueezy.Affiliate.Build.
+ */
+export function attachAffiliateTracking(baseUrl: string): string {
+  if (!isHttpUrl(baseUrl)) return baseUrl;
+  let candidate = baseUrl;
+  try {
+    const built = window.LemonSqueezy?.Affiliate?.Build?.(baseUrl)
+      || window.LemonSqueezy?.Url?.Build?.(baseUrl);
+    if (built && isHttpUrl(built) && !isBrokenCheckoutUrl(built)) candidate = built;
+  } catch { /* Build unavailable until lemon.js loads */ }
+
+  try {
+    const urlObj = new URL(candidate);
+    if (firstSearchParam(urlObj.searchParams, AFFILIATE_QUERY_KEYS)) return urlObj.toString();
+    const code = readAffiliateCode();
+    if (!code) return urlObj.toString();
+    urlObj.searchParams.set('aff_ref', code);
+    if (!urlObj.searchParams.has('aff')) urlObj.searchParams.set('aff', code);
+    return urlObj.toString();
+  } catch {
+    return candidate;
   }
 }
 
@@ -34,6 +117,9 @@ export interface TierCheckoutConfig {
 }
 
 const DEFAULT_STORE = 'https://sovereignapp.lemonsqueezy.com';
+
+/** Public Lemon Squeezy affiliate signup for the Sovereign store. */
+export const LEMON_SQUEEZY_AFFILIATE_URL = `${DEFAULT_STORE}/affiliates`;
 
 function env(key: string): string {
   try {
@@ -177,8 +263,11 @@ export function getCheckoutUrl(
       'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL',
       'VITE_APPSUMO_B2B_URL',
       'VITE_LEMONSQUEEZY_TIER3_URL',
-    ]),
-    single_pass: checkoutUrlFromEnvOrStore(['VITE_LEMONSQUEEZY_ONETIME_PASS_URL']),
+    ], LS_CHECKOUT_URLS.enterprise.monthly),
+    single_pass: checkoutUrlFromEnvOrStore(
+      ['VITE_LEMONSQUEEZY_ONETIME_PASS_URL'],
+      LS_CHECKOUT_URLS.single_pass.oneTime,
+    ),
   };
 
   const mapped = normalizeTier(tier);
@@ -196,7 +285,7 @@ export function getCheckoutUrl(
     if (typeof window !== 'undefined') {
       urlObj.searchParams.set('checkout[redirect_url]', `${window.location.origin}/dashboard?payment=success`);
     }
-    return urlObj.toString();
+    return attachAffiliateTracking(urlObj.toString());
   } catch (err) {
     console.error('[LemonSqueezy] URL parse failed', err, { baseUrl });
     return getLemonStoreUrl();
@@ -212,9 +301,9 @@ export function attachCheckoutIdentity(baseUrl: string, userEmail?: string | nul
     if (typeof window !== 'undefined' && !urlObj.searchParams.has('checkout[redirect_url]')) {
       urlObj.searchParams.set('checkout[redirect_url]', `${window.location.origin}/dashboard?payment=success`);
     }
-    return urlObj.toString();
+    return attachAffiliateTracking(urlObj.toString());
   } catch {
-    return clean;
+    return attachAffiliateTracking(clean);
   }
 }
 

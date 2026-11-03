@@ -12,22 +12,29 @@ export async function createHostedCheckout(opts: {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (opts.accessToken) headers.Authorization = `Bearer ${opts.accessToken}`;
 
-  const res = await fetch('/api/billing/checkout', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      variantId: opts.variantId,
-      userId: opts.userId || undefined,
-      email: opts.email || undefined,
-      userEmail: opts.email || undefined,
-      planId: opts.planId,
-      billingCycle: opts.billingCycle,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        variantId: opts.variantId,
+        userId: opts.userId || undefined,
+        email: opts.email || undefined,
+        userEmail: opts.email || undefined,
+        planId: opts.planId,
+        billingCycle: opts.billingCycle,
+      }),
+    });
 
-  const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
-  if (!res.ok || !data.checkoutUrl) {
-    throw new Error(data.error || 'Could not create checkout');
+    const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
+    if (!res.ok || !data.checkoutUrl) {
+      throw new Error(data.error || 'Could not create checkout');
+    }
+    return data.checkoutUrl;
+  } finally {
+    clearTimeout(timer);
   }
-  return data.checkoutUrl;
 }

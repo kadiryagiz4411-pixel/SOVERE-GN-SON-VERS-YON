@@ -1,6 +1,7 @@
 import { Check, Ticket, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { APPSUMO_LTD_TIERS, APPSUMO_PRODUCT_URLS, appsumoLtdPriceLabel } from '@/config/appsumo';
+import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { cn } from '@/lib/utils';
 
 const TIER_THEME = [
@@ -29,7 +30,7 @@ export function AppSumoPricing() {
             AppSumo Lifetime
           </span>
           <h2 className="mb-3 text-3xl font-black text-slate-100 md:text-4xl">
-            One-time AppSumo licenses — $49, $149, $299
+            One-time licenses — $59, $139, $249
           </h2>
           <p className="mx-auto max-w-2xl text-slate-400">
             Lifetime access with a monthly AI credit quota that refreshes automatically. Chrome extension included. Never a recurring lockout.
@@ -78,21 +79,30 @@ export function AppSumoPricing() {
                   ))}
                 </ul>
 
-                {/*
-                  Plain <a> with target="_blank" — never an internal Link or onClick.
-                  AppSumo LTD purchases happen on AppSumo.com, not on LemonSqueezy.
-                */}
-                <a
-                  href={appsumoHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    'mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
-                    theme.button,
-                  )}
-                >
-                  Get {tier.label} on AppSumo
-                </a>
+                {/lemonsqueezy\.com/i.test(appsumoHref) ? (
+                  <CheckoutButton
+                    href={appsumoHref}
+                    overlay
+                    className={cn(
+                      'mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors border-0',
+                      theme.button,
+                    )}
+                  >
+                    Get {tier.label}
+                  </CheckoutButton>
+                ) : (
+                  <a
+                    href={appsumoHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      'mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+                      theme.button,
+                    )}
+                  >
+                    Get {tier.label} on AppSumo
+                  </a>
+                )}
               </article>
             );
           })}

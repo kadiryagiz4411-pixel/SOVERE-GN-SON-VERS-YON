@@ -80,25 +80,33 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         onSuccess={() => { void load(); }}
       />
 
-      {/* AppSumo LTD users: always link to AppSumo.com — never LS checkout */}
       {isAppsumoUser ? (
         <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5 space-y-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Upgrade AppSumo tier</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              AppSumo LTD upgrades are purchased exclusively on AppSumo.com — not through Lemon Squeezy.
+              {appsumoUpgradeHref.includes('appsumo.com')
+                ? 'This upgrade opens the AppSumo product page.'
+                : 'This upgrade opens a secure checkout for the next lifetime tier.'}
             </p>
           </div>
           {tier < 3 ? (
-            <a
-              href={appsumoUpgradeHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {tier >= 2 ? 'Upgrade to B2B / Agency on AppSumo' : 'Upgrade to Pro on AppSumo'}
-            </a>
+            appsumoUpgradeHref.includes('lemonsqueezy.com') ? (
+              <CheckoutButton href={appsumoUpgradeHref} overlay className="w-full bg-orange-500 hover:bg-orange-400 text-white border-0">
+                <ShoppingBag className="w-4 h-4" />
+                {tier >= 2 ? 'Upgrade to B2B / Agency' : 'Upgrade to Pro'}
+              </CheckoutButton>
+            ) : (
+              <a
+                href={appsumoUpgradeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                {tier >= 2 ? 'Upgrade to B2B / Agency' : 'Upgrade to Pro'}
+              </a>
+            )
           ) : (
             <p className="text-xs text-emerald-400 font-medium">
               ✓ You are on the highest AppSumo tier (B2B / Agency).
