@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,10 @@ import { fetchLiveOpportunities, isIndiePlatform, normalizeOpportunityUrl, type 
 import { skillsForMatching } from '@/lib/matchScore';
 import { OpportunitiesScanner, OpportunityJobLink } from '@/components/apply/OpportunitiesScanner';
 import { useApplyQueue } from '@/hooks/useApplyQueue';
+import { MonsterScore } from '@/components/MonsterScore';
+import { PoachBanner } from '@/components/PoachBanner';
+import { computeMonsterScore } from '@/lib/monsterScore';
+import { inspectHiringTarget, stashPoachJob } from '@/services/poachingEngine';
 import {
   Loader2, Crown, Copy,
   ChevronDown, Target, TrendingUp,
@@ -37,6 +41,7 @@ const ApplyQueue = () => {
   // false "Please sign in" toast that fires when useAuth()'s own loading
   // state initialises with user=null before getSession() completes.
   const { user } = useSession();
+  const navigate = useNavigate();
   const { profile } = useProfile(user);
   const { language } = useLanguage();
   const credits = profile?.credits_balance || 0;
@@ -256,6 +261,17 @@ const ApplyQueue = () => {
               <div className="space-y-4">
                 {filtered.map((item) => {
                   const isExpanded = expandedId === item.id;
+                  const poach = inspectHiringTarget({
+                    title: item.job_title,
+                    text: item.job_description,
+                    url: item.job_url,
+                  });
+                  const monster = computeMonsterScore({
+                    jobTitle: item.job_title,
+                    jobText: item.job_description,
+                    proposalText: editingProposal[item.id] ?? item.generated_proposal,
+                    listedSkills: item.skills_matched,
+                  });
                   return (
                     <div
                       key={item.id}
@@ -328,6 +344,18 @@ const ApplyQueue = () => {
                       {/* Expanded Content */}
                       {isExpanded && (
                         <div className="border-t border-border px-4 py-4 space-y-4">
+                          <PoachBanner
+                            target={poach}
+                            onDeploy={() => {
+                              stashPoachJob({
+                                title: item.job_title,
+                                text: item.job_description || item.generated_proposal || item.job_title,
+                                url: item.job_url,
+                              });
+                              navigate('/dashboard?poach=1');
+                            }}
+                          />
+                          <MonsterScore score={monster.score} compact />
                           {/* Job Description */}
                           <div>
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-1">

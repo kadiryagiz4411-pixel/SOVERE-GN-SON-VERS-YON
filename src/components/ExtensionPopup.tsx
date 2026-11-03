@@ -1,3 +1,8 @@
+import { MonsterScore } from '@/components/MonsterScore';
+import { PoachBanner } from '@/components/PoachBanner';
+import { ResumeArmorPanel } from '@/components/ResumeArmorPanel';
+import type { PoachTarget } from '@/services/poachingEngine';
+
 type WorkspaceMode = 'b2c' | 'b2b';
 
 export function WorkspaceModeSwitcher({
@@ -31,6 +36,28 @@ export function WorkspaceModeSwitcher({
       >
         B2B Agency
       </button>
+    </div>
+  );
+}
+
+export function ExtensionGrowthStack({
+  score,
+  target,
+  jobText,
+  busy,
+  onDeploy,
+}: {
+  score: number;
+  target: PoachTarget | null;
+  jobText: string;
+  busy?: boolean;
+  onDeploy: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <PoachBanner target={target} busy={busy} onDeploy={onDeploy} />
+      <MonsterScore score={score} />
+      <ResumeArmorPanel jobText={jobText} />
     </div>
   );
 }

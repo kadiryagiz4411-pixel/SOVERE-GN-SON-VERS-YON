@@ -737,6 +737,69 @@ function clampScore(value) {
   return Math.min(99, score);
 }
 
+function inspectHiringTargetJs(title, text, url) {
+  const blob = `${title || ''}\n${text || ''}\n${url || ''}`.toLowerCase();
+  const platform = /upwork/.test(blob) ? 'Upwork' : /linkedin/.test(blob) ? 'LinkedIn' : /fiverr/.test(blob) ? 'Fiverr' : '';
+  const hiring = /hiring|looking for|we need|seeking|apply now/.test(blob);
+  const company = String(title || '').split(/[-–|·•]/)[0].trim().slice(0, 64);
+  const handle = (String(text || '').match(/@([a-z0-9._-]{3,32})/i) || [])[0] || '';
+  const active = hiring || Boolean(platform) || String(text || '').length > 120;
+  return { active, company, platform, recruiter: handle };
+}
+
+function paintPoach(title, text, url) {
+  const target = inspectHiringTargetJs(title, text, url);
+  const banner = document.getElementById('poachBanner');
+  const meta = document.getElementById('poachMeta');
+  banner?.classList.toggle('on', Boolean(target.active));
+  if (meta) meta.textContent = [target.company, target.platform, target.recruiter].filter(Boolean).join(' · ');
+}
+
+function paintMonster(score) {
+  const safe = clampScore(score);
+  const card = document.getElementById('monsterCard');
+  const ring = document.getElementById('monsterRing');
+  const badge = document.getElementById('monsterBadge');
+  const label = document.getElementById('monsterLabel');
+  card?.classList.add('on');
+  ring?.style.setProperty('--p', String(safe));
+  if (badge) badge.textContent = String(safe);
+  if (label) label.textContent = `${safe}/100 · listing destroyed`;
+  lastScore = safe;
+}
+
+function armorResumeJs(resume, job) {
+  const original = String(resume || '').trim();
+  const hay = `${job || ''}\n${original}`.toLowerCase();
+  const catalog = ['react', 'typescript', 'javascript', 'python', 'supabase', 'node', 'figma', 'aws', 'sql', 'next.js'];
+  const missing = catalog.filter((skill) => hay.includes(skill) && !original.toLowerCase().includes(skill)).slice(0, 8);
+  const skills = [...new Set([...catalog.filter((skill) => original.toLowerCase().includes(skill)), ...missing])];
+  const name = original.split('\n').map((line) => line.trim()).find(Boolean) || 'Candidate';
+  const armored = [
+    `# ${name}`,
+    '',
+    '## Professional Summary',
+    `${name} ships the brief in week one with measurable proof.`,
+    '',
+    '## Core Skills',
+    skills.map((skill) => `- ${skill}`).join('\n'),
+    '',
+    '## Experience',
+    original.split('\n').filter((line) => line.trim() && line.trim() !== name).slice(0, 40).map((line) => `- ${line.trim()}`).join('\n'),
+  ].join('\n');
+  return { original: original || 'No resume text yet.', armored };
+}
+
+function paintArmor(resume, job) {
+  const result = armorResumeJs(resume, job);
+  const card = document.getElementById('armorCard');
+  const original = document.getElementById('armorOriginal');
+  const armed = document.getElementById('armorArmed');
+  if (original) original.textContent = result.original;
+  if (armed) armed.textContent = result.armored;
+  card?.classList.add('on');
+}
+
 function matchBand(score) {
   if (score >= 80) return 'High Probability';
   if (score >= 60) return 'Strong Fit';
@@ -783,6 +846,8 @@ function updateMatchUi(analysis, title) {
     : matchBand(safeScore);
   const message = humanMatchCopy(analysis, title);
   lastScore = safeScore;
+  paintMonster(safeScore);
+  paintPoach(title || lastTitle || lastJob.title, lastJob.description || '', lastJob.url || lastJobUrl || '');
   lastMatch = {
     label,
     strengths: Array.isArray(analysis?.strengths) ? analysis.strengths : (analysis?.matchedSkills || []),
@@ -1075,6 +1140,7 @@ function flushJobContext() {
   lastTitle = '';
   lastJobUrl = '';
   lastTargetHash = '';
+  document.getElementById('poachBanner')?.classList.remove('on');
 }
 
 function setTargetBadge(state, title, kind, contentType) {
@@ -1128,6 +1194,11 @@ function applyIsolatedJob(pageData) {
   }
   if (titleEl) titleEl.textContent = lastJob.title || '';
   if (metaEl) metaEl.textContent = lastJob.url || '';
+  paintPoach(lastJob.title, lastJob.description, lastJob.url);
+  const instantJob = document.getElementById('instantJob');
+  if (instantJob && lastJob.description && String(instantJob.value || '').trim().length < 20) {
+    instantJob.value = lastJob.description;
+  }
 }
 
 async function refreshViewportAnalysis(pageData) {
@@ -2982,6 +3053,9 @@ function paintInstant(match, cv, proposal, status, breakdown) {
   if (breakEl) breakEl.textContent = breakdown || '';
   if (summary) summary.textContent = `Match ${safeMatch}% · CV ${safeCv}%`;
   lastInstant = { match: safeMatch, cv: safeCv, proposal };
+  paintMonster(safeMatch);
+  paintPoach(lastTitle || lastJob.title || 'Instant brief', document.getElementById('instantJob')?.value || lastJob.description || '', lastJob.url || lastJobUrl || '');
+  paintArmor(document.getElementById('instantCv')?.value || '', document.getElementById('instantJob')?.value || lastJob.description || '');
 }
 
 async function runInstant(source) {
@@ -3157,6 +3231,25 @@ function bindInstant() {
   });
   document.getElementById('instantRun')?.addEventListener('click', () => {
     void runInstant('manual');
+  });
+  document.getElementById('poachDeploy')?.addEventListener('click', () => {
+    const job = document.getElementById('instantJob');
+    if (job && lastJob.description && !String(job.value || '').trim()) job.value = lastJob.description;
+    switchTab('proposal');
+    document.getElementById('analyze')?.click();
+  });
+  document.getElementById('shareMonster')?.addEventListener('click', () => {
+    const safe = clampScore(lastScore || lastInstant.match);
+    const text = `Just scanned and destroyed this listing with Sovereign’s Monster Engine. ⚡ Monster Score: ${safe}/100. Automated proposals built different. 🚀 https://sovereignapp.pro #Sovereign #Freelance #AI`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+  });
+  document.querySelectorAll('[data-armor]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-armor');
+      document.querySelectorAll('[data-armor]').forEach((el) => el.classList.toggle('on', el === btn));
+      document.getElementById('armorOriginal')?.toggleAttribute('hidden', mode !== 'original');
+      document.getElementById('armorArmed')?.toggleAttribute('hidden', mode !== 'armored');
+    });
   });
   document.getElementById('headerUpload')?.addEventListener('click', () => {
     try {

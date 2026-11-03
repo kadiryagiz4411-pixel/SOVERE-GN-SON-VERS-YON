@@ -2,7 +2,7 @@ import { useState, useCallback, lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useSearchParams, useNavigate } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { SessionProvider } from "@/contexts/SessionContext";
@@ -106,6 +106,18 @@ const ResumeLanguagePage = lazy(() => import("./pages/seo/LanguageSEOPages").the
 const ProposalTemplatePage = lazy(() => import("./pages/seo/LanguageSEOPages").then(m => ({ default: m.ProposalTemplatePage })));
 const AcceptanceRatePage = lazy(() => import("./pages/seo/AcceptanceRatePage").then(m => ({ default: m.AcceptanceRatePage })));
 const ReferralLanding = lazy(() => import("./pages/ReferralLanding"));
+
+const PoachBridge = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (searchParams.get('poach') !== '1') return;
+    if (window.location.pathname !== '/dashboard') {
+      navigate('/dashboard?poach=1', { replace: true });
+    }
+  }, [searchParams, navigate]);
+  return null;
+};
 
 const AffiliateTracker = () => {
   const [searchParams] = useSearchParams();
@@ -256,6 +268,7 @@ const App = () => {
                 <BrowserRouter>
                   <ErrorBoundary>
                     <AffiliateTracker />
+                    <PoachBridge />
                     <LemonSqueezyInit />
                     <AppRoutes />
                     <DevSandbox />

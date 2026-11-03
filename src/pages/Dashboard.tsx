@@ -46,6 +46,11 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
 import { ATSAnalyzer } from '@/components/ATSAnalyzer';
+import { MonsterScore } from '@/components/MonsterScore';
+import { PoachBanner } from '@/components/PoachBanner';
+import { ResumeArmorPanel } from '@/components/ResumeArmorPanel';
+import { computeMonsterScore } from '@/lib/monsterScore';
+import { inspectHiringTarget, takePoachJob } from '@/services/poachingEngine';
 import { SegmentSelector, type UserSegment } from '@/components/dashboard/SegmentSelector';
 import { FreelanceInputs } from '@/components/dashboard/FreelanceInputs';
 import { FreelanceScoreDisplay } from '@/components/dashboard/FreelanceScoreDisplay';
@@ -1013,6 +1018,29 @@ const Dashboard = () => {
     }
   };
 
+  const poachTarget = useMemo(
+    () => inspectHiringTarget({ text: jobDescription, title: customProfession }),
+    [jobDescription, customProfession],
+  );
+  const monster = useMemo(
+    () => computeMonsterScore({
+      jobText: jobDescription,
+      proposalText: generatedProposal,
+      profile: profile ? { skills: profile.skills || [], experience: profile.experience || '', hourlyRate: profile.hourly_rate } : null,
+    }),
+    [jobDescription, generatedProposal, profile],
+  );
+
+  useEffect(() => {
+    const bag = takePoachJob();
+    if (!bag?.text) return;
+    setJobDescription(bag.text);
+    if (bag.title) setCustomProfession(bag.title);
+    window.setTimeout(() => {
+      document.getElementById('sovereign-generate')?.click();
+    }, 250);
+  }, []);
+
   const getActiveProposalText = () => {
     if (proposalVariants && activeVariant) {
       const v = proposalVariants.find(v => v.id === activeVariant);
@@ -1697,6 +1725,9 @@ const Dashboard = () => {
                   </button>
                 )}
               </label>
+              <div className="mb-3">
+                <PoachBanner target={poachTarget} busy={isGenerating} onDeploy={handleGenerate} />
+              </div>
               <Textarea
                 placeholder={isFreelancer ? txt.clientBriefPlaceholder : txt.inputPlaceholder}
                 value={jobDescription}
@@ -1734,7 +1765,11 @@ const Dashboard = () => {
                   hasProposal={!!generatedProposal}
                 />
               )}
+              <div className="mt-4">
+                <ResumeArmorPanel jobText={jobDescription} seedResume={profile?.experience || ''} />
+              </div>
               <Button
+                id="sovereign-generate"
                 variant="gold"
                 className="w-full mt-4"
                 onClick={handleGenerate}
@@ -1942,6 +1977,8 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
+
+            {generatedProposal ? <MonsterScore score={monster.score} /> : null}
 
             {/* Freelance Score Display */}
             {freelanceScore && isFreelancer && (

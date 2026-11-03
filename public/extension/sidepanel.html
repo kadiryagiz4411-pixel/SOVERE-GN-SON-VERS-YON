@@ -559,6 +559,39 @@
       .match-banner.on { display: flex; }
       .match-banner strong { color: var(--gold-2); font-size: 13px; flex-shrink: 0; }
       .match-banner span { font-size: 11px; color: var(--muted); min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
+      .poach-banner {
+        display: none;
+        margin: 10px 16px 0;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        background: #09090b;
+        animation: poachGlow 1.8s ease-in-out infinite;
+      }
+      .poach-banner.on { display: block; }
+      .poach-banner p { margin: 0; font-size: 13px; font-weight: 700; color: #fde68a; line-height: 1.4; }
+      .poach-banner small { display: block; margin-top: 6px; color: #d6d3d1; font-size: 11px; }
+      .poach-banner button { margin-top: 10px; width: 100%; }
+      @keyframes poachGlow {
+        0%, 100% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.12); }
+        50% { box-shadow: 0 0 28px rgba(245, 158, 11, 0.32); }
+      }
+      .monster-card {
+        display: none;
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        background: #09090b;
+      }
+      .monster-card.on { display: block; }
+      .monster-card button { width: 100%; margin-top: 10px; }
+      .armor-card { display: none; margin-top: 12px; padding: 12px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.4); background: #09090b; }
+      .armor-card.on { display: block; }
+      .armor-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+      .armor-tabs button { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid rgba(245, 158, 11, 0.25); }
+      .armor-tabs button.on { background: var(--gold); color: #111; }
+      .armor-card pre { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 12px; color: #e7e5e4; margin: 0; }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .chip {
         font-size: 11px;
@@ -883,6 +916,11 @@
       <strong id="matchBannerScore">—</strong>
       <span id="matchBannerLabel">Analyze the open job to score fit.</span>
     </div>
+    <div id="poachBanner" class="poach-banner">
+      <p>⚡ Instant Poach Detected: This client is actively hiring. Deploy aggressive custom proposal instantly.</p>
+      <small id="poachMeta"></small>
+      <button id="poachDeploy" class="primary" type="button">Poach &amp; Deploy</button>
+    </div>
     <main>
       <section id="tab-instant" class="tab-view on">
         <div class="instant-box">
@@ -903,8 +941,26 @@
           </div>
         </div>
         <div class="score-pair" aria-live="polite">
-          <div><strong id="instantMatch">—</strong><span>Match</span></div>
+          <div><strong id="instantMatch">—</strong><span>Monster</span></div>
           <div><strong id="instantCvScore">—</strong><span>CV</span></div>
+        </div>
+        <div id="monsterCard" class="monster-card">
+          <div class="score-row">
+            <div id="monsterRing" class="score" style="--p:0"><span id="monsterBadge">—</span></div>
+            <div>
+              <p class="k" style="margin-top:0">Monster Score</p>
+              <p id="monsterLabel" class="meta">Scan a listing to lock the score.</p>
+            </div>
+          </div>
+          <button id="shareMonster" class="ghost" type="button">Share Monster Score to X 𝕏</button>
+        </div>
+        <div id="armorCard" class="armor-card">
+          <div class="armor-tabs">
+            <button type="button" data-armor="original">Original Resume (Vulnerable to ATS)</button>
+            <button type="button" data-armor="armored" class="on">Sovereign Armored Resume (100% ATS Bypass Guaranteed)</button>
+          </div>
+          <pre id="armorOriginal" hidden></pre>
+          <pre id="armorArmed"></pre>
         </div>
         <p id="instantBreakdown" class="hint"></p>
         <p id="instantStatus" class="hint"></p>

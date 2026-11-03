@@ -330,6 +330,16 @@
   }
 }
 
+.poach-banner {
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.18);
+  animation: poachGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes poachGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.12); }
+  50% { box-shadow: 0 0 28px rgba(245, 158, 11, 0.32); }
+}
+
 .workspace-switcher {
   width: 100%;
   display: grid;
