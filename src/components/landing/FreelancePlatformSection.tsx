@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Briefcase, Star, TrendingUp, Search, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { motion } from 'framer-motion';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 import { asIcon } from '@/lib/safeIcon';
 
 const translations = {
@@ -228,27 +229,27 @@ export const FreelancePlatformSection = () => {
         {/* Header */}
         <div className="text-center mb-14">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
           >
             <Briefcase className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-primary">{t.badge}</span>
           </motion.div>
           <motion.h2
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-bold text-foreground mb-4"
           >
             {t.title}
           </motion.h2>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ delay: 0.2 }}
             className="text-lg text-muted-foreground max-w-2xl mx-auto"
           >
@@ -258,9 +259,9 @@ export const FreelancePlatformSection = () => {
 
         {/* Job Discovery Feature */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={SAFE_VIEWPORT}
           className="max-w-3xl mx-auto mb-14 rounded-2xl border border-primary/20 bg-primary/5 p-6 md:p-8"
         >
           <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
@@ -287,9 +288,9 @@ export const FreelancePlatformSection = () => {
           {t.platforms.map((platform, i) => (
             <motion.div
               key={platform.name}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 1, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={SAFE_VIEWPORT}
               transition={{ delay: i * 0.1 }}
             >
               <Link to={platform.link} className="block group">
@@ -318,9 +319,9 @@ export const FreelancePlatformSection = () => {
 
         {/* Proof Stats */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={SAFE_VIEWPORT}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-10"
         >
           {t.proofStats.map((stat, i) => (
@@ -333,9 +334,9 @@ export const FreelancePlatformSection = () => {
 
         {/* CTA */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 1, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
+          viewport={SAFE_VIEWPORT}
           className="text-center"
         >
           <Link to="/dashboard">

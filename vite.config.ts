@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["index.html", "assets/**/*.{js,css}", "brand-logo.png", "manifest.webmanifest"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

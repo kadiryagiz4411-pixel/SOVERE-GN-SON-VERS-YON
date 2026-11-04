@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Shield, CheckCircle2 } from 'lucide-react';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 const companies = ['Google', 'Amazon', 'Deloitte', 'Meta', 'McKinsey', 'Microsoft'];
@@ -44,9 +45,9 @@ export const TrustStripSection = () => {
     <section className="py-12 md:py-16 bg-card/30 border-y border-border">
       <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
+          viewport={SAFE_VIEWPORT}
           className="text-center"
         >
           {/* Platform strip */}

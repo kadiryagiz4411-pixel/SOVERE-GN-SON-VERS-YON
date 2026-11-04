@@ -3,6 +3,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { getCheckoutUrl } from '@/lib/plans';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { motion } from 'framer-motion';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 
 const translations = {
   en: {
@@ -109,9 +110,9 @@ export const BeforeAfterSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
           {/* Before — Generic */}
           <motion.div 
-            initial={{ opacity: 0, x: -30 }}
+            initial={{ opacity: 1, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ duration: 0.6 }}
             className="rounded-2xl border-2 border-destructive/20 bg-card p-5 sm:p-6 relative"
           >
@@ -130,7 +131,7 @@ export const BeforeAfterSection = () => {
               <motion.div 
                 initial={{ width: 0 }}
                 whileInView={{ width: '38%' }}
-                viewport={{ once: true }}
+                viewport={SAFE_VIEWPORT}
                 transition={{ duration: 1, delay: 0.3 }}
                 className="h-full bg-destructive rounded-full" 
               />
@@ -139,9 +140,9 @@ export const BeforeAfterSection = () => {
 
           {/* After — Optimized */}
           <motion.div 
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 1, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="rounded-2xl border-2 border-green-500/30 bg-card p-5 sm:p-6 relative ring-2 ring-green-500/10 shadow-[0_0_40px_hsl(142_76%_36%/0.08)]"
           >
@@ -163,7 +164,7 @@ export const BeforeAfterSection = () => {
               <motion.div 
                 initial={{ width: 0 }}
                 whileInView={{ width: '67%' }}
-                viewport={{ once: true }}
+                viewport={SAFE_VIEWPORT}
                 transition={{ duration: 1.2, delay: 0.5 }}
                 className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" 
               />
@@ -173,9 +174,9 @@ export const BeforeAfterSection = () => {
 
         {/* CTA below comparison */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={SAFE_VIEWPORT}
           transition={{ duration: 0.5, delay: 0.6 }}
           className="text-center mt-10 md:mt-14"
         >

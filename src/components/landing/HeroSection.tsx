@@ -115,7 +115,7 @@ export const HeroSection = () => {
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-amber-400 mb-8"
@@ -127,7 +127,7 @@ export const HeroSection = () => {
 
           {/* Headline */}
           <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 1, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.02] mb-6 tracking-tight"
@@ -140,7 +140,7 @@ export const HeroSection = () => {
 
           {/* Subheadline */}
           <motion.p 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
             className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed"
@@ -150,7 +150,7 @@ export const HeroSection = () => {
 
           {/* Platform Badges */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 1, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-wrap items-center justify-center gap-2 mb-10"
@@ -159,7 +159,7 @@ export const HeroSection = () => {
             {platforms.map((p, i) => (
               <motion.span
                 key={p.name}
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 1, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: 0.35 + i * 0.05 }}
                 className="inline-flex items-center border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 font-mono text-[11px] tracking-wide text-zinc-300"
@@ -171,7 +171,7 @@ export const HeroSection = () => {
 
           {/* Primary CTA */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 1, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="flex flex-col items-center gap-4 mb-6"
@@ -209,7 +209,7 @@ export const HeroSection = () => {
 
           {/* Trust Signals */}
           <motion.div 
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mt-12 grid grid-cols-2 gap-px border border-zinc-800 bg-zinc-800 md:grid-cols-4"
@@ -218,7 +218,7 @@ export const HeroSection = () => {
               return (
                 <motion.div 
                   key={i} 
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 1, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.7 + i * 0.1 }}
                   className="flex items-center gap-2 bg-[#09090b] px-4 py-3 text-left text-xs text-zinc-400"
@@ -234,7 +234,7 @@ export const HeroSection = () => {
 
       {/* Scroll Indicator */}
       <motion.div 
-        initial={{ opacity: 0 }}
+        initial={{ opacity: 1 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2"

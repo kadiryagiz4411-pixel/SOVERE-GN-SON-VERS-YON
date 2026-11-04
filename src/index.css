@@ -156,6 +156,7 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   body {
@@ -163,7 +164,7 @@
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 16px;
     line-height: 1.6;
-    overflow-x: hidden;
+    overflow: visible;
   }
 
   /* Safe area for notched phones */
@@ -408,7 +409,7 @@
 /* iOS smooth scrolling & overscroll */
 html, body {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
 }
 
 /* Prevent text selection and callout on long-press (app feel) */

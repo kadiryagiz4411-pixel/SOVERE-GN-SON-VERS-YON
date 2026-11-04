@@ -41,13 +41,17 @@ export const useInstallPrompt = () => {
       setPrompt(e as BeforeInstallPromptEvent);
     };
 
+    const onInstalled = () => setIsInstalled(true);
     window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => setIsInstalled(true));
+    window.addEventListener("appinstalled", onInstalled);
 
     // Check if already captured
     if (_deferredPrompt) setPrompt(_deferredPrompt);
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   const install = async () => {

@@ -13,6 +13,7 @@ import {
 } from "@/services/creditService";
 import { resetMonthlyCreditsIfDue, fetchProfileByAuthId } from "@/lib/profileQuery";
 import { useSession } from "@/contexts/SessionContext";
+import { useHardLoadingTimeout } from "@/hooks/useHardLoadingTimeout";
 
 export interface CreditsState extends CreditStatus {
   isAnnual: boolean;
@@ -24,6 +25,7 @@ export function useCredits() {
   const { user, planType } = useSession();
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [loading, setLoading] = useState(true);
+  useHardLoadingTimeout(setLoading);
 
   const refresh = useCallback(async () => {
     if (!user?.id) {
@@ -32,23 +34,27 @@ export function useCredits() {
       return;
     }
     setLoading(true);
-    await resetMonthlyCreditsIfDue(user.id);
-    const { data: profile } = await fetchProfileByAuthId(user.id, 'billing_period');
-    const status = await fetchCreditStatus(user.id);
-    if (!status) {
+    try {
+      await resetMonthlyCreditsIfDue(user.id);
+      const { data: profile } = await fetchProfileByAuthId(user.id, 'billing_period');
+      const status = await fetchCreditStatus(user.id);
+      if (!status) {
+        setCredits(null);
+        return;
+      }
+      const period = String((profile as { billing_period?: string } | null)?.billing_period ?? '');
+      const isAnnual = period.includes('year') || period === 'annual' || period === 'annually';
+      setCredits({
+        ...status,
+        isAnnual,
+        rolloverCap: status.monthlyLimit * 2,
+        daysUntilResetLabel: daysUntilReset(status.resetDate),
+      });
+    } catch {
       setCredits(null);
+    } finally {
       setLoading(false);
-      return;
     }
-    const period = String((profile as { billing_period?: string } | null)?.billing_period ?? '');
-    const isAnnual = period.includes('year') || period === 'annual' || period === 'annually';
-    setCredits({
-      ...status,
-      isAnnual,
-      rolloverCap: status.monthlyLimit * 2,
-      daysUntilResetLabel: daysUntilReset(status.resetDate),
-    });
-    setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {

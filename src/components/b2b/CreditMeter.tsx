@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useHardLoadingTimeout } from "@/hooks/useHardLoadingTimeout";
 import {
   Zap, TrendingDown, ShoppingCart, X, Check, Loader2,
   History, ChevronRight, AlertTriangle, Info,
@@ -24,6 +25,7 @@ export default function CreditMeter({ orgId, compact = false }: Props) {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
+  useHardLoadingTimeout(setIsLoading);
   const [activeTab, setActiveTab] = useState<"packages" | "history">("packages");
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 import { Upload, FileText, Shield, Sparkles, ArrowRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,9 +53,9 @@ export const AcceptancePredictorSection = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
           >
             <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
               What's Your <span className="text-gradient-gold">Acceptance Score</span>?
@@ -70,7 +71,7 @@ export const AcceptancePredictorSection = () => {
             {phase === 'input' && (
               <motion.div
                 key="input"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-4"
@@ -119,7 +120,7 @@ export const AcceptancePredictorSection = () => {
             {phase === 'analyzing' && (
               <motion.div
                 key="analyzing"
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 1, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-card border border-border rounded-2xl p-10 text-center"
@@ -142,7 +143,7 @@ export const AcceptancePredictorSection = () => {
             {phase === 'result' && (
               <motion.div
                 key="result"
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 1, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-card border border-border rounded-2xl p-8 text-center relative overflow-hidden"

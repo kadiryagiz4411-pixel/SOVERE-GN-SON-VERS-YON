@@ -380,7 +380,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error(LOG, 'getSession threw', err);
       } finally {
-        if (mounted.current) releaseBoot();
+        releaseBoot();
         window.clearTimeout(watchdog);
       }
     };

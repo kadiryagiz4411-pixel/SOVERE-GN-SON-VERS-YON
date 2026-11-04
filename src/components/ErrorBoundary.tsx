@@ -11,6 +11,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { resetAppState } from '@/lib/resetAppState';
+import { unlockBodyScroll } from '@/lib/unlockScroll';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
-    // Log to console so devs can still inspect
+    unlockBodyScroll();
     console.error('[Sovereign Load Error]:', error, errorInfo);
   }
 

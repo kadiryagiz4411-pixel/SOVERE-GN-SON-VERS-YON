@@ -92,6 +92,7 @@ if (!rootEl) {
   throw new Error('Missing application root');
 }
 try {
+  rootEl.setAttribute('data-booted', '1');
   createRoot(rootEl).render(
     <React.StrictMode>
       <ErrorBoundary>

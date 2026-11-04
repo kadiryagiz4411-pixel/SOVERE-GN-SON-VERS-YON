@@ -17,6 +17,7 @@ import { resolveRemainingCredits } from "@/lib/credits";
 import { resolveDisplayTier } from "@/lib/displayTier";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useHardLoadingTimeout } from "@/hooks/useHardLoadingTimeout";
 import { PauseSubscriptionModal } from "@/components/subscription/PauseSubscriptionModal";
 import { SubscriptionPausedBanner } from "@/components/subscription/SubscriptionPausedBanner";
 import { InvoiceRequestModal } from "@/components/InvoiceRequestModal";
@@ -46,6 +47,7 @@ export default function Billing() {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const subscription = useSubscription();
+  useHardLoadingTimeout(setIsLoading);
 
   useEffect(() => {
     loadBilling();

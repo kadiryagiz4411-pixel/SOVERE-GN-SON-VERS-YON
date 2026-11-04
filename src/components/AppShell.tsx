@@ -27,6 +27,7 @@ import { TierBadge } from '@/components/ui/TierBadge';
 import { SafeIcon } from '@/lib/safeIcon';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BOOT_TIMEOUT_MS, resetAppState } from '@/lib/resetAppState';
+import { unlockBodyScroll } from '@/lib/unlockScroll';
 import { BrandLogo } from '@/components/common/BrandLogo';
 import { QuickNavUpload } from '@/components/upload/QuickNavUpload';
 import { SidebarNav } from '@/components/layout/Sidebar';
@@ -45,7 +46,10 @@ interface AppShellProps {
 function ShellRouteFallback() {
   const [stalled, setStalled] = useState(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => setStalled(true), BOOT_TIMEOUT_MS);
+    const timer = window.setTimeout(() => {
+      setStalled(true);
+      unlockBodyScroll();
+    }, BOOT_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, []);
   if (stalled) {
@@ -447,7 +451,9 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
             <ExtensionReadyWidget compact />
           </div>
         </div>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
       <TierGate
         open={!!lockModal}

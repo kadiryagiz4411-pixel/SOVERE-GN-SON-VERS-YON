@@ -3,6 +3,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { motion, useInView } from 'framer-motion';
 import { Users, FileText, TrendingUp, Globe } from 'lucide-react';
 import { asIcon } from '@/lib/safeIcon';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
+import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
 
 const translations = {
   en: {
@@ -71,7 +73,15 @@ export const StatsCounterSection = () => {
   const { language } = useLanguage();
   const t = translations[language] || translations.en;
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-100px' });
+  const observed = useInView(ref, SAFE_VIEWPORT);
+  const [forceInView, setForceInView] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setForceInView(true), STARTUP_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const inView = observed || forceInView;
 
   return (
     <section ref={ref} className="py-16 md:py-20 bg-card/50 border-y border-border">
@@ -82,8 +92,8 @@ export const StatsCounterSection = () => {
             return (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                initial={{ opacity: 1, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className="text-center"
               >

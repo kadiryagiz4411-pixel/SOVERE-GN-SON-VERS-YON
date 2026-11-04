@@ -19,6 +19,7 @@ import { ExtensionDownloadSection } from '@/components/landing/ExtensionDownload
 import { FreelancePlatformSection } from '@/components/landing/FreelancePlatformSection';
 import { AnimatedSection } from '@/components/landing/AnimatedSection';
 import { useSession } from '@/contexts/SessionContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
@@ -49,49 +50,61 @@ const Index = () => {
   }, [searchParams, navigate, sessionReady, user]);
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
-      <Header />
-      <main>
-        <HeroSection />
-        <ValueBarSection />
-        <StatsCounterSection />
-        <AnimatedSection>
-          <AcceptancePredictorSection />
-        </AnimatedSection>
-        <TrustStripSection />
-        <AnimatedSection>
-          <BeforeAfterSection />
-        </AnimatedSection>
-        <AnimatedSection>
-          <LiveDemoSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <FreelancePlatformSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <HowItWorksSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <CVOptimizerSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <FeaturesSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <PlanShowcaseSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <ReviewsSection />
-        </AnimatedSection>
-        <AnimatedSection delay={0.1}>
-          <ExtensionDownloadSection />
-        </AnimatedSection>
-        <div className="overflow-visible">
-          <PricingSection />
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-[#09090b]">
+        <Header />
+        <main>
+          <ErrorBoundary fallback={<div className="min-h-[40vh]" />}>
+            <HeroSection />
+          </ErrorBoundary>
+          <AnimatedSection>
+            <ValueBarSection />
+          </AnimatedSection>
+          <ErrorBoundary fallback={<div className="py-16" />}>
+            <StatsCounterSection />
+          </ErrorBoundary>
+          <AnimatedSection>
+            <AcceptancePredictorSection />
+          </AnimatedSection>
+          <AnimatedSection>
+            <TrustStripSection />
+          </AnimatedSection>
+          <AnimatedSection>
+            <BeforeAfterSection />
+          </AnimatedSection>
+          <AnimatedSection>
+            <LiveDemoSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <FreelancePlatformSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <HowItWorksSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <CVOptimizerSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <FeaturesSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <PlanShowcaseSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <ReviewsSection />
+          </AnimatedSection>
+          <AnimatedSection delay={0.1}>
+            <ExtensionDownloadSection />
+          </AnimatedSection>
+          <ErrorBoundary fallback={<div className="py-16" />}>
+            <div className="overflow-visible">
+              <PricingSection />
+            </div>
+          </ErrorBoundary>
+        </main>
+        <Footer />
+      </div>
+    </ErrorBoundary>
   );
 };
 

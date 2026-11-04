@@ -23,7 +23,7 @@ export const useAuth = () => {
     // hook so the UI never waits forever for Supabase on a slow network.
     const watchdog = window.setTimeout(() => {
       if (!cancelled) setLoading(false);
-    }, 3500);
+    }, STARTUP_TIMEOUT_MS);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, nextSession) => {

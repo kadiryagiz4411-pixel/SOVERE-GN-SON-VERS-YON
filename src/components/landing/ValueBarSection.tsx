@@ -3,6 +3,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { Zap, Users, TrendingUp, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { asIcon } from '@/lib/safeIcon';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 
 const translations = {
   en: {
@@ -52,9 +53,9 @@ export const ValueBarSection = () => {
             return (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 1, y: 8 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={SAFE_VIEWPORT}
                 transition={{ delay: i * 0.06 }}
                 className="flex items-center gap-3 bg-[#09090b] px-4 py-5"
               >

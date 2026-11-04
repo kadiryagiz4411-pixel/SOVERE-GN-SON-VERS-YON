@@ -1,5 +1,6 @@
 import { useLanguage } from '@/i18n/LanguageContext';
 import { motion } from 'framer-motion';
+import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 import { Crown, Sparkles, Wand2, BarChart3, Target, MessageCircle, UserSearch, Zap, TrendingUp, Check, ArrowRight } from 'lucide-react';
 import { getCheckoutUrl, PLAN_PRICES } from '@/lib/plans';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
@@ -293,27 +294,27 @@ export const PlanShowcaseSection = () => {
         {/* Header */}
         <div className="text-center mb-16">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
           >
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-primary">{t.badge}</span>
           </motion.div>
           <motion.h2
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-bold text-foreground mb-4"
           >
             {t.title}
           </motion.h2>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={SAFE_VIEWPORT}
             transition={{ delay: 0.2 }}
             className="text-lg text-muted-foreground max-w-2xl mx-auto"
           >
@@ -326,9 +327,9 @@ export const PlanShowcaseSection = () => {
           {plans.map((plan, idx) => (
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 1, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={SAFE_VIEWPORT}
               transition={{ delay: idx * 0.15 }}
               className={`rounded-2xl border ${plan.borderColor} bg-gradient-to-b ${plan.gradient} p-8 flex flex-col`}
             >

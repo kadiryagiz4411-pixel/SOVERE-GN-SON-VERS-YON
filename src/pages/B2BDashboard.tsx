@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useHardLoadingTimeout } from "@/hooks/useHardLoadingTimeout";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Upload, BarChart3, Users, Briefcase,
@@ -51,6 +52,7 @@ export default function B2BDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("leaderboard");
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+  useHardLoadingTimeout(setIsLoadingOrg);
   const [userRole, setUserRole] = useState<string>("recruiter");
 
   // Load org and user info

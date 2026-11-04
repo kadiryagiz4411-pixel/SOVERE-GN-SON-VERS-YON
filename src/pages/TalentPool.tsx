@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useHardLoadingTimeout } from "@/hooks/useHardLoadingTimeout";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Sparkles, Loader2, Database, TrendingUp, Users,
@@ -43,6 +44,7 @@ export default function TalentPool() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("Organization");
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
+  useHardLoadingTimeout(setIsLoadingOrg);
 
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);

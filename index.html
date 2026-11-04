@@ -8,6 +8,14 @@
         location.replace('https://sovereignapp.pro' + location.pathname + location.search + location.hash);
       })();
     </script>
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          for (var i = 0; i < regs.length; i++) regs[i].unregister();
+        }).catch(function () {});
+      })();
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17960806883"></script>
     <script>
@@ -72,12 +80,12 @@
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="https://sovereignapp.pro/sitemap.xml" />
 
-    <!-- Lemon Squeezy affiliate tracking — config is inline so affiliate.js can stay non-blocking -->
+    <!-- Lemon Squeezy affiliate tracking — config is inline; scripts stay non-blocking -->
     <script>window.lemonSqueezyAffiliateConfig = { store: "sovereignapp" };</script>
-    <script src="https://lmsqueezy.com/affiliate.js" defer></script>
+    <script src="https://lmsqueezy.com/affiliate.js" async></script>
 
-    <!-- Lemon Squeezy overlay — defer so it never blocks React mount -->
-    <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
+    <!-- Lemon Squeezy overlay — async so it never blocks React mount -->
+    <script src="https://assets.lemonsqueezy.com/lemon.js" async></script>
     <script>
       // Initialise the LS overlay as soon as the script is ready.
       // Wrapping in DOMContentLoaded handles both sync and defer cases.
@@ -153,6 +161,45 @@
     ></noscript>
     <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
+    <script>
+      (function () {
+        var FAILSAFE_MS = 3000;
+        function showFailsafe() {
+          try {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+            document.body.style.pointerEvents = '';
+          } catch (e) {}
+          var root = document.getElementById('root');
+          if (!root || root.getAttribute('data-booted') === '1' || root.childElementCount > 0) return;
+          root.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-center;background:#09090b;color:#f5f5f4;font-family:Inter,system-ui,sans-serif;padding:24px;text-align:center"><div><h1 style="font-size:22px;margin:0 0 8px">Taking too long to load</h1><p style="margin:0 0 16px;color:#a8a29e">The app did not start. Reset local state and try again.</p><button type="button" id="sovereign-html-reset" style="background:#d4af37;color:#111;border:0;border-radius:10px;padding:10px 16px;font-weight:700">Force Refresh / Reset App State</button></div></div>';
+          var btn = document.getElementById('sovereign-html-reset');
+          if (btn) btn.onclick = function () {
+            try { sessionStorage.clear(); } catch (e) {}
+            try {
+              var keys = [];
+              for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && k.indexOf('sb-') !== 0) keys.push(k);
+              }
+              keys.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+            } catch (e) {}
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }).finally(function () { location.reload(); });
+            } else {
+              location.reload();
+            }
+          };
+        }
+        window.setTimeout(showFailsafe, FAILSAFE_MS);
+        window.addEventListener('error', function (event) {
+          var t = event && event.target;
+          if (t && t.tagName === 'SCRIPT') window.setTimeout(showFailsafe, 0);
+        }, true);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

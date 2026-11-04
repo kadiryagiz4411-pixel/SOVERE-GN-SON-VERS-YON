@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { useSession } from '@/contexts/SessionContext';
+import { useHardLoadingTimeout } from '@/hooks/useHardLoadingTimeout';
 import { usePlan } from '@/contexts/PlanContext';
 import {
   type AppsumoPlanEnum,
@@ -27,6 +28,7 @@ export function useB2BTrial() {
       return false;
     }
   });
+  useHardLoadingTimeout(setLoading);
 
   const load = useCallback(async () => {
     if (!user?.id) {

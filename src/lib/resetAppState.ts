@@ -1,4 +1,5 @@
 import { PRESERVED_KEYS } from '@/config/version';
+import { unlockBodyScroll } from '@/lib/unlockScroll';
 
 const BOOT_EVENT = 'sovereign:boot-timeout';
 
@@ -6,9 +7,10 @@ const BOOT_EVENT = 'sovereign:boot-timeout';
 export const BOOT_TIMEOUT_EVENT = BOOT_EVENT;
 
 /** Hard cap for first paint. Auth/API/scripts must not block past this. */
-export const BOOT_TIMEOUT_MS = 3500;
+export const BOOT_TIMEOUT_MS = 3000;
 
 export function emitBootTimeout(): void {
+  unlockBodyScroll();
   try {
     window.dispatchEvent(new Event(BOOT_EVENT));
   } catch {
@@ -21,6 +23,7 @@ export function emitBootTimeout(): void {
  * user is not signed out by a recovery click.
  */
 export function resetAppState(): void {
+  unlockBodyScroll();
   try {
     sessionStorage.clear();
   } catch {

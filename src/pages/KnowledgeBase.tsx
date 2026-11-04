@@ -16,6 +16,7 @@ import {
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { canUseFeature, numericAppSumoTier } from '@/lib/appsumoGating';
 import { isOwnerEmail } from '@/lib/superadmin';
+import { useHardLoadingTimeout } from '@/hooks/useHardLoadingTimeout';
 
 const CATEGORIES: { id: KnowledgeCategory; label: string }[] = [
   { id: 'case_study', label: 'Case study' },
@@ -33,8 +34,13 @@ export default function KnowledgeBase() {
   const [category, setCategory] = useState<KnowledgeCategory>('case_study');
   const [saving, setSaving] = useState(false);
 
+  useHardLoadingTimeout(setLoading);
+
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       const owner = isOwnerEmail(user.email);
       const { data } = await fetchProfileByAuthId(user.id, 'appsumo_tier, appsumo_codes_count, subscription_tier, plan_type');

@@ -2,7 +2,7 @@ import { useState, useCallback, lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useSearchParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { SessionProvider } from "@/contexts/SessionContext";
@@ -15,7 +15,8 @@ import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
 import { captureAffiliateCode } from "@/lib/lemonsqueezy";
-import { BOOT_TIMEOUT_MS, emitBootTimeout, resetAppState } from "@/lib/resetAppState";
+import { BOOT_TIMEOUT_EVENT, BOOT_TIMEOUT_MS, emitBootTimeout, resetAppState } from "@/lib/resetAppState";
+import { unlockBodyScroll } from "@/lib/unlockScroll";
 
 // ── ENV Configuration Banner ─────────────────────────────────────────────────
 // Shown as a fixed top bar whenever VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY
@@ -160,11 +161,31 @@ const LemonSqueezyInit = () => {
 const FailSafe = () => {
   useEffect(() => {
     const onReject = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
       console.error('[Sovereign]', event.reason);
+      unlockBodyScroll();
     };
     window.addEventListener('unhandledrejection', onReject);
     return () => window.removeEventListener('unhandledrejection', onReject);
+  }, []);
+  return null;
+};
+
+const ScrollLockGuard = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    unlockBodyScroll();
+  }, [pathname]);
+
+  useEffect(() => {
+    const onBoot = () => unlockBodyScroll();
+    window.addEventListener(BOOT_TIMEOUT_EVENT, onBoot);
+    window.addEventListener('pageshow', onBoot);
+    return () => {
+      window.removeEventListener(BOOT_TIMEOUT_EVENT, onBoot);
+      window.removeEventListener('pageshow', onBoot);
+      unlockBodyScroll();
+    };
   }, []);
   return null;
 };
@@ -182,7 +203,10 @@ const queryClient = new QueryClient({
 const RouteFallback = () => {
   const [stalled, setStalled] = useState(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => setStalled(true), BOOT_TIMEOUT_MS);
+    const timer = window.setTimeout(() => {
+      setStalled(true);
+      unlockBodyScroll();
+    }, BOOT_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -212,6 +236,7 @@ const BootSafeguard = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       emitBootTimeout();
+      unlockBodyScroll();
     }, BOOT_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, []);
@@ -219,8 +244,9 @@ const BootSafeguard = () => {
 };
 
 const AppRoutes = () => (
-  <Suspense fallback={<RouteFallback />}>
-    <Routes>
+  <ErrorBoundary>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -284,7 +310,8 @@ const AppRoutes = () => (
       <Route path="/proposal-template/:profession/:language" element={<ProposalTemplatePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </Suspense>
+    </Suspense>
+  </ErrorBoundary>
 );
 
 const App = () => {
@@ -303,13 +330,10 @@ const App = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setShowSplash(false);
+      unlockBodyScroll();
     }, BOOT_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, []);
-
-  if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
-  }
 
   return (
     <ErrorBoundary>
@@ -317,6 +341,7 @@ const App = () => {
           so it works even when the app fails to initialise. */}
       <EnvConfigBanner />
       <BootSafeguard />
+      {showSplash ? <SplashScreen onComplete={handleSplashComplete} /> : null}
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <SessionProvider>
@@ -325,6 +350,7 @@ const App = () => {
                 <Sonner />
                 <BrowserRouter>
                   <ErrorBoundary>
+                    <ScrollLockGuard />
                     <AffiliateTracker />
                     <PoachBridge />
                     <LemonSqueezyInit />

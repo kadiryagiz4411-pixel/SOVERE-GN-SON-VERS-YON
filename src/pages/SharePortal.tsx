@@ -20,11 +20,13 @@ import {
 import { toast } from 'sonner';
 import { SharedPortalFooter } from '@/components/share/SharedPortalFooter';
 import { notifyClientDecision } from '@/lib/actions/workflowEngine';
+import { useHardLoadingTimeout } from '@/hooks/useHardLoadingTimeout';
 
 export default function SharePortal() {
   const { shareCode } = useParams<{ shareCode: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  useHardLoadingTimeout(setLoading);
   const [title, setTitle] = useState('Candidate Shortlist');
   const [shareId, setShareId] = useState('');
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
