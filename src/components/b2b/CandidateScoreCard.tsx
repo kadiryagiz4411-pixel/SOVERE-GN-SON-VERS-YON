@@ -109,9 +109,11 @@ export default function CandidateScoreCard({ candidate, rank, jobTitle, orgName,
                 className="transition-all duration-1000"
               />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn("text-xl font-black", getScoreColor(score))}>{score.toFixed(0)}</span>
-              <span className="text-xs text-slate-500">/100</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none">
+              <span className={cn("text-2xl font-black tabular-nums leading-none", getScoreColor(score))}>
+                {score.toFixed(0)}
+              </span>
+              <span className="text-[10px] leading-none text-slate-500">/100</span>
             </div>
           </div>
 

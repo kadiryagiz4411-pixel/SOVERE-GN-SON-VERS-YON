@@ -16,8 +16,12 @@ export function MonsterScore({
   return (
     <div className={`w-full rounded-lg border border-amber-500/40 bg-zinc-950 ${compact ? 'p-3' : 'p-4'}`}>
       <div className={`flex items-center ${compact ? 'gap-3' : 'gap-4'}`}>
-        <div className="relative shrink-0" style={{ width: size, height: size }}>
-          <svg className="absolute inset-0 -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <div
+          className="relative shrink-0 overflow-hidden"
+          style={{ width: size, height: size }}
+          aria-label={`Fit score ${safe} out of 100`}
+        >
+          <svg className="absolute inset-0 -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
             <circle cx={size / 2} cy={size / 2} r={r} stroke="#27272a" strokeWidth="8" fill="none" />
             <circle
               cx={size / 2}
@@ -30,9 +34,13 @@ export function MonsterScore({
               strokeLinecap="butt"
             />
           </svg>
-          <div className="absolute inset-0 grid place-items-center text-center">
-            <span className={`font-black text-amber-400 ${compact ? 'text-lg' : 'text-3xl'}`}>{safe}</span>
-            <span className="text-[9px] uppercase tracking-[0.18em] text-zinc-400">/100</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span
+              className="font-black tabular-nums leading-none text-amber-400"
+              style={{ fontSize: Math.round(r * 0.72) }}
+            >
+              {safe}
+            </span>
           </div>
         </div>
         <div className="min-w-0">
