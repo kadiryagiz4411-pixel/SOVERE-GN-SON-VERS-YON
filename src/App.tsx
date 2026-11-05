@@ -109,6 +109,9 @@ const ResumeLanguagePage = lazy(() => import("./pages/seo/LanguageSEOPages").the
 const ProposalTemplatePage = lazy(() => import("./pages/seo/LanguageSEOPages").then(m => ({ default: m.ProposalTemplatePage })));
 const AcceptanceRatePage = lazy(() => import("./pages/seo/AcceptanceRatePage").then(m => ({ default: m.AcceptanceRatePage })));
 const ReferralLanding = lazy(() => import("./pages/ReferralLanding"));
+const FitScoreChecker = lazy(() => import("./pages/FitScoreChecker"));
+const ProposalsForPage = lazy(() => import("./pages/seo/ProposalsForPage"));
+const Affiliates = lazy(() => import("./pages/Affiliates"));
 
 const PoachBridge = () => {
   const [searchParams] = useSearchParams();
@@ -125,9 +128,18 @@ const PoachBridge = () => {
 const AffiliateTracker = () => {
   const [searchParams] = useSearchParams();
   useEffect(() => {
-    const ref = searchParams.get('ref');
-    if (ref && ref.trim() && !localStorage.getItem('affiliate_ref')) {
-      localStorage.setItem('affiliate_ref', ref.trim().toUpperCase());
+    const ref = searchParams.get('ref') || searchParams.get('code') || searchParams.get('aff') || searchParams.get('via');
+    if (ref && ref.trim()) {
+      try { localStorage.setItem('affiliate_ref', ref.trim().toUpperCase()); } catch { /* private mode */ }
+      void fetch('/api/affiliate/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: ref.trim(),
+          path: window.location.pathname,
+          utm: searchParams.get('utm_source') || '',
+        }),
+      }).catch(() => {});
     }
     captureAffiliateCode(searchParams.toString());
   }, [searchParams]);
@@ -294,6 +306,11 @@ const AppRoutes = () => (
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
       <Route path="/redeem" element={<Redeem />} />
       <Route path="/ref" element={<ReferralLanding />} />
+      <Route path="/fit-score" element={<FitScoreChecker />} />
+      <Route path="/proposal-checker" element={<FitScoreChecker />} />
+      <Route path="/proposals-for" element={<ProposalsForPage />} />
+      <Route path="/proposals-for/:slug" element={<ProposalsForPage />} />
+      <Route path="/affiliates" element={<Affiliates />} />
       <Route path="/get-hired-at/:company" element={<GetHiredAtPage />} />
       <Route path="/how-to-get-job-at/:company" element={<HowToGetJobPage />} />
       <Route path="/resume-for/:company/:role" element={<ResumeForPage />} />

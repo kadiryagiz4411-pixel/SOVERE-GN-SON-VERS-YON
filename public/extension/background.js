@@ -119,6 +119,13 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'OPEN_RANKS_FLYOUT' || request.type === 'CLOSE_RANKS_FLYOUT') {
+    sendFlyoutToActiveTab(request)
+      .then((ok) => sendResponse({ success: Boolean(ok) }))
+      .catch((err) => sendResponse({ success: false, error: err?.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
 
@@ -602,6 +609,33 @@ async function injectActiveTab(proposalText, extras) {
     const msg = err?.message || String(err);
     if (/permission to access the respective host/i.test(msg)) {
       throw new Error('Reload this unpacked extension so host permissions take effect, then try Auto-Fill again.');
+    }
+    throw err;
+  }
+}
+
+async function sendFlyoutToActiveTab(request) {
+  const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  let tab = focused?.[0];
+  if (!tab?.id) {
+    const current = await chrome.tabs.query({ active: true, currentWindow: true });
+    tab = current?.[0];
+  }
+  if (!tab?.id) throw new Error('No active browser tab found.');
+  if (isRestrictedUrl(tab.url)) {
+    throw new Error('Open a job board or public web page to show rankings beside this panel.');
+  }
+  try {
+    const viaContent = await withTimeout(
+      chrome.tabs.sendMessage(tab.id, request, { frameId: 0 }),
+      4000,
+      'rankings flyout',
+    );
+    return Boolean(viaContent?.success);
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (/permission to access the respective host/i.test(msg)) {
+      throw new Error('Reload this unpacked extension so host permissions take effect, then open rankings again.');
     }
     throw err;
   }

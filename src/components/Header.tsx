@@ -3,12 +3,10 @@ import { BrandLogo } from '@/components/common/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { Menu, X, LayoutDashboard, LogOut, ExternalLink } from 'lucide-react';
+import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/integrations/supabase/client';
-import { LEMON_SQUEEZY_AFFILIATE_URL } from '@/lib/lemonsqueezy';
-
 export const Header = () => {
   const { t } = useLanguage();
   const location = useLocation();
@@ -34,6 +32,7 @@ export const Header = () => {
     { path: '/features', label: t.nav.features },
     { path: '/pricing', label: t.nav.pricing },
     { path: '/demo', label: 'Live Demo' },
+    { path: '/fit-score', label: 'Fit Score' },
     { path: '/cv-builder', label: 'CV Builder' },
     { path: '/#extension', label: 'Extension' },
   ];
@@ -60,16 +59,9 @@ export const Header = () => {
               </Link>
             ))}
             <Button variant="nav" asChild className="hidden xl:inline-flex">
-              <a
-                href={LEMON_SQUEEZY_AFFILIATE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t.footer.affiliates || 'Affiliates (Earn 30%)'}
-                className="text-primary hover:text-amber-400"
-              >
+              <Link to="/affiliates" className="text-primary hover:text-amber-400">
                 {t.nav.affiliates || 'Affiliates'}
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-              </a>
+              </Link>
             </Button>
           </nav>
 
@@ -131,15 +123,9 @@ export const Header = () => {
                 </Link>
               ))}
               <Button variant="ghost" asChild className="w-full justify-start text-primary hover:text-amber-400">
-                <a
-                  href={LEMON_SQUEEZY_AFFILIATE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
+                <Link to="/affiliates" onClick={() => setMobileMenuOpen(false)}>
                   {t.footer.affiliates || 'Affiliates (Earn 30%)'}
-                  <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                </a>
+                </Link>
               </Button>
 
               <div className="flex items-center justify-between pt-4 border-t border-border mt-2">

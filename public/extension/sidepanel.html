@@ -17,11 +17,17 @@
         --ok: #6ee7b7;
       }
       * { box-sizing: border-box; }
-      html, body { height: 100%; }
+      html, body {
+        min-width: 400px;
+        width: 100%;
+        height: 100%;
+        max-height: 650px;
+      }
       body {
         margin: 0;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
         font-family: "Plus Jakarta Sans", Inter, "Segoe UI", system-ui, sans-serif;
         font-size: 16px;
         line-height: 1.65;
@@ -37,8 +43,8 @@
         display: flex;
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
-        padding: 14px 16px 12px;
+        gap: 8px;
+        padding: 10px 14px 10px;
         background: #09090B;
         border-bottom: 1px solid var(--line);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(212, 175, 55, 0.08);
@@ -63,11 +69,12 @@
         min-width: 0;
         flex: 1 1 140px;
       }
-      .brand > div { min-width: 0; }
+      .brand > div { min-width: 0; overflow: visible; flex: 1 1 auto; }
       .brand h1, .brand p {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow: visible;
+        text-overflow: unset;
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
       body[data-theme="oled"] .header { background: #000; }
       .logo {
@@ -81,8 +88,8 @@
       }
       .header h1 {
         margin: 0;
-        font-size: 13px;
-        letter-spacing: .18em;
+        font-size: 14px;
+        letter-spacing: .06em;
         text-transform: uppercase;
         color: var(--gold-2);
         text-shadow: 0 0 18px rgba(212, 175, 55, 0.35);
@@ -93,10 +100,9 @@
         color: var(--muted);
       }
       .api-badge {
-        margin-left: auto;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 800;
-        letter-spacing: .08em;
+        letter-spacing: .04em;
         text-transform: uppercase;
         border-radius: 8px;
         padding: 5px 8px;
@@ -117,8 +123,10 @@
         line-height: 1.45;
       }
       main {
-        flex: 1;
-        overflow: auto;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
         padding: 14px 16px 16px;
       }
       .tab-view { display: none; }
@@ -289,9 +297,9 @@
         margin: 0 0 4px;
         font-size: 13px;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow: visible;
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
       .list-item .when {
         font-size: 10px;
@@ -457,18 +465,17 @@
       }
       body[data-theme="oled"] .nav { background: #000; }
       .nav button {
-        flex: 1 0 64px;
+        flex: 1 1 0;
         border-radius: 0;
         background: transparent;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
         transition: color 180ms ease, border-color 180ms ease;
-        letter-spacing: .02em;
-        padding: 10px 4px 12px;
+        letter-spacing: 0;
+        padding: 10px 6px 12px;
         border-bottom: 2px solid transparent;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow: visible;
         white-space: nowrap;
       }
       .instant-box, .share-card, .score-pair div, .list-item {
@@ -557,8 +564,8 @@
         min-width: 0;
       }
       .match-banner.on { display: flex; }
-      .match-banner strong { color: var(--gold-2); font-size: 13px; flex-shrink: 0; }
-      .match-banner span { font-size: 11px; color: var(--muted); min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
+      .match-banner strong { color: var(--gold-2); font-size: 13px; line-height: 1.35; flex-shrink: 0; }
+      .match-banner span { font-size: 13px; line-height: 1.4; color: var(--muted); min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
       .poach-banner {
         display: none;
         margin: 10px 16px 0;
@@ -682,7 +689,7 @@
         text-align: center;
         padding: 11px 10px;
         border-radius: 8px;
-        white-space: nowrap;
+        white-space: normal;
       }
       .scan-actions .rescan {
         background: linear-gradient(90deg, var(--gold), #b8860b);
@@ -700,8 +707,9 @@
         align-items: center;
         gap: 8px;
         padding: 8px 16px;
-        font-size: 11px;
+        font-size: 13px;
         line-height: 1.35;
+        overflow-wrap: anywhere;
         color: #fde68a;
         background: rgba(120, 53, 15, 0.35);
         border-bottom: 1px solid var(--line);
@@ -725,8 +733,7 @@
       .target-badge strong { font-weight: 700; }
       .nav.hidden { display: none !important; }
       .credit-badge {
-        margin-left: auto;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 800;
         letter-spacing: .04em;
         border-radius: 8px;
@@ -780,8 +787,9 @@
         border: 1px solid rgba(245, 158, 11, 0.45);
         background: rgba(120, 53, 15, 0.38);
         color: #fbbf24;
-        font-size: 11px;
+        font-size: 13px;
         line-height: 1.45;
+        overflow-wrap: anywhere;
       }
       .credit-reset.on { display: block; }
       .paywall {
@@ -843,6 +851,169 @@
         text-decoration: none;
       }
       .panel-footer a:hover { text-decoration: underline; }
+      .guide-chip {
+        flex-shrink: 0;
+        background: rgba(212, 175, 55, 0.12);
+        color: var(--gold-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 5px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        line-height: 1.2;
+      }
+      .guide-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        margin: 0;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(212, 175, 55, 0.08);
+        color: var(--text);
+        text-align: left;
+      }
+      .guide-banner strong {
+        display: block;
+        font-size: 12px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--gold-2);
+      }
+      .guide-banner span {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+      .guide-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(0, 0, 0, 0.72);
+      }
+      .guide-modal.on { display: flex; }
+      .guide-sheet {
+        position: relative;
+        width: min(380px, 100%);
+        max-height: min(560px, 90vh);
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #111113;
+        border-radius: 16px;
+        padding: 18px 16px 16px;
+      }
+      .guide-sheet .x {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      .guide-sheet h2 { margin: 0 18px 8px 0; font-size: 16px; color: var(--gold-2); }
+      .guide-item {
+        display: block;
+        width: 100%;
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(20, 20, 22, 0.7);
+      }
+      .guide-item strong {
+        display: block;
+        font-size: 13px;
+        color: var(--gold-2);
+        margin-bottom: 4px;
+      }
+      .guide-item p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #e7e5e4;
+      }
+      .cv-dropzone {
+        margin-top: 8px;
+        border: 1px dashed rgba(212, 175, 55, .45);
+        border-radius: 14px;
+        min-height: 118px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        text-align: center;
+        padding: 18px 14px;
+        color: var(--muted);
+        background: #111113;
+        cursor: pointer;
+      }
+      .cv-dropzone.over { border-color: var(--gold); color: var(--text); background: rgba(212, 175, 55, .08); }
+      .cv-dropzone strong { font-size: 14px; color: var(--gold-2); }
+      .cv-dropzone span { font-size: 12px; line-height: 1.4; }
+      .cv-batch-list { margin-top: 10px; display: grid; gap: 8px; }
+      .cv-batch-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(20, 20, 22, 0.7);
+      }
+      .cv-batch-row b { font-size: 13px; overflow-wrap: anywhere; }
+      .cv-batch-row small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+      .rank-drawer {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 45;
+        width: min(360px, 92vw);
+        background: #09090b;
+        color: var(--text);
+        border-right: 1px solid var(--line);
+        transform: translateX(-105%);
+        transition: transform .2s ease, visibility .2s ease;
+        padding: 16px;
+        overflow: auto;
+        box-shadow: 12px 0 40px rgba(0, 0, 0, .45);
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .rank-drawer.open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .rank-drawer h2 { margin: 0; font-size: 16px; color: var(--gold-2); }
+      .rank-row {
+        margin: 0 0 10px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(20, 20, 22, 0.7);
+      }
+      .rank-row .score { width: 48px; height: 48px; flex-shrink: 0; }
+      .rank-row .score span { width: 38px; height: 38px; font-size: 12px; }
+      .rank-row p { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: #e7e5e4; }
     </style>
   </head>
   <body data-theme="obsidian">
@@ -870,6 +1041,7 @@
         <div class="header-meta">
           <div id="creditBadge" class="credit-badge hidden">Credits —</div>
           <div id="apiBadge" class="api-badge hidden">API…</div>
+          <button class="guide-chip" id="guideOpen" type="button" title="Extension Quick Guide">Guide</button>
         </div>
       </div>
       <div id="adminSlider" class="mode-slider" role="tablist" aria-label="Workspace mode" data-mode="b2c">
@@ -880,6 +1052,12 @@
         <button id="rescan" class="rescan" type="button">Scan Active Screen</button>
         <button id="headerUpload" class="upload-btn" type="button">Upload</button>
       </div>
+      <button class="guide-banner" id="guideBanner" type="button">
+        <span>
+          <strong>Extension Quick Guide</strong>
+          <span id="guideBannerCopy">Instant, Proposal, CV, Match, Settings — tap to see what each action does.</span>
+        </span>
+      </button>
     </header>
     <div id="targetBadge" class="target-badge" role="status">
       <span class="dot" aria-hidden="true"></span>
@@ -921,10 +1099,10 @@
       <strong id="matchBannerScore">—</strong>
       <span id="matchBannerLabel">Analyze the open job to score fit.</span>
     </div>
-    <div id="poachBanner" class="poach-banner">
-      <p>⚡ Instant Poach Detected: This client is actively hiring. Deploy aggressive custom proposal instantly.</p>
+    <div id="poachBanner" class="poach-banner" role="status">
+      <p>Instant Poach — this client is actively hiring on the open page.</p>
       <small id="poachMeta"></small>
-      <button id="poachDeploy" class="primary" type="button">Poach &amp; Deploy</button>
+      <button id="poachDeploy" class="primary" type="button">Deploy custom proposal</button>
     </div>
     <main>
       <section id="tab-instant" class="tab-view on">
@@ -1060,10 +1238,25 @@
       </section>
 
       <section id="tab-candidate" class="tab-view">
+        <p class="k" style="margin-top:0">B2B · Candidate / CV</p>
+        <p class="hint">Drop one or many CVs. Sovereign scores each against the active job brief in the background.</p>
+        <div id="cvBatchDrop" class="cv-dropzone" tabindex="0" role="button" aria-label="Upload candidate CVs">
+          <input id="cvBatchFile" type="file" accept=".pdf,.doc,.docx,.txt,.html,.htm,application/pdf,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden>
+          <strong>Drop CVs here</strong>
+          <span>PDF, DOCX, TXT, HTML · batch scoring vs the open job</span>
+        </div>
+        <div id="cvBatchList" class="cv-batch-list"></div>
+        <div class="row">
+          <button class="ghost" id="cvBatchClear" type="button">Clear queue</button>
+          <button class="primary" id="cvBatchAnalyze" type="button" disabled>Analyze CVs</button>
+        </div>
         <div id="candidateBlockSpinner" class="spinner"></div>
-        <p id="candidateBlockStatus" class="hint"></p>
+        <p id="candidateBlockStatus" class="hint">No CVs loaded yet.</p>
+        <div class="row single" style="margin-top:8px">
+          <button class="ghost" id="cvBatchOpenRanks" type="button">Open rankings panel</button>
+        </div>
         <div class="card on">
-          <div class="k">Score</div>
+          <div class="k">Latest score</div>
           <p id="candidateScore" class="title">—</p>
           <div class="k">Summary</div>
           <p id="candidateSummary" class="pain"></p>
@@ -1253,6 +1446,23 @@
       <div class="k">Saved clients</div>
       <div id="b2bNoteList"></div>
     </aside>
+    <div id="rankBackdrop" class="drawer-backdrop"></div>
+    <aside id="rankDrawer" class="rank-drawer" aria-hidden="true">
+      <div class="context-head">
+        <h2>Candidate rankings</h2>
+        <button id="rankDrawerClose" class="ghost" type="button" aria-label="Close rankings">✕</button>
+      </div>
+      <p id="rankDrawerMeta" class="hint">Scores vs the active job brief.</p>
+      <div id="rankDrawerList"></div>
+    </aside>
+    <div id="guideModal" class="guide-modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+      <div class="guide-sheet">
+        <button class="x" id="guideClose" type="button" aria-label="Close">✕</button>
+        <p class="k" style="margin-top:0">Quick Guide</p>
+        <h2 id="guideTitle">How this extension works</h2>
+        <div id="guideBody"></div>
+      </div>
+    </div>
     <div id="rateModal" class="rate-modal" role="dialog" aria-modal="true" aria-labelledby="rateTitle">
       <div class="rate-card">
         <h2 id="rateTitle">How is Sovereign so far?</h2>

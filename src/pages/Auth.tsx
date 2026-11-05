@@ -434,8 +434,12 @@ const Auth = () => {
         }
 
         if (data?.session) {
-          // Clear stored affiliate ref now that it's been attached to the user account
-          if (affiliateRef) localStorage.removeItem('affiliate_ref');
+          if (affiliateRef) {
+            try {
+              await supabase.from('profiles').update({ referred_by: affiliateRef }).eq('user_id', data.session.user.id);
+            } catch { /* referral attach is non-blocking */ }
+            localStorage.removeItem('affiliate_ref');
+          }
           const createMsgs: Record<string, string> = { en: 'Account created! Welcome.', tr: 'Hesap oluşturuldu! Hoş geldiniz.', de: 'Konto erstellt! Willkommen.', fr: 'Compte créé ! Bienvenue.' };
           toast.success(createMsgs[language] || createMsgs.en);
           navigate(redeemReturnPath() || '/onboarding');

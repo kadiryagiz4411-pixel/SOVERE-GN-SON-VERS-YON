@@ -740,10 +740,11 @@ function clampScore(value) {
 function inspectHiringTargetJs(title, text, url) {
   const blob = `${title || ''}\n${text || ''}\n${url || ''}`.toLowerCase();
   const platform = /upwork/.test(blob) ? 'Upwork' : /linkedin/.test(blob) ? 'LinkedIn' : /fiverr/.test(blob) ? 'Fiverr' : '';
-  const hiring = /hiring|looking for|we need|seeking|apply now/.test(blob);
+  const hiring = /hiring|looking for|we need|seeking|apply now|proposals? (left|remaining)|posted .*ago|applicants?|easy apply|job post|actively interviewing|urgently/.test(blob);
   const company = String(title || '').split(/[-–|·•]/)[0].trim().slice(0, 64);
   const handle = (String(text || '').match(/@([a-z0-9._-]{3,32})/i) || [])[0] || '';
-  const active = hiring || Boolean(platform) || String(text || '').length > 120;
+  const marketplace = Boolean(platform);
+  const active = marketplace && hiring;
   return { active, company, platform, recruiter: handle };
 }
 
@@ -1767,6 +1768,7 @@ function applyWorkspaceUi() {
       btn.classList.toggle('on', btn.dataset.tab === current);
     });
   }
+  try { syncGuideBanner(); } catch (err) { console.error('[sovereign] guide banner', err); }
 }
 
 function fillSettingsForm() {
@@ -2972,6 +2974,22 @@ async function acceptContextFile(file) {
     block.result = null;
     block.phase = 'loaded';
     b2bBlock = mode;
+    if (mode === 'candidate') {
+      const signature = `${file.name}:${file.size || 0}`;
+      if (!cvBatch.some((item) => item.signature === signature)) {
+        cvBatch.push({
+          id: `cv-${Date.now()}-${cvBatchSeq += 1}`,
+          name: String(file.name || 'Untitled CV'),
+          signature,
+          text,
+          result: null,
+          error: '',
+          phase: 'loaded',
+          shortlisted: false,
+        });
+        renderCvBatchList();
+      }
+    }
     renderContextDrawer();
     revealAnalysisTab(mode);
     setContextDrawer(false);
@@ -3298,6 +3316,11 @@ function bindInstant() {
   document.getElementById('headerUpload')?.addEventListener('click', () => {
     try {
       if (effectiveMode() === 'b2b') {
+        const onCandidate = document.getElementById('tab-candidate')?.classList.contains('on');
+        if (onCandidate) {
+          document.getElementById('cvBatchFile')?.click();
+          return;
+        }
         setContextDrawer(true);
         document.getElementById('contextFile')?.click();
         return;
@@ -3359,9 +3382,533 @@ function bindPlatformButtons() {
   });
 }
 
+const CV_BATCH_MAX = 25;
+const cvBatch = [];
+let cvBatchSeq = 0;
+let cvBatchBusy = false;
+
+function analyzeCvCountLabel(count) {
+  const n = Math.max(0, Number(count) || 0);
+  if (n === 1) return 'Analyze 1 CV';
+  if (n > 1) return `Analyze ${n} CVs`;
+  return 'Analyze CVs';
+}
+
+function asStringList(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (typeof item === 'string') return item.trim();
+    return String(item?.area || item?.detail || item?.skill || item?.name || '').trim();
+  }).filter(Boolean).slice(0, 6);
+}
+
+function candidateFitScore(data) {
+  const n = Number(data?.overallScore ?? data?.matchScore ?? data?.compatibilityScore ?? 0);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+}
+
+function jobBriefData(pageData) {
+  const pageText = String(pageData?.pageText || pageData?.jobDescription || lastJob.description || '').trim();
+  return {
+    pageText,
+    pageTitle: pageData?.pageTitle || lastJob.title || 'Active job brief',
+    pageUrl: pageData?.pageUrl || lastJob.url || '',
+    jobTitle: pageData?.jobTitle || lastJob.title || pageData?.pageTitle || 'Active job brief',
+    jobDescription: pageData?.jobDescription || lastJob.description || pageText,
+    requiredSkills: pageData?.requiredSkills || lastJob.skills || [],
+    budget: pageData?.budget || lastJob.budget || '',
+    clientHistory: pageData?.clientHistory || lastJob.clientHistory || '',
+    structuredJob: pageData?.structuredJob || null,
+  };
+}
+
+function loadedCvCount() {
+  return cvBatch.filter((item) => String(item.text || '').trim().length >= 20).length;
+}
+
+function syncAnalyzeButton() {
+  const btn = document.getElementById('cvBatchAnalyze');
+  const count = loadedCvCount();
+  if (!btn) return;
+  btn.textContent = cvBatchBusy
+    ? `Analyzing ${cvBatch.filter((item) => item.phase === 'ready' || item.phase === 'error').length}/${count}…`
+    : analyzeCvCountLabel(count);
+  btn.disabled = cvBatchBusy || count < 1;
+}
+
+function renderCvBatchList() {
+  const list = document.getElementById('cvBatchList');
+  if (!list) return;
+  if (!cvBatch.length) {
+    list.innerHTML = '';
+    syncAnalyzeButton();
+    return;
+  }
+  list.innerHTML = cvBatch.map((item) => {
+    const detail = item.error
+      ? item.error
+      : item.phase === 'analyzing'
+        ? 'Scoring against the job brief…'
+        : item.phase === 'ready'
+          ? `Fit ${candidateFitScore(item.result)}/100`
+          : item.phase === 'loaded'
+            ? 'Ready to analyze'
+            : 'Reading file…';
+    return `<article class="cv-batch-row" data-id="${escapeHtml(item.id)}">
+      <div>
+        <b>${escapeHtml(item.name || 'Untitled CV')}</b>
+        <small>${escapeHtml(detail)}</small>
+      </div>
+      <span class="meta">${escapeHtml(item.phase === 'ready' ? `${candidateFitScore(item.result)}` : '—')}</span>
+      <button class="danger" type="button" data-remove-cv="${escapeHtml(item.id)}">Remove</button>
+    </article>`;
+  }).join('');
+  syncAnalyzeButton();
+}
+
+async function addCvFiles(fileList) {
+  const files = Array.from(fileList || []).filter(Boolean).slice(0, CV_BATCH_MAX);
+  if (!files.length) return;
+  const status = document.getElementById('candidateBlockStatus');
+  const remaining = Math.max(0, CV_BATCH_MAX - cvBatch.length);
+  const queued = files.slice(0, remaining);
+  if (!queued.length) {
+    if (status) {
+      status.textContent = `Queue is full (${CV_BATCH_MAX} CVs max).`;
+      status.classList.add('err');
+    }
+    return;
+  }
+  if (status) {
+    status.classList.remove('err');
+    status.textContent = `Reading ${queued.length} file${queued.length === 1 ? '' : 's'}…`;
+  }
+  await Promise.all(queued.map(async (file) => {
+    const name = String(file.name || 'Untitled CV');
+    const signature = `${name}:${file.size || 0}`;
+    if (cvBatch.some((item) => item.signature === signature)) return;
+    const row = {
+      id: `cv-${Date.now()}-${cvBatchSeq += 1}`,
+      name,
+      signature,
+      text: '',
+      result: null,
+      error: '',
+      phase: 'reading',
+      shortlisted: false,
+    };
+    cvBatch.push(row);
+    renderCvBatchList();
+    try {
+      const text = await withTimeout(
+        extractDroppedFile(file),
+        12000,
+        'That file took too long to read. Try a TXT or HTML export.',
+      );
+      row.text = text;
+      row.phase = 'loaded';
+      row.error = '';
+    } catch (err) {
+      row.phase = 'error';
+      row.error = fileAnalysisError(err);
+    }
+    renderCvBatchList();
+  }));
+  const count = loadedCvCount();
+  if (status) {
+    status.classList.toggle('err', count < 1);
+    status.textContent = count
+      ? `${count} CV${count === 1 ? '' : 's'} ready. ${analyzeCvCountLabel(count)} against the active job brief.`
+      : 'No readable CVs yet. Drop a PDF, DOCX, TXT, or HTML resume.';
+  }
+  syncAnalyzeButton();
+}
+
+function clearCvBatch() {
+  cvBatchSeq += 1;
+  cvBatch.splice(0, cvBatch.length);
+  cvBatchBusy = false;
+  renderCvBatchList();
+  const status = document.getElementById('candidateBlockStatus');
+  if (status) {
+    status.classList.remove('err');
+    status.textContent = 'No CVs loaded yet.';
+  }
+  blockSpinner('candidate')?.classList.remove('on');
+}
+
+function rankPayload() {
+  const ranked = [...cvBatch]
+    .filter((item) => item.phase === 'ready' && item.result)
+    .sort((a, b) => candidateFitScore(b.result) - candidateFitScore(a.result));
+  return {
+    jobTitle: lastJob.title || 'Active job brief',
+    jobUrl: lastJob.url || '',
+    candidates: ranked.map((item, index) => ({
+      id: item.id,
+      rank: index + 1,
+      name: item.name || 'Candidate',
+      score: candidateFitScore(item.result),
+      summary: String(item.result?.summary || item.result?.whyThisCandidate || '').slice(0, 280),
+      highlights: asStringList(item.result?.skillMatches || item.result?.pros || item.result?.strengths),
+      gaps: asStringList(item.result?.candidateGaps || item.result?.cons || item.result?.gaps),
+      shortlisted: Boolean(item.shortlisted),
+    })),
+  };
+}
+
+function renderRankDrawer(payload) {
+  const drawer = document.getElementById('rankDrawer');
+  const backdrop = document.getElementById('rankBackdrop');
+  const list = document.getElementById('rankDrawerList');
+  const meta = document.getElementById('rankDrawerMeta');
+  if (!drawer || !list) return;
+  const rows = Array.isArray(payload?.candidates) ? payload.candidates : [];
+  if (meta) meta.textContent = rows.length
+    ? `${rows.length} candidate${rows.length === 1 ? '' : 's'} ranked vs ${payload?.jobTitle || 'the active job brief'}.`
+    : 'Analyze CVs to see rankings.';
+  list.innerHTML = rows.length ? rows.map((row) => `
+    <article class="rank-row" data-id="${escapeHtml(row.id)}">
+      <div class="score-row">
+        <div class="score" style="--p:${Number(row.score) || 0}"><span>${escapeHtml(String(row.score ?? '—'))}</span></div>
+        <div>
+          <p class="title">#${escapeHtml(String(row.rank))} · ${escapeHtml(row.name || 'Candidate')}</p>
+          <p class="meta">Fit ${escapeHtml(String(row.score))}/100</p>
+        </div>
+      </div>
+      <p>${escapeHtml(row.summary || 'No summary yet.')}</p>
+      <div class="k">Highlights</div>
+      <p>${escapeHtml((row.highlights || []).join(' · ') || 'None listed.')}</p>
+      <div class="k">Skill gaps</div>
+      <p>${escapeHtml((row.gaps || []).join(' · ') || 'None listed.')}</p>
+      <div class="row">
+        <button class="primary" type="button" data-rank-action="proposal" data-id="${escapeHtml(row.id)}">Generate Tailored Proposal</button>
+        <button class="cv" type="button" data-rank-action="shortlist" data-id="${escapeHtml(row.id)}">${row.shortlisted ? 'Shortlisted' : 'Shortlist Candidate'}</button>
+      </div>
+    </article>
+  `).join('') : '<div class="empty">No scored CVs yet.</div>';
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  backdrop?.classList.add('open');
+}
+
+function closeRankDrawer() {
+  const drawer = document.getElementById('rankDrawer');
+  drawer?.classList.remove('open');
+  drawer?.setAttribute('aria-hidden', 'true');
+  document.getElementById('rankBackdrop')?.classList.remove('open');
+}
+
+async function pushRanksToPage() {
+  const payload = rankPayload();
+  if (!payload.candidates.length) return false;
+  try {
+    const res = await withTimeout(
+      chrome.runtime.sendMessage({ type: 'OPEN_RANKS_FLYOUT', payload }),
+      4000,
+      'Rankings panel timed out.',
+    );
+    return Boolean(res?.success);
+  } catch (err) {
+    console.warn('[sovereign] page flyout', err?.message || err);
+    return false;
+  }
+}
+
+async function openRanksFlyout(forceDrawer) {
+  const payload = rankPayload();
+  if (!payload.candidates.length) {
+    const status = document.getElementById('candidateBlockStatus');
+    if (status) {
+      status.classList.remove('err');
+      status.textContent = 'Score at least one CV to open the rankings panel.';
+    }
+    if (forceDrawer) renderRankDrawer(payload);
+    return;
+  }
+  if (forceDrawer) {
+    renderRankDrawer(payload);
+    return;
+  }
+  const onPage = await pushRanksToPage();
+  if (onPage) {
+    closeRankDrawer();
+    return;
+  }
+  renderRankDrawer(payload);
+}
+
+async function handleRankAction(action, id) {
+  const item = cvBatch.find((row) => row.id === id);
+  if (!item) return;
+  if (action === 'shortlist') {
+    item.shortlisted = true;
+    await saveCandidateRecord({
+      id: item.id,
+      title: item.name || 'Candidate',
+      role: lastJob.title || '',
+      url: lastJob.url || '',
+      summary: [
+        item.name || 'Candidate',
+        lastJob.title || '',
+        `Fit ${candidateFitScore(item.result)}/100`,
+        item.result?.summary || '',
+      ].filter(Boolean).join('\n'),
+      score: candidateFitScore(item.result),
+      at: Date.now(),
+    });
+    const status = document.getElementById('candidateBlockStatus');
+    if (status) {
+      status.classList.remove('err');
+      status.textContent = `${item.name || 'Candidate'} shortlisted locally.`;
+    }
+    renderCvBatchList();
+    void openRanksFlyout(document.getElementById('rankDrawer')?.classList.contains('open'));
+    return;
+  }
+  if (action === 'proposal') {
+    b2bBlocks.candidate.fileName = item.name || 'Candidate CV';
+    b2bBlocks.candidate.text = item.text || '';
+    b2bBlocks.candidate.result = item.result || null;
+    b2bBlocks.candidate.error = '';
+    b2bBlocks.candidate.phase = item.text ? 'loaded' : '';
+    b2bBlocks.proposal.fileName = item.name || 'Candidate CV';
+    b2bBlocks.proposal.text = item.text || '';
+    b2bBlocks.proposal.result = null;
+    b2bBlocks.proposal.error = '';
+    b2bBlocks.proposal.phase = item.text ? 'loaded' : '';
+    closeRankDrawer();
+    try {
+      await chrome.runtime.sendMessage({ type: 'CLOSE_RANKS_FLYOUT' }).catch(() => null);
+    } catch {
+      // Host page flyout is optional.
+    }
+    switchTab('b2b-proposal');
+    await runB2bBlock('proposal');
+  }
+}
+
+async function analyzeCvBatch() {
+  if (cvBatchBusy) return;
+  const pending = cvBatch.filter((item) => String(item.text || '').trim().length >= 20);
+  if (!pending.length) {
+    setBlockStatus('candidate', 'Drop at least one readable CV first.', true);
+    syncAnalyzeButton();
+    return;
+  }
+  const runId = (cvBatchSeq += 1);
+  cvBatchBusy = true;
+  syncAnalyzeButton();
+  blockSpinner('candidate')?.classList.add('on');
+  setBlockStatus('candidate', `Analyzing ${pending.length} CV${pending.length === 1 ? '' : 's'} vs the active job brief…`, false);
+  let pageData = null;
+  try {
+    pageData = await withTimeout(getActiveTabDOM(), 8000, 'The open page took too long to read.');
+  } catch (err) {
+    console.warn('[sovereign] job brief scrape skipped', err?.message || err);
+    pageData = null;
+  }
+  const brief = jobBriefData(pageData);
+  const hasBrief = String(brief.jobDescription || brief.pageText || '').trim().length >= 40;
+  if (!hasBrief) {
+    setBlockStatus('candidate', 'No job brief on the open page. Scan a job, then analyze. Scoring CVs anyway…', false);
+  }
+  for (const item of pending) {
+    if (runId !== cvBatchSeq) break;
+    item.phase = 'analyzing';
+    item.error = '';
+    renderCvBatchList();
+    try {
+      const data = await withTimeout(postParseDom(hasBrief ? brief : {
+        pageText: item.text,
+        pageTitle: item.name || 'Uploaded document',
+        pageUrl: '',
+        jobTitle: item.name || 'Uploaded document',
+        jobDescription: item.text,
+        requiredSkills: [],
+        budget: '',
+        clientHistory: '',
+      }, {
+        analysisMode: 'candidate',
+        uploadedText: item.text,
+      }), 35000, 'Analysis took too long. Try the file again.');
+      if (runId !== cvBatchSeq) break;
+      item.result = data;
+      item.phase = 'ready';
+      item.error = '';
+      b2bBlocks.candidate.fileName = item.name;
+      b2bBlocks.candidate.text = item.text;
+      b2bBlocks.candidate.result = data;
+      b2bBlocks.candidate.phase = 'ready';
+      renderB2bBlock('candidate');
+      if (document.getElementById('rankDrawer')?.classList.contains('open')) {
+        renderRankDrawer(rankPayload());
+      } else {
+        void pushRanksToPage();
+      }
+      void noteAiSuccess();
+    } catch (err) {
+      if (runId !== cvBatchSeq) break;
+      item.phase = 'error';
+      item.result = null;
+      item.error = fileAnalysisError(err);
+    }
+    renderCvBatchList();
+  }
+  if (runId === cvBatchSeq) {
+    cvBatchBusy = false;
+    blockSpinner('candidate')?.classList.remove('on');
+    const ready = cvBatch.filter((item) => item.phase === 'ready').length;
+    const failed = cvBatch.filter((item) => item.phase === 'error').length;
+    setBlockStatus(
+      'candidate',
+      ready
+        ? `${ready} CV${ready === 1 ? '' : 's'} ranked${failed ? ` · ${failed} failed` : ''}. Rankings opened beside the page.`
+        : 'Could not score these CVs. Check the files and try again.',
+      ready < 1,
+    );
+    syncAnalyzeButton();
+    if (ready) void openRanksFlyout(false);
+  }
+}
+
+function guideCopy() {
+  const b2b = effectiveMode() === 'b2b';
+  const banner = document.getElementById('guideBannerCopy');
+  if (banner) {
+    banner.textContent = b2b
+      ? 'Candidate, Proposal, Leads, Dispatch, Team, Settings — tap to see what each action does.'
+      : 'Instant, Proposal, CV, Match, Settings — tap to see what each action does.';
+  }
+  const title = document.getElementById('guideTitle');
+  if (title) title.textContent = b2b ? 'Agency workspace guide' : 'How this extension works';
+  const body = document.getElementById('guideBody');
+  if (!body) return;
+  const tabs = b2b ? [
+    ['Candidate', 'Drop one or many CVs. Analyze scores every resume against the job currently open in the browser.'],
+    ['Proposal', 'Generate a tailored agency cover letter from the scanned job and a selected candidate CV.'],
+    ['Leads', 'Extract client details and a cold-outreach draft from the page you are viewing.'],
+    ['Dispatch', 'Route scored work to your agency workspace without leaving the job board.'],
+    ['Team', 'Keep local notes and team context on this device.'],
+    ['Settings', 'Profile, language, theme, and API connection for this Chrome profile.'],
+  ] : [
+    ['Instant', 'Paste or drop a job post for an immediate fit score, poach alert, and resume armor preview.'],
+    ['Proposal', 'Generate a tailored cover letter from the scanned job. Copy or Auto-Fill — Sovereign never submits.'],
+    ['CV', 'Build a tailored CV for the active job, then copy or download the PDF.'],
+    ['Match', 'See strengths and skill gaps versus the job currently on screen.'],
+    ['Settings', 'Skills, rates, language, theme, and connection status for this Chrome profile.'],
+  ];
+  const actions = b2b ? [
+    ['Scan Active Screen', 'Reads the job (or CV) in the visible tab and stores it as the active brief.'],
+    ['Upload / Dropzone', 'Adds PDF, DOCX, TXT, or HTML resumes to the Candidate queue.'],
+    ['Analyze {n} CVs', 'Scores every loaded CV in the background, then opens the rankings flyout to the left of this panel.'],
+    ['Generate Tailored Proposal', 'Opens Proposal for that candidate and drafts a cover letter against the job brief.'],
+    ['Shortlist Candidate', 'Saves the ranked candidate locally in this extension.'],
+  ] : [
+    ['Scan Active Screen', 'Reads the job currently visible in the tab. Use this before generating a proposal or CV.'],
+    ['Upload', 'Drop a job description or resume into Instant to score without scraping the page.'],
+    ['Generate Proposal', 'Writes a cover letter from the scanned job and your settings.'],
+    ['Auto-Fill / Deploy', 'Inserts text into the page editor. You review and send — Sovereign never auto-submits.'],
+    ['Generate Tailored CV', 'Builds a CV matched to the open job.'],
+  ];
+  body.innerHTML = [
+    ...tabs.map(([label, text]) => `<article class="guide-item"><strong>${label}</strong><p>${text}</p></article>`),
+    '<p class="k">Action buttons</p>',
+    ...actions.map(([label, text]) => `<article class="guide-item"><strong>${label}</strong><p>${text}</p></article>`),
+  ].join('');
+}
+
+function syncGuideBanner() {
+  guideCopy();
+}
+
+function setGuideOpen(open) {
+  const modal = document.getElementById('guideModal');
+  if (!modal) return;
+  if (open) guideCopy();
+  modal.classList.toggle('on', Boolean(open));
+}
+
+function bindQuickGuide() {
+  document.getElementById('guideOpen')?.addEventListener('click', () => setGuideOpen(true));
+  document.getElementById('guideBanner')?.addEventListener('click', () => setGuideOpen(true));
+  document.getElementById('guideClose')?.addEventListener('click', () => setGuideOpen(false));
+  document.getElementById('guideModal')?.addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) setGuideOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      setGuideOpen(false);
+      closeRankDrawer();
+    }
+  });
+  syncGuideBanner();
+}
+
+function bindCvBatchAnalyzer() {
+  const drop = document.getElementById('cvBatchDrop');
+  const input = document.getElementById('cvBatchFile');
+  drop?.addEventListener('click', () => input?.click());
+  drop?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      input?.click();
+    }
+  });
+  drop?.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    drop.classList.add('over');
+  });
+  drop?.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    drop.classList.remove('over');
+    void addCvFiles(event.dataTransfer?.files);
+  });
+  input?.addEventListener('change', (event) => {
+    const files = event.target.files;
+    event.target.value = '';
+    void addCvFiles(files);
+  });
+  document.getElementById('cvBatchClear')?.addEventListener('click', () => clearCvBatch());
+  document.getElementById('cvBatchAnalyze')?.addEventListener('click', () => { void analyzeCvBatch(); });
+  document.getElementById('cvBatchOpenRanks')?.addEventListener('click', () => { void openRanksFlyout(true); });
+  document.getElementById('cvBatchList')?.addEventListener('click', (event) => {
+    const id = event.target.closest('[data-remove-cv]')?.getAttribute('data-remove-cv');
+    if (!id) return;
+    const index = cvBatch.findIndex((item) => item.id === id);
+    if (index >= 0) cvBatch.splice(index, 1);
+    renderCvBatchList();
+    const count = loadedCvCount();
+    setBlockStatus('candidate', count ? `${count} CV${count === 1 ? '' : 's'} in queue.` : 'No CVs loaded yet.', false);
+  });
+}
+
+function bindRankDrawer() {
+  document.getElementById('rankDrawerClose')?.addEventListener('click', () => closeRankDrawer());
+  document.getElementById('rankBackdrop')?.addEventListener('click', () => closeRankDrawer());
+  document.getElementById('rankDrawerList')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-rank-action]');
+    if (!btn) return;
+    void handleRankAction(btn.getAttribute('data-rank-action'), btn.getAttribute('data-id'));
+  });
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+      if (request?.type !== 'FLYOUT_ACTION') return false;
+      void handleRankAction(request.action, request.id)
+        .then(() => sendResponse({ success: true }))
+        .catch((err) => sendResponse({ success: false, error: err?.message || String(err) }));
+      return true;
+    });
+  }
+}
+
 async function boot() {
   bindPlatformButtons();
   bindInstant();
+  bindQuickGuide();
+  bindCvBatchAnalyzer();
+  bindRankDrawer();
   try {
     const stored = await storageGet(STORE.SETTINGS, DEFAULT_SETTINGS);
     settings = { ...DEFAULT_SETTINGS, ...(stored || {}) };

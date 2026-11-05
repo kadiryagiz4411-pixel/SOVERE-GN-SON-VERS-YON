@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-const AFFILIATE_QUERY_KEYS = ['aff', 'via', 'aff_ref'] as const;
+const AFFILIATE_QUERY_KEYS = ['aff', 'via', 'aff_ref', 'ref', 'code'] as const;
 const LS_AFFILIATE_STORAGE = 'ls_aff';
 
 function firstSearchParam(params: URLSearchParams, keys: readonly string[]): string {

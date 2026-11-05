@@ -8,6 +8,7 @@ import { json, preflight } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
 import { env, firstEnv } from '../_lib/env.js';
 import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy.js';
+import { creditAffiliateCommission, moneyUsd } from '../_lib/affiliate.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -235,6 +236,29 @@ async function handleRequest(req: Request): Promise<Response> {
           subscription_paused_at: null,
           ...(agency ? { b2b_access: true, b2b_subscription_status: 'active', is_trial_active: false } : {}),
         });
+      }
+    }
+
+    const paymentEvent = eventName === 'subscription_payment_success'
+      || eventName === 'subscription_created'
+      || eventName === 'order_created';
+    if (userId && paymentEvent && !terminal) {
+      const invoiceUsd = moneyUsd(
+        attrs.total
+        ?? attrs.subtotal
+        ?? (attrs.first_order_item as Record<string, unknown> | undefined)?.price
+        ?? 0,
+      );
+      try {
+        await creditAffiliateCommission({
+          referredUserId: userId,
+          eventName,
+          invoiceId: String(attrs.invoice_id ?? orderId ?? lsId),
+          subscriptionId: lsId,
+          invoiceUsd,
+        });
+      } catch (err) {
+        console.error('[affiliate] commission hook failed', err);
       }
     }
 

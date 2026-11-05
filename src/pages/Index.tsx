@@ -7,6 +7,7 @@ import { ValueBarSection } from '@/components/landing/ValueBarSection';
 import { StatsCounterSection } from '@/components/landing/StatsCounterSection';
 import { BeforeAfterSection } from '@/components/landing/BeforeAfterSection';
 import { AcceptancePredictorSection } from '@/components/landing/AcceptancePredictorSection';
+import { FitScorePanicTester } from '@/components/growth/FitScorePanicTester';
 import { TrustStripSection } from '@/components/landing/TrustStripSection';
 import { LiveDemoSection } from '@/components/landing/LiveDemoSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
@@ -65,6 +66,11 @@ const Index = () => {
           </ErrorBoundary>
           <AnimatedSection>
             <AcceptancePredictorSection />
+          </AnimatedSection>
+          <AnimatedSection>
+            <section className="container mx-auto px-4 py-16">
+              <FitScorePanicTester variant="landing" />
+            </section>
           </AnimatedSection>
           <AnimatedSection>
             <TrustStripSection />

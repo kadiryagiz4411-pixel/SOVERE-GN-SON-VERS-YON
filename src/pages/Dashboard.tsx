@@ -40,6 +40,8 @@ import { UpgradeBanner } from '@/components/dashboard/UpgradeBanner';
 import { AppShell } from '@/components/AppShell';
 import { ReviewForm } from '@/components/dashboard/ReviewForm';
 import { BonusCreditsBanner } from '@/components/dashboard/BonusCreditsBanner';
+import { FitScorePanicTester } from '@/components/growth/FitScorePanicTester';
+import { AffiliateRecurringCard } from '@/components/dashboard/AffiliateRecurringCard';
 import { CreditActivityPanel, type CreditActivityItem } from '@/components/dashboard/CreditActivityPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -1549,6 +1551,13 @@ const Dashboard = () => {
         <section className="max-w-6xl mx-auto">
           <CreditActivityPanel currentBalance={currentCredits} monthlyLimit={maxCredits} items={creditActivity} />
         </section>
+
+        {user ? (
+          <section className="max-w-5xl mx-auto mb-6 grid gap-4 lg:grid-cols-2">
+            <FitScorePanicTester variant="dashboard" signedIn />
+            <AffiliateRecurringCard />
+          </section>
+        ) : null}
 
         {/* Bonus Credits & Referral Banner */}
         {user && profile && isFreePlan && (

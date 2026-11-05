@@ -516,6 +516,162 @@ if (/(^|\.)sovereignapp\.pro$/i.test(String(location.hostname || ''))) {
   setInterval(captureSovereignSession, 15000);
 }
 
+/* ── 8b. Rankings flyout: paints LEFT of the Chrome side panel on the page ─ */
+
+const SOVEREIGN_FLYOUT_HOST = 'sovereign-rank-host';
+const SOVEREIGN_FLYOUT_STYLE = `
+  :host { all: initial; }
+  .wrap { position: fixed; inset: 0; z-index: 2147483646; pointer-events: none; font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+  .backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.28); pointer-events: auto; opacity: 0; transition: opacity 180ms ease; }
+  .panel {
+    position: absolute; top: 12px; right: 12px; bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
+    max-width: 46vw;
+    background: #09090B; color: #f5f5f4;
+    border: 1px solid rgba(212,175,55,.35);
+    border-radius: 16px;
+    box-shadow: -18px 0 48px rgba(0,0,0,.45);
+    pointer-events: auto;
+    display: flex; flex-direction: column;
+    transform: translateX(110%);
+    transition: transform 220ms ease;
+    overflow: hidden;
+  }
+  .wrap.on .backdrop { opacity: 1; }
+  .wrap.on .panel { transform: none; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 14px 14px 10px; border-bottom: 1px solid rgba(212,175,55,.2); }
+  header h2 { margin: 0; font-size: 16px; color: #E6C657; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #a8a29e; line-height: 1.4; }
+  .x { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(212,175,55,.2); background: transparent; color: #a8a29e; cursor: pointer; font-size: 16px; }
+  .list { flex: 1; overflow: auto; padding: 12px; display: grid; gap: 10px; }
+  .row { border: 1px solid rgba(212,175,55,.2); border-radius: 12px; padding: 12px; background: rgba(20,20,22,.85); }
+  .top { display: flex; align-items: center; gap: 10px; }
+  .score { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#D4AF37 calc(var(--p,0)*1%), #27272a 0); flex-shrink: 0; }
+  .score span { width: 38px; height: 38px; border-radius: 50%; background: #09090B; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #E6C657; }
+  .name { margin: 0; font-size: 14px; font-weight: 700; color: #f5f5f4; overflow-wrap: anywhere; }
+  .meta { margin: 2px 0 0; font-size: 12px; color: #a8a29e; }
+  .blurb { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: #e7e5e4; }
+  .k { margin: 10px 0 4px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #D4AF37; }
+  .chips { font-size: 12px; line-height: 1.4; color: #d6d3d1; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .actions button { border: 0; border-radius: 10px; padding: 10px 8px; font-weight: 700; cursor: pointer; font-size: 12px; line-height: 1.25; }
+  .proposal { background: linear-gradient(90deg,#D4AF37,#b8860b); color: #111; }
+  .shortlist { background: #1e3a5f; color: #93c5fd; border: 1px solid rgba(59,130,246,.35); }
+  .empty { padding: 24px 12px; text-align: center; color: #a8a29e; font-size: 13px; }
+`;
+
+function sovereignEscape(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sovereignFlyoutHost() {
+  let host = document.getElementById(SOVEREIGN_FLYOUT_HOST);
+  if (host?.shadowRoot) return host;
+  host?.remove();
+  host = document.createElement('div');
+  host.id = SOVEREIGN_FLYOUT_HOST;
+  host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483646;pointer-events:none;';
+  const shadow = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style');
+  style.textContent = SOVEREIGN_FLYOUT_STYLE;
+  shadow.appendChild(style);
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+  wrap.innerHTML = `
+    <div class="backdrop" data-close="1"></div>
+    <aside class="panel" role="dialog" aria-modal="true" aria-label="Candidate rankings">
+      <header>
+        <div>
+          <h2>Candidate rankings</h2>
+          <p class="job"></p>
+        </div>
+        <button class="x" type="button" data-close="1" aria-label="Close">✕</button>
+      </header>
+      <div class="list"></div>
+    </aside>
+  `;
+  wrap.addEventListener('click', (event) => {
+    const close = event.target.closest('[data-close]');
+    if (close) {
+      closeSovereignRankFlyout();
+      return;
+    }
+    const btn = event.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const id = btn.getAttribute('data-id');
+    if (!action || !id) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'FLYOUT_ACTION', action, id }, () => void chrome.runtime.lastError);
+    } catch (err) {
+      console.warn('[sovereign] flyout action', err);
+    }
+    if (action === 'proposal') closeSovereignRankFlyout();
+    if (action === 'shortlist') {
+      btn.textContent = 'Shortlisted';
+      btn.disabled = true;
+    }
+  });
+  shadow.appendChild(wrap);
+  (document.documentElement || document.body).appendChild(host);
+  return host;
+}
+
+function openSovereignRankFlyout(payload) {
+  const host = sovereignFlyoutHost();
+  const root = host.shadowRoot;
+  const wrap = root.querySelector('.wrap');
+  const job = root.querySelector('.job');
+  const list = root.querySelector('.list');
+  const rows = Array.isArray(payload?.candidates) ? payload.candidates : [];
+  if (job) {
+    job.textContent = rows.length
+      ? `${rows.length} ranked vs ${payload?.jobTitle || 'the active job brief'}`
+      : 'Analyze CVs in Sovereign to fill this panel.';
+  }
+  if (list) {
+    list.innerHTML = rows.length ? rows.map((row) => `
+      <article class="row">
+        <div class="top">
+          <div class="score" style="--p:${Number(row.score) || 0}"><span>${sovereignEscape(String(row.score ?? '—'))}</span></div>
+          <div>
+            <p class="name">#${sovereignEscape(String(row.rank))} · ${sovereignEscape(row.name || 'Candidate')}</p>
+            <p class="meta">Fit ${sovereignEscape(String(row.score))}/100</p>
+          </div>
+        </div>
+        <p class="blurb">${sovereignEscape(row.summary || 'No summary yet.')}</p>
+        <div class="k">Highlights</div>
+        <div class="chips">${sovereignEscape((row.highlights || []).join(' · ') || 'None listed.')}</div>
+        <div class="k">Skill gaps</div>
+        <div class="chips">${sovereignEscape((row.gaps || []).join(' · ') || 'None listed.')}</div>
+        <div class="actions">
+          <button class="proposal" type="button" data-action="proposal" data-id="${sovereignEscape(row.id)}">Generate Tailored Proposal</button>
+          <button class="shortlist" type="button" data-action="shortlist" data-id="${sovereignEscape(row.id)}" ${row.shortlisted ? 'disabled' : ''}>${row.shortlisted ? 'Shortlisted' : 'Shortlist Candidate'}</button>
+        </div>
+      </article>
+    `).join('') : '<div class="empty">No scored candidates yet.</div>';
+  }
+  requestAnimationFrame(() => wrap?.classList.add('on'));
+  return true;
+}
+
+function closeSovereignRankFlyout() {
+  const host = document.getElementById(SOVEREIGN_FLYOUT_HOST);
+  const wrap = host?.shadowRoot?.querySelector('.wrap');
+  if (!wrap) {
+    host?.remove();
+    return;
+  }
+  wrap.classList.remove('on');
+  window.setTimeout(() => {
+    if (!wrap.classList.contains('on')) host.remove();
+  }, 220);
+}
+
 /* ── 9. chrome.runtime.onMessage — explicit user-triggered actions only ──── */
 
 /**
@@ -573,6 +729,20 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     Promise.resolve(safeCall(() => run(request.proposalText || '', request.extras || {}), false))
       .then((ok) => safeCall(() => sendResponse({ success: Boolean(ok) })))
       .catch((err) => safeCall(() => sendResponse({ success: false, error: err?.message || String(err) })));
+    return true;
+  }
+
+  if (type === 'OPEN_RANKS_FLYOUT') {
+    if (window.top !== window) return false;
+    const ok = safeCall(() => openSovereignRankFlyout(request.payload || {}), false);
+    sendResponse({ success: Boolean(ok) });
+    return true;
+  }
+
+  if (type === 'CLOSE_RANKS_FLYOUT') {
+    if (window.top !== window) return false;
+    safeCall(() => closeSovereignRankFlyout());
+    sendResponse({ success: true });
     return true;
   }
 

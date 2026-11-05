@@ -38,7 +38,9 @@ type EventName =
   | 'lead_form_submit'
   | 'popup_submit'
   | 'user_registered'
-  | 'user_upgraded';
+  | 'user_upgraded'
+  | 'fit_score_checked'
+  | 'fit_score_rewrite_cta';
 
 interface EventParams {
   label?: string;

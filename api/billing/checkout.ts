@@ -54,6 +54,7 @@ async function handleRequest(req: Request): Promise<Response> {
       userEmail?: string;
       planId?: string;
       billingCycle?: string;
+      referredBy?: string;
     };
     try {
       body = await req.json();
@@ -89,6 +90,7 @@ async function handleRequest(req: Request): Promise<Response> {
                 user_id: userId,
                 ...(body.planId ? { plan_id: body.planId } : {}),
                 ...(body.billingCycle ? { billing_cycle: body.billingCycle } : {}),
+                ...(body.referredBy ? { referred_by: String(body.referredBy).slice(0, 32) } : {}),
               },
             },
             product_options: {

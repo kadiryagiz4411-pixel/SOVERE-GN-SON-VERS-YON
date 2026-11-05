@@ -66,9 +66,22 @@ export function generateSitemapXML(): string {
     { loc: `${DOMAIN}/`, priority: '1.0', changefreq: 'weekly' },
     { loc: `${DOMAIN}/pricing`, priority: '0.9', changefreq: 'monthly' },
     { loc: `${DOMAIN}/features`, priority: '0.8', changefreq: 'monthly' },
+    { loc: `${DOMAIN}/fit-score`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${DOMAIN}/proposals-for`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${DOMAIN}/affiliates`, priority: '0.8', changefreq: 'monthly' },
     { loc: `${DOMAIN}/privacy`, priority: '0.6', changefreq: 'yearly' },
     { loc: `${DOMAIN}/terms`, priority: '0.6', changefreq: 'yearly' },
     { loc: `${DOMAIN}/refund`, priority: '0.6', changefreq: 'yearly' },
+  ];
+
+  const PROPOSAL_STACKS = [
+    'react-developer-for-shopify','python-web-scraping-proposal','next-js-saas-developer',
+    'wordpress-woocommerce-developer','shopify-plus-developer','laravel-api-developer',
+    'react-native-mobile-app','figma-ui-ux-designer','python-data-analyst','node-js-backend-engineer',
+    'typescript-full-stack','ai-chatgpt-automation','seo-content-writer','webflow-designer',
+    'flutter-app-developer','salesforce-admin','aws-devops-engineer','graphql-api-developer',
+    'supabase-full-stack','go-microservices','vue-nuxt-developer','machine-learning-engineer',
+    'copywriter-for-saas','php-laravel-woocommerce',
   ];
 
   const getHiredUrls = COMPANIES.map((c) => ({
@@ -130,8 +143,13 @@ export function generateSitemapXML(): string {
     }))
   );
 
+  const proposalStackUrls = PROPOSAL_STACKS.map((slug) => ({
+    loc: `${DOMAIN}/proposals-for/${slug}`, priority: '0.85', changefreq: 'weekly', lastmod: today,
+  }));
+
   const allUrls = [
     ...staticUrls,
+    ...proposalStackUrls,
     ...getHiredUrls,
     ...howToGetUrls,
     ...atsCheckerUrls,

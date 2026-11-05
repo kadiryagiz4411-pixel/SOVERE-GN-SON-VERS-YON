@@ -70,6 +70,21 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/fit-score" className={footerLinkClass}>
+                  Fit Score checker
+                </Link>
+              </li>
+              <li>
+                <Link to="/proposals-for" className={footerLinkClass}>
+                  Proposal pages
+                </Link>
+              </li>
+              <li>
+                <Link to="/affiliates" className={affiliateLinkClass}>
+                  {affiliatesLabel}
+                </Link>
+              </li>
+              <li>
                 <a
                   href={LEMON_SQUEEZY_AFFILIATE_URL}
                   target="_blank"
