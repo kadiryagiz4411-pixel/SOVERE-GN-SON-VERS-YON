@@ -3,6 +3,7 @@ export async function completeChat(apiKey: string, opts: {
   user: string;
   model?: string;
   temperature?: number;
+  top_p?: number;
   maxTokens?: number;
   json?: boolean;
 }): Promise<string> {
@@ -14,7 +15,8 @@ export async function completeChat(apiKey: string, opts: {
     },
     body: JSON.stringify({
       model: opts.model || 'gpt-4o-mini',
-      temperature: opts.temperature ?? 0.4,
+      temperature: opts.temperature ?? 0.78,
+      top_p: opts.top_p ?? 0.92,
       max_tokens: opts.maxTokens ?? 900,
       ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       messages: [

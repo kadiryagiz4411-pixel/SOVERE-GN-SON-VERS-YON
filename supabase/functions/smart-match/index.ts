@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
+import { HUMAN_JSON_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,8 +110,8 @@ function normalizeSmartMatchResult(raw: Record<string, any>, outputLanguage: str
       strengths,
       gaps,
     },
-    coverLetter: sanitizeText(raw.coverLetter, 4000),
-    linkedInOutreach: sanitizeText(raw.linkedInOutreach, 1200),
+    coverLetter: stripAiTone(sanitizeText(raw.coverLetter, 4000)),
+    linkedInOutreach: stripAiTone(sanitizeText(raw.linkedInOutreach, 1200)),
     sampleJobListings,
     topAlignmentPoints,
     applicationTips,
@@ -235,9 +236,11 @@ Deno.serve(async (req) => {
 
     const languageInstruction = getLanguageInstruction(outputLanguage);
 
-    const systemPrompt = `Act as a Senior Tech Recruiter. Analyze the provided CV and Job Description. Find the 3 most critical alignment points and draft a message that proves the candidate is the perfect solution for the company's specific needs.
+    const systemPrompt = `Analyze the CV and job. Find 3 real alignment points. Draft the cover letter as the candidate using the no-BS framework.
+${PROPOSAL_CLOSER_RULES}
+${HUMAN_WRITING_RULES}
 
-Return ONLY valid JSON matching the schema. Be precise, evidence-based, and realistic. Never mix languages. Never use generic filler, empty buzzwords, placeholders, or markdown. Every strength, gap, and message must map to explicit details from the profile and the job description.`;
+Return ONLY valid JSON matching the schema. Never mix languages. Never use generic filler. Every strength, gap, and message must map to explicit details from the profile and the job description.`;
 
     const analysisPrompt = JSON.stringify({
       instructions: {
@@ -288,7 +291,8 @@ Return ONLY valid JSON matching the schema. Be precise, evidence-based, and real
             { role: 'system', content: systemPrompt },
             { role: 'user', content: analysisPrompt },
           ],
-          temperature: 0.2,
+          temperature: HUMAN_JSON_SAMPLING.temperature,
+          top_p: HUMAN_JSON_SAMPLING.top_p,
           max_tokens: 2600,
           response_format: {
             type: 'json_schema',

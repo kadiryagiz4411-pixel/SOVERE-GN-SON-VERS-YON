@@ -7,6 +7,7 @@ import { getActiveApiKey } from '@/lib/apiKeyResolver';
 import { getOpenAIApiKey, isOpenAIApiKeyConfigured } from '@/lib/ai/openai';
 import { parseLLMJson } from '@/utils/llmJson';
 import { sanitizeAiText } from '@/lib/ai/sanitizer';
+import { HUMAN_SAMPLING, PROPOSAL_CLOSER_RULES } from '@/lib/ai/humanVoice';
 import { memoryToPrompt, type SovereignMemory } from '@/lib/memory/contextEngine';
 import type { RankedCandidate } from '@/lib/schemas/candidate';
 import type { RankedJob, JobPosting } from '@/lib/schemas/job';
@@ -23,7 +24,8 @@ async function chat(system: string, user: string, maxTokens = 400): Promise<stri
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      temperature: 0.35,
+      temperature: HUMAN_SAMPLING.temperature,
+      top_p: HUMAN_SAMPLING.top_p,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: system },
@@ -103,11 +105,8 @@ export async function generateAutoFillPayload(
   }
 
   const raw = await chat(
-    `You are a freelancer writing a 3-sentence technical proposal.
-Sentence 1: name the client's main pain.
-Sentence 2: say exactly how you solve it (tool/method).
-Sentence 3: one proof point from the profile.
-No greetings. No "I am writing". JSON: { "proposal": "...", "payload": "paste-ready 3 sentences" }${memoryToPrompt(memory)}`,
+    `You are the freelancer writing this. ${PROPOSAL_CLOSER_RULES}
+Keep it to 3-5 sentences if space is tight. No greetings. JSON: { "proposal": "...", "payload": "paste-ready note" }${memoryToPrompt(memory)}`,
     `Job: ${job.title}
 Client: ${('clientName' in job && job.clientName) || 'Client'}
 Pain: ${job.painPoint || job.summary}

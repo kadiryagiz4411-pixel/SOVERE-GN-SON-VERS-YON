@@ -19,6 +19,8 @@ import { trimForLLM } from "@/utils/tokenTrimmer";
 import { parseLLMJson } from "@/utils/llmJson";
 import { getActiveApiKey } from "@/lib/apiKeyResolver";
 import { messageForOpenAIStatus, toastOpenAIFailure } from "@/lib/openaiErrors";
+import { CV_WRITER_RULES, HUMAN_SAMPLING } from "@/lib/ai/humanVoice";
+import { sanitizeAiText, sanitizeList } from "@/lib/ai/sanitizer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,6 +189,7 @@ async function callOpenAI(
   model: string,
   messages: { role: string; content: string }[],
   maxTokens = 700,
+  sampling: { temperature?: number; top_p?: number } = { temperature: 0.25, top_p: 0.9 },
 ): Promise<string> {
   const key = getActiveApiKey();
   if (!key || key === "dummy-key-to-prevent-crash") {
@@ -200,7 +203,13 @@ async function callOpenAI(
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.25 }),
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: sampling.temperature ?? 0.25,
+      top_p: sampling.top_p ?? 0.9,
+    }),
   });
 
   if (!res.ok) {
@@ -301,12 +310,13 @@ export async function generateATSFix(
   const { trimmed: trimmedResume } = trimForLLM(resumeText, 3_000);
   const missingKeywords = gaps.map(g => g.keyword).slice(0, 15).join(", ");
 
-  const prompt = `You are a professional CV writer. Rewrite the experience bullet points from this resume to naturally include the missing ATS keywords below.
+  const prompt = `Rewrite the experience bullets as the candidate. Action-first. Broken → done → changed.
+${CV_WRITER_RULES}
 
-RULES (strictly follow):
-1. DO NOT fabricate experience, skills, or achievements the candidate didn't have.
-2. Rephrase existing achievements to use the missing terminology where genuinely applicable.
-3. Use strong action verbs. Be concise (≤ 20 words per bullet).
+RULES:
+1. Do not fabricate experience, skills, or achievements.
+2. Use missing keywords only where they already match real work.
+3. ≤ 20 words per bullet.
 4. Return ONLY valid JSON — no markdown fences.
 
 MISSING KEYWORDS TO INJECT: ${missingKeywords}
@@ -328,19 +338,25 @@ RETURN:
       {
         role: "system",
         content:
-          "You are an expert ATS resume writer. Output only valid JSON. Never fabricate experience.",
+          `Output only valid JSON. Never fabricate experience. ${CV_WRITER_RULES}`,
       },
       { role: "user", content: prompt },
     ],
     900,
+    HUMAN_SAMPLING,
   );
 
   try {
-    return parseLLMJson<ATSFixResult>(raw);
+    const parsed = parseLLMJson<ATSFixResult>(raw);
+    return {
+      ...parsed,
+      rewrittenBullets: sanitizeList(parsed.rewrittenBullets),
+      coverLetterOpener: sanitizeAiText(parsed.coverLetterOpener || ""),
+    };
   } catch {
     return {
       originalBullets: [],
-      rewrittenBullets: [raw.slice(0, 600)],
+      rewrittenBullets: sanitizeList([raw.slice(0, 600)]),
       keywordsInjected: [],
       coverLetterOpener: "",
     };

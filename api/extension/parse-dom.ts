@@ -3,7 +3,7 @@ import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
 import { sanitizeAiText } from '../_lib/sanitize.js';
-import { SCREEN_ANALYST_RULES, PROPOSAL_CLOSER_RULES } from '../_lib/tone.js';
+import { HUMAN_JSON_SAMPLING, HUMAN_SAMPLING, SCREEN_ANALYST_RULES, PROPOSAL_CLOSER_RULES } from '../_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from '../_lib/outputLanguage.js';
 
 // Node runtime + no-store JSON is the Vite equivalent of Next.js
@@ -90,7 +90,12 @@ function openaiErrorDetails(error: unknown): { message: string; responseData: un
   };
 }
 
-async function completeJson(apiKey: string, system: string, user: string): Promise<Record<string, unknown>> {
+async function completeJson(
+  apiKey: string,
+  system: string,
+  user: string,
+  sampling: { temperature?: number; top_p?: number } = HUMAN_JSON_SAMPLING,
+): Promise<Record<string, unknown>> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -99,7 +104,8 @@ async function completeJson(apiKey: string, system: string, user: string): Promi
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      temperature: 0.2,
+      temperature: sampling.temperature ?? HUMAN_JSON_SAMPLING.temperature,
+      top_p: sampling.top_p ?? HUMAN_JSON_SAMPLING.top_p,
       max_tokens: 700,
       response_format: { type: 'json_object' },
       messages: [
@@ -341,11 +347,11 @@ async function handleRequest(req: Request): Promise<Response> {
         `Keep it punchy and short enough for an instant reply. No markdown. No headers. Do not invent tools, budgets, employers, or metrics.`,
         `If the brief is unclear, ask one specific clarifying question instead of guessing.`,
         analysisMode === 'proposal'
-          ? 'This is the Proposal Analysis block. Optimize the cover letter and return hooks: exactly 3 short persuasive opening lines. Do not include candidate scoring or resume gaps.'
+          ? 'This is the Proposal Analysis block. Optimize the cover letter and return hooks: exactly 3 short opening lines that name the bottleneck. Do not include candidate scoring or resume gaps.'
           : '',
         `Return JSON: { proposal, painPoint, title, contentDomain, hooks }`,
       ].join('\n');
-      const parsed = await completeJson(apiKey, proposalSystemPrompt, context);
+      const parsed = await completeJson(apiKey, proposalSystemPrompt, context, HUMAN_SAMPLING);
       const proposalText = sanitizeAiText(
         String(parsed.proposal || parsed.coverLetter || '')
         || `I can take this on. ${pageTitle || 'This brief'} is a clear execution job. I'll start with the core requirement and send a first working pass quickly.`,
@@ -378,14 +384,14 @@ async function handleRequest(req: Request): Promise<Response> {
       const b2bSystemPrompt = [
         SCREEN_ANALYST_RULES,
         langDirective,
-        `You are an Enterprise B2B Sales Director. Analyze the target company brief to pinpoint operational inefficiencies and ROI drivers. Write a structured, authoritative proposal and fit analysis for founders and CEOs. Emphasize scalability, efficiency gains, and clear deliverables. Use only the structured sections. Do not fabricate company names or people.`,
+        `Write as a senior operator pitching a founder. Name the operational bottleneck, the first-week fix, and one proof point. No corporate filler. Use only the structured sections. Do not fabricate company names or people.`,
         `- executiveSummary: 3 sentences on the inefficiency, the ROI driver, and the engagement shape.`,
         `- decisionMakers: array of likely roles (Founder, CEO, CTO). Do not invent personal names.`,
         `- outreach: a cold note under 90 words. Open on a specific fact from the brief. No filler.`,
         `- score: 0-99 priority from stated pain, scale, and fit.`,
         `Return JSON: { company, executiveSummary, decisionMakers, outreach, score }`,
       ].join('\n');
-      const parsed = await completeJson(apiKey, b2bSystemPrompt, context);
+      const parsed = await completeJson(apiKey, b2bSystemPrompt, context, HUMAN_SAMPLING);
       const executiveSummary = sanitizeAiText(String(parsed.executiveSummary || parsed.summary || pageTitle));
       const outreach = sanitizeAiText(
         String(parsed.outreach || '')

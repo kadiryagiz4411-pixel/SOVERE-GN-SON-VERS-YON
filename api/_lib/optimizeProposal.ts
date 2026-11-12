@@ -4,8 +4,8 @@
 import { jsonNoStore } from './cors.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
 import { completeChat, parseJsonObject } from './complete.js';
-import { sanitizeAiText } from './sanitize.js';
-import { HUMAN_WRITING_RULES } from './tone.js';
+import { sanitizeAiText, sanitizeDeep } from './sanitize.js';
+import { HUMAN_JSON_SAMPLING, HUMAN_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './tone.js';
 import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
 export type OptimizationType =
@@ -96,7 +96,7 @@ function fallbackFor(type: OptimizationType, proposal: string, job: string) {
       },
       followUpEmail: {
         subject: `Quick follow-up on ${role}`,
-        body: sanitizeAiText(`Circling back on ${role}. I can still hold a first-week slot if timing is better later this month.`),
+        body: sanitizeAiText(`Still around on ${role}. I can hold a first-week slot if timing is better later this month.`),
       },
       tips: ['Keep the first note under five sentences', 'Name one deliverable', 'Do not attach a long CV unasked'],
     };
@@ -153,9 +153,12 @@ export async function handleOptimizeProposalPost(body: Record<string, unknown>):
   try {
     if (optimizationType === 'company-rewrite' || optimizationType === 'tone-optimization') {
       const raw = await completeChat(apiKey, {
-        system: `Rewrite the proposal so it sounds like a real person. Return ONLY the proposal text. ${HUMAN_WRITING_RULES}`,
+        system: `Rewrite the proposal so it sounds like a senior operator talking to the buyer. Return ONLY the proposal text.
+${PROPOSAL_CLOSER_RULES}
+${HUMAN_WRITING_RULES}`,
         user: context,
-        temperature: 0.45,
+        temperature: HUMAN_SAMPLING.temperature,
+        top_p: HUMAN_SAMPLING.top_p,
         maxTokens: 900,
       });
       const text = sanitizeAiText(raw) || String(fallback);
@@ -174,11 +177,12 @@ export async function handleOptimizeProposalPost(body: Record<string, unknown>):
       system: `Return ONLY JSON matching ${schemaHint}. ${HUMAN_WRITING_RULES} No markdown.`,
       user: context,
       json: true,
-      temperature: 0.4,
+      temperature: HUMAN_JSON_SAMPLING.temperature,
+      top_p: HUMAN_JSON_SAMPLING.top_p,
       maxTokens: 1200,
     });
     const parsed = parseJsonObject(raw);
-    const result = Object.keys(parsed).length ? parsed : fallback;
+    const result = Object.keys(parsed).length ? sanitizeDeep(parsed) : fallback;
     return jsonNoStore({ success: true, type: optimizationType, result });
   } catch (error: unknown) {
     const err = error as { message?: string };

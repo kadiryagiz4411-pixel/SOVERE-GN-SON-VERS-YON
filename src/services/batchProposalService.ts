@@ -22,6 +22,8 @@ import { isOwnerEmail } from '@/lib/superadmin';
 import { hasByokKey } from '@/services/aiService';
 import { listKnowledge, knowledgeToPromptBlock } from '@/services/knowledgeBaseService';
 import { getActiveApiKey } from '@/lib/apiKeyResolver';
+import { HUMAN_SAMPLING, PROPOSAL_CLOSER_RULES } from '@/lib/ai/humanVoice';
+import { sanitizeAiText } from '@/lib/ai/sanitizer';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -101,23 +103,24 @@ async function resolveApiKey(userId: string): Promise<{ key: string; isByok: boo
 }
 
 function buildPrompt(jd: string, agency: AgencyProfile): string {
-  return `You are a senior B2B proposal writer for "${agency.name}".
+  return `Write as ${agency.name} talking to the buyer. First person. No cover-letter fluff.
+${PROPOSAL_CLOSER_RULES}
 
 Agency capabilities:
-- Tech stack / services: ${agency.techStack || 'Full-stack development, AI/ML, DevOps'}
-- Portfolio highlights: ${agency.caseStudies || 'Multiple enterprise clients delivered on time and on budget'}
+- Stack / services: ${agency.techStack || 'Full-stack delivery, product engineering, DevOps'}
+- Work shipped: ${agency.caseStudies || 'Shipped client work on time with a named first milestone'}
 ${agency.portfolioUrl ? `- Portfolio URL: ${agency.portfolioUrl}` : ''}
 
-Job Description / Client Brief:
+Client brief:
 """
 ${jd.slice(0, 3000)}
 """
 
-Respond ONLY with valid JSON in this exact schema:
+Respond ONLY with valid JSON:
 {
-  "clientProblem": "<one sentence: the client's core problem or goal>",
-  "matchScore": <integer 0-100 representing how well this agency fits>,
-  "proposal": "<3-paragraph high-converting proposal pitch that maps agency strengths to the client's problem. Each paragraph separated by \\n\\n.>"
+  "clientProblem": "<one sentence naming the bottleneck>",
+  "matchScore": <integer 0-100>,
+  "proposal": "<hook + proof + tactical checklist + 10-minute call close. Paragraphs separated by \\n\\n.>"
 }`;
 }
 
@@ -136,7 +139,8 @@ async function callOpenAI(
       model: MODEL,
       response_format: { type: 'json_object' },
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      temperature: HUMAN_SAMPLING.temperature,
+      top_p: HUMAN_SAMPLING.top_p,
       max_tokens: 800,
     }),
   });
@@ -148,7 +152,12 @@ async function callOpenAI(
 
   const json = await res.json();
   const raw = json.choices?.[0]?.message?.content ?? '{}';
-  return JSON.parse(raw) as { clientProblem: string; matchScore: number; proposal: string };
+  const parsed = JSON.parse(raw) as { clientProblem: string; matchScore: number; proposal: string };
+  return {
+    clientProblem: sanitizeAiText(parsed.clientProblem || ''),
+    matchScore: Number(parsed.matchScore) || 0,
+    proposal: sanitizeAiText(parsed.proposal || ''),
+  };
 }
 
 // ─── Core async pool ──────────────────────────────────────────────────────────

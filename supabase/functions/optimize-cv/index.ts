@@ -8,6 +8,7 @@ import {
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
+import { CV_WRITER_RULES, HUMAN_SAMPLING, HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,9 @@ Deno.serve(async (req) => {
       ? `\n\n## TARGET JOB DESCRIPTION (for keyword and tone matching):\n${jdText.slice(0, 2000)}`
       : "";
 
-    const systemPrompt = `You are a senior professional CV writer and ATS specialist. Your rewrites are used by top-tier recruiters. Follow every rule below without exception.
+    const systemPrompt = `Rewrite this CV as the candidate. Follow every rule below without exception.
+${CV_WRITER_RULES}
+${HUMAN_WRITING_RULES}
 
 ## FORMATTING — STRICT SINGLE-COLUMN LAYOUT
 - Output plain text only. No tables, no multi-column layouts, no HTML, no markdown headers with #.
@@ -139,10 +142,12 @@ Examples of correct bullets:
   - Grew organic traffic from 8k to 45k sessions/month in 6 months via technical SEO
 
 ## BANNED AI CLICHÉS — NEVER USE THESE WORDS
-You are STRICTLY PROHIBITED from using: "delve", "spearheaded", "testament", "passionate",
-"dynamic", "synergy", "realm", "leverage" (as a verb), "utilize", "streamline", "cutting-edge",
-"results-driven", "detail-oriented", "team player", "hardworking", "go-getter", "proactive",
-"innovative", "thought leader", "disruptive", "visionary", "guru", "ninja", "rockstar".
+You are STRICTLY PROHIBITED from using: "AI", "artificial intelligence", "automated", "leveraging",
+"synergy", "cutting-edge", "robust", "delve", "testament", "beacon", "game-changer", "navigating",
+"in today's fast-paced world", "passionate professional", "dynamic", "harness", "pleased to submit",
+"I am writing to express my interest", "Furthermore", "Moreover", "In conclusion", "As an AI",
+"It is important to note", "spearheaded", "utilize", "streamline", "results-driven", "detail-oriented",
+"team player", "hardworking", "go-getter", "guru", "ninja", "rockstar".
 Replace these with specific, direct verbs and concrete facts.
 
 ## TONE
@@ -159,7 +164,7 @@ Write the entire CV in ${langName}.
 ## OTHER RULES
 - Do NOT invent achievements, degrees, jobs, or skills not present in the original.
 - Quantify existing achievements using numbers already implied in the text (e.g., if "managed a team" → "managed a 4-person engineering team" only if team size is inferable).
-- Remove the professional summary clichés; replace with a 2–3 sentence confident first-person intro.
+- Remove the professional summary clichés; replace with a 2-sentence raw value proposition. Who they are, what they break, what they ship.
 - Keep the total CV between 400–700 words.
 ${roleHint}
 
@@ -182,7 +187,8 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.4,
+        temperature: HUMAN_SAMPLING.temperature,
+        top_p: HUMAN_SAMPLING.top_p,
         max_tokens: 1800,
       }),
     });
@@ -203,7 +209,7 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
     }
 
     const aiData = await aiResponse.json();
-    const optimizedCV = aiData.choices?.[0]?.message?.content?.trim();
+    const optimizedCV = stripAiTone(aiData.choices?.[0]?.message?.content || '');
 
     if (!optimizedCV) {
       return new Response(
@@ -218,7 +224,7 @@ Return ONLY the optimized CV text. No commentary, no "Here is your CV:", no expl
     const hasStructure = optimizedCV.includes("\n\n");
     const wordCount = optimizedCV.split(/\s+/).length;
     const lengthScore = wordCount >= 350 && wordCount <= 750 ? 22 : 10;
-    const noBuzzwords = !/spearheaded|delve|synergy|passionate|dynamic|results-driven/i.test(optimizedCV);
+    const noBuzzwords = !/spearheaded|delve|synergy|passionate professional|results-driven|cutting-edge|game-changer|furthermore|moreover|in conclusion|pleased to submit|i am writing to express/i.test(optimizedCV);
 
     const score = Math.min(98,
       38 +

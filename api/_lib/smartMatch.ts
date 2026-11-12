@@ -5,7 +5,7 @@ import { jsonNoStore } from './cors.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './openai.js';
 import { completeChat, parseJsonObject } from './complete.js';
 import { sanitizeAiText } from './sanitize.js';
-import { HUMAN_WRITING_RULES, SCREEN_ANALYST_RULES } from './tone.js';
+import { HUMAN_JSON_SAMPLING, HUMAN_WRITING_RULES, SCREEN_ANALYST_RULES } from './tone.js';
 import { languageLock, resolveOutputLanguage } from './outputLanguage.js';
 import { extractRequiredSkills, scoreOpportunity } from './matchScore.js';
 
@@ -227,7 +227,8 @@ status must be analysis_complete. ${HUMAN_WRITING_RULES}
 ${languageLock(lang, resolvedLanguage.code)} No markdown. If the brief is UI chrome, return empty arrays and scores of 0.`,
       user: `JOB:\n${jobDescription}\n\nCANDIDATE SKILLS:\n${skills.join(', ') || 'not listed'}`,
       json: true,
-      temperature: 0.2,
+      temperature: HUMAN_JSON_SAMPLING.temperature,
+      top_p: HUMAN_JSON_SAMPLING.top_p,
       maxTokens: 600,
     });
     const parsed = parseJsonObject(raw);

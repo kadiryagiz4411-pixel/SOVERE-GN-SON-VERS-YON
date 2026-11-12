@@ -3,23 +3,12 @@
  */
 import { preflight, json, readJsonBody } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
+import { sanitizeAiText } from '../_lib/sanitize.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 30 };
 
-const FORBIDDEN = [
-  /in today's fast-paced world[,.]?\s*/gi,
-  /i am writing to express my (?:enthusiasm|interest)[,.]?\s*/gi,
-  /please (?:do not|don't) hesitate to (?:reach out|contact me)[,.]?\s*/gi,
-  /\bleverage(?:s|d|ing)?\b/gi,
-  /\bseamlessly\b/gi,
-  /game[- ]changer/gi,
-  /\bsynerg(?:y|ies|istic)\b/gi,
-];
-
 function sanitize(raw: string): string {
-  let cleaned = raw;
-  for (const p of FORBIDDEN) cleaned = cleaned.replace(p, ' ');
-  return cleaned.replace(/\s+/g, ' ').replace(/ +\./g, '.').trim();
+  return sanitizeAiText(raw);
 }
 
 type ActionType = 'UPWORK_COVER_LETTER' | 'LINKEDIN_INMAIL' | 'GMAIL_OUTREACH';

@@ -9,7 +9,7 @@ import {
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
-import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
+import { CV_SECTION_FORMAT, CV_WRITER_RULES, HUMAN_SAMPLING, HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 function sanitize(input: unknown, max = 5000): string {
   if (!input || typeof input !== 'string') return '';
@@ -120,7 +120,8 @@ Deno.serve(async (req) => {
 
     if (mode === 'optimize' && existingCvText) {
       // Optimize existing CV
-      systemPrompt = `You are a hiring manager rewriting a colleague's CV so it sounds like a real person wrote it. Return ONLY the CV text. No commentary.
+      systemPrompt = `Rewrite this CV so it reads like the candidate wrote it. Return ONLY the CV text. No commentary.
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${langInstruction}
 Single-column layout. CAPS section headers. "- " bullets. Every experience line = what you did + a measurable result.
@@ -133,7 +134,8 @@ EXISTING CV:
 ${existingCvText}`;
     } else if (mode === 'generate-from-text') {
       // Generate from free text description
-      systemPrompt = `You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. Return ONLY the CV text.
+      systemPrompt = `You are writing your own CV from rough notes. Direct, specific, no fluff. Return ONLY the CV text.
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${langInstruction}
 ${CV_SECTION_FORMAT}`;
@@ -143,7 +145,8 @@ ${CV_SECTION_FORMAT}`;
 ${existingCvText}`;
     } else {
       // Generate from form data
-      systemPrompt = `You are a senior operator writing your own CV. Direct, specific, no fluff. Return ONLY the CV text.
+      systemPrompt = `You are writing your own CV. Direct, specific, no fluff. Return ONLY the CV text.
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${langInstruction}
 ${CV_SECTION_FORMAT}`;
@@ -180,7 +183,8 @@ ${parts.join('\n\n')}`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.7,
+          temperature: HUMAN_SAMPLING.temperature,
+          top_p: HUMAN_SAMPLING.top_p,
           max_tokens: 3000,
         }),
       }

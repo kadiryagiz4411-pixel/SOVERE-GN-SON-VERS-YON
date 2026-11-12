@@ -7,7 +7,7 @@ import { exposeApi } from './_lib/http.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
-import { CV_SECTION_FORMAT, HUMAN_WRITING_RULES } from './_lib/tone.js';
+import { CV_SECTION_FORMAT, CV_WRITER_RULES, HUMAN_SAMPLING, HUMAN_WRITING_RULES } from './_lib/tone.js';
 import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
 import { handleSmartMatchPost } from './_lib/smartMatch.js';
 import { handleOptimizeProposalPost, isOptimizeType } from './_lib/optimizeProposal.js';
@@ -115,12 +115,14 @@ async function handleRequest(req: Request): Promise<Response> {
     let userPrompt: string;
 
     if (mode === 'optimize' && existingCvText) {
-      systemPrompt = `You act as an expert ATS Resume Optimizer. Restructure and optimize the candidate resume against the job description, embedding high-impact industry keywords, powerful action verbs, and quantifiable achievements that are already supported by the source. Preserve the factual timeline. Do not invent employers, dates, or metrics. Return ONLY the CV text. No commentary. ${langInstruction}
+      systemPrompt = `Rewrite this CV so it reads like a sharp operator wrote it about their own work. Keep every employer, date, and metric factual. Embed job-post terms only where they already match real work. Return ONLY the CV text. No commentary. ${langInstruction}
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = `Optimize this CV${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}${jobDescription ? `\n\nTarget job:\n${jobDescription}` : ''}\n\nEXISTING CV:\n${existingCvText}`;
     } else if (mode === 'generate' && (formData.fullName || formData.experience || formData.skills)) {
-      systemPrompt = `You act as an expert ATS Resume Optimizer writing the candidate's own CV. Use powerful action verbs and keywords from the target job. Keep every employer, date, and metric factual. Return ONLY the CV text. ${langInstruction}
+      systemPrompt = `Write this CV as the candidate. Action-first bullets. Two-sentence summary. Keep every employer, date, and metric factual. Return ONLY the CV text. ${langInstruction}
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = [
@@ -141,7 +143,8 @@ ${CV_SECTION_FORMAT}`;
       if (!existingCvText || existingCvText.length < 20) {
         return jsonNoStore({ error: 'CV content is too short to generate.' }, 400);
       }
-      systemPrompt = `You act as an expert ATS Resume Optimizer turning rough notes into a factual CV. Embed keywords from the job description and strong action verbs. Do not invent employers, dates, or metrics. Return ONLY the CV text. ${langInstruction}
+      systemPrompt = `Turn these notes into a factual CV that sounds like the candidate wrote it. Do not invent employers, dates, or metrics. Return ONLY the CV text. ${langInstruction}
+${CV_WRITER_RULES}
 ${HUMAN_WRITING_RULES}
 ${CV_SECTION_FORMAT}`;
       userPrompt = `Create a CV from this information${targetRole ? ` for ${targetRole}` : ''}${targetCompany ? ` at ${targetCompany}` : ''}:\n\n${existingCvText}${jobDescription ? `\n\nJOB DESCRIPTION:\n${jobDescription}` : ''}`;
@@ -150,7 +153,8 @@ ${CV_SECTION_FORMAT}`;
     const raw = await completeChat(apiKey, {
       system: systemPrompt,
       user: userPrompt,
-      temperature: 0.45,
+      temperature: HUMAN_SAMPLING.temperature,
+      top_p: HUMAN_SAMPLING.top_p,
       maxTokens: 1800,
     });
     const cv = sanitizeAiText(raw);

@@ -25,6 +25,8 @@ import {
   aiNotConfiguredMessage,
 } from '@/lib/apiKeyResolver';
 import { messageForOpenAIStatus, toastOpenAIFailure } from '@/lib/openaiErrors';
+import { HUMAN_SAMPLING, PROPOSAL_CLOSER_RULES, CV_WRITER_RULES } from '@/lib/ai/humanVoice';
+import { sanitizeAiText } from '@/lib/ai/sanitizer';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -83,6 +85,7 @@ async function callOpenAI(
   model: string,
   messages: { role: string; content: string }[],
   maxTokens = 800,
+  sampling: { temperature?: number; top_p?: number } = { temperature: 0.3, top_p: 0.9 },
 ): Promise<string> {
   let key = getActiveApiKey();
   if (!key || key === 'dummy-key-to-prevent-crash') {
@@ -98,7 +101,13 @@ async function callOpenAI(
       'Content-Type':  'application/json',
       Authorization:   `Bearer ${key}`,
     },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.3 }),
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: sampling.temperature ?? 0.3,
+      top_p: sampling.top_p ?? 0.9,
+    }),
   });
 
   if (!res.ok) {
@@ -221,9 +230,8 @@ export async function analyseJobDescription(
 
 // ─── Stage 2: Premium synthesis ──────────────────────────────────────────────
 
-const STAGE2_SYSTEM = `You are a world-class career coach and CV writer.
-Write in crisp, concise, high-impact Business English.
-Tailor every sentence specifically to the candidate and the job.
+const STAGE2_SYSTEM = `Write as the candidate. Two-sentence summary. Action-first bullets: broken → done → changed.
+${CV_WRITER_RULES}
 Return ONLY valid JSON. No markdown fences.`;
 
 /**
@@ -268,13 +276,20 @@ Return JSON with:
       { role: 'user',   content: prompt },
     ],
     1200,
+    HUMAN_SAMPLING,
   );
 
   try {
-    return parseLLMJson<Stage2Result>(raw);
+    const parsed = parseLLMJson<Stage2Result>(raw);
+    return {
+      ...parsed,
+      tailored_cv_section: sanitizeAiText(parsed.tailored_cv_section || ''),
+      cover_letter: sanitizeAiText(parsed.cover_letter || ''),
+      top_improvements: (parsed.top_improvements || []).map((item) => sanitizeAiText(String(item))),
+    };
   } catch {
     return {
-      tailored_cv_section: raw.slice(0, 500),
+      tailored_cv_section: sanitizeAiText(raw.slice(0, 500)),
       cover_letter:        '',
       match_score:         stage1.ats_score_hint,
       top_improvements:    [],
@@ -388,9 +403,8 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
 
   if (input.mode === 'optimize' && input.existingCvText) {
     systemPrompt =
-      'You are a hiring manager rewriting a colleague\'s CV so it sounds like a real person wrote it. ' +
-      'Return ONLY the CV text. No commentary, no markdown dividers (---), no disclaimers. ' +
-      'Never use synergy, spearhead, dynamic, detail-oriented, leverage, delve, testament. ' +
+      CV_WRITER_RULES +
+      ' Return ONLY the CV text. No commentary, no markdown dividers. ' +
       langNote;
 
     userPrompt = `EXISTING CV:\n${input.existingCvText.slice(0, 4000)}` +
@@ -399,8 +413,8 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
 
   } else if (input.mode === 'generate-from-text' && input.existingCvText) {
     systemPrompt =
-      'You are a senior operator writing your own CV from rough notes. Direct, specific, no fluff. ' +
-      'CAPS section titles on their own line. No markdown dividers. Return ONLY the CV text. ' +
+      CV_WRITER_RULES +
+      ' CAPS section titles on their own line. No markdown dividers. Return ONLY the CV text. ' +
       langNote;
 
     userPrompt = `BACKGROUND DESCRIPTION:\n${input.existingCvText.slice(0, 4000)}` +
@@ -411,8 +425,8 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
   } else if (input.mode === 'generate' && input.formData) {
     const fd = input.formData;
     systemPrompt =
-      'You are a senior operator writing your own CV. Direct, specific, no fluff. ' +
-      'CAPS section titles. No markdown dividers or AI disclaimers. Return ONLY the CV text. ' +
+      CV_WRITER_RULES +
+      ' CAPS section titles. No markdown dividers. Return ONLY the CV text. ' +
       langNote;
 
     userPrompt = [
@@ -434,7 +448,7 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
     // Fallback-of-fallback: generate from whatever text is available.
     const anyText = input.existingCvText || Object.values(input.formData ?? {}).join(' ');
     if (!anyText.trim()) return null;
-    systemPrompt = 'Write your own CV in a direct human voice. Return only CV text. No markdown dividers. ' + langNote;
+    systemPrompt = CV_WRITER_RULES + ' Return only CV text. No markdown dividers. ' + langNote;
     userPrompt = anyText.slice(0, 4000);
   }
 
@@ -446,8 +460,9 @@ export async function generateCVFallback(input: CVFallbackInput): Promise<string
         { role: 'user',   content: userPrompt },
       ],
       1200,
+      HUMAN_SAMPLING,
     );
-    return result || null;
+    return sanitizeAiText(result || '') || null;
   } catch (err) {
     console.error('[SOVEREIGN_ERR] generateCVFallback failed:', err instanceof Error ? err.message : err);
     return null;
@@ -567,8 +582,9 @@ export async function generateProposalFallback(
 
   const systemPrompt =
     professionLine +
-    ' First sentence names the client pain. Second paragraph is the fix and first deliverable. Third paragraph is one proof point and a reply-forcing question.' +
-    ' No greetings, no markdown, no AI disclaimers, no synergy/leverage/passionate/cutting-edge.';
+    '\n' +
+    PROPOSAL_CLOSER_RULES +
+    '\nFirst sentence names the bottleneck. Then proof. Then a tactical checklist. Then a 10-minute call close.';
 
   const userPrompt = `Write an aggressive, high-converting proposal I can send immediately.
 
@@ -592,8 +608,9 @@ Use only the brief and this profile. Do not invent tools or results.`;
         { role: 'user',   content: userPrompt },
       ],
       900,
+      HUMAN_SAMPLING,
     );
-    return result || null;
+    return sanitizeAiText(result || '') || null;
   } catch {
     return null;
   }
@@ -649,13 +666,14 @@ export async function generateSovereignContent(
         console.error('[generateSovereignContent:cv] both edge and fallback failed', result.error, result.status);
         return { success: false, fallback: true, content: FALLBACK_CONTENT, error: result.error ?? 'Unknown error' };
       }
-      return { success: true, fallback: false, data: result.data };
+      const cvText = sanitizeAiText(String((result.data as { cv?: string }).cv || ''));
+      return { success: true, fallback: false, data: { ...(result.data as object), cv: cvText } };
     }
 
     // type === 'proposal' — live Vercel /api/proposal first, then edge
     const { userId: _u, prompt, type: _t, ...rest } = payload;
     const live = await postLiveProposal({ jobDescription: prompt, ...rest });
-    const liveText = readGeneratedText(live.data, ['proposal', 'proposalText', 'text']);
+    const liveText = sanitizeAiText(readGeneratedText(live.data, ['proposal', 'proposalText', 'text']));
     if (live.ok && liveText) {
       return { success: true, fallback: false, data: { proposal: liveText } };
     }
@@ -664,14 +682,14 @@ export async function generateSovereignContent(
       EDGE_FUNCTIONS.proposal,
       { jobDescription: prompt, ...rest },
     );
-    const edgeText = readGeneratedText(result.data, ['proposal', 'proposalText', 'text']);
+    const edgeText = sanitizeAiText(readGeneratedText(result.data, ['proposal', 'proposalText', 'text']));
     if (!result.error && edgeText) {
       return { success: true, fallback: false, data: { ...(result.data as object), proposal: edgeText } };
     }
 
     // Edge function failed — try client-side OpenAI fallback
     console.warn('[generateSovereignContent:proposal] edge failed, trying client fallback', result.error);
-    const fallbackText = await generateProposalFallback(prompt);
+    const fallbackText = sanitizeAiText(await generateProposalFallback(prompt) || '');
     if (fallbackText) {
       return { success: true, fallback: false, data: { proposal: fallbackText } };
     }

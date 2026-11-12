@@ -7,7 +7,7 @@ import { exposeApi } from './_lib/http.js';
 import { resolveRequestApiKey, AI_BUSY_MESSAGE } from './_lib/openai.js';
 import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
-import { HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './_lib/tone.js';
+import { HUMAN_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
@@ -99,7 +99,8 @@ Platform: ${textOf(body.platformType, 40) || 'direct'}
 JOB / BRIEF:
 ${jobDescription}`,
       json: true,
-      temperature: 0.4,
+      temperature: HUMAN_SAMPLING.temperature,
+      top_p: HUMAN_SAMPLING.top_p,
       maxTokens: 900,
     });
 

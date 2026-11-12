@@ -8,7 +8,7 @@ import {
 
 import { corsHeaders, corsPreflight } from "../_shared/cors.ts";
 import { tryResolveEdgeOpenAIKey } from "../_shared/openaiKey.ts";
-import { HUMAN_WRITING_RULES, stripAiTone } from "../_shared/aiTone.ts";
+import { HUMAN_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES, stripAiTone } from "../_shared/aiTone.ts";
 
 function sanitizeText(input: unknown, maxLength: number = 10000): string {
   if (!input || typeof input !== 'string') return '';
@@ -135,7 +135,7 @@ const VARIANT_CONFIGS = {
       label: 'Active Proposal',
       badge: '🎯 Gets You the Job',
       description: 'Maximizes persuasion naturally',
-      directive: `PERSUASIVE VARIANT — Write like someone who's genuinely excited about the opportunity:
+      directive: `PERSUASIVE VARIANT — Write like someone who already sees the bottleneck and wants to fix it:
 - Open with something that shows you really understand what they're trying to achieve
 - Share a concrete result you've delivered — make it feel like a natural part of the conversation
 - Create a sense of "we should talk" without being pushy or salesy
@@ -394,7 +394,9 @@ Deno.serve(async (req) => {
       const clusterTemplate = CLUSTER_TEMPLATES[professionCluster] || CLUSTER_TEMPLATES.technical;
       const platformConfig = PLATFORM_CONFIGS[platformType] || PLATFORM_CONFIGS.upwork;
 
-      baseSystemPrompt = `${professionAdapterLine}You are an elite closer writing your own proposal. Open on the client's pain, then the fix, then one proof point and a reply-forcing question. No fluff.
+      baseSystemPrompt = `${professionAdapterLine}${PROPOSAL_CLOSER_RULES}
+
+You are writing your own proposal. Open on the client's bottleneck, then one raw proof, then a tactical checklist, then a 10-minute call close. No fluff.
 
 PLATFORM: ${platformConfig.style}
 TARGET LENGTH: ${platformConfig.lengthRange}
@@ -439,7 +441,9 @@ Platform: ${platformType || 'upwork'} | Cluster: ${professionCluster || 'technic
 Write the proposal now following the cluster template. No explanations — just the text I'll send.`;
     } else {
       // Corporate / Job Seeker mode — existing logic
-      baseSystemPrompt = `${professionAdapterLine}You are a skilled professional writing your own job application. Write naturally—like a real person who genuinely wants this role, not a template engine.
+      baseSystemPrompt = `${professionAdapterLine}${PROPOSAL_CLOSER_RULES}
+
+You are writing your own application. First sentence names their bottleneck. No cover-letter fluff.
 
 TONE INSTRUCTION: ${toneHint}
 
@@ -607,15 +611,14 @@ Write the application text now. No explanations — just the text I'll send.`;
     // For free users: single high-quality proposal
     if (!isProOrElite) {
       const qualityDirective = userSegment === 'freelancer'
-        ? `QUALITY STANDARD — MAXIMUM HIREABILITY FREELANCE APPLICATION:
-- Write a high-converting, ATS-aware, fully customized proposal following the cluster template
-- Mirror the client's language from the brief so keyword overlap is natural, never stuffed
+        ? `QUALITY STANDARD:
+- Follow the no-BS framework: hook on their bottleneck, one raw proof, tactical checklist, 10-minute call close
+- Mirror the client's language from the brief
 - Open with a specific observation from THEIR posting — never "I am interested in your project"
-- Include at least two quantified results (%, $, time saved, conversion, users) when profile allows
-- Prove you can do THIS job: map 2–3 of their requirements to your proof in the same sentence
-- Use hiring-manager English: short sentences, active verbs, no fluff, no AI clichés
-- End with one easy next step that reduces risk (audit, sample, 15-min call, first deliverable)
-- Target the platform-appropriate length. Sound like a top 5% freelancer they want to reply to immediately`
+- Include quantified results only when the profile actually has them
+- Map 2–3 of their requirements to proof in the same sentence
+- Short sentences, active verbs, no fluff
+- Target the platform-appropriate length`
         : `QUALITY STANDARD — MAXIMUM HIREABILITY JOB APPLICATION:
 - Write an interview-callback application: ATS-friendly keywords + human persuasion
 - Reference a SPECIFIC challenge, product, or metric from the posting in sentence one
@@ -639,6 +642,8 @@ Write the application text now. No explanations — just the text I'll send.`;
             { role: "system", content: `${baseSystemPrompt}\n\n${qualityDirective}` },
             { role: "user", content: userPromptBase },
           ],
+          temperature: HUMAN_SAMPLING.temperature,
+          top_p: HUMAN_SAMPLING.top_p,
         }),
       });
 
@@ -724,6 +729,8 @@ Write the application text now. No explanations — just the text I'll send.`;
               { role: "system", content: `${baseSystemPrompt}\n\n${variant.directive}` },
               { role: "user", content: userPromptBase },
             ],
+            temperature: HUMAN_SAMPLING.temperature,
+            top_p: HUMAN_SAMPLING.top_p,
           }),
         });
 
@@ -780,6 +787,8 @@ Write the application text now. No explanations — just the text I'll send.`;
               { role: "system", content: baseSystemPrompt },
               { role: "user", content: userPromptBase },
             ],
+            temperature: HUMAN_SAMPLING.temperature,
+            top_p: HUMAN_SAMPLING.top_p,
           }),
         });
         
