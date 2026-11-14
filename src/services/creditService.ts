@@ -87,11 +87,13 @@ export async function fetchCreditStatus(userId: string): Promise<CreditStatus | 
       byok_unlocked?: boolean;
       encrypted_openai_key?: string;
       custom_openai_key?: string;
-    }>(userId, 'remaining_credits, credits_remaining, credits_limit, monthly_credit_limit, credit_reset_date, credits_reset_at, subscription_tier, plan_type, plan_tier, appsumo_plan, appsumo_tier, appsumo_codes_count, is_appsumo, encrypted_openai_key');
+      single_pass_credits?: number;
+    }>(userId, 'remaining_credits, credits_remaining, credits_limit, monthly_credit_limit, credit_reset_date, credits_reset_at, subscription_tier, plan_type, plan_tier, appsumo_plan, appsumo_tier, appsumo_codes_count, is_appsumo, encrypted_openai_key, single_pass_credits');
 
     if (error || !data) return null;
 
-    const remaining = resolveRemainingCredits(data as any);
+    const passCredits = Number((data as any).single_pass_credits ?? 0) || 0;
+    const remaining = resolveRemainingCredits(data as any) + (passCredits > 0 ? COST_PER_ACTION * passCredits : 0);
     const rawLimit = Number((data as any).credits_limit ?? (data as any).monthly_credit_limit);
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
     const usagePct  = creditUsagePercentage(remaining, limit);

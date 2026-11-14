@@ -34,6 +34,7 @@ export function variantMap(): Map<string, TierConfig> {
   put(['LS_VARIANT_ELITE_ANNUAL', 'VITE_ELITE_YEARLY_VARIANT_ID', 'VITE_LEMONSQUEEZY_ELITE_ANNUAL_VARIANT_ID'], { tier: 'elite', period: 'yearly' });
   put(['LS_VARIANT_ENTERPRISE_MONTHLY', 'VITE_ENTERPRISE_MONTHLY_VARIANT_ID', 'NEXT_PUBLIC_LEMONSQUEEZY_ENTERPRISE_VARIANT_ID', 'VITE_LEMONSQUEEZY_ENTERPRISE_VARIANT_ID', 'VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_VARIANT_ID'], { tier: 'B2B_ENTERPRISE', period: 'monthly' });
   put(['LS_VARIANT_ENTERPRISE_ANNUAL', 'VITE_ENTERPRISE_YEARLY_VARIANT_ID', 'VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_VARIANT_ID'], { tier: 'B2B_ENTERPRISE', period: 'yearly' });
+  put(['LS_VARIANT_SINGLE_PASS', 'VITE_SINGLE_PASS_VARIANT_ID', 'VITE_LEMONSQUEEZY_ONETIME_PASS_VARIANT_ID', 'VITE_LEMONSQUEEZY_SINGLE_PASS_VARIANT_ID'], { tier: 'single_pass', period: 'once' });
   if (!map.has('2020873')) map.set('2020873', { tier: 'standard', period: 'monthly' });
   if (!map.has('2020643')) map.set('2020643', { tier: 'standard', period: 'yearly' });
   if (!map.has('2020868')) map.set('2020868', { tier: 'pro', period: 'monthly' });
@@ -51,12 +52,15 @@ const DEFAULT_VARIANTS: Record<string, Record<string, string>> = {
   elite: { monthly: '2020866', yearly: '2020838', annual: '2020838' },
   enterprise: { monthly: '2020877', yearly: '2020842', annual: '2020842' },
   B2B_ENTERPRISE: { monthly: '2020877', yearly: '2020842', annual: '2020842' },
+  single_pass: { monthly: '', yearly: '', annual: '', once: firstEnv('LS_VARIANT_SINGLE_PASS', 'VITE_SINGLE_PASS_VARIANT_ID') },
 };
 
 export function resolveVariantId(planId?: string, billingCycle?: string): string {
   const plan = String(planId ?? '').trim().toLowerCase();
   const cycle = String(billingCycle ?? 'monthly').trim().toLowerCase();
-  const period = cycle === 'yearly' || cycle === 'annual' || cycle === 'year' ? 'yearly' : 'monthly';
+  const period = cycle === 'yearly' || cycle === 'annual' || cycle === 'year'
+    ? 'yearly'
+    : (cycle === 'once' || cycle === 'one_time' || plan === 'single_pass' ? 'once' : 'monthly');
   const map = variantMap();
   for (const [id, cfg] of map.entries()) {
     const tierKey = cfg.tier === 'B2B_ENTERPRISE' ? 'enterprise' : cfg.tier;

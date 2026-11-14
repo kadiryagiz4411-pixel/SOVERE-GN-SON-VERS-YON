@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 // English-only banner text — no dynamic translation to prevent mixed-language UI.
 const ONBOARDING_BANNER = {
   title: '🎉 Profile setup complete!',
-  subtitle: 'Your AI is ready. Choose a plan to unlock your personalized strategy.',
+  subtitle: 'You\'re ready. Choose a plan to unlock your personalized strategy.',
   skip: 'Continue with Free plan',
 } as const;
 

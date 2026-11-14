@@ -138,7 +138,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '29',
+        price: '16.99',
         description: 'Know your acceptance chances',
         features: [
           'Unlimited applications',
@@ -152,7 +152,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '79',
+        price: '43.99',
         description: 'Full acceptance strategy',
         features: [
           'Everything in Pro',
@@ -545,7 +545,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '29',
+        price: '16.99',
         description: 'Kabul şansınızı öğrenin',
         features: [
           'Sınırsız başvuru',
@@ -559,7 +559,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '79',
+        price: '43.99',
         description: 'Tam kabul stratejisi',
         features: [
           'Pro\'daki her şey',
@@ -944,7 +944,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '29',
+        price: '16.99',
         description: 'Kennen Sie Ihre Akzeptanzchancen',
         features: [
           'Unbegrenzte Bewerbungen',
@@ -958,7 +958,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '79',
+        price: '43.99',
         description: 'Vollständige Akzeptanzstrategie',
         features: [
           'Alles in Pro',
@@ -1343,7 +1343,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '29',
+        price: '16.99',
         description: 'Connaissez vos chances d\'acceptation',
         features: [
           'Candidatures illimitées',
@@ -1357,7 +1357,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '79',
+        price: '43.99',
         description: 'Stratégie d\'acceptation complète',
         features: [
           'Tout dans Pro',

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
+import { getGuestState } from '@/lib/guestMode';
 
 export type LiveJsonResult<T> = {
   ok: boolean;
@@ -68,6 +69,7 @@ export async function postLiveJson<T>(path: string, body: Record<string, unknown
         'Content-Type': 'application/json',
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(!token ? { 'x-sovereign-guest': getGuestState().id } : {}),
       },
       body: JSON.stringify(payload),
     });

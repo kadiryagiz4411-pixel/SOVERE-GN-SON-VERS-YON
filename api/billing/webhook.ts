@@ -7,8 +7,16 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { json, preflight } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
 import { env, firstEnv } from '../_lib/env.js';
-import { lemonStoreId, lemonWebhookSecret, variantMap, type TierConfig } from '../_lib/lemonsqueezy.js';
+import { lemonStoreId, lemonWebhookSecret, variantMap, type PlanTier, type TierConfig } from '../_lib/lemonsqueezy.js';
 import { creditAffiliateCommission, moneyUsd } from '../_lib/affiliate.js';
+import {
+  asRecord,
+  isPolarWebhook,
+  planFromPolarProduct,
+  polarWebhookSecret,
+  verifyPolarSignature,
+} from '../_lib/polar.js';
+import { fulfillPurchase } from '../_lib/billingFulfill.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -44,7 +52,105 @@ function tierFromNames(productName: string, variantName: string): TierConfig | n
   if (s.includes('elite')) return { tier: 'elite', period };
   if (s.includes('pro')) return { tier: 'pro', period };
   if (s.includes('standard')) return { tier: 'standard', period };
+  if (s.includes('single') || s.includes('pass') || s.includes('one')) {
+    return { tier: 'single_pass', period: 'once' };
+  }
   return null;
+}
+
+async function handlePolarWebhook(req: Request, rawBody: string): Promise<Response> {
+  const secret = polarWebhookSecret();
+  if (!secret || !verifyPolarSignature(rawBody, req, secret)) {
+    return json({ error: 'Unauthorized' }, 401);
+  }
+
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+
+  const type = String(payload.type || payload.event || '');
+  const data = asRecord(payload.data);
+  const customer = asRecord(data.customer);
+  const product = asRecord(data.product);
+  const metadata = asRecord(data.metadata);
+  const checkout = asRecord(data.checkout);
+  const checkoutMeta = asRecord(checkout.metadata);
+  const webhookId = String(req.headers.get('webhook-id') || payload.id || data.id || '');
+  const checkoutId = String(data.checkout_id || checkout.id || metadata.checkout_id || '');
+  const orderId = String(data.order_id || (type === 'order.created' ? data.id : '') || '');
+  const eventId = (type === 'order.created' || type === 'checkout.updated')
+    ? `polar-pass:${checkoutId || orderId || webhookId}`
+    : webhookId;
+  const email = String(
+    customer.email
+    || data.customer_email
+    || metadata.email
+    || checkoutMeta.email
+    || '',
+  ).trim().toLowerCase();
+  const userId = String(
+    metadata.user_id
+    || checkoutMeta.user_id
+    || customer.external_id
+    || data.external_customer_id
+    || '',
+  ).trim() || null;
+  const productId = String(data.product_id || product.id || data.product_price_id || '');
+  const productName = String(product.name || data.product_name || metadata.plan_id || '');
+  const amount = Number(data.amount ?? data.net_amount ?? product.price_amount ?? 0);
+  const mapped = planFromPolarProduct(productId, productName, Number.isFinite(amount) ? amount : undefined);
+  const planFromMeta = String(metadata.plan_id || checkoutMeta.plan_id || '').toLowerCase();
+  const metaPlan: PlanTier | null = planFromMeta.includes('pass')
+    ? 'single_pass'
+    : planFromMeta === 'standard' || planFromMeta === 'starter'
+      ? 'standard'
+      : planFromMeta === 'pro'
+        ? 'pro'
+        : planFromMeta === 'elite'
+          ? 'elite'
+          : planFromMeta.includes('enterprise')
+            ? 'B2B_ENTERPRISE'
+            : null;
+  const plan: PlanTier | null = mapped?.tier || metaPlan;
+  const period = mapped?.period || (plan === 'single_pass' ? 'once' : 'monthly');
+  const status = String(data.status || '').toLowerCase();
+  const terminal = type.includes('canceled')
+    || type.includes('revoked')
+    || ['canceled', 'cancelled', 'revoked', 'unpaid', 'expired'].includes(status);
+  const paidCheckout = type === 'checkout.updated' && /succeed|confirm|paid|complete/i.test(status);
+  const fulfillable = type === 'order.created'
+    || type === 'subscription.created'
+    || (type === 'subscription.updated' && !terminal)
+    || paidCheckout;
+
+  if (!fulfillable && !terminal) {
+    return json({ received: true, ignored: type, eventId });
+  }
+  if (!plan) {
+    return json({ received: true, ignored: type, reason: 'unmapped_product', eventId });
+  }
+
+  try {
+    const result = await fulfillPurchase({
+      provider: 'polar',
+      eventId: eventId || `polar-${Date.now()}`,
+      eventType: type,
+      userId,
+      email,
+      plan,
+      period,
+      customerId: String(customer.id || data.customer_id || '') || null,
+      subscriptionId: String(data.id || '') || null,
+      terminal,
+    });
+    return json({ received: true, event: type, ...result });
+  } catch (err) {
+    console.error('[polar webhook] fulfill failed', err);
+    return json({ error: 'Webhook processing error' }, 500);
+  }
 }
 
 async function adminGetUser(base: string, key: string, userId: string): Promise<boolean> {
@@ -110,16 +216,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
   try {
     const rawBody = await req.text();
+    if (isPolarWebhook(req)) {
+      return handlePolarWebhook(req, rawBody);
+    }
+
     const signature = req.headers.get('x-signature') || req.headers.get('X-Signature') || '';
     const secret = lemonWebhookSecret();
-
-    if (secret) {
-      if (!verifySignature(rawBody, signature, secret)) {
-        return json({ error: 'Invalid webhook signature' }, 401);
-      }
-    } else {
-      console.error('LEMONSQUEEZY_WEBHOOK_SECRET is not configured — rejecting webhook');
-      return json({ error: 'Webhook secret is not configured' }, 500);
+    if (!secret || !signature || !verifySignature(rawBody, signature, secret)) {
+      return json({ error: 'Unauthorized' }, 401);
     }
 
     let payload: Record<string, unknown> = {};
@@ -216,7 +320,39 @@ async function handleRequest(req: Request): Promise<Response> {
       }
     }
 
+    const lsEventId = `${eventName}:${lsId || variantId || Date.now()}`;
+    if (planTier === 'single_pass' && eventName !== 'order_refunded') {
+      const passEmail = String(attrs.user_email || attrs.customer_email || custom.email || '').trim().toLowerCase();
+      const passResult = await fulfillPurchase({
+        provider: 'lemonsqueezy',
+        eventId: lsEventId,
+        eventType: eventName || 'order_created',
+        userId,
+        email: passEmail,
+        plan: 'single_pass',
+        period: 'once',
+        customerId,
+        subscriptionId: lsId || null,
+        terminal: eventName === 'order_refunded',
+      });
+      return json({ received: true, event: eventName, ...passResult });
+    }
+
     if (!userId) {
+      const guestEmail = String(attrs.user_email || attrs.customer_email || custom.email || '').trim().toLowerCase();
+      if (guestEmail && planTier && planTier !== 'free') {
+        const queued = await fulfillPurchase({
+          provider: 'lemonsqueezy',
+          eventId: lsEventId,
+          eventType: eventName || 'unknown',
+          email: guestEmail,
+          plan: planTier,
+          period: billingPeriod,
+          customerId,
+          subscriptionId: lsId || null,
+        });
+        return json({ received: true, queued: true, event: eventName, ...queued });
+      }
       return json({ received: true, queued: true, event: eventName });
     }
 

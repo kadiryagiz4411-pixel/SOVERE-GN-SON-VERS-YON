@@ -65,14 +65,14 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "single_pass",
     name: "Single Pass",
-    description: "1-time instant AI CV optimization with zero recurring subscription fees.",
-    priceMonthly: 4.99,
-    priceAnnual: 4.99,
-    annualTotal: 4.99,
+    description: "1-time instant CV optimization with zero recurring subscription fees.",
+    priceMonthly: 1.99,
+    priceAnnual: 1.99,
+    annualTotal: 1.99,
     discountPercentage: 0,
     isOneTime: true,
     features: [
-      "1-Time Full AI CV Optimization",
+      "1-Time Full Tailored CV Optimization",
       "1-Time Job Match & ATS Score Report",
       "Instant PDF Export",
     ],
@@ -85,14 +85,14 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "standard",
     name: "Standard",
-    description: "B2C Starter — essential AI optimization for active job seekers.",
-    priceMonthly: 15,
-    priceAnnual: 12,
-    annualTotal: 144,
-    discountPercentage: 20,
+    description: "B2C Starter — essential tailoring for active job seekers.",
+    priceMonthly: 8.99,
+    priceAnnual: 8.99,
+    annualTotal: 107.99,
+    discountPercentage: 25,
     features: [
-      "Up to 15 AI CV Optimizations per month",
-      "Up to 10 Automated Cover Letters per month",
+      "Up to 15 Tailored CV Optimizations per month",
+      "Up to 10 Custom Cover Letters per month",
       "Standard Resume Templates",
       "Basic ATS Match Analysis",
     ],
@@ -107,16 +107,16 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "pro",
     name: "Pro",
     description: "Power Job Seeker — comprehensive toolkit for maximum interview callbacks.",
-    priceMonthly: 29,
-    priceAnnual: 22,
-    annualTotal: 264,
-    discountPercentage: 24,
+    priceMonthly: 16.99,
+    priceAnnual: 16.50,
+    annualTotal: 197.99,
+    discountPercentage: 25,
     badge: "Most Popular",
     isPopular: true,
     features: [
       "Includes ALL Standard Plan capabilities",
-      "UNLIMITED AI CV Optimizations",
-      "UNLIMITED Automated Cover Letters",
+      "UNLIMITED Tailored CV Optimizations",
+      "UNLIMITED Custom Cover Letters",
       "Full Access to Premium Templates",
       "Multi-Language Support (EN, DE, TR, ES, FR)",
     ],
@@ -131,18 +131,18 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "elite",
     name: "Elite",
     description: "Freelancer / Recruiter — pitches, interviews, and multi-file ingestion.",
-    priceMonthly: 79,
-    priceAnnual: 59,
-    annualTotal: 708,
+    priceMonthly: 43.99,
+    priceAnnual: 44.25,
+    annualTotal: 530.99,
     discountPercentage: 25,
     badge: "Strategy Mode",
     features: [
       "Includes ALL Pro Plan capabilities",
       "Multi-Job Proposal Engine & Pitch Generator",
-      "Interactive AI Voice/Text Interview Simulator",
+      "Interactive Voice/Text Interview Simulator",
       "Single-File Multi-CV Evaluator",
       "Single-File Multi-CV & Multi-Job Ingestion Engine",
-      "Priority High-Speed LLM Execution Queue",
+      "Priority High-Speed Execution Queue",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL", LS_CHECKOUT_URLS.elite.monthly),
@@ -155,10 +155,10 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "enterprise",
     name: "Enterprise / Agency",
     description: "B2B Command Center — high-volume talent acquisition for agencies and HR teams.",
-    priceMonthly: 299,
-    priceAnnual: 239,
-    annualTotal: 2868,
-    discountPercentage: 20,
+    priceMonthly: 178.99,
+    priceAnnual: 179.25,
+    annualTotal: 2150.99,
+    discountPercentage: 25,
     badge: "Enterprise / HR Teams",
     isEnterprise: true,
     features: [
@@ -168,7 +168,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Live Client Sharing Link",
       "Live Client Sharing Portal (/share/[id]) with Instant Approvals",
       "Organization Team Workspace (1 Owner + 5 HR Seats)",
-      "AI Fraud, Fluff & Contradiction Detector",
+      "Fraud, Fluff & Contradiction Detector",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL", LS_CHECKOUT_URLS.enterprise.monthly),
@@ -190,14 +190,14 @@ export const getSubscriptionTiers = (): PricingTier[] =>
 const FALLBACK_ONE_TIME: PricingTier = {
   id: "single_pass",
   name: "Single Pass",
-  description: "1-time instant AI CV optimization with zero recurring subscription fees.",
-  priceMonthly: 4.99,
-  priceAnnual: 4.99,
-  annualTotal: 4.99,
+  description: "1-time instant CV optimization with zero recurring subscription fees.",
+  priceMonthly: 1.99,
+  priceAnnual: 1.99,
+  annualTotal: 1.99,
   discountPercentage: 0,
   isOneTime: true,
   features: [
-    "1-Time Full AI CV Optimization",
+    "1-Time Full Tailored CV Optimization",
     "1-Time Job Match & ATS Score Report",
     "Instant PDF Export",
   ],
@@ -256,15 +256,21 @@ export function getCheckoutUrlFor(tier: PricingTier | undefined | null, isAnnual
   }
 }
 
-/** Display price string, e.g. "$22" */
-export function displayPrice(tier: PricingTier | undefined | null, isAnnual: boolean): string {
-  const n = isAnnual ? tier?.priceAnnual : tier?.priceMonthly;
-  return `$${Number(n ?? 0)}`;
+export function formatUsd(n: number): string {
+  return `$${Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-/** Annual billed string, e.g. "Billed $264 annually" */
+/** Hero price: monthly sticker. Annual billing is shown via annualBillString. */
+export function displayPrice(tier: PricingTier | undefined | null, _isAnnual: boolean): string {
+  return formatUsd(Number(tier?.priceMonthly ?? 0));
+}
+
+/** Annual billed string, e.g. "Billed $197.99/year" */
 export function annualBillString(tier: PricingTier | undefined | null): string {
-  return `Billed $${Number(tier?.annualTotal ?? 0).toLocaleString()} annually`;
+  return `Billed ${formatUsd(Number(tier?.annualTotal ?? 0))}/year`;
 }
 
 /** Returns true if feature text should be visually highlighted.
@@ -298,8 +304,8 @@ function featureKey(text: string): string {
 
 function isQuotaSuperseded(feature: string, pool: string[]): boolean {
   if (!/^up to \d+/i.test(feature.trim())) return false;
-  if (/cv optim/i.test(feature) && pool.some((f) => /unlimited ai cv/i.test(f))) return true;
-  if (/cover letter/i.test(feature) && pool.some((f) => /unlimited automated cover/i.test(f))) return true;
+  if (/cv optim/i.test(feature) && pool.some((f) => /unlimited .+cv/i.test(f))) return true;
+  if (/cover letter/i.test(feature) && pool.some((f) => /unlimited .+cover/i.test(f))) return true;
   return false;
 }
 
@@ -374,7 +380,7 @@ export const PLANS: PricingTier[] = getSubscriptionTiers();
 export const SINGLE_PASS = {
   title: "Single Pass",
   subtitle: "Try Once — No Subscription Needed",
-  price: 4.99,
+  price: 1.99,
   features: getOneTimeTier().features,
   badge: "One-Time Purchase · No Subscription",
   checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? getLemonStoreUrl(),

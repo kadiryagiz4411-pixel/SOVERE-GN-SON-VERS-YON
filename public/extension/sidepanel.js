@@ -6,6 +6,7 @@ const STORE = {
   CANDIDATES: 'sovereign.candidates.v1',
   CVS: 'sovereign.tailored-cvs.v1',
   SESSION: 'sovereign.session.v1',
+  GUEST: 'sovereign.guest.actions.v1',
   LEADS: 'sovereign.leads.v1',
   ACTIONS: 'sovereign.actions.v1',
   RATED: 'sovereign.rated.v1',
@@ -27,6 +28,8 @@ const DEFAULT_SETTINGS = {
   isAppsumoUser: false,
   appsumoTier: 0,
   remainingCredits: 0,
+  singlePassCredits: 0,
+  planType: '',
   monthlyCreditLimit: 0,
   subscriptionStatus: 'unknown',
   canGenerate: true,
@@ -316,10 +319,25 @@ function applyCreditBadge() {
   }
   el.classList.remove('hidden');
   const remaining = Number(settings.remainingCredits || 0);
+  const pass = Number(settings.singlePassCredits || 0);
   const limit = Number(settings.monthlyCreditLimit || 0);
-  el.classList.toggle('empty', remaining <= 0);
-  if (settings.isAppsumoUser && remaining <= 0) showCreditResetBanner();
+  const plan = String(settings.planType || '').toLowerCase();
+  const status = String(settings.subscriptionStatus || '').toLowerCase();
+  const subscribed = status === 'active' || status === 'lifetime' || status === 'on_trial';
+  const elite = subscribed && /elite/.test(plan);
+  const agency = subscribed && /enterprise|agency|b2b/.test(plan);
+  const pro = subscribed && /pro/.test(plan);
+  el.classList.toggle('empty', remaining <= 0 && pass <= 0 && !pro && !elite && !agency);
+  el.classList.toggle('pro', Boolean(pro || elite || agency || pass > 0));
+  if (settings.isAppsumoUser && remaining <= 0 && pass <= 0) showCreditResetBanner();
   else hideCreditResetBanner();
+  if (elite) { el.textContent = 'Elite Active'; return; }
+  if (agency) { el.textContent = 'Agency Active'; return; }
+  if (pro) { el.textContent = 'Pro Active'; return; }
+  if (pass > 0) {
+    el.textContent = pass === 1 ? '1 Pass Remaining' : `${pass} Passes Remaining`;
+    return;
+  }
   if (settings.isAppsumoUser) {
     const tier = appsumoTier();
     const label = tier >= 3 ? 'T3' : tier === 2 ? 'T2' : tier === 1 ? 'T1' : '';
@@ -331,10 +349,48 @@ function applyCreditBadge() {
   el.textContent = limit > 0 ? `Credits ${remaining}/${limit}` : `Credits ${remaining}`;
 }
 
+async function guestState() {
+  const bag = await storageGet(STORE.GUEST, { used: 0, id: '' });
+  const id = String(bag?.id || '').trim() || `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  const used = Math.max(0, Number(bag?.used || 0));
+  if (!bag?.id) await storageSet(STORE.GUEST, { id, used, at: Date.now() });
+  return { id, used };
+}
+
+async function recordGuestUse() {
+  if (settings.accountEmail) return;
+  const current = await guestState();
+  const used = Math.min(2, current.used + 1);
+  settings._guestUsed = used;
+  await storageSet(STORE.GUEST, { id: current.id, used, at: Date.now() });
+}
+
+function showGuestGate() {
+  document.getElementById('guestGate')?.classList.add('on');
+}
+
+function hideGuestGate() {
+  document.getElementById('guestGate')?.classList.remove('on');
+}
+
 function assertGenerationAllowed() {
   if (isExtensionAdmin()) return true;
-  if (!settings.accountEmail) return true;
+  if (!settings.accountEmail) {
+    const used = Number((settings._guestUsed || 0));
+    if (used >= 2) {
+      showGuestGate();
+      setBusy(false, 'Sign in to keep generating.');
+      return false;
+    }
+    return true;
+  }
   const remaining = Number(settings.remainingCredits || 0);
+  const pass = Number(settings.singlePassCredits || 0);
+  if (pass > 0) {
+    hideCreditResetBanner();
+    hidePaywall();
+    return true;
+  }
   if (settings.isAppsumoUser) {
     if (remaining <= 0) {
       hidePaywall();
@@ -346,14 +402,14 @@ function assertGenerationAllowed() {
     return true;
   }
   const status = String(settings.subscriptionStatus || '').toLowerCase();
-  if (['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(status)) {
+  if (['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(status) && remaining <= 0) {
     showPaywall('renew');
-    setBusy(false, 'Renew your subscription to keep using the extension.');
+    setBusy(false, 'Renew your subscription to keep using Sovereign.');
     return false;
   }
   if (settings.canGenerate === false || remaining <= 0) {
     showPaywall('upgrade');
-    setBusy(false, 'Upgrade your account to keep generating.');
+    setBusy(false, 'Get a $1.99 Single Pass or subscribe to keep generating.');
     return false;
   }
   return true;
@@ -381,7 +437,16 @@ function publicError(raw) {
   if (/no proposal editor|no editor found|Auto-Fill is not loaded/i.test(text)) {
     return 'Open the cover letter or proposal box on this page, then tap Auto-Fill again.';
   }
-  return 'Service temporarily busy. Please try again in a few moments.';
+  if (/failed to fetch|networkerror|load failed|cors|NetworkError|TypeError: Failed/i.test(text)) {
+    return 'Could not reach Sovereign. Check your connection and try again.';
+  }
+  if (/401|sign in|unauthorized|jwt|session/i.test(text)) {
+    return 'Sign in on sovereignapp.pro, then open this panel again.';
+  }
+  if (/Server Error|ECONN|timeout|502|503|504/i.test(text)) {
+    return 'Sovereign is busy right now. Please try again in a moment.';
+  }
+  return 'Something went wrong. Please try again in a few moments.';
 }
 
 const statusEl = document.getElementById('status');
@@ -1374,19 +1439,32 @@ async function postParseDom(pageData, options = {}) {
   }).catch(() => null);
 
   if (viaWorker?.success && viaWorker.data) return viaWorker.data;
-  if (viaWorker?.error) throw new Error(viaWorker.error);
+  if (viaWorker?.error) {
+    if (/guest_limit/i.test(String(viaWorker.error))) {
+      settings._guestUsed = 2;
+      showGuestGate();
+    }
+    throw new Error(viaWorker.error);
+  }
 
+  const guest = settings.accountEmail ? null : await guestState();
   const response = await fetch(`${PARSE_DOM_URL}?t=${Date.now()}`, {
     method: 'POST',
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       'x-extension-id': chrome.runtime.id || '',
+      ...(guest?.id ? { 'x-sovereign-guest': guest.id } : {}),
     },
     body: JSON.stringify(payload),
   });
 
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401 && (data.gate || data.error === 'guest_limit')) {
+    settings._guestUsed = 2;
+    showGuestGate();
+    throw new Error(data.message || 'guest_limit');
+  }
   if (!response.ok) {
     throw new Error(data.message || data.error || `Server returned ${response.status}`);
   }
@@ -1462,7 +1540,7 @@ function assertAccountOpen() {
 
 async function analyzeActivePage() {
   if (analyzing) return;
-  if (!assertAccountOpen()) return;
+  if (!assertGenerationAllowed()) return;
   card?.classList.remove('on');
   lastProposal = '';
   lastOutreach = '';
@@ -1500,9 +1578,17 @@ async function analyzeActivePage() {
       pageData.pageUrl,
     );
     void noteAiSuccess();
+    if (!settings.accountEmail && (merged.proposalText || merged.outreach || merged.summary)) {
+      void recordGuestUse();
+    }
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
     const msg = err?.message || String(err);
+    if (/guest_limit/i.test(msg)) {
+      showGuestGate();
+      setBusy(false, 'Sign in to keep generating.');
+      return;
+    }
     if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
       showError('Service temporarily busy. Please try again in a few moments.');
       return;
@@ -2329,6 +2415,7 @@ async function resolveWorkspaceAccess() {
       isAppsumoUser: Boolean(data?.is_appsumo_user || data?.isAppsumoUser),
       appsumoTier: nextTier,
       remainingCredits: Number(data?.remainingCredits ?? settings.remainingCredits ?? 0),
+      singlePassCredits: Number(data?.singlePassCredits ?? settings.singlePassCredits ?? 0),
       monthlyCreditLimit: Number(data?.monthlyCreditLimit ?? data?.monthlyCredits ?? settings.monthlyCreditLimit ?? 0),
       subscriptionStatus: data?.subscriptionStatus || settings.subscriptionStatus,
       canGenerate: data?.canGenerate !== false,
@@ -2434,9 +2521,15 @@ async function generateTailoredCv() {
     });
     setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');
     void noteAiSuccess();
+    void recordGuestUse();
   } catch (err) {
-    const msg = publicError(err?.message || err);
-    setCvBusy(false, msg);
+    const msg = String(err?.message || err);
+    if (/guest_limit/i.test(msg)) {
+      showGuestGate();
+      setCvBusy(false, 'Sign in to keep generating.');
+      return;
+    }
+    setCvBusy(false, publicError(msg));
   }
 }
 
@@ -2476,6 +2569,9 @@ document.getElementById('autofillDispatch')?.addEventListener('click', async () 
 
 document.getElementById('paywallDismiss')?.addEventListener('click', () => {
   hidePaywall();
+});
+document.getElementById('guestGateDismiss')?.addEventListener('click', () => {
+  hideGuestGate();
 });
 
 document.getElementById('generateCv')?.addEventListener('click', () => {
@@ -3132,8 +3228,7 @@ async function runInstant(source) {
   const lang = detectSourceLanguage(`${job}\n${cv}`) || 'en';
   const preview = previewProposal(job || cv, lang);
   paintInstant(scores.match, scores.cv, preview, 'Scores are ready. Preview draft is on screen.', scores.breakdown);
-  const signedIn = Boolean(settings.accountEmail || settings.referralCode);
-  if (!signedIn || source === 'demo') return;
+  if (source === 'demo') return;
   if (!assertGenerationAllowed()) return;
   if (statusEl) statusEl.textContent = 'Scores are ready. Writing the AI proposal…';
   try {
@@ -3153,8 +3248,14 @@ async function runInstant(source) {
     const proposal = String(data?.proposalText || data?.summary || preview).trim();
     paintInstant(scores.match, scores.cv, proposal || preview, 'AI proposal ready.', scores.breakdown);
     void noteAiSuccess();
+    void recordGuestUse();
   } catch (err) {
     console.error('[sovereign] instant analysis', err);
+    if (/guest_limit/i.test(String(err?.message || err))) {
+      showGuestGate();
+      if (statusEl) statusEl.textContent = 'Sign in to keep generating.';
+      return;
+    }
     if (statusEl) statusEl.textContent = 'Scores stayed on screen. The AI proposal did not finish. Try again.';
   }
 }
@@ -3172,7 +3273,7 @@ function shareCanvas() {
   ctx.strokeRect(48, 48, 984, 984);
   ctx.fillStyle = '#f5e6b8';
   ctx.font = '700 42px sans-serif';
-  ctx.fillText('Sovereign AI | Secure Your Gig', 90, 180);
+  ctx.fillText('Sovereign | Secure Your Gig', 90, 180);
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 120px sans-serif';
   ctx.fillText(`${lastInstant.match || 0}%`, 90, 460);
@@ -3210,7 +3311,7 @@ async function copyShareCard() {
     if (statusEl) statusEl.textContent = 'Share card downloaded.';
   } catch (err) {
     console.error('[sovereign] share card', err);
-    const text = `Match ${lastInstant.match}% · CV ${lastInstant.cv}%\nSovereign AI | Secure Your Gig`;
+    const text = `Match ${lastInstant.match}% · CV ${lastInstant.cv}%\nSovereign | Secure Your Gig`;
     await copyText(text);
     if (statusEl) statusEl.textContent = 'Copied the score text.';
   }
@@ -3917,6 +4018,8 @@ async function boot() {
       settings.languageChoice = 'explicit';
     }
     fillSettingsForm();
+    const guest = await guestState();
+    settings._guestUsed = guest.used;
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));
     void renderSettingsHistory();

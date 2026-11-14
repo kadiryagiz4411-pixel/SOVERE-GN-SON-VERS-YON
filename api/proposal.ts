@@ -9,6 +9,7 @@ import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { HUMAN_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
+import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota } from './_lib/guestQuota.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
 
@@ -58,6 +59,11 @@ async function handleRequest(req: Request): Promise<Response> {
     };
     customApiKey?: unknown;
   }>(req);
+
+  const quota = inspectGuestQuota(req);
+  if (!quota.allowed) {
+    return jsonNoStore(guestLimitPayload(quota), 401, guestPeekHeaders(req, quota));
+  }
 
   const apiKey = resolveRequestApiKey(body);
   if (!apiKey) {
@@ -118,7 +124,8 @@ ${jobDescription}`,
       proposalText: proposal,
       painPoint: sanitizeAiText(String(parsed.painPoint || '')),
       title: sanitizeAiText(String(parsed.title || '')),
-    });
+      guestRemaining: quota.authed ? undefined : Math.max(0, quota.remaining - 1),
+    }, 200, guestSuccessHeaders(req, quota));
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: unknown } };
     console.error('API route caught error:', err?.message || error, err?.response?.data ?? null);

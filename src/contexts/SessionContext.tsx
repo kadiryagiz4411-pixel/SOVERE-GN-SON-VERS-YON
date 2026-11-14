@@ -14,7 +14,7 @@ import { isTrialWindowOpen, resolveB2BAccess, toAppsumoPlanEnum, type TrialProfi
 import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { firstPaidPlanLabel, hasActiveAppSumoLicense, resolveDisplayTier, type DisplayTier } from '@/lib/displayTier';
 import { syncPreOnboardingMemory } from '@/utils/syncOnboardingMemory';
-import { resolveRemainingCredits } from '@/lib/credits';
+import { COST_PER_ACTION, resolveRemainingCredits } from '@/lib/credits';
 import { QUEUE_REFILL_EVENT, refillApplyQueue, requestQueueRefill } from '@/lib/queueRefill';
 import { isPaidPlan } from '@/lib/plans';
 import { STARTUP_TIMEOUT_MS, withTimeout } from '@/lib/withTimeout';
@@ -129,6 +129,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     profileLoadStarted.current = true;
     const superAdmin = hasFullWorkspaceAccess({ email });
     try {
+      try {
+        await supabase.rpc('claim_pending_pass_grants', {
+          user_id_input: userId,
+          email_input: email || null,
+        });
+      } catch {
+        /* RPC may not exist until migration is applied */
+      }
       const { data, error } = await fetchProfileByAuthId<Record<string, unknown>>(
         userId,
         PROFILE_SELECT_WITH_TIER,
@@ -139,6 +147,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const numericTier = Number(data?.appsumo_tier ?? data?.appsumo_codes_count ?? 0);
       const remaining = resolveRemainingCredits(data);
+      const passCredits = Number(data?.single_pass_credits ?? 0) || 0;
       const rawLimit = Number(data?.monthly_credit_limit);
       const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
       const hasKey = Boolean(String(data?.encrypted_openai_key ?? data?.custom_openai_key ?? '').trim());
@@ -166,7 +175,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const slice = data as TrialProfileSlice;
         const access = resolveB2BAccess({ email, user, profile: slice });
         setCreditsBalance(remaining);
-        setRemainingCredits(remaining);
+        setRemainingCredits(remaining + (passCredits > 0 ? COST_PER_ACTION * passCredits : 0));
         setMonthlyCreditLimit(limit);
         const paidLabel = firstPaidPlanLabel(
           data?.plan_type,

@@ -42,6 +42,17 @@ import { ReviewForm } from '@/components/dashboard/ReviewForm';
 import { BonusCreditsBanner } from '@/components/dashboard/BonusCreditsBanner';
 import { FitScorePanicTester } from '@/components/growth/FitScorePanicTester';
 import { AffiliateRecurringCard } from '@/components/dashboard/AffiliateRecurringCard';
+import { ActivatingPassOverlay } from '@/components/billing/ActivatingPassOverlay';
+import { pollBillingActivation } from '@/lib/billing/pollActivation';
+import {
+  guestActionsRemaining,
+  guestCanAct,
+  openGuestGate,
+  recordGuestAction,
+  readGuestDraft,
+  clearGuestDraft,
+  stashGuestDraft,
+} from '@/lib/guestMode';
 import { CreditActivityPanel, type CreditActivityItem } from '@/components/dashboard/CreditActivityPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -146,6 +157,19 @@ const Dashboard = () => {
   const [selectedTone, setSelectedTone] = useState<string>('professional');
   const { isAdmin } = useAdmin(user);
   const [showCVOptimizer, setShowCVOptimizer] = useState(false);
+  const [activatingPass, setActivatingPass] = useState(false);
+  const [activatingMessage, setActivatingMessage] = useState('Activating your pass...');
+
+  useEffect(() => {
+    const onRestore = (event: Event) => {
+      const draft = (event as CustomEvent<{ jobDescription?: string; generatedProposal?: string }>).detail;
+      if (draft?.jobDescription) setJobDescription(draft.jobDescription);
+      if (draft?.generatedProposal) setGeneratedProposal(draft.generatedProposal);
+      clearGuestDraft();
+    };
+    window.addEventListener('sovereign:restore-guest-draft', onRestore);
+    return () => window.removeEventListener('sovereign:restore-guest-draft', onRestore);
+  }, []);
 
   // Segmentation state
   const [userSegment, setUserSegment] = useState<UserSegment | null>(null);
@@ -533,7 +557,10 @@ const Dashboard = () => {
       if (!sessionReady) return;
       try {
         if (!session?.user?.id) {
-          navigate('/auth');
+          const draft = readGuestDraft();
+          if (draft?.jobDescription) setJobDescription(draft.jobDescription);
+          if (draft?.generatedProposal) setGeneratedProposal(draft.generatedProposal);
+          setLoading(false);
           return;
         }
         setUser(session.user);
@@ -570,17 +597,30 @@ const Dashboard = () => {
 
         await fetchCreditActivity(session.user.id);
 
-        // ── Payment success notification ──────────────────────────────────
-        // Lemon Squeezy redirects to /dashboard?payment=success after checkout.
+        // ── Payment success — poll until the webhook grants the pass ──────
         const paymentParam = searchParams.get('payment');
         if (paymentParam === 'success') {
-          setTimeout(() => {
-            toast.success(
-              '🎉 Payment confirmed! Your plan is being activated — refresh in a moment.',
-              { duration: 8000 },
-            );
-          }, 800);
-          navigate('/dashboard', { replace: true });
+          const checkoutId = searchParams.get('checkout_id') || searchParams.get('checkoutId');
+          setActivatingPass(true);
+          setActivatingMessage('Activating your pass...');
+          void pollBillingActivation({
+            accessToken: session.access_token,
+            checkoutId,
+            onTick: (status) => setActivatingMessage(status.message || 'Activating your pass...'),
+          }).then((status) => {
+            setActivatingPass(false);
+            if (status.ready) {
+              toast.success('Your pass is active. You can generate now.', { duration: 6000 });
+              void fetchCreditActivity(session.user.id);
+            } else {
+              toast.message('Payment received. Your pass will appear in a moment — refresh if needed.', { duration: 8000 });
+            }
+            navigate('/dashboard', { replace: true });
+          }).catch(() => {
+            setActivatingPass(false);
+            toast.message('Payment received. Activating your pass — refresh in a moment.', { duration: 8000 });
+            navigate('/dashboard', { replace: true });
+          });
         }
 
         // Process referral if ?ref= param exists
@@ -755,22 +795,29 @@ const Dashboard = () => {
     // the canonical auth check. Local `user` state may still be null while the
     // profile fetch is in-flight, which would trigger a false "sign in" wall
     // for already-authenticated users.
-    if (!user && !sessionUser) {
-      toast.error(
-        'Please sign in to generate proposals',
-        { action: { label: 'Sign in', onClick: () => navigate('/auth?mode=signup') } },
-      );
-      return;
+    const isGuest = !user && !sessionUser;
+    if (isGuest) {
+      stashGuestDraft({
+        kind: 'proposal',
+        path: '/dashboard',
+        jobDescription,
+        generatedProposal,
+      });
+      if (!guestCanAct()) {
+        openGuestGate({ kind: 'proposal' });
+        return;
+      }
     }
 
     // Credit check — bypass for superadmin / BYOK / unlimited; block everyone else.
     // IMPORTANT: use session remainingCredits (not raw profile.credits_balance) so the
     // SessionContext's 999999 superadmin override is always respected.
     const isUnlimited = isSuperAdmin || isByokUnlimited || hasBYOKAccess;
-    const freeProposals = freeAllowanceRemaining(profile, 'proposal');
-    const usingFreeProposal = !isUnlimited && freeProposals > 0;
+    const freeProposals = isGuest ? 0 : freeAllowanceRemaining(profile, 'proposal');
+    const usingFreeProposal = !isGuest && !isUnlimited && freeProposals > 0;
+    const usingGuestProposal = isGuest && guestCanAct();
     const effectiveBalance = isUnlimited ? 999999 : (resolveRemainingCredits(profile) || remainingCredits || 0);
-    if (!usingFreeProposal) {
+    if (!usingFreeProposal && !usingGuestProposal) {
       const blocked = generationPaywall();
       if (blocked.kind !== 'none') {
         setPaywallKind(blocked.kind);
@@ -782,7 +829,7 @@ const Dashboard = () => {
       }
     }
 
-    if (!isUnlimited && !hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0) {
+    if (!isGuest && !isUnlimited && !hasUnlimitedProposals && typeof proposalsLeft === 'number' && proposalsLeft <= 0) {
       setUpgradeFeature('Unlimited Proposals');
       setShowUpgradeModal(true);
       return;
@@ -804,8 +851,8 @@ const Dashboard = () => {
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Please log in');
+      if (!session && !isGuest) {
+        openGuestGate({ kind: 'proposal' });
         return;
       }
 
@@ -833,7 +880,7 @@ const Dashboard = () => {
 
       if (!responseOk || !readGeneratedText(result, ['proposal', 'proposalText', 'text'])) {
         const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
-        if (supabaseUrl) {
+        if (supabaseUrl && session?.access_token) {
           const response = await fetch(
             `${supabaseUrl}/functions/v1/generate-proposal`,
             {
@@ -859,6 +906,10 @@ const Dashboard = () => {
       
       if (!responseOk) {
         console.error('Proposal API error:', responseStatus, result);
+        if (responseStatus === 401 && (result?.gate || result?.error === 'guest_limit')) {
+          openGuestGate({ kind: 'proposal' });
+          return;
+        }
         if (responseStatus === 429) {
           toast.error('Rate limit exceeded. Please wait a moment and try again.');
         } else if (responseStatus === 402) {
@@ -890,6 +941,10 @@ const Dashboard = () => {
       setGeneratedProposal(proposalText);
       // LocalStorage backup — user never loses content even if Supabase is down.
       try { localStorage.setItem('sovereign_last_proposal', proposalText); } catch {}
+      if (isGuest) {
+        recordGuestAction();
+        stashGuestDraft({ kind: 'proposal', path: '/dashboard', jobDescription, generatedProposal: proposalText });
+      }
 
       // For free users: track view count
       if (isFreePlan) {
@@ -1276,7 +1331,13 @@ const Dashboard = () => {
 
   return (
     <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={creditsBalance}>
+    <ActivatingPassOverlay open={activatingPass} message={activatingMessage} />
     <div className="min-h-screen bg-background">
+      {!sessionUser && !user && (
+        <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
+          Guest mode — {guestActionsRemaining()} of 2 free generations left. Sign in to keep going.
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 pb-24 lg:pb-8 space-y-6">

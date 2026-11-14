@@ -32,6 +32,8 @@ import { fetchProfileByAuthId } from '@/lib/profileQuery';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 import { PaywallModal } from '@/components/modals/PaywallModal';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
+import { guestCanAct, openGuestGate, recordGuestAction, stashGuestDraft } from '@/lib/guestMode';
+import { postLiveCv, readGeneratedText } from '@/lib/liveGenerate';
 
 type Step = 'input' | 'teaser' | 'full' | 'diff';
 
@@ -222,6 +224,35 @@ export const CVOptimizerModal = ({
 
   const handleUnlockFull = async () => {
     const { data: { user: liveUser } } = await supabase.auth.getUser();
+    if (!liveUser) {
+      if (!guestCanAct()) {
+        stashGuestDraft({ kind: 'cv', path: '/dashboard', cvText });
+        openGuestGate({ kind: 'cv' });
+        return;
+      }
+      setIsOptimizing(true);
+      try {
+        const live = await postLiveCv({
+          mode: 'optimize',
+          existingCvText: cvText.trim(),
+          targetRole: targetRole.trim() || undefined,
+          jobDescription: jobDescription.trim() || undefined,
+        });
+        const text = readGeneratedText(live.data, ['cv', 'proposal', 'optimizedCV']);
+        if (!live.ok || !text) {
+          if (live.status === 401) openGuestGate({ kind: 'cv' });
+          else toast.error(live.error || 'Could not optimize this CV.');
+          return;
+        }
+        setOptimizedCV(text);
+        setStep('diff');
+        recordGuestAction();
+        toast.success('CV optimized.');
+      } finally {
+        setIsOptimizing(false);
+      }
+      return;
+    }
     const profileRow = liveUser
       ? (await fetchProfileByAuthId(liveUser.id, '*')).data
       : null;

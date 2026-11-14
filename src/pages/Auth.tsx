@@ -8,6 +8,8 @@ import { Eye, EyeOff, ArrowLeft, Loader2, Mail, KeyRound, UserPlus, LogIn, Refre
 import { BrandLogo } from '@/components/common/BrandLogo';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
+import { startSocialLogin } from '@/lib/oauth';
 
 type AuthMode = 'signin' | 'signup' | 'forgot-password';
 
@@ -239,6 +241,17 @@ const Auth = () => {
     setShowPassword(false);
     setShowConfirmPassword(false);
   }, [mode]);
+
+  useEffect(() => {
+    const provider = (searchParams.get('provider') || '').toLowerCase();
+    if (provider === 'google' || provider === 'linkedin' || provider === 'linkedin_oidc') {
+      void startSocialLogin(provider === 'google' ? 'google' : 'linkedin_oidc', {
+        redirectPath: '/dashboard',
+      }).then((result) => {
+        if (result.error) toast.error(result.error);
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -630,6 +643,17 @@ const Auth = () => {
           {/* Title */}
           <h1 className="text-3xl font-bold text-foreground mb-2">{getTitle()}</h1>
           <p className="text-muted-foreground mb-8">{getSubtitle()}</p>
+
+          {mode !== 'forgot-password' && (
+            <>
+              <SocialAuthButtons redirectPath="/dashboard" />
+              <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-widest text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or email
+                <span className="h-px flex-1 bg-border" />
+              </div>
+            </>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">

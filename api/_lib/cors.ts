@@ -3,7 +3,7 @@ export function getCorsHeaders(): Record<string, string> {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
     'Access-Control-Allow-Headers':
-      'Content-Type, Authorization, x-extension-id, x-sovereign-key, Cache-Control, Pragma, Accept, X-Requested-With, Origin',
+      'Content-Type, Authorization, x-extension-id, x-sovereign-key, x-sovereign-guest, Cache-Control, Pragma, Accept, X-Requested-With, Origin',
     Vary: 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers',
     'Access-Control-Max-Age': '86400',
   };
@@ -34,13 +34,14 @@ export const NO_STORE_HEADERS: Record<string, string> = {
   Expires: '0',
 };
 
-export function jsonNoStore(body: unknown, status = 200): Response {
+export function jsonNoStore(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...getCorsHeaders(),
       ...NO_STORE_HEADERS,
       'Content-Type': 'application/json',
+      ...(extraHeaders || {}),
     },
   });
 }

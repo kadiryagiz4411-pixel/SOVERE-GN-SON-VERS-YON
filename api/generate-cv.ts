@@ -12,6 +12,7 @@ import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
 import { handleSmartMatchPost } from './_lib/smartMatch.js';
 import { handleOptimizeProposalPost, isOptimizeType } from './_lib/optimizeProposal.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
+import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota, withGuestHeaders } from './_lib/guestQuota.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -78,8 +79,17 @@ async function handleRequest(req: Request): Promise<Response> {
   }>(req);
 
   const intent = String(body.intent || body.action || '').toLowerCase();
+  const quota = inspectGuestQuota(req);
+  const countsAsGuestAction = intent !== 'smart-match';
+  if (countsAsGuestAction && !quota.allowed) {
+    return jsonNoStore(guestLimitPayload(quota), 401, guestPeekHeaders(req, quota));
+  }
   if (intent === 'optimize-proposal' || isOptimizeType(body.optimizationType || body.type)) {
-    return handleOptimizeProposalPost(body);
+    const result = await handleOptimizeProposalPost(body);
+    if (countsAsGuestAction && result.ok && result.status === 200) {
+      return withGuestHeaders(result, guestSuccessHeaders(req, quota));
+    }
+    return result;
   }
   if (intent === 'smart-match') {
     return handleSmartMatchPost(body);
@@ -180,6 +190,7 @@ ${CV_SECTION_FORMAT}`;
       success: true,
       cv,
       proposal: cv,
+      guestRemaining: quota.authed ? undefined : Math.max(0, quota.remaining - 1),
       match_score: score,
       matchScore: score,
       matchLabel: match.complete ? matchBand(score) : 'Add skills',
@@ -190,7 +201,7 @@ ${CV_SECTION_FORMAT}`;
       requiredSkills: match.requiredSkills,
       onboardingRequired: !match.complete,
       matchMessage: match.message || '',
-    });
+    }, 200, guestSuccessHeaders(req, quota));
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: unknown } };
     console.error('API route caught error:', err?.message || error, err?.response?.data ?? null);

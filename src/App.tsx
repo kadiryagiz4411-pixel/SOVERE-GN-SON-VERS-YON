@@ -15,6 +15,7 @@ import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
 import { captureAffiliateCode } from "@/lib/lemonsqueezy";
+import { GuestGateHost } from "@/components/auth/GuestGateHost";
 import { BOOT_TIMEOUT_EVENT, BOOT_TIMEOUT_MS, emitBootTimeout, resetAppState } from "@/lib/resetAppState";
 import { unlockBodyScroll } from "@/lib/unlockScroll";
 
@@ -276,13 +277,15 @@ const AppRoutes = () => (
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/install" element={<Install />} />
       <Route path="/reviews" element={<Reviews />} />
-      <Route path="/cv-builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
-      <Route path="/dashboard/builder" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
+      <Route path="/cv-builder" element={<ProtectedRoute allowGuest><CVBuilder /></ProtectedRoute>} />
+      <Route path="/dashboard/builder" element={<ProtectedRoute allowGuest><CVBuilder /></ProtectedRoute>} />
       <Route path="/pipeline" element={<ProtectedRoute><ApplicationPipeline /></ProtectedRoute>} />
       <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
       <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />
-      <Route element={<ProtectedRoute><AppShellLayout /></ProtectedRoute>}>
+      <Route element={<ProtectedRoute allowGuest><AppShellLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
+      </Route>
+      <Route element={<ProtectedRoute><AppShellLayout /></ProtectedRoute>}>
         <Route path="/apply-queue" element={<ApplyQueue />} />
         <Route path="/organization" element={<Organization />} />
         <Route path="/interview-simulator" element={<InterviewSimulator />} />
@@ -373,6 +376,7 @@ const App = () => {
                     <LemonSqueezyInit />
                     <FailSafe />
                     <AppRoutes />
+                    <GuestGateHost />
                     <DevSandbox />
                   </ErrorBoundary>
                 </BrowserRouter>

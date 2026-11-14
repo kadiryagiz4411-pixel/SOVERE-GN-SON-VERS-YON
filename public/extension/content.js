@@ -211,6 +211,10 @@ function captureSovereignSession() {
         parsed?.access_token ||
         parsed?.currentSession?.access_token ||
         '';
+      const refreshToken =
+        parsed?.refresh_token ||
+        parsed?.currentSession?.refresh_token ||
+        '';
       const email =
         parsed?.user?.email ||
         parsed?.currentSession?.user?.email ||
@@ -218,10 +222,10 @@ function captureSovereignSession() {
         '';
       if (!accessToken) continue;
       chrome.storage.local.set({
-        'sovereign.session.v1': { accessToken, email, at: Date.now() },
+        'sovereign.session.v1': { accessToken, refreshToken, email, at: Date.now() },
       });
       try {
-        chrome.runtime.sendMessage({ type: 'SYNC_SESSION', accessToken, email });
+        chrome.runtime.sendMessage({ type: 'SYNC_SESSION', accessToken, refreshToken, email });
       } catch {
         /* background may be asleep */
       }

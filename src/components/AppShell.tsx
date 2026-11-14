@@ -354,6 +354,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
         {/* Bottom */}
         <div className="p-3 border-t border-border space-y-2">
           <LanguageSelector />
+          {user ? (
           <button
             onClick={handleSignOut}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full"
@@ -361,6 +362,14 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
             <LogOut className="w-4 h-4" />
             {txt.signOut}
           </button>
+          ) : (
+          <Link
+            to="/auth?mode=signup"
+            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground"
+          >
+            Sign in
+          </Link>
+          )}
         </div>
       </aside>
 
@@ -425,6 +434,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
               {renderTierNav(enterpriseNav)}
             </SidebarNav>
             <div className="p-3 border-t border-border">
+              {user ? (
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive w-full"
@@ -432,6 +442,14 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
                 <LogOut className="w-4 h-4" />
                 {txt.signOut}
               </button>
+              ) : (
+              <Link
+                to="/auth?mode=signup"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground"
+              >
+                Sign in
+              </Link>
+              )}
             </div>
           </aside>
         </div>

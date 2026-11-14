@@ -9,9 +9,12 @@ import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSession } from '@/contexts/SessionContext';
 import { STARTUP_TIMEOUT_MS } from '@/lib/withTimeout';
+import { hasFreshGuestDraft } from '@/lib/guestMode';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Allow unauthenticated visitors (2 free generations) without bouncing to /auth. */
+  allowGuest?: boolean;
 }
 
 function lsOnboardingDone(): boolean {
@@ -38,7 +41,7 @@ function RouteSkeleton() {
   );
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, allowGuest = false }: ProtectedRouteProps) => {
   const { user, sessionReady, onboardingCompleted, onboardingResolved } = useSession();
   const location = useLocation();
   const [gateTimedOut, setGateTimedOut] = useState(false);
@@ -53,6 +56,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!user) {
+    if (allowGuest) return <>{children}</>;
     return <Navigate to="/auth" replace />;
   }
 
@@ -60,6 +64,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const onOnboardingPage = location.pathname === '/onboarding';
 
   if (!alreadyDone && !onOnboardingPage) {
+    if (hasFreshGuestDraft()) return <>{children}</>;
     return <Navigate to="/onboarding" replace />;
   }
 

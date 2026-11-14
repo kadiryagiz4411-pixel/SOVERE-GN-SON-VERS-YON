@@ -35,6 +35,15 @@ import { publicUserError } from '@/lib/openaiErrors';
 import type { User } from '@supabase/supabase-js';
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal';
 import { PaywallModal } from '@/components/modals/PaywallModal';
+import {
+  guestCanAct,
+  guestActionsRemaining,
+  openGuestGate,
+  recordGuestAction,
+  stashGuestDraft,
+  readGuestDraft,
+  clearGuestDraft,
+} from '@/lib/guestMode';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 import UniversalBatchUpload, { type BatchCompleteData } from '@/components/upload/UniversalBatchUpload';
 
@@ -151,7 +160,11 @@ const CVBuilder = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
-        if (!session?.user?.id) { navigate('/auth'); return; }
+        if (!session?.user?.id) {
+          const draft = readGuestDraft();
+          if (draft?.cvText) setGeneratedCV(draft.cvText);
+          return;
+        }
         setUser(session.user);
 
         const { data: profile } = await fetchProfileByAuthId<{
@@ -182,9 +195,16 @@ const CVBuilder = () => {
       }
     };
     void init();
+    const onRestore = (event: Event) => {
+      const draft = (event as CustomEvent<{ cvText?: string }>).detail;
+      if (draft?.cvText) setGeneratedCV(draft.cvText);
+      clearGuestDraft();
+    };
+    window.addEventListener('sovereign:restore-guest-draft', onRestore);
     return () => {
       cancelled = true;
       window.clearTimeout(watchdog);
+      window.removeEventListener('sovereign:restore-guest-draft', onRestore);
     };
   }, [navigate]);
 
@@ -195,12 +215,17 @@ const CVBuilder = () => {
     const liveSession = (await supabase.auth.getSession()).data.session;
     const effectiveUser = user ?? liveSession?.user ?? null;
     console.log('[Auth Check]', { userId: effectiveUser?.id, email: effectiveUser?.email, hasSession: !!liveSession });
-    if (!effectiveUser) {
-      toast.error('Please sign in to continue.', {
-        action: { label: 'Sign in', onClick: () => window.location.href = '/auth' },
-        duration: 6000,
+    const isGuest = !effectiveUser;
+    if (isGuest) {
+      stashGuestDraft({
+        kind: 'cv',
+        path: '/cv-builder',
+        cvText: generatedCV,
       });
-      return;
+      if (!guestCanAct()) {
+        openGuestGate({ kind: 'cv' });
+        return;
+      }
     }
 
     // ── Bypass-aware credit gate ────────────────────────────────────────────────
@@ -208,13 +233,13 @@ const CVBuilder = () => {
     // superadmin override is always respected. isByokUnlimited / hasBYOKAccess
     // also grant unlimited access without touching local state.
     const isCVSuperAdmin =
-      effectiveUser.email === OWNER_EMAIL ||
+      effectiveUser?.email === OWNER_EMAIL ||
       appSession.user?.email === OWNER_EMAIL ||
       appSession.isByokUnlimited ||
       appSession.hasBYOKAccess;
-    const usingFreeCv = !isCVSuperAdmin && freeCvsLeft > 0;
+    const usingFreeCv = !isGuest && !isCVSuperAdmin && freeCvsLeft > 0;
     const effectiveCVBalance = isCVSuperAdmin ? 999999 : (appSession.remainingCredits > 0 ? appSession.remainingCredits : creditsBalance);
-    if (!usingFreeCv) {
+    if (!isGuest && !usingFreeCv) {
       const blocked = paywallFromSession({
         isOwner: isCVSuperAdmin,
         isUnlimited: isCVSuperAdmin,
@@ -238,10 +263,10 @@ const CVBuilder = () => {
         return;
       }
     }
-    console.log('[AI Engine Request]', { component: 'CVBuilder', mode: activeTab, userId: effectiveUser.id });
+    console.log('[AI Engine Request]', { component: 'CVBuilder', mode: activeTab, userId: effectiveUser?.id, guest: isGuest });
 
     // Check CV generation limit
-    if (!canGenerateCV(plan)) {
+    if (!isGuest && !canGenerateCV(plan)) {
       if (isElitePlan(plan)) {
         // Should never happen - elite is unlimited
       } else if (isPaidPlan(plan)) {
@@ -389,6 +414,9 @@ const CVBuilder = () => {
           toast.error('Service temporarily busy. Please try again in a few moments.');
         } else if (status === 402) {
           toast.error(error || INSUFFICIENT_CREDITS_MESSAGE);
+        } else if (status === 401 && ((result as { gate?: boolean })?.gate || error === 'guest_limit')) {
+          openGuestGate({ kind: 'cv' });
+          return;
         } else if (status === 401) {
           toast.error('Please sign out and sign back in, then try again.');
         } else {
@@ -404,6 +432,10 @@ const CVBuilder = () => {
         return;
       }
       setGeneratedCV(cvText);
+      if (isGuest) {
+        recordGuestAction();
+        stashGuestDraft({ kind: 'cv', path: '/cv-builder', cvText });
+      }
       // LocalStorage backup — user never loses content even if Supabase is down.
       try { localStorage.setItem('sovereign_last_cv', cvText); } catch {}
       if (result.acceptanceScore) setAcceptanceScore(result.acceptanceScore);
@@ -566,6 +598,11 @@ const CVBuilder = () => {
   return (
     <SwipeablePageWrapper>
       <div className="min-h-screen bg-background pb-24 lg:pb-8">
+        {!appSession.user && (
+          <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
+            Guest mode — {guestActionsRemaining()} of 2 free generations left.
+          </div>
+        )}
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -708,7 +745,7 @@ const CVBuilder = () => {
             {!isPro && (
               <p className="text-xs text-slate-500 mt-1.5">
                 Non-English CV generation requires{' '}
-                <span className="text-violet-400 font-medium">Pro ($29/mo)</span> or higher.{' '}
+                <span className="text-violet-400 font-medium">Pro ($16.99/mo)</span> or higher.{' '}
                 <Link to="/settings/billing" className="underline hover:text-violet-300">Upgrade →</Link>
               </p>
             )}

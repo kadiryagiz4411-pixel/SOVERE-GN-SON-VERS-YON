@@ -36,7 +36,7 @@ async function fetchProfile(
   userId: string,
 ): Promise<Record<string, unknown>> {
     const selects = [
-    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,subscription_status,subscription_tier,referral_code,skills,hourly_rate,experience,profession,portfolio_projects',
+    'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,appsumo_plan,appsumo_codes_count,remaining_credits,credits_remaining,monthly_credit_limit,single_pass_credits,subscription_status,subscription_tier,referral_code,skills,hourly_rate,experience,profession,portfolio_projects',
     'role,is_admin,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,remaining_credits,monthly_credit_limit,subscription_status',
     'role,b2b_access,plan_type,org_role,b2b_subscription_status,appsumo_tier,subscription_status',
     'b2b_access,plan_type,b2b_subscription_status,appsumo_tier',
@@ -129,6 +129,19 @@ async function handleRequest(req: Request): Promise<Response> {
 
     if (userId) {
       await refreshCreditsIfDue(supabaseUrl, anon, token, userId);
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/rpc/claim_pending_pass_grants`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: anon,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ user_id_input: userId, email_input: email || null }),
+        });
+      } catch {
+        /* guest-pass claim is best-effort */
+      }
     }
     const profile = userId ? await fetchProfile(supabaseUrl, anon, token, userId) : {};
 
@@ -156,6 +169,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const remainingCredits = Number(
       profile.credits_remaining ?? profile.remaining_credits ?? 0,
     );
+    const singlePassCredits = Number(profile.single_pass_credits ?? 0) || 0;
     const monthlyCreditLimit = Number(profile.monthly_credit_limit ?? 0);
     const subscriptionStatus = String(profile.subscription_status || 'active').toLowerCase();
     const saasExpired = !appsumo && ['canceled', 'cancelled', 'expired', 'past_due', 'unpaid', 'paused'].includes(subscriptionStatus);
@@ -179,8 +193,10 @@ async function handleRequest(req: Request): Promise<Response> {
       )
     );
     const workspace = isAdmin || hasB2BAccess ? 'dual' : 'b2c';
-    const creditsDepleted = !isAdmin && remainingCredits <= 0;
-    const canGenerate = isAdmin || (appsumo ? remainingCredits > 0 : !saasExpired && remainingCredits > 0);
+    const creditsDepleted = !isAdmin && remainingCredits <= 0 && singlePassCredits <= 0;
+    const canGenerate = isAdmin
+      || singlePassCredits > 0
+      || (appsumo ? remainingCredits > 0 : !saasExpired && remainingCredits > 0);
     const profileSkills = Array.isArray(profile.skills)
       ? profile.skills.map((item) => String(item || '').trim()).filter((item) => item.length >= 2).slice(0, 24)
       : String(profile.skills || '').split(/[,|\n]+/).map((item) => item.trim()).filter((item) => item.length >= 2).slice(0, 24);
@@ -208,6 +224,7 @@ async function handleRequest(req: Request): Promise<Response> {
       isAppsumoUser: appsumo,
       appsumo_tier: appsumoTier,
       remainingCredits,
+      singlePassCredits,
       monthlyCredits: monthlyCreditLimit,
       monthlyCreditLimit,
       subscriptionStatus: appsumo ? 'lifetime' : subscriptionStatus,

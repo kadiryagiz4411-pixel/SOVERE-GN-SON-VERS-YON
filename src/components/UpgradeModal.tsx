@@ -38,7 +38,7 @@ export const UpgradeModal = ({
   const proFeatures = [
     '78% higher acceptance rate on average',
     'Acceptance probability analysis',
-    'AI-powered improvement suggestions',
+    'Improvement suggestions',
     'Job matching diagnostics',
     'Save & access proposal history',
     'Export proposals',

@@ -7,7 +7,7 @@
  * Required Supabase secrets (set via Dashboard → Edge Functions → Secrets):
  *   LEMONSQUEEZY_WEBHOOK_SECRET   – signing secret from LS dashboard
  *   LEMONSQUEEZY_API_KEY          – API key for optional LS API calls
- *   LS_VARIANT_SINGLE_PASS        – variant ID (number) for the $4.99 pass
+ *   LS_VARIANT_SINGLE_PASS        – variant ID (number) for the $1.99 pass
  *   LS_VARIANT_STANDARD_MONTHLY   – variant ID for Standard monthly
  *   LS_VARIANT_STANDARD_ANNUAL    – variant ID for Standard annual
  *   LS_VARIANT_PRO_MONTHLY        – variant ID for Pro monthly
@@ -36,7 +36,7 @@ type BillingPeriod = "monthly" | "yearly" | "once";
 interface TierConfig {
   tier: PlanTier;
   period: BillingPeriod;
-  /** AI credits granted on subscription_created / subscription_renewed */
+  /** Monthly credits granted on subscription_created / subscription_renewed */
   credits: number;
   /** B2B credits provisioned in b2b_credit_ledger (enterprise only) */
   b2bCredits: number;
@@ -54,7 +54,7 @@ function buildVariantMap(): Map<number, TierConfig> {
   const map = new Map<number, TierConfig>();
 
   const entries: Array<[string, TierConfig]> = [
-    ["LS_VARIANT_SINGLE_PASS",        { tier: "single_pass",   period: "once",    credits: 0,    b2bCredits: 0     }],
+    ["LS_VARIANT_SINGLE_PASS",        { tier: "single_pass",   period: "once",    credits: 0,    b2bCredits: 0     }], // $1.99 → 1 pass credit via grant_single_pass
     ["LS_VARIANT_STANDARD_MONTHLY",   { tier: "standard",      period: "monthly", credits: 500,  b2bCredits: 0     }],
     ["LS_VARIANT_STANDARD_ANNUAL",    { tier: "standard",      period: "yearly",  credits: 500,  b2bCredits: 0     }],
     ["LS_VARIANT_PRO_MONTHLY",        { tier: "pro",           period: "monthly", credits: 2500, b2bCredits: 0     }],
@@ -182,7 +182,7 @@ async function upgradePlan(
 
   if (error) throw new Error(`profiles update failed: ${error.message}`);
 
-  // Grant regular AI credits (for Standard / Pro / Elite)
+  // Grant regular credits (for Standard / Pro / Elite)
   if (cfg.credits > 0) {
     await db.rpc("apply_credit_change", {
       _user_id: userId,
@@ -190,7 +190,7 @@ async function upgradePlan(
       _transaction_type: "subscription",
       _reference_type: "lemonsqueezy",
       _reference_id: lsSubscriptionId,
-      _description: `${cfg.tier} plan — ${cfg.credits} AI credits granted`,
+      _description: `${cfg.tier} plan — ${cfg.credits} credits granted`,
     }).maybeSingle();
   }
 
@@ -317,17 +317,12 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // ── Signature verification ────────────────────────────────────────────────
+  // ── Signature verification — reject unverified payloads immediately ─────
   const secret = Deno.env.get("LEMONSQUEEZY_WEBHOOK_SECRET");
-  if (secret) {
-    const sig = req.headers.get("x-signature");
-    const valid = await verifySignature(rawBody, sig, secret);
-    if (!valid) {
-      console.error("[LS webhook] Signature mismatch — rejecting");
-      return json({ error: "Unauthorized" }, 401);
-    }
-  } else {
-    console.warn("[LS webhook] LEMONSQUEEZY_WEBHOOK_SECRET not set — skipping verification");
+  const sig = req.headers.get("x-signature");
+  if (!secret || !sig || !(await verifySignature(rawBody, sig, secret))) {
+    console.error("[LS webhook] Missing or invalid signature — rejecting");
+    return json({ error: "Unauthorized" }, 401);
   }
 
   let event: Record<string, unknown>;
@@ -396,6 +391,46 @@ Deno.serve(async (req) => {
       if (!tierCfg) {
         console.warn("[LS webhook] Could not resolve tier for event", eventName, { variantId });
         return json({ success: true, warning: "Tier not resolved — no action taken" });
+      }
+
+      const eventKey = `${eventName}:${lsId || variantId || crypto.randomUUID()}`;
+      const { error: eventErr } = await db.from("billing_events").insert({
+        provider: "lemonsqueezy",
+        event_id: eventKey,
+        event_type: eventName,
+        user_id: userId,
+        email: email || null,
+      });
+      if (eventErr && /duplicate|unique/i.test(eventErr.message || "")) {
+        return json({ success: true, duplicate: true });
+      }
+
+      if (tierCfg.tier === "single_pass") {
+        if (userId) {
+          await db.rpc("grant_single_pass", {
+            user_id_input: userId,
+            provider_input: "lemonsqueezy",
+            event_id_input: eventKey,
+            email_input: email || null,
+          });
+          return json({ success: true, tier: "single_pass", pass: 1 });
+        }
+        if (email) {
+          await db.from("pending_pass_grants").upsert({
+            email,
+            event_id: eventKey,
+            provider: "lemonsqueezy",
+            credits: 1,
+          }, { onConflict: "provider,event_id" });
+          await db.from("pending_upgrades").upsert({
+            email,
+            plan: "single_pass",
+            sale_id: lsId,
+            payment_data: { source: "lemonsqueezy", event_name: eventName },
+            processed: false,
+          }, { onConflict: "email" });
+        }
+        return json({ success: true, queued: true, tier: "single_pass" });
       }
 
       if (!userId) {

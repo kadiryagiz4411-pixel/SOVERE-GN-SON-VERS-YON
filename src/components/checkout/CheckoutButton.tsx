@@ -61,7 +61,8 @@ export function openLemonSqueezyCheckout(
   };
 
   try {
-    const ready = ensureLemonSqueezyReady();
+    const lemonHosted = /lemonsqueezy\.com/i.test(finalUrl);
+    const ready = lemonHosted && ensureLemonSqueezyReady();
     if (ready && window.LemonSqueezy?.Url?.Open) {
       window.LemonSqueezy.Url.Open(finalUrl);
       return;
@@ -110,21 +111,22 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
 
       const open = (url: string) => openLemonSqueezyCheckout(url, user?.email, user?.id);
 
-      if (lsVariantId && /^\d+$/.test(lsVariantId)) {
+      const useHostedApi = Boolean(planId) || (lsVariantId && /^\d+$/.test(lsVariantId));
+      if (useHostedApi) {
         setBusy(true);
         void createHostedCheckout({
           variantId: lsVariantId,
           userId: user?.id,
           email: user?.email,
           planId,
-          billingCycle,
+          billingCycle: planId === 'single_pass' ? 'once' : billingCycle,
           accessToken: session?.access_token,
         })
           .then(open)
           .catch((err) => {
-            console.warn('[LemonSqueezy] Hosted checkout API failed, using store URL', err);
+            console.warn('[Checkout] Hosted checkout API failed, using store URL', err);
             if (isBrokenCheckoutUrl(href)) {
-              toast.warning('Opening the Lemon Squeezy store.');
+              toast.warning('Opening the store.');
             }
             open(href);
           })

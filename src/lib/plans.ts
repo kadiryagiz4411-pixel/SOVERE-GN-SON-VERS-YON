@@ -95,10 +95,10 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 };
 
 export const PLAN_PRICES = {
-  standard: { monthly: 15, annual: 144 },
-  pro: { monthly: 29, annual: 264 },
-  elite: { monthly: 79, annual: 708 },
-  enterprise: { monthly: 299, annual: 2868 },
+  standard: { monthly: 8.99, annual: 107.99 },
+  pro: { monthly: 16.99, annual: 197.99 },
+  elite: { monthly: 43.99, annual: 530.99 },
+  enterprise: { monthly: 178.99, annual: 2150.99 },
 };
 
 // Credits granted per plan on subscription

@@ -17,7 +17,7 @@ const translations = {
       tagline: 'Smarter proposals, higher acceptance rates',
       cta: 'Get Pro',
       features: [
-        { icon: 'wand', label: 'Auto-Fill Job Description', desc: 'AI reads the listing and fills your fields instantly' },
+        { icon: 'wand', label: 'Auto-Fill Job Description', desc: 'Reads the listing and fills your fields instantly' },
         { icon: 'bar', label: 'Acceptance Score Breakdown', desc: 'See exactly why your score is high or low' },
         { icon: 'tone', label: 'Tone Optimization', desc: 'Adjust formality, confidence, and persuasion levels' },
         { icon: 'check', label: 'Unlimited Proposals', desc: 'No daily limits — generate as many as you need' },
@@ -29,7 +29,7 @@ const translations = {
       tagline: 'Full automation + strategic intelligence',
       cta: 'Go Elite',
       features: [
-        { icon: 'zap', label: 'Full Auto-Generate', desc: 'Paste a job link → get a finished proposal automatically' },
+        { icon: 'zap', label: 'Full Generate', desc: 'Paste a job link → get a finished proposal in one pass' },
         { icon: 'user', label: 'Decision-Maker ID', desc: 'Find who reviews your application at target companies' },
         { icon: 'msg', label: 'Outreach Messages', desc: 'LinkedIn & email messages that get responses' },
         { icon: 'target', label: 'Score Simulation', desc: 'See your current vs optimized potential score' },

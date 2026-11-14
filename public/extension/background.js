@@ -72,8 +72,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === 'SYNC_SESSION') {
     const token = request.accessToken || '';
     const email = request.email || '';
+    const refreshToken = request.refreshToken || '';
     chrome.storage.local.set({
-      'sovereign.session.v1': { accessToken: token, email, at: Date.now() },
+      'sovereign.session.v1': { accessToken: token, refreshToken, email, at: Date.now() },
     });
     fetchMe(token)
       .then((data) => {
@@ -144,6 +145,19 @@ function extensionHeaders() {
     'Content-Type': 'application/json',
     'x-extension-id': chrome.runtime.id || '',
   };
+}
+
+async function authHeaders() {
+  const bag = await chrome.storage.local.get(['sovereign.session.v1', 'sovereign.guest.actions.v1']);
+  const session = bag['sovereign.session.v1'] || {};
+  const guest = bag['sovereign.guest.actions.v1'] || {};
+  const headers = {};
+  if (session.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  } else if (guest.id) {
+    headers['x-sovereign-guest'] = String(guest.id);
+  }
+  return headers;
 }
 
 /**
@@ -457,6 +471,8 @@ function persistPlanFromMe(data, fallbackEmail) {
         isAppsumoUser: Boolean(data.is_appsumo_user || data.isAppsumoUser),
         appsumoTier: Number(data.appsumo_tier || 0),
         remainingCredits: Number(data.remainingCredits ?? prev.remainingCredits ?? 0),
+        singlePassCredits: Number(data.singlePassCredits ?? prev.singlePassCredits ?? 0),
+        planType: data.planType || prev.planType || '',
         monthlyCreditLimit: Number(data.monthlyCreditLimit ?? data.monthlyCredits ?? prev.monthlyCreditLimit ?? 0),
         subscriptionStatus: data.subscriptionStatus || prev.subscriptionStatus || 'unknown',
         canGenerate: data.canGenerate !== false,
@@ -492,6 +508,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   });
 });
 
+async function refreshExtensionSession(refreshToken) {
+  if (!refreshToken) return null;
+  const res = await fetchNoRedirect(`${apiUrl('/api/extension/refresh')}?t=${Date.now()}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.accessToken) return null;
+  return data;
+}
+
 async function fetchMe(accessToken) {
   const headers = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -500,20 +528,49 @@ async function fetchMe(accessToken) {
     headers,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
-  return data;
+  if (res.ok) return data;
+  if (res.status === 401) {
+    const bag = await chrome.storage.local.get('sovereign.session.v1');
+    const refreshToken = bag['sovereign.session.v1']?.refreshToken;
+    const next = await refreshExtensionSession(refreshToken);
+    if (next?.accessToken) {
+      chrome.storage.local.set({
+        'sovereign.session.v1': {
+          accessToken: next.accessToken,
+          refreshToken: next.refreshToken || refreshToken,
+          email: next.email || bag['sovereign.session.v1']?.email || '',
+          at: Date.now(),
+        },
+      });
+      const retry = await fetchNoRedirect(`${apiUrl(EXTENSION_ME_PATH)}?t=${Date.now()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${next.accessToken}` },
+      });
+      const retryData = await retry.json().catch(() => ({}));
+      if (retry.ok) return retryData;
+    }
+    throw new Error('Sign in on Sovereign to continue.');
+  }
+  throw new Error(data.message || data.error || 'Could not reach Sovereign. Try again in a moment.');
 }
 
 async function postJson(path, payload) {
+  const extra = await authHeaders();
   const res = await withTimeout(
     fetchNoRedirect(`${apiUrl(path)}?t=${Date.now()}`, {
       method: 'POST',
+      headers: extra,
       body: JSON.stringify(payload || {}),
     }),
     15000,
     `POST ${path}`,
   );
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && (data.gate || data.error === 'guest_limit')) {
+    const err = new Error(data.message || 'guest_limit');
+    err.code = 'guest_limit';
+    throw err;
+  }
   if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
   return data;
 }

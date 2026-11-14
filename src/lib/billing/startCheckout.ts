@@ -2,7 +2,7 @@
  * Ask the server to mint a Lemon Squeezy hosted checkout that carries user_id.
  */
 export async function createHostedCheckout(opts: {
-  variantId: string;
+  variantId?: string | null;
   userId?: string | null;
   email?: string | null;
   planId?: string;
@@ -20,7 +20,7 @@ export async function createHostedCheckout(opts: {
       headers,
       signal: controller.signal,
       body: JSON.stringify({
-        variantId: opts.variantId,
+        variantId: opts.variantId || undefined,
         userId: opts.userId || undefined,
         email: opts.email || undefined,
         userEmail: opts.email || undefined,

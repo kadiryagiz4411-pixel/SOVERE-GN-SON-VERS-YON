@@ -107,7 +107,7 @@ export function PricingCard({
   let variantId = "";
   let checkoutUrl = createCheckout(tier.isOneTime ? "single_pass" : (tier.id as CheckoutPlanId), billingCycle);
   try {
-    variantId = tier.isOneTime ? "" : getVariantId(tier.id as CheckoutPlanId, billingCycle);
+    variantId = getVariantId(tier.id as CheckoutPlanId, tier.isOneTime ? "monthly" : billingCycle);
     checkoutUrl = tier.isOneTime
       ? createCheckout("single_pass")
       : createCheckout(tier.id as CheckoutPlanId, billingCycle);
@@ -116,7 +116,7 @@ export function PricingCard({
   }
   const cta = ctaLabel(tier, isAnnual, isCurrent, isSuperAdmin);
   const annualBadge = !tier.isOneTime && isAnnual
-    ? (tier.isEnterprise ? "🔒 12-Month Price Lock Guaranteed" : "⚡ 3 Months Free")
+    ? (tier.isEnterprise ? "🔒 12-Month Price Lock Guaranteed" : "25% off")
     : null;
   const baseFeatures = Array.isArray(tier.features) ? tier.features.filter(Boolean) : [];
   const features = isAnnual && !tier.isOneTime
@@ -162,14 +162,11 @@ export function PricingCard({
           <span className={cn("text-5xl font-black tracking-tight", PRICE_COLOR[style])}>
             {displayPrice(tier, isAnnual)}
           </span>
-          <span className="text-slate-500 text-sm mb-1.5">/mo</span>
+          <span className="text-slate-500 text-sm mb-1.5">{tier.isOneTime ? "once" : "/mo"}</span>
         </div>
         {isAnnual ? (
           <p className="text-xs text-slate-500 mt-1">
-            {annualBillString(tier)}{" "}
-            <span className="text-emerald-400 font-semibold">
-              — Save {tier.discountPercentage}%
-            </span>
+            {annualBillString(tier)}
           </p>
         ) : (
           <p className="text-xs text-slate-600 mt-1">Billed monthly · cancel anytime</p>

@@ -41,7 +41,7 @@ export const TierComparisonSection = () => {
         { name: 'Acceptance probability (%) score', included: true, highlight: true },
         { name: 'Explanation of why it may fail/succeed', included: true, highlight: true },
         { name: 'Job matching analysis', included: true, highlight: true },
-        { name: 'AI improvement suggestions', included: true, highlight: true },
+        { name: 'Improvement suggestions', included: true, highlight: true },
         { name: 'Visual graph', included: false },
         { name: 'Platform recommendations', included: false },
         { name: 'Outreach messages', included: false },

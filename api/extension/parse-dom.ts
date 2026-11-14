@@ -1,4 +1,5 @@
 import { preflight, jsonNoStore, readJsonBody } from '../_lib/cors.js';
+import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota } from '../_lib/guestQuota.js';
 import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
@@ -210,6 +211,16 @@ async function handleRequest(req: Request): Promise<Response> {
     const pageTitle    = jobTitle  || String(body.pageTitle  || '').trim();
     const pageUrl      = String(body.pageUrl   || body.sourceUrl   || '').trim();
 
+    const quota = inspectGuestQuota(req);
+    const countsAsGuestAction = !body.scoreOnly;
+    if (countsAsGuestAction && !quota.allowed) {
+      return jsonNoStore(guestLimitPayload(quota), 401, guestPeekHeaders(req, quota));
+    }
+    const guestHeaders = countsAsGuestAction
+      ? guestSuccessHeaders(req, quota)
+      : guestPeekHeaders(req, quota);
+    const guestRemaining = quota.authed ? undefined : Math.max(0, quota.remaining - (countsAsGuestAction ? 1 : 0));
+
     const uploadedForLanguage = String(body.uploadedText || '').trim();
     const sourceForLanguage = uploadedForLanguage || pageText;
     const explicitLanguage = String(body.outputLanguage || '').trim().toLowerCase();
@@ -248,7 +259,7 @@ async function handleRequest(req: Request): Promise<Response> {
         matchNarrative: 'This screen is UI chrome, not a job posting or CV.',
         matchMessage: 'This screen is UI chrome, not a job posting or CV.',
         scoreOnly: Boolean(body.scoreOnly),
-      });
+      }, 200, guestPeekHeaders(req, quota));
     }
 
     const analysisMode = body.analysisMode === 'candidate' || body.analysisMode === 'proposal'
@@ -329,7 +340,7 @@ async function handleRequest(req: Request): Promise<Response> {
         compatibilityScore: score,
         scoreOnly: true,
         ...matchPayload,
-      });
+      }, 200, guestPeekHeaders(req, quota));
     }
 
     const apiKey = getOpenAIApiKey();
@@ -377,7 +388,8 @@ async function handleRequest(req: Request): Promise<Response> {
         hooks: listField(parsed.hooks).slice(0, 3),
         summary: painPoint,
         ...matchPayload,
-      });
+        guestRemaining,
+      }, 200, guestHeaders);
     }
 
     if (detectedMode === 'B2B_COMMAND') {
@@ -417,7 +429,8 @@ async function handleRequest(req: Request): Promise<Response> {
         ...matchPayload,
         match_score: leadScore,
         matchScore: leadScore,
-      });
+        guestRemaining,
+      }, 200, guestHeaders);
     }
 
     let summary = 'Candidate parsed from the active tab.';
@@ -477,9 +490,10 @@ async function handleRequest(req: Request): Promise<Response> {
       compatibilityScore: overallScore,
       proposalText: [summary, whyThisCandidate, pros.length ? `Pros: ${pros.join('; ')}` : '', cons.length ? `Watch: ${cons.join('; ')}` : ''].filter(Boolean).join('\n\n'),
       ...matchPayload,
+      guestRemaining,
       match_score: overallScore,
       matchScore: overallScore,
-    });
+    }, 200, guestHeaders);
   } catch (error: unknown) {
     const details = openaiErrorDetails(error);
     console.error('API route caught error:', details.message, details.responseData);
