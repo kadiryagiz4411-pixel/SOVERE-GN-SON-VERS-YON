@@ -9,7 +9,7 @@ import { completeChat, parseJsonObject } from './_lib/complete.js';
 import { sanitizeAiText } from './_lib/sanitize.js';
 import { HUMAN_SAMPLING, HUMAN_WRITING_RULES, PROPOSAL_CLOSER_RULES } from './_lib/tone.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
-import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota } from './_lib/guestQuota.js';
+import { guestLimitPayload, guestPeekHeaders, guestPublicFields, guestSuccessHeaders, inspectGuestQuota } from './_lib/guestQuota.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 45 };
 
@@ -124,7 +124,7 @@ ${jobDescription}`,
       proposalText: proposal,
       painPoint: sanitizeAiText(String(parsed.painPoint || '')),
       title: sanitizeAiText(String(parsed.title || '')),
-      guestRemaining: quota.authed ? undefined : Math.max(0, quota.remaining - 1),
+      ...guestPublicFields(quota),
     }, 200, guestSuccessHeaders(req, quota));
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: unknown } };

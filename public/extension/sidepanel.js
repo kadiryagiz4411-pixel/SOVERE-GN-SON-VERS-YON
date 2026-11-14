@@ -350,19 +350,27 @@ function applyCreditBadge() {
 }
 
 async function guestState() {
-  const bag = await storageGet(STORE.GUEST, { used: 0, id: '' });
+  const bag = await storageGet(STORE.GUEST, { used: 0, id: '', token: '' });
   const id = String(bag?.id || '').trim() || `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
   const used = Math.max(0, Number(bag?.used || 0));
-  if (!bag?.id) await storageSet(STORE.GUEST, { id, used, at: Date.now() });
-  return { id, used };
+  const token = String(bag?.token || '').trim();
+  if (!bag?.id) await storageSet(STORE.GUEST, { id, used, token, at: Date.now() });
+  return { id, used, token };
 }
 
-async function recordGuestUse() {
+async function recordGuestUse(token) {
   if (settings.accountEmail) return;
   const current = await guestState();
-  const used = Math.min(2, current.used + 1);
+  const nextToken = String(token || current.token || '').trim();
+  const tokenUsed = Number(String(nextToken.split('.')[1] || ''));
+  const used = Math.min(2, Number.isFinite(tokenUsed) ? tokenUsed : current.used + 1);
   settings._guestUsed = used;
-  await storageSet(STORE.GUEST, { id: current.id, used, at: Date.now() });
+  await storageSet(STORE.GUEST, {
+    id: nextToken.split('.')[0] || current.id,
+    used,
+    token: nextToken,
+    at: Date.now(),
+  });
 }
 
 function showGuestGate() {
@@ -1454,7 +1462,7 @@ async function postParseDom(pageData, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       'x-extension-id': chrome.runtime.id || '',
-      ...(guest?.id ? { 'x-sovereign-guest': guest.id } : {}),
+      ...(guest ? { 'x-sovereign-guest': guest.token || guest.id } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -1579,7 +1587,7 @@ async function analyzeActivePage() {
     );
     void noteAiSuccess();
     if (!settings.accountEmail && (merged.proposalText || merged.outreach || merged.summary)) {
-      void recordGuestUse();
+      void recordGuestUse(merged.guestToken);
     }
   } catch (err) {
     console.error('DOM Extraction / API Error:', err);
@@ -2521,7 +2529,7 @@ async function generateTailoredCv() {
     });
     setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');
     void noteAiSuccess();
-    void recordGuestUse();
+    void recordGuestUse(data?.guestToken);
   } catch (err) {
     const msg = String(err?.message || err);
     if (/guest_limit/i.test(msg)) {
@@ -3248,7 +3256,7 @@ async function runInstant(source) {
     const proposal = String(data?.proposalText || data?.summary || preview).trim();
     paintInstant(scores.match, scores.cv, proposal || preview, 'AI proposal ready.', scores.breakdown);
     void noteAiSuccess();
-    void recordGuestUse();
+    void recordGuestUse(data?.guestToken);
   } catch (err) {
     console.error('[sovereign] instant analysis', err);
     if (/guest_limit/i.test(String(err?.message || err))) {

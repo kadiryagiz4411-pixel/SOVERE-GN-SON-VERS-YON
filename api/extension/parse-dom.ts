@@ -1,5 +1,5 @@
 import { preflight, jsonNoStore, readJsonBody } from '../_lib/cors.js';
-import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota } from '../_lib/guestQuota.js';
+import { guestLimitPayload, guestPeekHeaders, guestPublicFields, guestSuccessHeaders, inspectGuestQuota } from '../_lib/guestQuota.js';
 import { exposeApi } from '../_lib/http.js';
 import { getOpenAIApiKey, AI_BUSY_MESSAGE } from '../_lib/openai.js';
 import { matchBand, scoreOpportunity } from '../_lib/matchScore.js';
@@ -219,7 +219,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const guestHeaders = countsAsGuestAction
       ? guestSuccessHeaders(req, quota)
       : guestPeekHeaders(req, quota);
-    const guestRemaining = quota.authed ? undefined : Math.max(0, quota.remaining - (countsAsGuestAction ? 1 : 0));
+    const guestFields = guestPublicFields(quota, countsAsGuestAction);
 
     const uploadedForLanguage = String(body.uploadedText || '').trim();
     const sourceForLanguage = uploadedForLanguage || pageText;
@@ -388,7 +388,7 @@ async function handleRequest(req: Request): Promise<Response> {
         hooks: listField(parsed.hooks).slice(0, 3),
         summary: painPoint,
         ...matchPayload,
-        guestRemaining,
+        ...guestFields,
       }, 200, guestHeaders);
     }
 
@@ -429,7 +429,7 @@ async function handleRequest(req: Request): Promise<Response> {
         ...matchPayload,
         match_score: leadScore,
         matchScore: leadScore,
-        guestRemaining,
+        ...guestFields,
       }, 200, guestHeaders);
     }
 
@@ -490,7 +490,7 @@ async function handleRequest(req: Request): Promise<Response> {
       compatibilityScore: overallScore,
       proposalText: [summary, whyThisCandidate, pros.length ? `Pros: ${pros.join('; ')}` : '', cons.length ? `Watch: ${cons.join('; ')}` : ''].filter(Boolean).join('\n\n'),
       ...matchPayload,
-      guestRemaining,
+      ...guestFields,
       match_score: overallScore,
       matchScore: overallScore,
     }, 200, guestHeaders);

@@ -49,6 +49,35 @@ function writeRaw(state: GuestState): void {
   }
 }
 
+const GUEST_TOKEN_KEY = `${GUEST_STORAGE_KEY}.token`;
+let lastTokenPersistAt = 0;
+
+export function persistGuestToken(token?: string | null): void {
+  const value = String(token || '').trim();
+  if (!value || value.split('.').length < 3) return;
+  const [id, usedStr] = value.split('.');
+  const used = Number(usedStr);
+  const current = readRaw();
+  writeRaw({
+    id: id || current.id,
+    used: Math.max(current.used, Number.isFinite(used) ? used : current.used),
+  });
+  lastTokenPersistAt = Date.now();
+  try {
+    localStorage.setItem(GUEST_TOKEN_KEY, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function guestHeaderValue(): string {
+  try {
+    return localStorage.getItem(GUEST_TOKEN_KEY) || getGuestState().id;
+  } catch {
+    return getGuestState().id;
+  }
+}
+
 export function getGuestState(): GuestState {
   return readRaw();
 }
@@ -63,6 +92,7 @@ export function guestCanAct(): boolean {
 
 export function recordGuestAction(): GuestState {
   const current = readRaw();
+  if (Date.now() - lastTokenPersistAt < 4000) return current;
   const next = { ...current, used: Math.min(GUEST_ACTION_LIMIT, current.used + 1) };
   writeRaw(next);
   return next;

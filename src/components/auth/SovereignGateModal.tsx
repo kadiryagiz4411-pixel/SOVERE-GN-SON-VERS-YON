@@ -30,12 +30,13 @@ export function SovereignGateModal({
     const onGate = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: GuestActionKind }>).detail;
       if (detail?.kind) setKind(detail.kind);
+      const existing = readGuestDraft();
       stashGuestDraft({
-        kind: detail?.kind || 'proposal',
+        kind: detail?.kind || existing?.kind || 'proposal',
         path: `${window.location.pathname}${window.location.search}`,
-        jobDescription,
-        generatedProposal,
-        cvText,
+        jobDescription: jobDescription || existing?.jobDescription,
+        generatedProposal: generatedProposal || existing?.generatedProposal,
+        cvText: cvText || existing?.cvText,
       });
       setOpen(true);
     };

@@ -242,13 +242,19 @@ const Auth = () => {
     setShowConfirmPassword(false);
   }, [mode]);
 
+  const oauthKickoff = useRef(false);
   useEffect(() => {
     const provider = (searchParams.get('provider') || '').toLowerCase();
+    if (oauthKickoff.current) return;
     if (provider === 'google' || provider === 'linkedin' || provider === 'linkedin_oidc') {
+      oauthKickoff.current = true;
       void startSocialLogin(provider === 'google' ? 'google' : 'linkedin_oidc', {
         redirectPath: '/dashboard',
       }).then((result) => {
-        if (result.error) toast.error(result.error);
+        if (result.error) {
+          oauthKickoff.current = false;
+          toast.error(result.error);
+        }
       });
     }
   }, [searchParams]);

@@ -48,6 +48,31 @@ function cookieHeader(id: string, used: number, secure: boolean): string {
   ].filter(Boolean).join('; ');
 }
 
+function parseGuestHeader(raw: string): { id: string; used: number } | null {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  const parts = value.split('.');
+  if (parts.length >= 3) {
+    const [id, usedStr, sig] = parts;
+    const used = Number(usedStr);
+    if (!id || !Number.isFinite(used) || used < 0) return null;
+    const expected = sign(id, used);
+    try {
+      const a = Buffer.from(sig);
+      const b = Buffer.from(expected);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) return { id, used: 0 };
+    } catch {
+      return { id, used: 0 };
+    }
+    return { id, used };
+  }
+  return { id: value, used: 0 };
+}
+
+export function guestToken(id: string, used: number): string {
+  return `${id}.${used}.${sign(id, used)}`;
+}
+
 export function inspectGuestQuota(req: Request): {
   authed: boolean;
   allowed: boolean;
@@ -59,15 +84,26 @@ export function inspectGuestQuota(req: Request): {
     return { authed: true, allowed: true, id: '', used: 0, remaining: GUEST_ACTION_LIMIT };
   }
   const existing = parseCookie(req);
-  const headerId = String(req.headers.get('x-sovereign-guest') || '').trim();
-  const id = existing?.id || headerId || randomUUID();
-  const used = existing?.used ?? 0;
+  const header = parseGuestHeader(req.headers.get('x-sovereign-guest') || '');
+  const id = existing?.id || header?.id || randomUUID();
+  const used = Math.max(existing?.used ?? 0, header?.used ?? 0);
   return {
     authed: false,
     allowed: used < GUEST_ACTION_LIMIT,
     id,
     used,
     remaining: Math.max(0, GUEST_ACTION_LIMIT - used),
+  };
+}
+
+export function guestPublicFields(quota: ReturnType<typeof inspectGuestQuota>, incremented = true) {
+  if (quota.authed) return {};
+  const used = incremented
+    ? Math.min(GUEST_ACTION_LIMIT, quota.used + 1)
+    : quota.used;
+  return {
+    guestRemaining: Math.max(0, GUEST_ACTION_LIMIT - used),
+    guestToken: guestToken(quota.id, used),
   };
 }
 

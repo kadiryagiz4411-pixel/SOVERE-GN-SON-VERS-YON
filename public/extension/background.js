@@ -154,8 +154,8 @@ async function authHeaders() {
   const headers = {};
   if (session.accessToken) {
     headers.Authorization = `Bearer ${session.accessToken}`;
-  } else if (guest.id) {
-    headers['x-sovereign-guest'] = String(guest.id);
+  } else if (guest.token || guest.id) {
+    headers['x-sovereign-guest'] = String(guest.token || guest.id);
   }
   return headers;
 }
@@ -566,6 +566,22 @@ async function postJson(path, payload) {
     `POST ${path}`,
   );
   const data = await res.json().catch(() => ({}));
+  if (data?.guestToken) {
+    const token = String(data.guestToken);
+    const used = Number(token.split('.')[1] || 0);
+    chrome.storage.local.get('sovereign.guest.actions.v1', (bag) => {
+      const prev = bag['sovereign.guest.actions.v1'] || {};
+      chrome.storage.local.set({
+        'sovereign.guest.actions.v1': {
+          ...prev,
+          id: token.split('.')[0] || prev.id,
+          used: Number.isFinite(used) ? used : prev.used || 0,
+          token,
+          at: Date.now(),
+        },
+      });
+    });
+  }
   if (res.status === 401 && (data.gate || data.error === 'guest_limit')) {
     const err = new Error(data.message || 'guest_limit');
     err.code = 'guest_limit';

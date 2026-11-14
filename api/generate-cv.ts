@@ -12,7 +12,7 @@ import { matchBand, scoreOpportunity } from './_lib/matchScore.js';
 import { handleSmartMatchPost } from './_lib/smartMatch.js';
 import { handleOptimizeProposalPost, isOptimizeType } from './_lib/optimizeProposal.js';
 import { languageLock, resolveOutputLanguage } from './_lib/outputLanguage.js';
-import { guestLimitPayload, guestPeekHeaders, guestSuccessHeaders, inspectGuestQuota, withGuestHeaders } from './_lib/guestQuota.js';
+import { guestLimitPayload, guestPeekHeaders, guestPublicFields, guestSuccessHeaders, inspectGuestQuota, withGuestHeaders } from './_lib/guestQuota.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -190,7 +190,7 @@ ${CV_SECTION_FORMAT}`;
       success: true,
       cv,
       proposal: cv,
-      guestRemaining: quota.authed ? undefined : Math.max(0, quota.remaining - 1),
+      ...guestPublicFields(quota),
       match_score: score,
       matchScore: score,
       matchLabel: match.complete ? matchBand(score) : 'Add skills',

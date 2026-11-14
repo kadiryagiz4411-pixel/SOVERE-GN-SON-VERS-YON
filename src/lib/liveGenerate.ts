@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { resolveOpenAIKey } from '@/lib/apiKeyResolver';
-import { getGuestState } from '@/lib/guestMode';
+import { guestHeaderValue, persistGuestToken } from '@/lib/guestMode';
 
 export type LiveJsonResult<T> = {
   ok: boolean;
@@ -69,11 +69,14 @@ export async function postLiveJson<T>(path: string, body: Record<string, unknown
         'Content-Type': 'application/json',
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(!token ? { 'x-sovereign-guest': getGuestState().id } : {}),
+        ...(!token ? { 'x-sovereign-guest': guestHeaderValue() } : {}),
       },
       body: JSON.stringify(payload),
     });
-    const json = await response.json().catch(() => null) as T & { error?: string } | null;
+    const json = await response.json().catch(() => null) as T & { error?: string; guestToken?: string } | null;
+    if (json && typeof json === 'object' && 'guestToken' in json) {
+      persistGuestToken((json as { guestToken?: string }).guestToken);
+    }
     if (!response.ok) {
       return {
         ok: false,
