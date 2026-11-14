@@ -21,7 +21,7 @@ interface PortfolioManagerProps {
 const translations = {
   en: {
     title: 'Portfolio / Projects',
-    subtitle: 'AI will match your best projects to each job application automatically.',
+    subtitle: 'We match your best projects to each job application.',
     addProject: 'Add Project',
     projectTitle: 'Project Title',
     description: 'Short Description',
@@ -29,11 +29,11 @@ const translations = {
     tags: 'Tags (comma separated)',
     tagsHint: 'e.g. React, API, E-commerce',
     remove: 'Remove',
-    empty: 'No projects yet. Add your best work to get smarter AI matches.',
+    empty: 'No projects yet. Add your best work to get smarter matches.',
   },
   tr: {
     title: 'Portföy / Projeler',
-    subtitle: 'AI, her iş başvurusu için en iyi projelerinizi otomatik olarak eşleştirecek.',
+    subtitle: 'Her iş başvurusu için en iyi projeleriniz eşleştirilir.',
     addProject: 'Proje Ekle',
     projectTitle: 'Proje Adı',
     description: 'Kısa Açıklama',
@@ -41,11 +41,11 @@ const translations = {
     tags: 'Etiketler (virgülle ayır)',
     tagsHint: 'ör. React, API, E-ticaret',
     remove: 'Kaldır',
-    empty: 'Henüz proje yok. Daha akıllı AI eşleştirmeleri için en iyi çalışmalarınızı ekleyin.',
+    empty: 'Henüz proje yok. Daha akıllı eşleştirmeler için en iyi çalışmalarınızı ekleyin.',
   },
   de: {
     title: 'Portfolio / Projekte',
-    subtitle: 'KI wird Ihre besten Projekte automatisch jeder Bewerbung zuordnen.',
+    subtitle: 'Ihre besten Projekte werden jeder Bewerbung zugeordnet.',
     addProject: 'Projekt hinzufügen',
     projectTitle: 'Projektname',
     description: 'Kurzbeschreibung',

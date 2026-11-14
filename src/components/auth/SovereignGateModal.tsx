@@ -51,6 +51,8 @@ export function SovereignGateModal({
   if (!open) return null;
   const remaining = guestActionsRemaining();
   const draft = readGuestDraft();
+  const paidAsGuest = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('payment') === 'success';
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="sovereign-gate-title">
@@ -60,11 +62,14 @@ export function SovereignGateModal({
           Sovereign Gate
         </div>
         <h2 id="sovereign-gate-title" className="text-2xl font-bold text-slate-50">
-          You just used your {GUEST_ACTION_LIMIT} free generations
+          {paidAsGuest
+            ? 'Sign in to activate your $1.99 pass'
+            : `You just used your ${GUEST_ACTION_LIMIT} free generations`}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-400">
-          Sign in to keep this {kind === 'cv' ? 'CV' : 'proposal'} and keep generating.
-          Your draft stays on this device — nothing is lost.
+          {paidAsGuest
+            ? 'Use the same email you paid with so the Single Pass binds to this account instantly. Your draft stays on this device.'
+            : `Sign in to keep this ${kind === 'cv' ? 'CV' : 'proposal'} and keep generating. Your draft stays on this device — nothing is lost.`}
         </p>
         {remaining <= 0 && (
           <p className="mt-3 text-xs text-amber-200/80">

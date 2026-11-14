@@ -20,7 +20,7 @@ const translations = {
   en: {
     badge: 'Try It Now — No Login Required',
     title: 'See Your Proposal Score Instantly',
-    subtitle: 'Select your role and platform to preview an AI-optimized proposal with a real acceptance score.',
+    subtitle: 'Pick a role and platform. See a proposal that does not sound like ChatGPT — plus a real acceptance score.',
     rolePlaceholder: 'Select your role...',
     platformPlaceholder: 'Select platform...',
     generate: 'Generate Preview',
@@ -48,7 +48,7 @@ const translations = {
   tr: {
     badge: 'Hemen Deneyin — Giriş Gerekmiyor',
     title: 'Teklif Skorunuzu Anında Görün',
-    subtitle: 'Gerçek kabul skoru ile yapay zeka optimizeli bir teklif önizlemesi için rolünüzü ve platformunuzu seçin.',
+    subtitle: 'Rol ve platform seçin. ChatGPT gibi durmayan bir teklif — ve gerçek kabul skoru.',
     rolePlaceholder: 'Rolünüzü seçin...',
     platformPlaceholder: 'Platform seçin...',
     generate: 'Önizleme Oluştur',
@@ -76,7 +76,7 @@ const translations = {
   de: {
     badge: 'Jetzt ausprobieren — Keine Anmeldung nötig',
     title: 'Sehen Sie Ihren Angebots-Score sofort',
-    subtitle: 'Wählen Sie Ihre Rolle und Plattform, um eine KI-optimierte Angebotsvorschau mit echtem Akzeptanz-Score zu sehen.',
+    subtitle: 'Rolle und Plattform wählen. Ein Angebot, das nicht nach ChatGPT klingt — plus echter Akzeptanz-Score.',
     rolePlaceholder: 'Rolle auswählen...',
     platformPlaceholder: 'Plattform auswählen...',
     generate: 'Vorschau erstellen',
@@ -104,7 +104,7 @@ const translations = {
   fr: {
     badge: 'Essayez maintenant — Sans inscription',
     title: 'Voyez votre score de proposition instantanément',
-    subtitle: 'Sélectionnez votre rôle et plateforme pour prévisualiser une proposition optimisée par IA avec un vrai score d\'acceptation.',
+    subtitle: 'Choisissez un rôle et une plateforme. Une proposition qui ne sonne pas comme ChatGPT — plus un vrai score d\'acceptation.',
     rolePlaceholder: 'Sélectionnez votre rôle...',
     platformPlaceholder: 'Sélectionnez la plateforme...',
     generate: 'Générer l\'aperçu',

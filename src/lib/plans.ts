@@ -183,7 +183,7 @@ export const FEATURE_META: Record<keyof Omit<PlanLimits, 'dailyProposals' | 'dai
   },
   hasAcceptanceScore: {
     name: 'Acceptance Probability Score',
-    description: 'AI-powered prediction of your application success rate',
+    description: 'Know your chances before you hit send',
     tier: 'pro',
   },
   hasToneOptimization: {

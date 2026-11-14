@@ -60,6 +60,7 @@ async function lemonCheckout(opts: {
   planId?: string;
   billingCycle?: string;
   referredBy?: string;
+  guestId?: string;
   origin: string;
 }): Promise<Response> {
   const apiKey = lemonApiKey();
@@ -87,6 +88,7 @@ async function lemonCheckout(opts: {
                 user_id: opts.userId,
                 email: opts.userEmail,
                 amount_cents: isSinglePass(opts.planId) ? SINGLE_PASS_CENTS : undefined,
+                guest_id: opts.guestId,
                 ...(opts.planId ? { plan_id: opts.planId } : {}),
                 ...(opts.billingCycle ? { billing_cycle: opts.billingCycle } : {}),
                 ...(opts.referredBy ? { referred_by: String(opts.referredBy).slice(0, 32) } : {}),
@@ -141,6 +143,7 @@ async function handleRequest(req: Request): Promise<Response> {
       planId?: string;
       billingCycle?: string;
       referredBy?: string;
+      guestId?: string;
     };
     try {
       body = await req.json();
@@ -164,6 +167,7 @@ async function handleRequest(req: Request): Promise<Response> {
         planId: planId || undefined,
         billingCycle,
         referredBy: body.referredBy,
+        guestId: body.guestId,
       });
       if ('url' in polar) {
         return json({ checkoutUrl: polar.url, checkoutId: polar.id, provider: 'polar', amountCents: isSinglePass(planId) ? SINGLE_PASS_CENTS : undefined });
@@ -186,6 +190,7 @@ async function handleRequest(req: Request): Promise<Response> {
       planId: planId || undefined,
       billingCycle,
       referredBy: body.referredBy,
+      guestId: body.guestId,
       origin,
     });
   } catch (err: unknown) {

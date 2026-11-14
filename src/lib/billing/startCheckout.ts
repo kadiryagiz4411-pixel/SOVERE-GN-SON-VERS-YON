@@ -8,6 +8,7 @@ export async function createHostedCheckout(opts: {
   planId?: string;
   billingCycle?: string;
   accessToken?: string | null;
+  guestId?: string | null;
 }): Promise<string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (opts.accessToken) headers.Authorization = `Bearer ${opts.accessToken}`;
@@ -26,6 +27,7 @@ export async function createHostedCheckout(opts: {
         userEmail: opts.email || undefined,
         planId: opts.planId,
         billingCycle: opts.billingCycle,
+        guestId: opts.guestId || undefined,
       }),
     });
 

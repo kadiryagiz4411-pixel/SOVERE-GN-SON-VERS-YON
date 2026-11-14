@@ -10,11 +10,11 @@ const translations = {
   en: {
     badge: 'Freelancer? We Built This For You',
     title: 'Win More Jobs on Upwork, Fiverr & Freelancer',
-    subtitle: 'AI-crafted proposals tailored to each platform\'s algorithm and buyer psychology. Find jobs faster, apply smarter.',
+    subtitle: 'Proposals written for how buyers actually decide on Upwork, Fiverr, and Freelancer. Find jobs faster. Apply smarter.',
     cta: 'Start Winning Proposals Free',
     jobDiscoveryTitle: 'Smart Job Discovery',
     jobDiscoveryItems: [
-      { icon: Search, text: 'AI finds jobs matching your skills across platforms' },
+      { icon: Search, text: 'Find jobs that match your skills across platforms' },
       { icon: Zap, text: 'One-click proposal generation for any listing' },
       { icon: TrendingUp, text: 'Acceptance score prediction before you apply' },
     ],
@@ -62,11 +62,11 @@ const translations = {
   tr: {
     badge: 'Freelancer mısın? Tam Sana Göre',
     title: 'Upwork, Fiverr ve Freelancer\'da Daha Fazla İş Kazan',
-    subtitle: 'Her platformun algoritmasına ve alıcı psikolojisine göre özelleştirilmiş AI teklifleri. Daha hızlı iş bul, daha akıllı başvur.',
+    subtitle: 'Upwork, Fiverr ve Freelancer alıcılarının gerçekten okuduğu teklifler. Daha hızlı iş bul, daha akıllı başvur.',
     cta: 'Ücretsiz Kazanan Teklifler Oluştur',
     jobDiscoveryTitle: 'Akıllı İş Keşfi',
     jobDiscoveryItems: [
-      { icon: Search, text: 'AI yeteneklerinize uygun işleri platformlarda bulur' },
+      { icon: Search, text: 'Yeteneklerinize uygun işleri platformlarda bulun' },
       { icon: Zap, text: 'Herhangi bir ilan için tek tıkla teklif oluşturma' },
       { icon: TrendingUp, text: 'Başvurmadan önce kabul skoru tahmini' },
     ],
@@ -114,11 +114,11 @@ const translations = {
   de: {
     badge: 'Freelancer? Genau für dich gebaut',
     title: 'Gewinne mehr Jobs auf Upwork, Fiverr & Freelancer',
-    subtitle: 'KI-optimierte Angebote, angepasst an den Algorithmus und die Käuferpsychologie jeder Plattform. Schneller finden, smarter bewerben.',
+    subtitle: 'Angebote, die so geschrieben sind, wie Käufer auf Upwork, Fiverr und Freelancer wirklich entscheiden. Schneller finden. Smarter bewerben.',
     cta: 'Kostenlos Gewinner-Angebote erstellen',
     jobDiscoveryTitle: 'Smarte Job-Suche',
     jobDiscoveryItems: [
-      { icon: Search, text: 'KI findet plattformübergreifend passende Jobs' },
+      { icon: Search, text: 'Finde Jobs, die zu deinen Skills passen — plattformübergreifend' },
       { icon: Zap, text: 'Ein-Klick-Angebotserstellung für jedes Inserat' },
       { icon: TrendingUp, text: 'Akzeptanzvorhersage vor der Bewerbung' },
     ],
@@ -166,11 +166,11 @@ const translations = {
   fr: {
     badge: 'Freelance ? Conçu pour vous',
     title: 'Gagnez plus de missions sur Upwork, Fiverr & Freelancer',
-    subtitle: 'Propositions optimisées par IA, adaptées à l\'algorithme et la psychologie d\'achat de chaque plateforme. Trouvez plus vite, postulez mieux.',
+    subtitle: 'Des propositions écrites pour la façon dont les acheteurs décident vraiment sur Upwork, Fiverr et Freelancer. Trouvez plus vite. Postulez mieux.',
     cta: 'Créer des propositions gagnantes',
     jobDiscoveryTitle: 'Recherche d\'emploi intelligente',
     jobDiscoveryItems: [
-      { icon: Search, text: 'L\'IA trouve des jobs adaptés à vos compétences' },
+      { icon: Search, text: 'Trouvez des jobs adaptés à vos compétences sur toutes les plateformes' },
       { icon: Zap, text: 'Génération de proposition en un clic' },
       { icon: TrendingUp, text: 'Prédiction du score d\'acceptation avant de postuler' },
     ],

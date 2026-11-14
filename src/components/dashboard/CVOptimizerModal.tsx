@@ -33,6 +33,7 @@ import { InsufficientCreditsModal } from '@/components/credits/InsufficientCredi
 import { PaywallModal } from '@/components/modals/PaywallModal';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 import { guestCanAct, openGuestGate, recordGuestAction, stashGuestDraft } from '@/lib/guestMode';
+import { GuestRemainingBadge } from '@/components/auth/GuestRemainingBadge';
 import { postLiveCv, readGeneratedText } from '@/lib/liveGenerate';
 
 type Step = 'input' | 'teaser' | 'full' | 'diff';
@@ -577,6 +578,11 @@ export const CVOptimizerModal = ({
                       : <><Sparkles className="w-4 h-4 mr-2" />{isPaid ? 'Rewrite Full CV' : txt.unlockFull}</>
                     }
                   </Button>
+                  {!sessionUser && (
+                    <div className="flex justify-center">
+                      <GuestRemainingBadge />
+                    </div>
+                  )}
                   {optimizeError && !isOptimizing && (
                     <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
                       <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />

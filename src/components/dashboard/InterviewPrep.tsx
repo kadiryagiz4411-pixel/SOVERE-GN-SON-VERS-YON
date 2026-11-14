@@ -24,7 +24,7 @@ interface InterviewQuestion {
 const translations = {
   en: {
     title: 'Interview Strategy',
-    subtitle: 'AI-predicted questions based on this specific job',
+    subtitle: 'Predicted questions based on this specific job',
     generate: 'Predict Interview Questions',
     generating: 'Analyzing job...',
     tip: 'Pro Tip',
@@ -34,7 +34,7 @@ const translations = {
   },
   tr: {
     title: 'Mülakat Stratejisi',
-    subtitle: 'Bu işe özel AI tahminli sorular',
+    subtitle: 'Bu işe özel tahmin edilen sorular',
     generate: 'Mülakat Sorularını Tahmin Et',
     generating: 'İş analiz ediliyor...',
     tip: 'İpucu',

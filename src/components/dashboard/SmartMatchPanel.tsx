@@ -13,7 +13,7 @@ import {
 const translations = {
   en: {
     title: 'Smart Match & Apply',
-    subtitle: 'AI analyzes the job, matches your profile, and generates personalized applications',
+    subtitle: 'Matches the job to your profile and writes a tailored application',
     analyze: 'Run Smart Match',
     analyzing: 'Analyzing match...',
     requiresPro: 'Requires Pro or Elite plan',

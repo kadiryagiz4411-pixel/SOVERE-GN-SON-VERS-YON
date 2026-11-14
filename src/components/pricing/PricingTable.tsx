@@ -139,14 +139,14 @@ export function SinglePassBanner() {
   if (!pass) return null;
 
   return (
-    <div className="mt-8 mx-auto max-w-3xl">
+    <div id="single-pass" className="mt-8 mx-auto max-w-3xl scroll-mt-24">
       <div className="relative overflow-visible flex flex-col sm:flex-row items-center gap-5 px-6 py-5 pt-7 rounded-2xl border border-dashed border-slate-600 bg-slate-900/60 hover:border-slate-500 transition-colors transform-gpu">
 
         {/* Pill badge */}
         <div className="absolute -top-3 left-6">
           <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-800 border border-slate-600 text-xs font-semibold text-slate-400">
             <Ticket className="w-3 h-3 text-teal-400" />
-            One-Time Purchase · No Subscription Needed
+            $1.99 Single Pass · Try once, get hired
           </span>
         </div>
 
@@ -161,8 +161,8 @@ export function SinglePassBanner() {
         {/* Info */}
         <div className="flex-1 text-center sm:text-left">
           <p className="text-base font-bold text-slate-100">
-            No subscription? Try a{" "}
-            <span className="text-teal-400">Single Pass for ${pass.priceMonthly}</span>
+            Try once, get hired —{" "}
+            <span className="text-teal-400">Single Pass ${pass.priceMonthly}</span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5 mb-2">{pass.description}</p>
           <ul className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1">
@@ -192,7 +192,7 @@ export function SinglePassBanner() {
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold border-0 shadow-lg shadow-teal-700/30 transition-all whitespace-nowrap"
               onClick={logSelection}
             >
-              Get Single Pass
+              Try once, get hired
               <ArrowRight className="w-4 h-4" />
             </CheckoutButton>
           )}

@@ -121,6 +121,7 @@ export async function createPolarCheckout(opts: {
   planId?: string;
   billingCycle?: string;
   referredBy?: string;
+  guestId?: string;
 }): Promise<{ url: string; id: string } | { error: string; status: number }> {
   const token = polarAccessToken();
   if (!token) return { error: 'Polar billing is not configured.', status: 500 };
@@ -130,6 +131,10 @@ export async function createPolarCheckout(opts: {
   if (opts.planId) metadata.plan_id = opts.planId;
   if (opts.billingCycle) metadata.billing_cycle = opts.billingCycle;
   if (opts.referredBy) metadata.referred_by = opts.referredBy.slice(0, 32);
+  if (opts.guestId) metadata.guest_id = opts.guestId.slice(0, 64);
+  if (opts.planId && /single.?pass|one.?pass|one.?time/.test(opts.planId)) {
+    metadata.amount_cents = String(SINGLE_PASS_CENTS);
+  }
 
   const body: Record<string, unknown> = {
     products: [opts.productId],

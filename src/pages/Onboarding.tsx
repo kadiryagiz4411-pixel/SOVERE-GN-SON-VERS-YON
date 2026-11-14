@@ -78,7 +78,7 @@ const Onboarding = () => {
   const txt = {
     en: {
       title: 'Let\'s Personalize Your Experience',
-      subtitle: 'Answer a few quick questions so our AI can craft the perfect proposals for you.',
+      subtitle: 'Answer a few quick questions so we can tailor proposals to you.',
       step: 'Step',
       of: 'of',
       next: 'Next',
@@ -174,7 +174,7 @@ const Onboarding = () => {
     },
     tr: {
       title: 'Deneyiminizi Kişiselleştirelim',
-      subtitle: 'Yapay zekanın size mükemmel teklifler oluşturabilmesi için birkaç hızlı soruyu yanıtlayın.',
+      subtitle: 'Teklifleri size göre ayarlamak için birkaç hızlı soruyu yanıtlayın.',
       step: 'Adım',
       of: '/',
       next: 'Devam',
@@ -270,7 +270,7 @@ const Onboarding = () => {
     },
     de: {
       title: 'Personalisieren wir Ihre Erfahrung',
-      subtitle: 'Beantworten Sie ein paar Fragen, damit die KI passende Angebote schreiben kann.',
+      subtitle: 'Beantworten Sie ein paar Fragen, damit wir passende Angebote schreiben können.',
       step: 'Schritt',
       of: 'von',
       next: 'Weiter',
@@ -281,7 +281,7 @@ const Onboarding = () => {
     },
     fr: {
       title: 'Personnalisons votre expérience',
-      subtitle: 'Répondez à quelques questions pour que l\'IA rédige des propositions adaptées.',
+      subtitle: 'Répondez à quelques questions pour que nous rédigions des propositions adaptées.',
       step: 'Étape',
       of: 'sur',
       next: 'Suivant',

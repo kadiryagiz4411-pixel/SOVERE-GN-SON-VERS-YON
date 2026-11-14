@@ -65,7 +65,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "single_pass",
     name: "Single Pass",
-    description: "1-time instant CV optimization with zero recurring subscription fees.",
+    description: "Try once, get hired — one tailored application, no subscription.",
     priceMonthly: 1.99,
     priceAnnual: 1.99,
     annualTotal: 1.99,
@@ -190,7 +190,7 @@ export const getSubscriptionTiers = (): PricingTier[] =>
 const FALLBACK_ONE_TIME: PricingTier = {
   id: "single_pass",
   name: "Single Pass",
-  description: "1-time instant CV optimization with zero recurring subscription fees.",
+  description: "Try once, get hired — one tailored application, no subscription.",
   priceMonthly: 1.99,
   priceAnnual: 1.99,
   annualTotal: 1.99,
@@ -379,7 +379,7 @@ export const PLANS: PricingTier[] = getSubscriptionTiers();
 /** @deprecated Use getOneTimeTier(). Kept for backward compat. */
 export const SINGLE_PASS = {
   title: "Single Pass",
-  subtitle: "Try Once — No Subscription Needed",
+  subtitle: "Try once, get hired",
   price: 1.99,
   features: getOneTimeTier().features,
   badge: "One-Time Purchase · No Subscription",

@@ -7,11 +7,11 @@ import { SAFE_VIEWPORT } from '@/lib/motionViewport';
 
 const translations = {
   en: {
-    title: 'Generic vs. AI-Optimized',
+    title: 'ChatGPT vs. Sovereign',
     subtitle: 'See the difference structured optimization makes on acceptance probability.',
-    genericLabel: 'Generic Proposal',
+    genericLabel: 'ChatGPT / template',
     optimizedLabel: 'Sovereign Proposal',
-    optimizedBadge: 'AI-Optimized',
+    optimizedBadge: 'Sounds like you',
     scoreLabel: 'Acceptance Score',
     cta: 'Try It Free Now',
     genericText: [
@@ -27,11 +27,11 @@ const translations = {
     ],
   },
   tr: {
-    title: 'Genel vs. Yapay Zeka ile Optimize Edilmiş',
+    title: 'ChatGPT vs. Sovereign',
     subtitle: 'Yapılandırılmış optimizasyonun kabul olasılığı üzerindeki farkını görün.',
-    genericLabel: 'Genel Teklif',
+    genericLabel: 'ChatGPT / şablon',
     optimizedLabel: 'Sovereign Teklifi',
-    optimizedBadge: 'Yapay Zeka ile Optimize',
+    optimizedBadge: 'Sizin sesiniz',
     scoreLabel: 'Kabul Skoru',
     cta: 'Şimdi Ücretsiz Dene',
     genericText: [
@@ -47,11 +47,11 @@ const translations = {
     ],
   },
   de: {
-    title: 'Generisch vs. KI-Optimiert',
+    title: 'ChatGPT vs. Sovereign',
     subtitle: 'Sehen Sie den Unterschied, den strukturierte Optimierung auf die Akzeptanzwahrscheinlichkeit macht.',
-    genericLabel: 'Generisches Angebot',
+    genericLabel: 'ChatGPT / Template',
     optimizedLabel: 'Sovereign Angebot',
-    optimizedBadge: 'KI-Optimiert',
+    optimizedBadge: 'Klingt nach dir',
     scoreLabel: 'Akzeptanz-Score',
     cta: 'Jetzt kostenlos testen',
     genericText: [
@@ -67,11 +67,11 @@ const translations = {
     ],
   },
   fr: {
-    title: 'Générique vs. Optimisé par IA',
+    title: 'ChatGPT vs. Sovereign',
     subtitle: 'Voyez la différence que l\'optimisation structurée fait sur la probabilité d\'acceptation.',
-    genericLabel: 'Proposition générique',
+    genericLabel: 'ChatGPT / modèle',
     optimizedLabel: 'Proposition Sovereign',
-    optimizedBadge: 'Optimisé par IA',
+    optimizedBadge: 'Ça sonne comme vous',
     scoreLabel: 'Score d\'acceptation',
     cta: 'Essayer gratuitement',
     genericText: [

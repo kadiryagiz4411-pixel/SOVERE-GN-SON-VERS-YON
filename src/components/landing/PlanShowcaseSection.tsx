@@ -26,7 +26,7 @@ const translations = {
     elite: {
       label: 'Elite Plan',
       price: `$${PLAN_PRICES.elite.annual}/yr`,
-      tagline: 'Full automation + strategic intelligence',
+      tagline: 'Full strategy + decision-maker intel',
       cta: 'Go Elite',
       features: [
         { icon: 'zap', label: 'Full Generate', desc: 'Paste a job link → get a finished proposal in one pass' },
@@ -55,10 +55,10 @@ const translations = {
     elite: {
       label: 'Elite Plan',
       price: `$${PLAN_PRICES.elite.annual}/yıl`,
-      tagline: 'Tam otomasyon + stratejik zeka',
+      tagline: 'Tam strateji + karar verici istihbaratı',
       cta: 'Elite\'e Geç',
       features: [
-        { icon: 'zap', label: 'Tam Otomatik Oluşturma', desc: 'İş bağlantısı yapıştır → hazır teklif otomatik gelir' },
+        { icon: 'zap', label: 'Tek geçişte oluştur', desc: 'İş bağlantısı yapıştır → hazır teklif tek seferde gelir' },
         { icon: 'user', label: 'Karar Verici Kimliği', desc: 'Hedef şirketlerde başvurunuzu kimin incelediğini bulun' },
         { icon: 'msg', label: 'Erişim Mesajları', desc: 'Yanıt alan LinkedIn ve e-posta mesajları' },
         { icon: 'target', label: 'Skor Simülasyonu', desc: 'Mevcut vs optimize edilmiş potansiyel skorunuzu görün' },
@@ -75,7 +75,7 @@ const translations = {
       tagline: 'Klügere Angebote, höhere Akzeptanzraten',
       cta: 'Pro holen',
       features: [
-        { icon: 'wand', label: 'Auto-Fill Stellenbeschreibung', desc: 'KI liest die Anzeige und füllt Ihre Felder sofort' },
+        { icon: 'wand', label: 'Auto-Fill Stellenbeschreibung', desc: 'Liest die Anzeige und füllt Ihre Felder sofort' },
         { icon: 'bar', label: 'Akzeptanz-Score Aufschlüsselung', desc: 'Sehen Sie genau, warum Ihr Score hoch oder niedrig ist' },
         { icon: 'tone', label: 'Ton-Optimierung', desc: 'Formalität, Vertrauen und Überzeugungskraft anpassen' },
         { icon: 'check', label: 'Unbegrenzte Angebote', desc: 'Keine Tageslimits — so viele wie nötig erstellen' },
@@ -84,10 +84,10 @@ const translations = {
     elite: {
       label: 'Elite Plan',
       price: `$${PLAN_PRICES.elite.annual}/Jahr`,
-      tagline: 'Volle Automatisierung + strategische Intelligenz',
+      tagline: 'Volle Strategie + Entscheider-Intel',
       cta: 'Elite werden',
       features: [
-        { icon: 'zap', label: 'Voll-Autogenerierung', desc: 'Job-Link einfügen → fertiges Angebot automatisch' },
+        { icon: 'zap', label: 'Vollständige Generierung', desc: 'Job-Link einfügen → fertiges Angebot in einem Durchgang' },
         { icon: 'user', label: 'Entscheidungsträger-ID', desc: 'Finden Sie, wer Ihre Bewerbung prüft' },
         { icon: 'msg', label: 'Outreach-Nachrichten', desc: 'LinkedIn- & E-Mail-Nachrichten mit Antwortrate' },
         { icon: 'target', label: 'Score-Simulation', desc: 'Aktueller vs. optimierter potenzieller Score' },
@@ -104,7 +104,7 @@ const translations = {
       tagline: 'Des propositions plus intelligentes, des taux d\'acceptation plus élevés',
       cta: 'Obtenir Pro',
       features: [
-        { icon: 'wand', label: 'Auto-remplissage de description', desc: 'L\'IA lit l\'annonce et remplit vos champs instantanément' },
+        { icon: 'wand', label: 'Auto-remplissage de description', desc: 'Lit l\'annonce et remplit vos champs instantanément' },
         { icon: 'bar', label: 'Détails du score d\'acceptation', desc: 'Voyez exactement pourquoi votre score est haut ou bas' },
         { icon: 'tone', label: 'Optimisation du ton', desc: 'Ajustez la formalité, la confiance et la persuasion' },
         { icon: 'check', label: 'Propositions illimitées', desc: 'Pas de limites quotidiennes — générez autant que nécessaire' },
@@ -113,10 +113,10 @@ const translations = {
     elite: {
       label: 'Plan Elite',
       price: `$${PLAN_PRICES.elite.annual}/an`,
-      tagline: 'Automatisation complète + intelligence stratégique',
+      tagline: 'Stratégie complète + intel décideur',
       cta: 'Passer à Elite',
       features: [
-        { icon: 'zap', label: 'Génération automatique complète', desc: 'Collez un lien → proposition finie automatiquement' },
+        { icon: 'zap', label: 'Génération en une passe', desc: 'Collez un lien → proposition finie en un passage' },
         { icon: 'user', label: 'Identification du décideur', desc: 'Trouvez qui examine votre candidature' },
         { icon: 'msg', label: 'Messages de prospection', desc: 'Messages LinkedIn et e-mail qui obtiennent des réponses' },
         { icon: 'target', label: 'Simulation de score', desc: 'Score actuel vs potentiel optimisé' },

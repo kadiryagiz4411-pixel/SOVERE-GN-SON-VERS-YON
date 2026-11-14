@@ -8,33 +8,35 @@ import { SafeIcon } from '@/lib/safeIcon';
 
 const translations = {
   en: {
-    badge: 'AI Proposal & B2B Pitch Generator — Win More Clients',
-    headline1: 'Win more clients with',
-    headline2: 'AI-crafted proposals.',
+    badge: 'Not ChatGPT. Not a template.',
+    headline1: 'Stop sounding like a',
+    headline2: 'copy-paste robot.',
     headline3: '',
-    subtitle: 'Sovereign is an AI-powered proposal & B2B pitch generator for agencies and freelancers. Create high-converting pitches, optimize CVs for ATS, and land more contracts — 3× faster.',
-    ctaApplication: 'Generate New Proposal',
-    ctaCV: 'ATS CV Builder',
+    subtitle: 'ChatGPT makes you look like everyone else; Sovereign makes you sound like the only one worth hiring.',
+    speed: 'Stop spending 40 minutes writing proposals nobody reads. Handle it instantly.',
+    ctaApplication: 'Write my proposal',
+    ctaCV: 'Get the interview',
     downloadApp: 'Download App',
-    microtext: 'No credit card required · 15 daily proposals + ATS CV optimization',
+    microtext: '2 free generations · No card · $1.99 Single Pass if you just want to try once and get hired',
     platformLabel: 'Works with',
     signals: [
-      'High-Converting Proposals',
-      'B2B Agency Pitches',
-      'ATS-Optimized CVs',
-      'Acceptance Prediction',
+      'Sounds like you, not a bot',
+      'B2B pitches that get replies',
+      'CVs that land interviews',
+      'Know before you hit send',
     ],
   },
   tr: {
-    badge: 'Yapay Zeka Destekli Freelance & İş Başvuru Motoru',
-    headline1: 'Connect\'lerinizi Boşa Harcamayı',
-    headline2: 'Bırakın, İş Kazanın.',
+    badge: 'ChatGPT değil. Şablon değil.',
+    headline1: 'Kopyala-yapıştır robot gibi',
+    headline2: 'konuşmayı bırakın.',
     headline3: '',
-    subtitle: 'Upwork, Fiverr ve Freelancer\'da yapay zeka ile optimize edilmiş tekliflerle daha fazla müşteri kazanın. Kurumsal başvurularınızı da ATS uyumlu CV\'lerle ezin. Daha az başvuru, daha çok kazanç.',
+    subtitle: 'ChatGPT sizi herkes gibi gösterir; Sovereign sizi işe alınmaya değer tek kişi gibi gösterir.',
+    speed: 'Kimsenin okumadığı tekliflere 40 dakika harcamayı bırakın. Anında halledin.',
     ctaApplication: 'Kazanan Teklif Oluştur',
     ctaCV: 'ATS CV Oluştur',
     downloadApp: 'Uygulamayı İndir',
-    microtext: 'Kredi kartı gerekmez · 15 günlük teklif + 1 ücretsiz CV',
+    microtext: '2 ücretsiz üretim · Kart yok · Bir kez dene, işe gir: $1.99 Single Pass',
     platformLabel: 'Uyumlu platformlar',
     signals: [
       'Upwork & Fiverr uyumlu',
@@ -44,15 +46,16 @@ const translations = {
     ],
   },
   de: {
-    badge: 'KI-gestützte Freelance- & Bewerbungs-Engine',
-    headline1: 'Verschwenden Sie keine Connects',
-    headline2: '& Gewinnen Sie Jobs.',
+    badge: 'Nicht ChatGPT. Kein Template.',
+    headline1: 'Hör auf, wie ein',
+    headline2: 'Copy-Paste-Roboter zu klingen.',
     headline3: '',
-    subtitle: 'Gewinnen Sie mehr Kunden auf Upwork, Fiverr & Freelancer mit KI-optimierten Angeboten. Meistern Sie auch Firmenbewerbungen mit ATS-optimierten CVs. Weniger Bewerbungen, mehr Erfolge.',
+    subtitle: 'ChatGPT lässt dich wie alle anderen klingen; Sovereign lässt dich klingen wie die Person, die man einstellt.',
+    speed: 'Hör auf, 40 Minuten an Angeboten zu schreiben, die niemand liest. Erledige es sofort.',
     ctaApplication: 'Gewinnendes Angebot erstellen',
     ctaCV: 'ATS CV erstellen',
     downloadApp: 'App herunterladen',
-    microtext: 'Keine Kreditkarte · 15 tägliche Angebote + 1 kostenloser CV',
+    microtext: '2 kostenlose Generierungen · Keine Karte · $1.99 Single Pass zum einmaligen Test',
     platformLabel: 'Kompatibel mit',
     signals: [
       'Upwork & Fiverr optimiert',
@@ -62,15 +65,16 @@ const translations = {
     ],
   },
   fr: {
-    badge: 'Moteur IA de Candidature Freelance & Emploi',
-    headline1: 'Arrêtez de gaspiller vos Connects',
-    headline2: '& Gagnez plus de missions.',
+    badge: 'Pas ChatGPT. Pas un modèle.',
+    headline1: 'Arrêtez de sonner comme un',
+    headline2: 'robot copier-coller.',
     headline3: '',
-    subtitle: 'Gagnez plus de clients sur Upwork, Fiverr & Freelancer avec des propositions optimisées par l\'IA. Réussissez aussi les candidatures corporate avec des CVs ATS. Moins de candidatures, plus de résultats.',
+    subtitle: 'ChatGPT vous fait ressembler à tout le monde ; Sovereign vous fait sonner comme la seule personne à embaucher.',
+    speed: 'Arrêtez de passer 40 minutes sur des propositions que personne ne lit. Faites-le instantanément.',
     ctaApplication: 'Générer une proposition gagnante',
     ctaCV: 'Créer un CV ATS',
     downloadApp: 'Télécharger l\'app',
-    microtext: 'Aucune carte requise · 15 propositions/jour + 1 CV gratuit',
+    microtext: '2 générations gratuites · Sans carte · Single Pass $1.99 pour essayer une fois',
     platformLabel: 'Compatible avec',
     signals: [
       'Optimisé Upwork & Fiverr',
@@ -143,9 +147,17 @@ export const HeroSection = () => {
             initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed"
+            className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-3 leading-relaxed"
           >
             {t.subtitle}
+          </motion.p>
+          <motion.p
+            initial={{ opacity: 1, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.28 }}
+            className="text-base sm:text-lg text-amber-200/80 max-w-2xl mx-auto mb-8"
+          >
+            {t.speed}
           </motion.p>
 
           {/* Platform Badges */}

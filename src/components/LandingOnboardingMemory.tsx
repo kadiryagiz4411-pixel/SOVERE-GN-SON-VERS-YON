@@ -50,7 +50,7 @@ const STEPS: Step[] = [
     icon: Briefcase,
     label: 'Profession',
     question: 'What is your primary profession or role?',
-    subtitle: 'This helps us tailor your AI proposal engine.',
+    subtitle: 'This helps us tailor your proposal engine.',
     options: [
       { value: 'software_developer', label: 'Software Developer', emoji: '💻' },
       { value: 'designer',           label: 'UI/UX Designer',     emoji: '🎨' },
@@ -144,7 +144,7 @@ const STEPS: Step[] = [
     icon: MessageSquare,
     label: 'Tone',
     question: 'Which proposal tone works best for you?',
-    subtitle: 'Your AI engine will default to this writing style.',
+    subtitle: 'Your proposals will default to this writing style.',
     options: [
       { value: 'professional', label: 'Professional & Formal',  emoji: '🎩' },
       { value: 'friendly',     label: 'Friendly & Conversational', emoji: '😊' },
@@ -186,14 +186,14 @@ const STEPS: Step[] = [
     icon: Target,
     label: 'Goal',
     question: 'What is your primary goal with Sovereign?',
-    subtitle: 'This sets your AI strategy from day one.',
+    subtitle: 'This sets your strategy from day one.',
     options: [
       { value: 'more_responses',  label: 'Get more client responses',  emoji: '📬' },
       { value: 'higher_rates',    label: 'Land higher-paying clients',  emoji: '💎' },
       { value: 'save_time',       label: 'Save time on proposals',      emoji: '⏱️' },
       { value: 'win_rate',        label: 'Improve my win rate',         emoji: '🏆' },
       { value: 'scale_agency',    label: 'Scale my studio/agency',      emoji: '📈' },
-      { value: 'automate',        label: 'Automate outreach fully',     emoji: '🤖' },
+      { value: 'automate',        label: 'Handle more outreach with less effort',     emoji: '📬' },
     ],
   },
 ];
@@ -281,7 +281,7 @@ export const LandingOnboardingMemory: React.FC<Props> = ({ onComplete }) => {
               Your profile is ready
             </h2>
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-              We've saved your preferences. Create a free account to unlock your personalized AI strategy.
+              We've saved your preferences. Create a free account to unlock your personalized strategy.
             </p>
             <Button
               size="lg"
@@ -311,14 +311,14 @@ export const LandingOnboardingMemory: React.FC<Props> = ({ onComplete }) => {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 mb-5">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span className="text-xs font-semibold text-amber-400 tracking-wide uppercase">
-              Personalize Your AI
+              Personalize Your Profile
             </span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
             Build Your Sovereign Profile
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Answer 10 quick questions so your AI engine knows exactly how to win clients for you.
+            Answer 10 quick questions so Sovereign knows exactly how to win clients for you.
           </p>
         </div>
 

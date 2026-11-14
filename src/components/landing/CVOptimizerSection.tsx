@@ -8,14 +8,14 @@ export const CVOptimizerSection = () => {
 
   const txt = {
     badge: language === 'tr' ? '✨ YENİ ÖZELLİK' : language === 'de' ? '✨ NEUES FEATURE' : language === 'fr' ? '✨ NOUVELLE FONCTIONNALITÉ' : '✨ NEW FEATURE',
-    title: language === 'tr' ? 'CV\'nizi AI ile Optimize Edin' : language === 'de' ? 'Optimieren Sie Ihren CV mit KI' : language === 'fr' ? 'Optimisez votre CV avec l\'IA' : 'Optimize Your CV with AI',
+    title: language === 'tr' ? 'Ücretsiz şablonlar boş kutu ve ret verir.' : language === 'de' ? 'Kostenlose Templates füllen Kästchen — und bringen Absagen.' : language === 'fr' ? 'Les modèles gratuits remplissent des cases. Et mènent au refus.' : 'Free templates give you empty boxes and rejections.',
     subtitle: language === 'tr'
-      ? 'PDF veya DOCX yükleyin ya da yapıştırın — AI saniyeler içinde profesyonel, ATS uyumlu bir CV oluşturur.'
+      ? 'Sovereign 10 saniyede mülakatı verir.'
       : language === 'de'
-      ? 'PDF oder DOCX hochladen oder einfügen — KI erstellt in Sekunden einen professionellen, ATS-kompatiblen CV.'
+      ? 'Sovereign bringt dir das Interview in 10 Sekunden.'
       : language === 'fr'
-      ? 'Téléchargez un PDF/DOCX ou collez — l\'IA crée un CV professionnel et compatible ATS en quelques secondes.'
-      : 'Upload a PDF/DOCX or paste your CV — AI creates a professional, ATS-optimized resume in seconds.',
+      ? 'Sovereign vous donne l\'entretien en 10 secondes.'
+      : 'Sovereign gives you the interview in 10 seconds.',
     steps: [
       {
         icon: Upload,
@@ -24,7 +24,7 @@ export const CVOptimizerSection = () => {
       },
       {
         icon: Sparkles,
-        title: language === 'tr' ? 'AI Optimize Etsin' : language === 'de' ? 'KI optimiert' : language === 'fr' ? 'L\'IA Optimise' : 'AI Optimizes',
+        title: language === 'tr' ? 'İşveren diline çevir' : language === 'de' ? 'Für den Recruiter schreiben' : language === 'fr' ? 'Écrire pour le recruteur' : 'Make it hireable',
         desc: language === 'tr' ? 'Güçlü eylem kelimeleri, metrikler ve ATS uyumu' : language === 'de' ? 'Starke Aktionswörter, Metriken und ATS-Kompatibilität' : language === 'fr' ? 'Verbes d\'action puissants, métriques et compatibilité ATS' : 'Strong action verbs, metrics & ATS compatibility',
       },
       {

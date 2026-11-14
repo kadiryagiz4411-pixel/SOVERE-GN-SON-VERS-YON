@@ -10,7 +10,7 @@ const STEPS = [
   {
     step: '02',
     icon: Cpu,
-    title: 'AI Analyzes & Optimizes',
+    title: 'Analyze & Optimize',
     description: 'Our engine matches your profile against the role, platform, and competition level.',
   },
   {

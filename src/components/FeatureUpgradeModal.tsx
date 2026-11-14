@@ -85,7 +85,7 @@ const getModalContent = (
       'Acceptance probability score (%)',
       'Explanation of why applications fail or succeed',
       'Job matching analysis',
-      'AI suggestions to improve acceptance',
+      'Suggestions to improve acceptance',
     ],
   };
 };

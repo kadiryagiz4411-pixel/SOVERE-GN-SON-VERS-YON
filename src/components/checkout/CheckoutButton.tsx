@@ -11,6 +11,7 @@ import {
   sanitizeCheckoutUrl,
 } from '@/lib/lemonsqueezy';
 import { createHostedCheckout } from '@/lib/billing/startCheckout';
+import { getGuestState } from '@/lib/guestMode';
 
 export function ensureLemonSqueezyReady(): boolean {
   try {
@@ -121,6 +122,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
           planId,
           billingCycle: planId === 'single_pass' ? 'once' : billingCycle,
           accessToken: session?.access_token,
+          guestId: user ? undefined : getGuestState().id,
         })
           .then(open)
           .catch((err) => {

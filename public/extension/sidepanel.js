@@ -313,8 +313,12 @@ function applyCreditBadge() {
     el.classList.add('hidden');
     return;
   }
-  if (!settings.isAppsumoUser && settings.subscriptionStatus === 'unknown' && !settings.accountEmail) {
-    el.classList.add('hidden');
+  if (!settings.accountEmail) {
+    const remaining = Math.max(0, 2 - Number(settings._guestUsed || 0));
+    el.classList.remove('hidden');
+    el.classList.toggle('empty', remaining <= 0);
+    el.classList.toggle('pro', remaining > 0);
+    el.textContent = remaining === 1 ? '1 free pass remaining' : `${remaining} free passes remaining`;
     return;
   }
   el.classList.remove('hidden');
@@ -371,6 +375,7 @@ async function recordGuestUse(token) {
     token: nextToken,
     at: Date.now(),
   });
+  applyCreditBadge();
 }
 
 function showGuestGate() {
@@ -4028,6 +4033,7 @@ async function boot() {
     fillSettingsForm();
     const guest = await guestState();
     settings._guestUsed = guest.used;
+    applyCreditBadge();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));
     void renderSettingsHistory();

@@ -37,13 +37,14 @@ import { InsufficientCreditsModal } from '@/components/credits/InsufficientCredi
 import { PaywallModal } from '@/components/modals/PaywallModal';
 import {
   guestCanAct,
-  guestActionsRemaining,
+  guestRemainingLabel,
   openGuestGate,
   recordGuestAction,
   stashGuestDraft,
   readGuestDraft,
   clearGuestDraft,
 } from '@/lib/guestMode';
+import { GuestRemainingBadge } from '@/components/auth/GuestRemainingBadge';
 import { paywallFromSession, type PaywallKind } from '@/lib/paywall';
 import UniversalBatchUpload, { type BatchCompleteData } from '@/components/upload/UniversalBatchUpload';
 
@@ -600,7 +601,7 @@ const CVBuilder = () => {
       <div className="min-h-screen bg-background pb-24 lg:pb-8">
         {!appSession.user && (
           <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
-            Guest mode — {guestActionsRemaining()} of 2 free generations left.
+            Guest mode — {guestRemainingLabel()}.
           </div>
         )}
         {/* Header */}
@@ -894,6 +895,11 @@ const CVBuilder = () => {
               <><Sparkles className="w-5 h-5" /> {cv.generateBtn || 'Generate CV'}</>
             )}
           </Button>
+          {!appSession.user && (
+            <div className="mt-2 flex justify-center">
+              <GuestRemainingBadge />
+            </div>
+          )}
 
           {/* Retry banner shown after a generation error */}
           {generateError && !generating && (

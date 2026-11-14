@@ -21,7 +21,7 @@ export function InsufficientCreditsModal({
   open,
   onOpenChange,
   balance = 0,
-  actionLabel = 'this AI action',
+  actionLabel = 'this generation',
 }: InsufficientCreditsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,7 +36,7 @@ export function InsufficientCreditsModal({
           </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Upgrade your plan or buy more credits to continue generating CVs, optimizations, and proposals.
+          Upgrade your plan, buy a $1.99 Single Pass, or add credits to keep generating CVs and proposals.
         </p>
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <Button asChild className="flex-1">
@@ -45,8 +45,10 @@ export function InsufficientCreditsModal({
               <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button asChild variant="outline" className="flex-1">
+            <Link to="/pricing#single-pass" onClick={() => onOpenChange(false)}>
+              $1.99 Single Pass
+            </Link>
           </Button>
         </div>
       </DialogContent>

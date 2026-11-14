@@ -86,6 +86,12 @@ export function guestActionsRemaining(): number {
   return Math.max(0, GUEST_ACTION_LIMIT - readRaw().used);
 }
 
+export function guestRemainingLabel(): string {
+  const n = guestActionsRemaining();
+  if (n === 1) return '1 free pass remaining';
+  return `${n} free passes remaining`;
+}
+
 export function guestCanAct(): boolean {
   return readRaw().used < GUEST_ACTION_LIMIT;
 }

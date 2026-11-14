@@ -41,7 +41,7 @@ export function CreditBadge({ balance, className, to = '/pricing', unlimited = f
         tone,
         className,
       )}
-      title="Credit balance — 20 credits per AI action"
+      title="Credit balance — 20 credits per generation"
     >
       <Zap className="w-3.5 h-3.5" />
       {balance.toLocaleString()} Credits

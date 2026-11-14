@@ -23,7 +23,7 @@ export const FeaturesSection = ({ showHeader = true }: { showHeader?: boolean })
     {
       icon: ShieldCheck,
       title: t.features.control?.title || 'You Stay In Control',
-      description: t.features.control?.description || 'Review, edit, and approve everything. AI assists, you decide.',
+      description: t.features.control?.description || 'Review, edit, and approve everything. You stay in charge.',
     },
   ];
 

@@ -64,7 +64,7 @@ const EliteActivated = () => {
     {
       icon: BarChart3,
       name: 'Acceptance Probability Score',
-      description: 'AI-powered prediction of your application success rate',
+      description: 'Know your chances before you hit send',
     },
     {
       icon: Wand2,

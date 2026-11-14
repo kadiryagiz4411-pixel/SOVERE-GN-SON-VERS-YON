@@ -22,7 +22,7 @@ export const translations = {
       cta: 'Write my application',
       ctaSecondary: 'See How It Works',
       microtext: 'Free to start. No credit card needed.',
-      disclaimer: 'AI helps you write better — the final call is always yours.',
+      disclaimer: 'You stay in charge. Sovereign just writes like a hire, not like a template.',
       valueProps: {
         acceptanceScore: 'See your chances before applying',
         companyStrategy: 'Tailored to each company',
@@ -39,8 +39,8 @@ export const translations = {
     },
     // Features
     features: {
-      title: 'More Than Just Another AI Writer',
-      subtitle: 'Sovereign doesn\'t just write drafts — it helps you understand why you get hired or rejected, and what to do about it.',
+      title: 'Built to get you hired — not to sound like ChatGPT',
+      subtitle: 'Sovereign doesn\'t just fill a box. It makes you sound like the only person worth hiring, and shows you why you get the interview or the rejection.',
       acceptanceProbability: {
         title: 'Your Chances, Upfront',
         description: 'See how likely you are to get the job before you apply. No more guessing — just a clear score with real explanations.',
@@ -55,7 +55,7 @@ export const translations = {
       },
       control: {
         title: 'You\'re Always in Control',
-        description: 'Review everything, edit what you want, approve when you\'re ready. The AI helps — you decide.',
+        description: 'Review everything, edit what you want, approve when you\'re ready. You stay in charge.',
       },
       additional: {
         title: 'And Much More',
@@ -70,7 +70,7 @@ export const translations = {
         },
         time: {
           title: 'Time Tracking',
-          description: 'See exactly how much time you save with AI-assisted workflows.',
+          description: 'See exactly how much time you save versus writing it yourself.',
         },
         clients: {
           title: 'Client Management',
@@ -82,10 +82,10 @@ export const translations = {
     eliteFeatures: {
       badge: 'Elite Exclusive',
       title: 'Unlock Your Competitive Edge',
-      subtitle: 'Advanced AI capabilities designed to help you stand out and win more projects.',
+      subtitle: 'The extra leverage that makes you the person they actually reply to.',
       decisionMaker: {
         title: 'Decision-Maker Identification',
-        description: 'AI analyzes job postings to identify key stakeholders and the right people to contact.',
+        description: 'See who actually reviews the listing — and who you should contact.',
         highlights: [
           'Identify hiring managers & project leads',
           'Company structure insights',
@@ -111,7 +111,7 @@ export const translations = {
         ],
       },
       ctaTitle: 'Ready to Go Elite?',
-      ctaSubtitle: 'Join power users who close more deals with advanced AI insights.',
+      ctaSubtitle: 'Join people who close more deals because they sound like themselves — at their best.',
       ctaButton: 'Unlock Elite',
     },
     // Pricing
@@ -217,7 +217,7 @@ export const translations = {
       save: 'Save',
       emailOpening: 'Opening email...',
       proposalGenerated: 'Application ready!',
-      freelanceTitle: 'AI Application Engine — Freelance Mode',
+      freelanceTitle: 'Application Engine — Freelance Mode',
       clientBrief: 'Client Brief / Job Post',
       clientBriefPlaceholder: 'Paste the client brief, job post, or project description here...',
       generateProposal: 'Tailor Application for Job',
@@ -256,7 +256,7 @@ export const translations = {
       regenerate: 'Try Again',
       approve: 'Looks Good — Save',
       edit: 'Edit',
-      aiDisclaimer: 'AI-written draft — give it a read before sending.',
+      aiDisclaimer: 'Draft ready — give it a read before sending.',
     },
     // Upsell
     upsell: {
@@ -285,7 +285,7 @@ export const translations = {
     },
     // Footer
     footer: {
-      tagline: 'AI-powered assistant for freelancers',
+      tagline: 'Application assistant for freelancers',
       legal: 'Legal',
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
@@ -295,20 +295,20 @@ export const translations = {
       contact: 'Contact',
       affiliates: 'Affiliates (Earn 30%)',
       copyright: '© 2024 Sovereign. All rights reserved.',
-      disclaimer: 'AI assists users; final decisions belong to the user.',
+      disclaimer: 'Sovereign assists users; final decisions belong to the user.',
     },
     // Why Not ChatGPT Section
     whyNotChatGPT: {
       badge: 'The Real Question',
       title: "Can't I just use ChatGPT?",
-      youCan: 'You can.',
-      but: "But ChatGPT doesn't know:",
+      youCan: 'You can. And you will sound like everyone else.',
+      but: "ChatGPT doesn't know:",
       points: [
         'Which companies you should apply to',
         'How to adjust your tone per company',
         'Why your applications are getting rejected',
       ],
-      conclusion: 'Sovereign is trained for one thing: getting you accepted.',
+      conclusion: 'ChatGPT makes you look like everyone else. Sovereign makes you sound like the only one worth hiring.',
       sovereignDoes: 'Sovereign does.',
       tagline: 'Trained to get you accepted.',
     },
@@ -333,7 +333,7 @@ export const translations = {
       pro: {
         description: 'Know your acceptance chances',
         badge: 'Most Popular',
-        cta: 'Get Pro – $14/mo',
+        cta: 'Get Pro – $16.99/mo',
       },
       elite: {
         description: 'Full acceptance strategy',
@@ -448,7 +448,7 @@ export const translations = {
       },
     },
     features: {
-      title: 'Sıradan Bir Yapay Zeka Yazıcıdan Fazlası',
+      title: 'ChatGPT gibi durmak için değil — işe alınmak için',
       subtitle: 'Sovereign sadece taslak yazmaz — neden kabul edildiğini ya da reddedildiğini anlamanı ve ne yapman gerektiğini gösterir.',
       acceptanceProbability: {
         title: 'Şansını Önceden Gör',
@@ -464,7 +464,7 @@ export const translations = {
       },
       control: {
         title: 'Kontrol Her Zaman Sende',
-        description: 'Her şeyi incele, istediğini düzenle, hazır olunca onayla. Yapay zeka yardım eder — kararı sen verirsin.',
+        description: 'Her şeyi incele, istediğini düzenle, hazır olunca onayla. Karar sende.',
       },
       additional: {
         title: 'Ve Daha Fazlası',
@@ -479,7 +479,7 @@ export const translations = {
         },
         time: {
           title: 'Zaman Takibi',
-          description: 'Yapay zeka destekli iş akışlarıyla ne kadar zaman kazandığınızı görün.',
+          description: 'Kendin yazmaya kıyasla ne kadar zaman kazandığını gör.',
         },
         clients: {
           title: 'Müşteri Yönetimi',
@@ -490,10 +490,10 @@ export const translations = {
     eliteFeatures: {
       badge: 'Elite Özel',
       title: 'Rekabet Avantajınızı Açığa Çıkarın',
-      subtitle: 'Öne çıkmanıza ve daha fazla proje kazanmanıza yardımcı olmak için tasarlanmış gelişmiş yapay zeka yetenekleri.',
+      subtitle: 'Cevap aldığın kişi olmanı sağlayan ekstra kaldıraç.',
       decisionMaker: {
         title: 'Karar Verici Tespiti',
-        description: 'Yapay zeka iş ilanlarını analiz ederek kilit paydaşları ve iletişime geçilecek doğru kişileri belirler.',
+        description: 'İlanı gerçekten kimin incelediğini — ve kime yazman gerektiğini gör.',
         highlights: [
           'İşe alım yöneticilerini ve proje liderlerini belirleme',
           'Şirket yapısı içgörüleri',
@@ -686,7 +686,7 @@ export const translations = {
       language: 'Dil',
     },
     footer: {
-      tagline: 'Freelancerlar için yapay zeka destekli asistan',
+      tagline: 'Freelancerlar için iş kazandıran asistan',
       legal: 'Yasal',
       privacy: 'Gizlilik Politikası',
       terms: 'Kullanım Şartları',
@@ -701,14 +701,14 @@ export const translations = {
     whyNotChatGPT: {
       badge: 'Asıl Soru',
       title: 'ChatGPT kullanamaz mıyım?',
-      youCan: 'Kullanabilirsin.',
-      but: 'Ama ChatGPT bunları bilmez:',
+      youCan: 'Kullanabilirsin. Ve herkes gibi durursun.',
+      but: 'ChatGPT bunları bilmez:',
       points: [
         'Hangi şirketlere başvurman gerektiğini',
         'Her şirkete göre tonunu nasıl ayarlamanı',
         'Başvurularının neden reddedildiğini',
       ],
-      conclusion: 'Sovereign tek bir şey için eğitildi: seni kabul ettirmek.',
+      conclusion: 'ChatGPT sizi herkes gibi gösterir. Sovereign sizi işe alınmaya değer tek kişi gibi gösterir.',
       sovereignDoes: 'Sovereign bilir.',
       tagline: 'Seni kabul ettirmek için eğitildi.',
     },
@@ -732,7 +732,7 @@ export const translations = {
       pro: {
         description: 'Kabul şansını öğren',
         badge: 'En Popüler',
-        cta: 'Pro Al – Aylık $14',
+        cta: 'Pro Al – Aylık $16.99',
       },
       elite: {
         description: 'Tam kabul stratejisi',
@@ -847,7 +847,7 @@ export const translations = {
       },
     },
     features: {
-      title: 'Nicht nur ein KI-Schreiber',
+      title: 'Gebaut, um dich einzustellen — nicht um wie ChatGPT zu klingen',
       subtitle: 'Sovereign ist ein Akzeptanz-Optimierungssystem—gebaut, um Sie einzustellen, nicht nur um Entwürfe zu schreiben.',
       acceptanceProbability: {
         title: 'Akzeptanzwahrscheinlichkeit',
@@ -863,7 +863,7 @@ export const translations = {
       },
       control: {
         title: 'Sie behalten die Kontrolle',
-        description: 'Überprüfen, bearbeiten und genehmigen Sie alles. KI hilft, Sie entscheiden.',
+        description: 'Überprüfen, bearbeiten und genehmigen Sie alles. Die Entscheidung bleibt bei Ihnen.',
       },
       additional: {
         title: 'Und vieles mehr',
@@ -1085,7 +1085,7 @@ export const translations = {
       language: 'Sprache',
     },
     footer: {
-      tagline: 'KI-gestützter Assistent für Freelancer',
+      tagline: 'Der Assistent, der Freelancer einstellt',
       legal: 'Rechtliches',
       privacy: 'Datenschutz',
       terms: 'Nutzungsbedingungen',
@@ -1100,14 +1100,14 @@ export const translations = {
     whyNotChatGPT: {
       badge: 'Die wahre Frage',
       title: 'Kann ich nicht einfach ChatGPT nutzen?',
-      youCan: 'Können Sie.',
-      but: 'Aber ChatGPT weiß nicht:',
+      youCan: 'Können Sie. Und Sie klingen wie alle anderen.',
+      but: 'ChatGPT weiß nicht:',
       points: [
         'Bei welchen Unternehmen Sie sich bewerben sollten',
         'Wie Sie Ihren Ton pro Unternehmen anpassen',
         'Warum Ihre Bewerbungen abgelehnt werden',
       ],
-      conclusion: 'Sovereign ist auf eines trainiert: Sie akzeptiert zu bekommen.',
+      conclusion: 'ChatGPT lässt dich wie alle anderen klingen. Sovereign lässt dich klingen wie die Person, die man einstellt.',
       sovereignDoes: 'Sovereign weiß es.',
       tagline: 'Trainiert, um Sie akzeptiert zu bekommen.',
     },
@@ -1131,7 +1131,7 @@ export const translations = {
       pro: {
         description: 'Ihre Akzeptanzchancen kennen',
         badge: 'Am beliebtesten',
-        cta: 'Pro holen – $14/Monat',
+        cta: 'Pro holen – $16.99/Monat',
       },
       elite: {
         description: 'Vollständige Akzeptanzstrategie',
@@ -1246,7 +1246,7 @@ export const translations = {
       },
     },
     features: {
-      title: 'Pas seulement un rédacteur IA',
+      title: 'Fait pour vous faire embaucher — pas pour sonner comme ChatGPT',
       subtitle: 'Sovereign est un système d\'optimisation d\'acceptation—conçu pour vous faire embaucher, pas seulement rédiger.',
       acceptanceProbability: {
         title: 'Probabilité d\'acceptation',
@@ -1262,7 +1262,7 @@ export const translations = {
       },
       control: {
         title: 'Vous gardez le contrôle',
-        description: 'Examinez, modifiez et approuvez tout. L\'IA assiste, vous décidez.',
+        description: 'Examinez, modifiez et approuvez tout. La décision reste la vôtre.',
       },
       additional: {
         title: 'Et bien plus',
@@ -1484,7 +1484,7 @@ export const translations = {
       language: 'Langue',
     },
     footer: {
-      tagline: 'Assistant propulsé par l\'IA pour freelances',
+      tagline: 'L\'assistant qui fait embaucher les freelances',
       legal: 'Légal',
       privacy: 'Confidentialité',
       terms: 'Conditions',
@@ -1500,14 +1500,14 @@ export const translations = {
     whyNotChatGPT: {
       badge: 'La vraie question',
       title: 'Pourquoi ne pas utiliser ChatGPT ?',
-      youCan: 'Vous pouvez.',
-      but: 'Mais ChatGPT ne sait pas :',
+      youCan: 'Vous pouvez. Et vous sonnerez comme tout le monde.',
+      but: 'ChatGPT ne sait pas :',
       points: [
         'À quelles entreprises vous devriez postuler',
         'Comment ajuster votre ton par entreprise',
         'Pourquoi vos candidatures sont rejetées',
       ],
-      conclusion: 'Sovereign est formé pour une seule chose : vous faire accepter.',
+      conclusion: 'ChatGPT vous fait ressembler à tout le monde. Sovereign vous fait sonner comme la seule personne à embaucher.',
       sovereignDoes: 'Sovereign le sait.',
       tagline: 'Formé pour vous faire accepter.',
     },
@@ -1532,7 +1532,7 @@ export const translations = {
       pro: {
         description: 'Connaître vos chances d\'acceptation',
         badge: 'Le plus populaire',
-        cta: 'Obtenir Pro – 14$/mois',
+        cta: 'Obtenir Pro – 16,99$/mois',
       },
       elite: {
         description: 'Stratégie d\'acceptation complète',

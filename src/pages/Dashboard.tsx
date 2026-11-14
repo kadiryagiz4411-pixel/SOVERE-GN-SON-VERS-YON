@@ -45,7 +45,7 @@ import { AffiliateRecurringCard } from '@/components/dashboard/AffiliateRecurrin
 import { ActivatingPassOverlay } from '@/components/billing/ActivatingPassOverlay';
 import { pollBillingActivation } from '@/lib/billing/pollActivation';
 import {
-  guestActionsRemaining,
+  guestRemainingLabel,
   guestCanAct,
   openGuestGate,
   recordGuestAction,
@@ -53,6 +53,7 @@ import {
   clearGuestDraft,
   stashGuestDraft,
 } from '@/lib/guestMode';
+import { GuestRemainingBadge } from '@/components/auth/GuestRemainingBadge';
 import { CreditActivityPanel, type CreditActivityItem } from '@/components/dashboard/CreditActivityPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -713,7 +714,7 @@ const Dashboard = () => {
       return;
     }
     if (!isPaidPlan(currentPlan)) {
-      setUpgradeFeature('AI Auto-Fill');
+      setUpgradeFeature('Auto-Fill');
       setShowUpgradeModal(true);
       return;
     }
@@ -920,7 +921,7 @@ const Dashboard = () => {
             // Let the code fall through; the catch block will handle it.
             throw new Error('__bypass_402__');
           }
-          toast.error('AI credits exhausted. Please try again later.');
+          toast.error('Credits exhausted. Please try again later.');
         } else if (String(result?.error || '').includes('Daily limit')) {
           setUpgradeFeature('Unlimited Proposals');
           setShowUpgradeModal(true);
@@ -1054,7 +1055,7 @@ const Dashboard = () => {
       if (isBypass402) {
         const msg = isAdmin
           ? 'API Key Missing — add your OpenAI key in Profile → BYOK Settings to generate proposals without credits.'
-          : 'AI engine is currently updating. Please try again in a few moments.';
+          : 'The service is currently updating. Please try again in a few moments.';
         setGenerateError(msg);
         toast.error(msg);
         return;
@@ -1249,6 +1250,11 @@ const Dashboard = () => {
     return (
       <AppShell user={user ?? sessionUser} plan={currentPlan} creditsBalance={resolveRemainingCredits(profile) || remainingCredits || 0}>
         <div className="min-h-screen bg-background">
+          {!sessionUser && !user && (
+            <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
+              Guest mode — {guestRemainingLabel()}. Sign in to keep going.
+            </div>
+          )}
           <SegmentSelector onSelect={handleSegmentSelect} />
         </div>
       </AppShell>
@@ -1335,7 +1341,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {!sessionUser && !user && (
         <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
-          Guest mode — {guestActionsRemaining()} of 2 free generations left. Sign in to keep going.
+          Guest mode — {guestRemainingLabel()}. Sign in to keep going.
         </div>
       )}
 
@@ -1727,7 +1733,7 @@ const Dashboard = () => {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1.5">
                   <Wand2 className="w-3 h-3" />
                   Your Profession / Specialty
-                  <span className="ml-1 text-[10px] text-muted-foreground/60">(AI adapts tone & terminology)</span>
+                  <span className="ml-1 text-[10px] text-muted-foreground/60">(adapts tone & terminology)</span>
                 </label>
                 <input
                   type="text"
@@ -1785,7 +1791,7 @@ const Dashboard = () => {
                 )}
                 {!isPaidPlan(currentPlan) && (
                   <button
-                    onClick={() => { setUpgradeFeature('AI Auto-Fill'); setShowUpgradeModal(true); }}
+                    onClick={() => { setUpgradeFeature('Auto-Fill'); setShowUpgradeModal(true); }}
                     className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-all"
                   >
                     <Lock className="w-3 h-3" />
@@ -1863,6 +1869,11 @@ const Dashboard = () => {
                   </>
                 )}
               </Button>
+              {!sessionUser && !user && (
+                <div className="mt-2 flex justify-center">
+                  <GuestRemainingBadge />
+                </div>
+              )}
 
               {/* Retry banner — shown after a failed generation attempt */}
               {generateError && !isGenerating && (
@@ -2265,7 +2276,7 @@ const Dashboard = () => {
         open={showCreditsModal}
         onOpenChange={setShowCreditsModal}
         balance={currentCredits || 0}
-        actionLabel="This AI action"
+        actionLabel="This generation"
       />
       <PaywallModal
         open={!!paywallKind}
@@ -2307,7 +2318,7 @@ const Dashboard = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-semibold text-foreground">ATS Gap Analyzer & 1-Click CV Fix</p>
-                <p className="text-xs text-muted-foreground">Compare your resume vs any JD — get score, gap analysis, and AI-rewritten bullets</p>
+                <p className="text-xs text-muted-foreground">Compare your resume vs any JD — get score, gap analysis, and rewritten bullets</p>
               </div>
             </div>
             <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -2316,7 +2327,7 @@ const Dashboard = () => {
           <ATSAnalyzer
             prefillJD={jobDescription}
             plan={currentPlan}
-            onUpgrade={() => { setShowUpgradeModal(true); setUpgradeFeature('ATS AI Analysis'); }}
+            onUpgrade={() => { setShowUpgradeModal(true); setUpgradeFeature('ATS Analysis'); }}
           />
         )}
       </div>
