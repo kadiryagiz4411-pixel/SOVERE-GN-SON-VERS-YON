@@ -69,7 +69,7 @@ export function SovereignGateModal({
         <p className="mt-2 text-sm leading-relaxed text-slate-400">
           {paidAsGuest
             ? 'Use the same email you paid with so the Single Pass binds to this account instantly. Your draft stays on this device.'
-            : `Sign in to keep this ${kind === 'cv' ? 'CV' : 'proposal'} and keep generating. Your draft stays on this device — nothing is lost.`}
+            : `Sign in to keep this ${kind === 'cv' ? 'CV' : 'proposal'} and keep generating. Your draft stays on this device. Nothing is lost.`}
         </p>
         {remaining <= 0 && (
           <p className="mt-3 text-xs text-amber-200/80">

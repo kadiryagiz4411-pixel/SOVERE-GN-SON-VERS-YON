@@ -54,7 +54,7 @@ export default function ProposalEngineModule() {
       job.autoFillPayload = payload;
       await navigator.clipboard.writeText(payload);
       setStreamed(prev => prev.map(j => j.id === job.id ? { ...j, generatedProposal: proposal, autoFillPayload: payload } : j));
-      toast.success('3-sentence proposal copied — paste into the application.');
+      toast.success('3-sentence proposal copied. Paste into the application.');
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -80,7 +80,7 @@ export default function ProposalEngineModule() {
                 Multi-Job Proposal Engine
               </h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                One job feed in. Ranked opportunities out. Inject a direct 3-sentence solution — no generic cover letters.
+                One job feed in. Ranked opportunities out. Inject a direct 3-sentence solution. no generic cover letters.
               </p>
             </div>
 
@@ -88,7 +88,7 @@ export default function ProposalEngineModule() {
               <h2 className="text-sm font-semibold mb-1">Upload Job Postings / RFPs</h2>
               <p className="text-xs text-muted-foreground mb-4">
                 Scoring against {skillProfile.name} · {(skillProfile.skills.length || 0)} saved skills
-                {!skillProfile.skills.length && ' — add skills in Profile for sharper ranking'}
+                {!skillProfile.skills.length && '. Add skills in Profile for sharper ranking'}
               </p>
               <UniversalJobUpload
                 profile={skillProfile}

@@ -30,7 +30,7 @@ const translations = {
       {
         name: 'Fiverr',
         icon: '🎯',
-        stats: 'Buyers decide in 8 seconds — make every word count',
+        stats: 'Buyers decide in 8 seconds. Make every word count',
         features: ['Gig response optimization', 'Value-first positioning', 'Instant buyer trust signals'],
         link: '/fiverr-proposal/graphic-designer',
         color: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20',
@@ -82,7 +82,7 @@ const translations = {
       {
         name: 'Fiverr',
         icon: '🎯',
-        stats: 'Alıcılar 8 saniyede karar veriyor — her kelimeyi önemli kıl',
+        stats: 'Alıcılar 8 saniyede karar veriyor. Her kelimeyi önemli kıl',
         features: ['Gig yanıt optimizasyonu', 'Değer odaklı konumlandırma', 'Anlık güven sinyalleri'],
         link: '/fiverr-proposal/graphic-designer',
         color: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20',
@@ -106,7 +106,7 @@ const translations = {
     ],
     proofStats: [
       { value: '3x', label: 'Daha yüksek yanıt oranı' },
-      { value: '67%', label: 'Ort. kabul skoru' },
+      { value: '67%', label: 'Ort. Kabul skoru' },
       { value: '50+', label: 'Dil desteği' },
       { value: '10K+', label: 'Oluşturulan teklif' },
     ],
@@ -118,7 +118,7 @@ const translations = {
     cta: 'Kostenlos Gewinner-Angebote erstellen',
     jobDiscoveryTitle: 'Smarte Job-Suche',
     jobDiscoveryItems: [
-      { icon: Search, text: 'Finde Jobs, die zu deinen Skills passen — plattformübergreifend' },
+      { icon: Search, text: 'Finde Jobs, die zu deinen Skills passen. Plattformübergreifend' },
       { icon: Zap, text: 'Ein-Klick-Angebotserstellung für jedes Inserat' },
       { icon: TrendingUp, text: 'Akzeptanzvorhersage vor der Bewerbung' },
     ],

@@ -48,7 +48,7 @@ const getModalContent = (
     return {
       title: 'This is an Elite Feature',
       description: 'Elite focuses on STRATEGY & EXECUTION—visual probability graphs, platform recommendations, and ready-to-paste outreach messages.',
-      buttonText: 'Go Elite — Build My Strategy',
+      buttonText: 'Go Elite. Build My Strategy',
       targetPlan: 'elite',
       features: [
         'Visual acceptance probability graph',
@@ -64,7 +64,7 @@ const getModalContent = (
     return {
       title: 'This is an Elite Feature',
       description: 'Elite focuses on STRATEGY & EXECUTION—visual probability graphs, platform recommendations, and ready-to-paste outreach messages.',
-      buttonText: 'Go Elite — Build My Strategy',
+      buttonText: 'Go Elite. Build My Strategy',
       targetPlan: 'elite',
       features: [
         'Everything in Pro, plus:',
@@ -172,7 +172,7 @@ export const FeatureUpgradeModal = ({
             }`}
           >
             <Icon className="w-5 h-5 mr-2" />
-            {content.buttonText} – ${price.monthly}/mo
+            {content.buttonText} · ${price.monthly}/mo
             <ArrowRight className="w-4 h-4 ml-2" />
           </CheckoutButton>
           <p className="text-center text-xs text-muted-foreground">

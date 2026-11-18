@@ -95,7 +95,7 @@ export const EliteFeaturesSection = () => {
               {t.eliteFeatures.ctaSubtitle}
             </p>
             <CheckoutButton href={getCheckoutUrl('elite')} variant="gold" size="lg" className="group">
-              {t.eliteFeatures.ctaButton} – ${PLAN_PRICES.elite.annual}/yr
+              {t.eliteFeatures.ctaButton} · ${PLAN_PRICES.elite.annual}/yr
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </CheckoutButton>
           </div>

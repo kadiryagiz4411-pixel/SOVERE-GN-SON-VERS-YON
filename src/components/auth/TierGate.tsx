@@ -204,8 +204,8 @@ export function GatedFeature({ required, featureName, description, children }: G
                 Your AppSumo license covers lifetime credits. Team workspaces, multi-seat hiring, and advanced vector CV search are Enterprise B2B features.
               </p>
               <ul className="mt-3 grid gap-2 text-xs text-slate-300">
-                <li>AppSumo LTD — lifetime credits, personal workspace</li>
-                <li>Enterprise B2B — unlimited workspaces, vector search, audit logs</li>
+                <li>AppSumo LTD. lifetime credits, personal workspace</li>
+                <li>Enterprise B2B. unlimited workspaces, vector search, audit logs</li>
               </ul>
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 <StartB2BTrialButton className="flex-1" />

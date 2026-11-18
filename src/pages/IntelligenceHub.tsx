@@ -22,8 +22,8 @@ export default function IntelligenceHub() {
     const result = analyzeFileIntent(text || file.name);
     setHint(`${result.intent === 'CANDIDATE_POOL' ? 'CVs' : 'Job postings'} detected (${Math.round(result.confidence * 100)}% confidence)`);
     toast.success(result.intent === 'CANDIDATE_POOL'
-      ? 'This looks like a candidate pool — opening Evaluator'
-      : 'This looks like a job feed — opening Proposal Engine');
+      ? 'This looks like a candidate pool. Opening Evaluator'
+      : 'This looks like a job feed. Opening Proposal Engine');
     sessionStorage.setItem('sovereign_pending_upload_name', file.name);
     navigate(result.intent === 'CANDIDATE_POOL' ? '/dashboard/evaluator' : '/dashboard/proposals');
   };

@@ -18,16 +18,16 @@ export const OnboardingSection = () => {
 
   const content = {
     en: {
-      badge: 'Personalized for You',
-      title: 'Tell us about your goals',
-      subtitle: 'Answer a few quick questions so we can optimize your experience.',
+      badge: '30 seconds',
+      title: 'Tell us how you hunt work',
+      subtitle: 'A few questions so the first draft is not generic.',
       questions: [
         { id: 'role', icon: Briefcase, question: 'What type of work are you looking for?', options: ['Freelance / Contract', 'Full-time Employment', 'Part-time / Remote', 'Consulting'] },
         { id: 'experience', icon: TrendingUp, question: 'How much experience do you have?', options: ['0-2 years', '3-5 years', '5-10 years', '10+ years'] },
         { id: 'goal', icon: Target, question: 'What is your biggest challenge?', options: ['Getting responses', 'Standing out from competition', 'Writing compelling proposals', 'Finding the right opportunities'] },
         { id: 'volume', icon: Clock, question: 'How many applications do you send per week?', options: ['1-5', '5-15', '15-30', '30+'] },
       ],
-      cta: 'Get My Personalized Strategy',
+      cta: 'Start writing like you',
     },
     tr: {
       badge: 'Size Özel',

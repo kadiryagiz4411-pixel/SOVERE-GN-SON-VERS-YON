@@ -21,7 +21,7 @@ interface SocialShareProps {
 export const SocialShare = ({ 
   url = typeof window !== 'undefined' ? window.location.href : '',
   title = 'Sovereign - Stop Getting Rejected',
-  description = 'AI-powered application acceptance system that tells you exactly why your applications fail—and how to get accepted.',
+  description = 'Stop getting filtered out. Get hired in 10 seconds. Sovereign writes applications that sound like you and tells you if they will land.',
   variant = 'default'
 }: SocialShareProps) => {
   const { language } = useLanguage();

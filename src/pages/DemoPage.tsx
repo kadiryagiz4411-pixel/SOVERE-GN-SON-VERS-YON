@@ -34,7 +34,7 @@ function demoTourUrl() {
   }
 }
 
-const SAMPLE_JOB = `Senior React engineer — fintech dashboard
+const SAMPLE_JOB = `Senior React engineer. fintech dashboard
 
 We need a freelancer to rebuild our client dashboard.
 Stack: React, TypeScript, Tailwind, Node, and Supabase.
@@ -101,7 +101,7 @@ function buildSandboxProposal(jobText: string, profileText: string, result: Matc
     : 'Paste a short profile and the next run will use those skills in the opening.';
 
   return [
-    `Hello — I read the brief for ${title}.`,
+    `Hello. I read the brief for ${title}.`,
     '',
     profileHint,
     proof,

@@ -77,20 +77,20 @@ const Onboarding = () => {
 
   const txt = {
     en: {
-      title: 'Let\'s Personalize Your Experience',
-      subtitle: 'Answer a few quick questions so we can tailor proposals to you.',
+      title: '30 seconds. Then we write like you.',
+      subtitle: 'A few questions so the first draft is not generic.',
       step: 'Step',
       of: 'of',
       next: 'Next',
       back: 'Back',
-      finish: 'Complete Setup',
+      finish: 'Start writing',
       skip: 'Skip for now',
       questions: [
         {
           id: 'role',
           icon: Briefcase,
           question: 'What type of work are you looking for?',
-          subtitle: 'This helps us tailor your proposal style',
+          subtitle: 'Sets the voice of the first draft',
           options: [
             { value: 'freelance', label: '🧑‍💻 Freelance / Contract', desc: 'Project-based remote work' },
             { value: 'fulltime', label: '💼 Full-time Employment', desc: 'Permanent positions' },
@@ -102,11 +102,11 @@ const Onboarding = () => {
           id: 'experience',
           icon: TrendingUp,
           question: 'How much professional experience do you have?',
-          subtitle: 'We adjust the confidence level of your proposals based on this',
+          subtitle: 'Sets how hard the draft should push',
           options: [
             { value: '0-2', label: '🌱 0–2 years', desc: 'Just starting out' },
             { value: '3-5', label: '🚀 3–5 years', desc: 'Building momentum' },
-            { value: '5-10', label: '⭐ 5–10 years', desc: 'Seasoned professional' },
+            { value: '5-10', label: '⭐ 5–10 years', desc: 'You know the work' },
             { value: '10+', label: '👑 10+ years', desc: 'Industry expert' },
           ],
         },
@@ -114,7 +114,7 @@ const Onboarding = () => {
           id: 'goal',
           icon: Target,
           question: 'What is your biggest challenge right now?',
-          subtitle: 'We\'ll optimize your proposals to overcome this specific hurdle',
+          subtitle: 'We write against this first',
           options: [
             { value: 'responses', label: '📬 Getting responses', desc: 'Low reply rates' },
             { value: 'standout', label: '🏆 Standing out', desc: 'Too much competition' },
@@ -126,7 +126,7 @@ const Onboarding = () => {
           id: 'volume',
           icon: Clock,
           question: 'How many applications do you send per week?',
-          subtitle: 'This helps us understand your workflow',
+          subtitle: 'So we match the pace you already work at',
           options: [
             { value: '1-5', label: '🎯 1–5 per week', desc: 'Quality over quantity' },
             { value: '5-15', label: '⚡ 5–15 per week', desc: 'Active job seeker' },
@@ -138,7 +138,7 @@ const Onboarding = () => {
           id: 'platform',
           icon: Globe,
           question: 'Which platform do you use most?',
-          subtitle: 'We optimize proposal format for each platform',
+          subtitle: 'Format follows the platform you actually use',
           options: [
             { value: 'upwork', label: '🟢 Upwork', desc: 'Largest freelance marketplace' },
             { value: 'linkedin', label: '🔵 LinkedIn', desc: 'Professional networking' },
@@ -150,7 +150,7 @@ const Onboarding = () => {
           id: 'rate',
           icon: DollarSign,
           question: 'What is your target hourly rate?',
-          subtitle: 'We\'ll position your proposals at the right price point',
+          subtitle: 'So the draft does not undersell you',
           options: [
             { value: 'under25', label: '💵 Under $25/hr', desc: 'Entry level competitive' },
             { value: '25-50', label: '💰 $25–$50/hr', desc: 'Mid-market rate' },
@@ -162,7 +162,7 @@ const Onboarding = () => {
           id: 'industry',
           icon: Users,
           question: 'What industry do you primarily work in?',
-          subtitle: 'Industry-specific language makes proposals more compelling',
+          subtitle: 'So the draft uses the language of your market',
           options: [
             { value: 'tech', label: '💻 Tech / Software', desc: 'Development, AI, SaaS' },
             { value: 'design', label: '🎨 Design / Creative', desc: 'UI/UX, branding, art' },
@@ -173,13 +173,13 @@ const Onboarding = () => {
       ],
     },
     tr: {
-      title: 'Deneyiminizi Kişiselleştirelim',
-      subtitle: 'Teklifleri size göre ayarlamak için birkaç hızlı soruyu yanıtlayın.',
+      title: '30 saniye. Sonra sen gibi yazar.',
+      subtitle: 'Birkaç soru, ilk taslak jenerik olmasın.',
       step: 'Adım',
       of: '/',
       next: 'Devam',
       back: 'Geri',
-      finish: 'Kurulumu Tamamla',
+      finish: 'Yazmaya başla',
       skip: 'Şimdilik geç',
       questions: [
         {
@@ -269,24 +269,24 @@ const Onboarding = () => {
       ],
     },
     de: {
-      title: 'Personalisieren wir Ihre Erfahrung',
-      subtitle: 'Beantworten Sie ein paar Fragen, damit wir passende Angebote schreiben können.',
+      title: '30 Sekunden. Dann klingt es nach dir.',
+      subtitle: 'Ein paar Fragen, damit der erste Entwurf nicht generisch ist.',
       step: 'Schritt',
       of: 'von',
       next: 'Weiter',
       back: 'Zurück',
-      finish: 'Einrichtung abschließen',
+      finish: 'Losschreiben',
       skip: 'Vorerst überspringen',
       questions: [] as Array<{ id: string; icon: typeof Briefcase; question: string; subtitle: string; options: Array<{ value: string; label: string; desc: string }> }>,
     },
     fr: {
-      title: 'Personnalisons votre expérience',
-      subtitle: 'Répondez à quelques questions pour que nous rédigions des propositions adaptées.',
+      title: '30 secondes. Ensuite, ça sonne comme vous.',
+      subtitle: 'Quelques questions pour que le premier brouillon ne soit pas générique.',
       step: 'Étape',
       of: 'sur',
       next: 'Suivant',
       back: 'Retour',
-      finish: 'Terminer la configuration',
+      finish: 'Commencer à écrire',
       skip: 'Passer pour l\'instant',
       questions: [] as Array<{ id: string; icon: typeof Briefcase; question: string; subtitle: string; options: Array<{ value: string; label: string; desc: string }> }>,
     },

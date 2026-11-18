@@ -30,10 +30,10 @@ export function AppSumoPricing() {
             AppSumo Lifetime
           </span>
           <h2 className="mb-3 text-3xl font-black text-slate-100 md:text-4xl">
-            One-time licenses — $59, $139, $249
+            One-time licenses. $59, $139, $249
           </h2>
           <p className="mx-auto max-w-2xl text-slate-400">
-            Lifetime access with a monthly AI credit quota that refreshes automatically. Chrome extension included. Never a recurring lockout.
+            Lifetime access with a monthly credit quota that refreshes every month. Chrome extension included. Never a recurring lockout.
           </p>
         </div>
 

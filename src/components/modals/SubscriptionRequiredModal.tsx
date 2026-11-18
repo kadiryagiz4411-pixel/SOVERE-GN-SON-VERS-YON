@@ -36,7 +36,7 @@ export function SubscriptionRequiredModal({ open }: SubscriptionRequiredModalPro
           overlay
           className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold border-0"
         >
-          Subscribe to Enterprise — $178.99/mo
+          Subscribe to Enterprise. $178.99/mo
         </CheckoutButton>
       </DialogContent>
     </Dialog>

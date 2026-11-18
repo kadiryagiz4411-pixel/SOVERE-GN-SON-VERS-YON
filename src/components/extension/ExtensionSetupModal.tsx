@@ -23,7 +23,7 @@ export function ExtensionSetupModal({ open, onOpenChange }: ExtensionSetupModalP
         <DialogHeader>
           <DialogTitle>Install the Sovereign extension</DialogTitle>
           <DialogDescription>
-            Chrome and Edge use the same Chromium package. Load it unpacked — Sovereign never auto-submits forms.
+            Chrome and Edge use the same Chromium package. Load it unpacked. Sovereign never auto-submits forms.
           </DialogDescription>
         </DialogHeader>
         <ol className="space-y-3 text-sm text-muted-foreground">
@@ -45,7 +45,7 @@ export function ExtensionSetupModal({ open, onOpenChange }: ExtensionSetupModalP
           </li>
         </ol>
 
-        {/* Plain HTML anchor — no JS, no async, no silent failure modes. */}
+        {/* Plain HTML anchor. no JS, no async, no silent failure modes. */}
         <Button asChild className="w-full">
           <a href={ZIP_URL} download="sovereign-extension.zip">
             <Download className="mr-2 h-4 w-4" />

@@ -104,7 +104,7 @@ function StreamStatus({
       {isStreaming && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
       <span>
         {isStreaming
-          ? `Live ranking — ${done}${total ? ` / ${total}` : ''} ${noun} scored`
+          ? `Live ranking. ${done}${total ? ` / ${total}` : ''} ${noun} scored`
           : `${done} ${noun} ranked`}
       </span>
     </div>

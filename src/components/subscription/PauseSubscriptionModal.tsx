@@ -17,12 +17,12 @@ interface PauseSubscriptionModalProps {
 const OPTIONS: Record<PauseAudience, { id: string; label: string; detail: string }> = {
   b2c: {
     id: "found_job",
-    label: `I found a job — Pause subscription (Up to ${B2C_PAUSE_MONTHS} months)`,
+    label: `I found a job. Pause subscription (Up to ${B2C_PAUSE_MONTHS} months)`,
     detail: "Billing is frozen. Your remaining credits stay in the account until you resume.",
   },
   b2b: {
     id: "low_workload",
-    label: `Low agency workload — Pause subscription (Up to ${B2B_PAUSE_MONTHS} months)`,
+    label: `Low agency workload. Pause subscription (Up to ${B2B_PAUSE_MONTHS} months)`,
     detail: "Recurring invoices pause. Seat credits are retained, not reset.",
   },
 };

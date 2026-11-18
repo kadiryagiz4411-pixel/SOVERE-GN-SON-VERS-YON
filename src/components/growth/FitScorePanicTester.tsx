@@ -51,7 +51,7 @@ export function FitScorePanicTester({ variant = 'page', signedIn = false }: FitS
           </h2>
         )}
         <p className="mt-2 max-w-2xl text-sm text-zinc-400 md:text-base">
-          Paste the job brief and your draft. Sovereign scores the overlap instantly — no account required.
+          Paste the job brief and your draft. Sovereign scores the overlap instantly. No account required.
         </p>
       </div>
 

@@ -102,7 +102,7 @@ export const TrialOfferSection = () => {
   const content = {
     en: {
       badge: 'Limited Time Offer',
-      title: '7 Days of Elite — Completely Free',
+      title: '7 Days of Elite. Completely Free',
       subtitle: 'Be one of the first 100 users to experience the full power of Sovereign Elite.',
       countdownTitle: 'Offer Ends In',
       time: { days: 'Days', hours: 'Hours', minutes: 'Mins', seconds: 'Secs' },
@@ -120,7 +120,7 @@ export const TrialOfferSection = () => {
     },
     tr: {
       badge: 'Sınırlı Süre Teklifi',
-      title: '7 Gün Elite — Tamamen Ücretsiz',
+      title: '7 Gün Elite. Tamamen Ücretsiz',
       subtitle: 'Sovereign Elite\'in tüm gücünü deneyimleyen ilk 100 kullanıcıdan biri olun.',
       countdownTitle: 'Teklife Kalan Süre',
       time: { days: 'Gün', hours: 'Saat', minutes: 'Dk', seconds: 'Sn' },
@@ -138,7 +138,7 @@ export const TrialOfferSection = () => {
     },
     de: {
       badge: 'Zeitlich begrenztes Angebot',
-      title: '7 Tage Elite — Völlig kostenlos',
+      title: '7 Tage Elite. Völlig kostenlos',
       subtitle: 'Gehören Sie zu den ersten 100 Nutzern, die die volle Leistung von Sovereign Elite erleben.',
       countdownTitle: 'Angebot endet in',
       time: { days: 'Tage', hours: 'Std', minutes: 'Min', seconds: 'Sek' },
@@ -156,7 +156,7 @@ export const TrialOfferSection = () => {
     },
     fr: {
       badge: 'Offre limitée',
-      title: '7 Jours de Elite — Entièrement Gratuit',
+      title: '7 Jours de Elite. Entièrement Gratuit',
       subtitle: 'Faites partie des 100 premiers utilisateurs à découvrir toute la puissance de Sovereign Elite.',
       countdownTitle: "L'offre se termine dans",
       time: { days: 'Jours', hours: 'Heures', minutes: 'Min', seconds: 'Sec' },

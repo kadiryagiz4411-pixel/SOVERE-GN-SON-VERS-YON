@@ -24,18 +24,18 @@ export const LanguageSEOTemplate = ({ type, profession, role, language }: Langua
   const getContent = () => {
     if (type === 'proposal' && profession) {
       return {
-        metaTitle: `${profession.label} Proposal in ${language.name} | Sovereign AI`,
-        metaDescription: `Generate a winning freelance proposal for ${profession.label} in ${language.name}. AI-powered localization with cultural tone adaptation. Not raw translation.`,
+        metaTitle: `${profession.label} Proposal in ${language.name} | Sovereign`,
+        metaDescription: `Write a ${profession.label} proposal in ${language.name} that sounds native. Not a raw translation. Stop getting filtered out.`,
         headline: `Write a Winning ${profession.label} Proposal in ${language.name}`,
-        subheadline: `Sovereign doesn't translate proposals — it rewrites them with native ${language.name} communication patterns, cultural tone calibration, and ${cluster?.label || 'professional'} cluster optimization.`,
+        subheadline: `Sovereign does not translate proposals. It rewrites them in native ${language.name} so they sound like you, not a template.`,
         cta: `Generate ${language.name} Proposal`,
         keywords: `${profession.label} proposal ${language.name}, freelance proposal in ${language.nativeName}, ${language.name} freelance proposal template`,
       };
     }
     if (type === 'resume' && role) {
       return {
-        metaTitle: `${role.name} Resume in ${language.name} | Sovereign AI`,
-        metaDescription: `Create an ATS-optimized ${role.name} resume in ${language.name}. AI-powered with keyword analysis and cultural adaptation for ${language.region} markets.`,
+        metaTitle: `${role.name} Resume in ${language.name} | Sovereign`,
+        metaDescription: `Build an ATS-ready ${role.name} resume in ${language.name} for ${language.region} hiring. Stop getting filtered out.`,
         headline: `Build a ${role.name} Resume in ${language.name} That Gets Interviews`,
         subheadline: `${language.region} hiring markets have unique expectations. Sovereign adapts your ${role.name} resume to ${language.name}-speaking ATS systems and recruiter expectations.`,
         cta: `Generate ${language.name} Resume`,
@@ -45,7 +45,7 @@ export const LanguageSEOTemplate = ({ type, profession, role, language }: Langua
     // template type
     return {
       metaTitle: `${profession?.label} Proposal Template in ${language.name} | Sovereign`,
-      metaDescription: `Ready-to-use ${profession?.label} proposal template in ${language.name}. Structured, AI-optimized, and culturally adapted for ${language.region} clients.`,
+      metaDescription: `A ${profession?.label} proposal template in ${language.name}, built for ${language.region} clients. Structured, ready to send.`,
       headline: `${profession?.label} Proposal Template in ${language.name}`,
       subheadline: `Get a structured, conversion-optimized proposal template for ${profession?.label} projects, perfectly adapted for ${language.name}-speaking clients in ${language.region}.`,
       cta: `Get My ${language.name} Template`,
@@ -63,7 +63,7 @@ export const LanguageSEOTemplate = ({ type, profession, role, language }: Langua
         headline: content.headline,
         description: content.metaDescription,
         inLanguage: language.slug,
-        publisher: { '@type': 'Organization', name: 'Sovereign AI', url: APP_DOMAIN },
+        publisher: { '@type': 'Organization', name: 'Sovereign', url: APP_DOMAIN },
         datePublished: '2025-06-01',
         dateModified: new Date().toISOString().slice(0, 10),
       },
@@ -326,7 +326,7 @@ export const LanguageSEOTemplate = ({ type, profession, role, language }: Langua
               Generate Your {language.name} {type === 'resume' ? 'Resume' : 'Proposal'} Now
             </h2>
             <p className="text-muted-foreground mb-6">
-              AI-powered, culturally adapted, ready in seconds.
+              Native tone. Ready in seconds. No template voice.
             </p>
             <Button size="lg" variant="gold" onClick={() => navigate('/auth?mode=signup')}>
               Start Free

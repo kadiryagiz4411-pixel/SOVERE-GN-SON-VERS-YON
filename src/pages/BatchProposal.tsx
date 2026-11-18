@@ -376,7 +376,7 @@ export default function BatchProposal() {
       if (result.usedByok) setUsedByok(true);
       if (result.creditsUsed) setCreditsUsed((c) => c + result.creditsUsed);
       const newDone = result.jobs.filter((j) => j.status === 'done').length;
-      toast.success(`Retried ${failedJobs.length} job${failedJobs.length > 1 ? 's' : ''} — ${newDone} succeeded.`);
+      toast.success(`Retried ${failedJobs.length} job${failedJobs.length > 1 ? 's' : ''}. ${newDone} succeeded.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -564,7 +564,7 @@ export default function BatchProposal() {
                     </p>
                     <p className="text-muted-foreground text-xs mt-0.5">
                       {canAfford
-                        ? `You have ${remainingCredits} credits — enough for this batch.`
+                        ? `You have ${remainingCredits} credits. Enough for this batch.`
                         : `You have ${remainingCredits} credits. Add your own OpenAI key in Profile → Settings to bypass credit limits (BYOK).`}
                     </p>
                   </div>
@@ -708,7 +708,7 @@ export default function BatchProposal() {
                     <div className="flex items-center gap-2 ml-auto">
                       {usedByok ? (
                         <Badge className="gap-1 bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                          <Key className="w-3 h-3" /> BYOK — 0 credits deducted
+                          <Key className="w-3 h-3" /> BYOK. 0 credits deducted
                         </Badge>
                       ) : (
                         <Badge className="gap-1 bg-violet-500/20 text-violet-300 border-violet-500/30">

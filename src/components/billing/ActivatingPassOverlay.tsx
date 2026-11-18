@@ -18,7 +18,7 @@ export function ActivatingPassOverlay({ open, message, ready }: ActivatingPassOv
           {ready ? 'Your pass is active' : 'Activating your pass...'}
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          {message || 'Payment received. Unlocking your Single Pass — this usually takes a few seconds.'}
+          {message || 'Payment received. Unlocking your Single Pass. This usually takes a few seconds.'}
         </p>
       </div>
     </div>

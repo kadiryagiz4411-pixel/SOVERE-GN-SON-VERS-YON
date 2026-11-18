@@ -45,7 +45,7 @@ export function PricingTable({
       {isSuperAdmin && (
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center text-sm text-emerald-200">
           Signed in as <span className="font-semibold">kadiryagiz4411@gmail.com</span>
-          {" "}— all pricing tiers are already unlocked via SuperAdmin.
+          {" "}. all pricing tiers are already unlocked via SuperAdmin.
         </div>
       )}
       {/* ── Monthly / Annual billing toggle ────────────────────────────────── */}
@@ -161,7 +161,7 @@ export function SinglePassBanner() {
         {/* Info */}
         <div className="flex-1 text-center sm:text-left">
           <p className="text-base font-bold text-slate-100">
-            Try once, get hired —{" "}
+            Try once, get hired.{" "}
             <span className="text-teal-400">Single Pass ${pass.priceMonthly}</span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5 mb-2">{pass.description}</p>

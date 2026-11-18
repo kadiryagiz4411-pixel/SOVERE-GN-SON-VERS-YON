@@ -16,7 +16,7 @@ export function TrialCountdownBadge() {
         to="/pricing"
         className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-300"
       >
-        B2B trial ended — subscribe
+        B2B trial ended. subscribe
       </Link>
     );
   }

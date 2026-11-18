@@ -47,7 +47,7 @@ const Features = () => {
           </div>
         </section>
 
-        {/* Main Features — header already rendered above to avoid duplicate title */}
+        {/* Main Features. header already rendered above to avoid duplicate title */}
         <FeaturesSection showHeader={false} />
 
         {/* Additional Features */}

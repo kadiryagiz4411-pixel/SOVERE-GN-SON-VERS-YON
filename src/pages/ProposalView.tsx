@@ -89,7 +89,7 @@ const ProposalView = () => {
         <div className="mt-10 rounded-xl border border-primary/20 bg-primary/5 p-6 text-center">
           <h2 className="text-lg font-bold mb-2">Want proposals like this?</h2>
           <p className="text-muted-foreground text-sm mb-4">
-            Sovereign AI generates optimized, high-converting proposals in seconds.
+            Stop getting filtered out. Get a proposal that sounds like you, in 10 seconds.
           </p>
           <Link to="/auth?mode=signup">
             <Button variant="gold" size="lg">

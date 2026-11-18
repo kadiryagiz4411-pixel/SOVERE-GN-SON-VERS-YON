@@ -27,7 +27,7 @@ export const PricingSection = () => {
             {t.pricing?.title ?? 'Choose Your Path to Success'}
           </h2>
           <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            {t.pricing?.subtitle ?? 'From individual job seekers to enterprise HR teams — Sovereign scales with your ambition.'}
+            {t.pricing?.subtitle ?? 'From individual job seekers to enterprise HR teams. Sovereign scales with your ambition.'}
           </p>
           <div className="mt-6 flex justify-center">
             <Link to="/demo">

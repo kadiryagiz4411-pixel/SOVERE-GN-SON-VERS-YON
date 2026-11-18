@@ -138,7 +138,7 @@ export const AcceptanceScoreModal = ({
               )}
             </div>
 
-            {/* Factor Breakdown — Pro/Elite */}
+            {/* Factor Breakdown. Pro/Elite */}
             {competitiveResult && isPaid ? (
               <div className="border-t border-border pt-4">
                 <div className="flex items-center gap-2 mb-3">

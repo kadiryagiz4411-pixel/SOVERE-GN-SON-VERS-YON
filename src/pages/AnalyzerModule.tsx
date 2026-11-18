@@ -51,7 +51,7 @@ export default function AnalyzerModule() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                 Skill depth, trajectory, verification flags, and missing prerequisites.
-                This module does <strong>not</strong> rank candidates or score job fit — use Evaluator for that.
+                This module does <strong>not</strong> rank candidates or score job fit. use Evaluator for that.
               </p>
             </div>
 

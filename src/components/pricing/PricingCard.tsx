@@ -87,9 +87,9 @@ const CTA_CLASS: Record<CardStyle, string> = {
 function ctaLabel(tier: PricingTier, _isAnnual: boolean, isCurrent: boolean, isSuperAdmin: boolean): string {
   if (isSuperAdmin) return "Unlocked (SuperAdmin)";
   if (isCurrent) return "✓ Current Plan";
-  if (tier.isEnterprise) return "Subscribe — Enterprise";
-  if (tier.isPopular) return "Subscribe — Pro";
-  if (tier.id === "elite") return "Subscribe — Elite";
+  if (tier.isEnterprise) return "Subscribe Enterprise";
+  if (tier.isPopular) return "Subscribe Pro";
+  if (tier.id === "elite") return "Subscribe Elite";
   return "Subscribe";
 }
 

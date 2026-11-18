@@ -34,7 +34,7 @@ export default function EvaluatorModule() {
     void loadMemory(user.id).then(m => { if (m.calendlyUrl) setCalendlyUrl(m.calendlyUrl); });
     return subscribeWorkflowEvents(user.id, (eventType, payload) => {
       if (eventType === 'CLIENT_APPROVED') {
-        toast.success(`Client approved ${String(payload.name || 'a candidate')} — outreach draft is ready.`);
+        toast.success(`Client approved ${String(payload.name || 'a candidate')}. Outreach draft is ready.`);
       }
     });
   }, [user?.id]);
@@ -93,7 +93,7 @@ export default function EvaluatorModule() {
       const link = await createShareLink({
         userId: user.id,
         batchId: batch.batchId,
-        title: `Shortlist — ${batch.fileName}`,
+        title: `Shortlist. ${batch.fileName}`,
       });
       const href = shareUrl(link.shareCode);
       setShareHref(href);
@@ -130,7 +130,7 @@ export default function EvaluatorModule() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                 Comparative ranking only (#1–#N, fit score, “Why this candidate?”).
-                Technical skill audits live in <strong>Analyzer</strong> — the two modules never share ranking UI.
+                Technical skill audits live in <strong>Analyzer</strong>. the two modules never share ranking UI.
               </p>
             </div>
 

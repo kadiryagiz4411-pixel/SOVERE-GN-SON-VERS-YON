@@ -35,7 +35,7 @@ const ALL_COMPANIES = [
     location: 'San Francisco / Remote',
     pct: 71,
     reason: { en: 'Your React component architecture experience is a strong match for their collaborative editor team.', tr: 'React komponent mimarisi deneyimin, işbirlikçi editör ekipleriyle güçlü bir uyum sağlıyor.' },
-    action: { en: 'Perfect match — apply now', tr: 'Tam sana göre — hemen başvur' },
+    action: { en: 'Perfect match. Apply now', tr: 'Tam sana göre. Hemen başvur' },
     logo: '📝',
   },
   {
@@ -71,7 +71,7 @@ const ALL_COMPANIES = [
     location: 'Remote (Global)',
     pct: 67,
     reason: { en: 'Your full-stack React and database experience matches their developer-tools mission.', tr: 'Full-stack React ve veritabanı deneyimin, geliştirici araçları misyonlarıyla örtüşüyor.' },
-    action: { en: 'Strong match', tr: 'Güçlü uyum — başvur' },
+    action: { en: 'Strong match', tr: 'Güçlü uyum. Başvur' },
     logo: '🟢',
   },
   {
@@ -150,18 +150,18 @@ const sectionText = {
     badge: 'Live Output Preview',
     title: 'See the Difference in',
     titleHighlight: 'Real Output',
-    subtitle: 'Compare actual proposal quality across tiers. This is what you get — no filters, no edits.',
+    subtitle: 'Compare actual proposal quality across tiers. This is what you get. No filters, no edits.',
     eliteOutput: 'Elite Output',
     proOutput: 'Pro Output',
     freeOutput: 'Free Output',
     strengthAnalysis: 'Application Strength Analysis',
     companyRecs: 'Company Recommendations For You',
-    getElite: 'Get Elite — Full Analytics & Strategy',
+    getElite: 'Get Elite. Full Analytics & Strategy',
     proScore: 'Pro: Acceptance Score',
     acceptProb: 'Acceptance Probability',
     proSkill: 'Strong skill alignment with requirements',
     proTone: 'Professional tone matches company culture',
-    getPro: 'Get Pro — Know Your Chances',
+    getPro: 'Get Pro. Know Your Chances',
     noAnalytics: 'Analytics Not Available',
     noAnalyticsDesc: 'Upgrade to Pro for acceptance scoring or Elite for full visual analytics and company recommendations.',
     unlock: 'Unlock Insights',
@@ -185,12 +185,12 @@ const sectionText = {
     freeOutput: 'Ücretsiz Çıktı',
     strengthAnalysis: 'Başvuru Güç Analizi',
     companyRecs: 'Sana Özel Şirket Önerileri',
-    getElite: 'Elite Al — Tam Analitik & Strateji',
+    getElite: 'Elite Al. Tam Analitik & Strateji',
     proScore: 'Pro: Kabul Skoru',
     acceptProb: 'Kabul Olasılığı',
     proSkill: 'Beceri uyumu güçlü',
     proTone: 'Profesyonel ton şirket kültürüyle uyumlu',
-    getPro: 'Pro Al — Şansını Öğren',
+    getPro: 'Pro Al. Şansını Öğren',
     noAnalytics: 'Analitik Mevcut Değil',
     noAnalyticsDesc: 'Kabul skoru için Pro\'ya veya tam görsel analitik ve şirket önerileri için Elite\'e yükseltin.',
     unlock: 'İçgörüleri Aç',
@@ -214,12 +214,12 @@ const sectionText = {
     freeOutput: 'Kostenlose Ausgabe',
     strengthAnalysis: 'Bewerbungsstärke-Analyse',
     companyRecs: 'Unternehmen-Empfehlungen für Sie',
-    getElite: 'Elite — Volle Analytik & Strategie',
+    getElite: 'Elite. Volle Analytik & Strategie',
     proScore: 'Pro: Akzeptanz-Score',
     acceptProb: 'Akzeptanzwahrscheinlichkeit',
     proSkill: 'Starke Kompetenzübereinstimmung',
     proTone: 'Professioneller Ton passt zur Unternehmenskultur',
-    getPro: 'Pro — Ihre Chancen kennen',
+    getPro: 'Pro. Ihre Chancen kennen',
     noAnalytics: 'Analytik nicht verfügbar',
     noAnalyticsDesc: 'Upgraden Sie auf Pro für Akzeptanz-Scoring oder Elite für vollständige Analytik.',
     unlock: 'Einblicke freischalten',
@@ -243,12 +243,12 @@ const sectionText = {
     freeOutput: 'Sortie gratuite',
     strengthAnalysis: 'Analyse de force de candidature',
     companyRecs: 'Recommandations d\'entreprises pour vous',
-    getElite: 'Elite — Analytique & Stratégie complètes',
+    getElite: 'Elite. Analytique & Stratégie complètes',
     proScore: 'Pro: Score d\'acceptation',
     acceptProb: 'Probabilité d\'acceptation',
     proSkill: 'Forte adéquation des compétences',
     proTone: 'Ton professionnel adapté à la culture',
-    getPro: 'Pro — Connaître vos chances',
+    getPro: 'Pro. Connaître vos chances',
     noAnalytics: 'Analytique non disponible',
     noAnalyticsDesc: 'Passez à Pro pour le scoring ou Elite pour l\'analytique complète.',
     unlock: 'Débloquer les insights',
@@ -270,7 +270,7 @@ My recent project involved migrating a legacy jQuery app to React, reducing load
 
 I'd welcome the opportunity to discuss how I can contribute to your goals. When would be a good time for a quick call?`;
 
-const PRO_EXAMPLE = `Your job posting for a Senior Frontend Developer caught my attention — specifically the emphasis on performance optimization and design system architecture. These are areas where I've delivered measurable results.
+const PRO_EXAMPLE = `Your job posting for a Senior Frontend Developer caught my attention. specifically the emphasis on performance optimization and design system architecture. These are areas where I've delivered measurable results.
 
 At my previous role, I led the migration of a 200K+ LOC codebase to a component-based architecture, cutting bundle size by 45% and improving Lighthouse scores from 62 to 94. I also built a design system used by 12 developers across 3 products, reducing UI inconsistencies by 80%.
 
@@ -278,13 +278,13 @@ For your team, I see an immediate opportunity: implementing code-splitting strat
 
 I'd love to walk through my approach with you. Are you available for a 20-minute call this week?`;
 
-const ELITE_EXAMPLE = `The intersection of real-time collaboration and performance optimization you're tackling is exactly the kind of challenge that energizes me — I've spent the last 4 years solving similar problems at scale.
+const ELITE_EXAMPLE = `The intersection of real-time collaboration and performance optimization you're tackling is exactly the kind of challenge that energizes me. I've spent the last 4 years solving similar problems at scale.
 
 When Figma's browser-based editor proved that complex applications could match native performance, it changed my approach to frontend architecture. I applied that philosophy at my last role: rebuilding the real-time dashboard that serves 50K daily active users, achieving sub-100ms render times using WebSocket-driven state management with React's concurrent features. That project increased user session duration by 34% and reduced churn by 12%.
 
 Here's what I can deliver in my first 48 hours: a comprehensive performance audit of your current application with a prioritized optimization roadmap, including quick wins (lazy loading, critical CSS extraction) that typically yield 25-40% improvement in Core Web Vitals.
 
-Beyond the technical execution, I bring a strategic perspective on frontend architecture decisions — understanding how technical debt in the UI layer compounds into product velocity problems. At my previous company, my architecture recommendations saved the team an estimated 15 hours/week in development time.
+Beyond the technical execution, I bring a strategic perspective on frontend architecture decisions. understanding how technical debt in the UI layer compounds into product velocity problems. At my previous company, my architecture recommendations saved the team an estimated 15 hours/week in development time.
 
 I'd like to share a detailed proposal tailored to your specific tech stack. Could we schedule a 30-minute deep dive this week? I'll come prepared with preliminary findings from analyzing your public-facing application.`;
 

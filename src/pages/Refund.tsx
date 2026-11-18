@@ -14,7 +14,7 @@ export default function RefundPolicyPage() {
           The $1.99 Single Pass is a one-time digital purchase that grants one (1) pass credit for a single CV optimization or proposal generation. It is not a subscription and does not auto-renew.
         </p>
         <p>
-          Because the pass is consumed when you run that generation, Single Pass purchases are generally non-refundable once the credit has been granted or used — except where required by law, or if checkout charged you and fulfillment failed (no credit appeared on your account after you signed in with the same email).
+          Because the pass is consumed when you run that generation, Single Pass purchases are generally non-refundable once the credit has been granted or used. except where required by law, or if checkout charged you and fulfillment failed (no credit appeared on your account after you signed in with the same email).
         </p>
         <p>
           Unused Single Pass credits that never attached to an account (for example, a guest checkout that was never claimed) may be reviewed case-by-case if you email support within 14 days with the order ID.

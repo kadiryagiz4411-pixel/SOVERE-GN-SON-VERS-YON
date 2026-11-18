@@ -21,7 +21,7 @@ const translations = {
       'Please find my resume attached. I look forward to hearing from you.',
     ],
     optimizedText: [
-      'Your migration from a monolithic PHP backend to microservices is exactly the challenge I solved for a Series B fintech last quarter — reducing deployment cycles from 2 weeks to 4 hours.',
+      'Your migration from a monolithic PHP backend to microservices is exactly the challenge I solved for a Series B fintech last quarter, reducing deployment cycles from 2 weeks to 4 hours.',
       'I\'d start with a dependency audit of your current architecture, then implement a strangler fig pattern to migrate incrementally without disrupting your 50K daily active users.',
       'I can share a detailed migration roadmap within 48 hours of our first call.',
     ],
@@ -41,7 +41,7 @@ const translations = {
       'Özgeçmişimi ekte bulabilirsiniz. Sizden haber bekliyorum.',
     ],
     optimizedText: [
-      'Monolitik PHP backend\'den mikroservislere geçiş projeniz, geçen çeyrekte bir Series B fintech şirketi için çözdüğüm zorluğun tam karşılığı — dağıtım döngülerini 2 haftadan 4 saate indirdim.',
+      'Monolitik PHP backend\'den mikroservislere geçiş projeniz, geçen çeyrekte bir Series B fintech şirketi için çözdüğüm zorluğun tam karşılığı. Dağıtım döngülerini 2 haftadan 4 saate indirdim.',
       'Mevcut mimarinizin bağımlılık denetimi ile başlayıp, 50K günlük aktif kullanıcınızı aksatmadan kademeli geçiş için strangler fig pattern uygulardım.',
       'İlk görüşmemizden sonraki 48 saat içinde detaylı bir geçiş yol haritası paylaşabilirim.',
     ],
@@ -61,7 +61,7 @@ const translations = {
       'Meinen Lebenslauf finden Sie im Anhang. Ich freue mich auf Ihre Rückmeldung.',
     ],
     optimizedText: [
-      'Ihre Migration von einem monolithischen PHP-Backend zu Microservices ist genau die Herausforderung, die ich letztes Quartal für ein Series-B-Fintech gelöst habe — Deployment-Zyklen von 2 Wochen auf 4 Stunden reduziert.',
+      'Ihre Migration von einem monolithischen PHP-Backend zu Microservices ist genau die Herausforderung, die ich letztes Quartal für ein Series-B-Fintech gelöst habe. Deployment-Zyklen von 2 Wochen auf 4 Stunden reduziert.',
       'Ich würde mit einem Abhängigkeits-Audit Ihrer aktuellen Architektur beginnen und dann ein Strangler-Fig-Pattern implementieren, um schrittweise zu migrieren, ohne Ihre 50K täglichen Nutzer zu stören.',
       'Ich kann innerhalb von 48 Stunden nach unserem ersten Gespräch einen detaillierten Migrationsplan teilen.',
     ],
@@ -81,7 +81,7 @@ const translations = {
       'Veuillez trouver mon CV ci-joint. J\'attends votre réponse avec impatience.',
     ],
     optimizedText: [
-      'Votre migration d\'un backend PHP monolithique vers des microservices est exactement le défi que j\'ai résolu le trimestre dernier pour une fintech Series B — réduisant les cycles de déploiement de 2 semaines à 4 heures.',
+      'Votre migration d\'un backend PHP monolithique vers des microservices est exactement le défi que j\'ai résolu le trimestre dernier pour une fintech Series B. Réduisant les cycles de déploiement de 2 semaines à 4 heures.',
       'Je commencerais par un audit des dépendances de votre architecture actuelle, puis j\'implémenterais un pattern strangler fig pour migrer progressivement sans perturber vos 50K utilisateurs quotidiens.',
       'Je peux partager une feuille de route de migration détaillée dans les 48 heures suivant notre premier appel.',
     ],
@@ -108,7 +108,7 @@ export const BeforeAfterSection = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
-          {/* Before — Generic */}
+          {/* Before. Generic */}
           <motion.div 
             initial={{ opacity: 1, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -138,7 +138,7 @@ export const BeforeAfterSection = () => {
             </div>
           </motion.div>
 
-          {/* After — Optimized */}
+          {/* After. Optimized */}
           <motion.div 
             initial={{ opacity: 1, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}

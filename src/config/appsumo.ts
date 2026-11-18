@@ -70,7 +70,7 @@ export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [
     priceUsd: 59,
     monthlyCredits: APPSUMO_MONTHLY_CREDITS[1],
     audience: 'Individual freelancers & job seekers',
-    extension: 'B2C Mode — included while monthly credits remain',
+    extension: 'B2C Mode. Included while monthly credits remain',
     features: [
       `${APPSUMO_MONTHLY_CREDITS[1]} AI credits / month (lifetime)`,
       'CV & proposal generation',
@@ -105,7 +105,7 @@ export const APPSUMO_LTD_TIERS: AppsumoLtdTier[] = [
     priceUsd: 249,
     monthlyCredits: APPSUMO_MONTHLY_CREDITS[3],
     audience: 'Agencies, team acquisition & B2B lead generation',
-    extension: 'Full B2B + B2C extension — agency lead extraction & bulk pitch',
+    extension: 'Full B2B + B2C extension. Agency lead extraction and bulk pitch',
     features: [
       `${APPSUMO_MONTHLY_CREDITS[3].toLocaleString()} AI credits / month (lifetime)`,
       'Everything in Pro',

@@ -72,13 +72,13 @@ const ProfileSettings = () => {
     const trimmed = byokKey.trim();
     if (!trimmed) return;
     if (!trimmed.startsWith('sk-')) {
-      toast.error('Invalid key — OpenAI keys start with "sk-"');
+      toast.error('Invalid key. OpenAI keys start with "sk-"');
       return;
     }
     try {
       localStorage.setItem(BYOK_STORAGE_KEY, trimmed);
       setByokActive(true);
-      toast.success('✅ BYOK key saved — you now have unlimited AI access via your own key.');
+      toast.success('✅ BYOK key saved. You now have unlimited AI access via your own key.');
     } catch {
       toast.error('Could not save key to storage. Check browser permissions.');
     }
@@ -654,7 +654,7 @@ const ProfileSettings = () => {
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Have an Organization License Key?</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Bootcamp students, agency clients, and corporate users — enter your key to activate institutional access.
+                  Bootcamp students, agency clients, and corporate users. enter your key to activate institutional access.
                 </p>
               </div>
             </div>
@@ -702,7 +702,7 @@ const ProfileSettings = () => {
                 {byokActive && (
                   <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                     <Zap className="w-2.5 h-2.5" />
-                    BYOK ACTIVE — UNLIMITED
+                    BYOK ACTIVE. UNLIMITED
                   </span>
                 )}
               </div>
@@ -753,7 +753,7 @@ const ProfileSettings = () => {
             <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
               <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
               <p className="text-xs text-emerald-400">
-                Your OpenAI key is active. All AI calls bypass the shared service — you have <strong>unlimited</strong> generations.
+                Your OpenAI key is active. All AI calls bypass the shared service. you have <strong>unlimited</strong> generations.
               </p>
             </div>
           )}

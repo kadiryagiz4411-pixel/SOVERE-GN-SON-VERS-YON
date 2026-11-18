@@ -39,7 +39,7 @@ export function GuestGateHost() {
         clearGuestDraft();
         return;
       }
-      toast.success('Welcome back — your draft is still here.', { duration: 5000 });
+      toast.success('Welcome back. Your draft is still here.', { duration: 5000 });
       window.dispatchEvent(new CustomEvent('sovereign:restore-guest-draft', { detail: draft }));
     };
     void run();

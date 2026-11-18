@@ -65,7 +65,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "single_pass",
     name: "Single Pass",
-    description: "Try once, get hired — one tailored application, no subscription.",
+    description: "Try once, get hired. One tailored application, no subscription.",
     priceMonthly: 1.99,
     priceAnnual: 1.99,
     annualTotal: 1.99,
@@ -85,7 +85,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "standard",
     name: "Standard",
-    description: "B2C Starter — essential tailoring for active job seekers.",
+    description: "B2C Starter. Essential tailoring for active job seekers.",
     priceMonthly: 8.99,
     priceAnnual: 8.99,
     annualTotal: 107.99,
@@ -106,7 +106,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "pro",
     name: "Pro",
-    description: "Power Job Seeker — comprehensive toolkit for maximum interview callbacks.",
+    description: "Power Job Seeker. Comprehensive toolkit for interview callbacks.",
     priceMonthly: 16.99,
     priceAnnual: 16.50,
     annualTotal: 197.99,
@@ -130,7 +130,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "elite",
     name: "Elite",
-    description: "Freelancer / Recruiter — pitches, interviews, and multi-file ingestion.",
+    description: "Freelancer / Recruiter. Pitches, interviews, and multi-file ingestion.",
     priceMonthly: 43.99,
     priceAnnual: 44.25,
     annualTotal: 530.99,
@@ -154,7 +154,7 @@ export const PRICING_TIERS: PricingTier[] = [
   {
     id: "enterprise",
     name: "Enterprise / Agency",
-    description: "B2B Command Center — high-volume talent acquisition for agencies and HR teams.",
+    description: "B2B Command Center. High-volume talent acquisition for agencies and HR teams.",
     priceMonthly: 178.99,
     priceAnnual: 179.25,
     annualTotal: 2150.99,
@@ -190,7 +190,7 @@ export const getSubscriptionTiers = (): PricingTier[] =>
 const FALLBACK_ONE_TIME: PricingTier = {
   id: "single_pass",
   name: "Single Pass",
-  description: "Try once, get hired — one tailored application, no subscription.",
+  description: "Try once, get hired. One tailored application, no subscription.",
   priceMonthly: 1.99,
   priceAnnual: 1.99,
   annualTotal: 1.99,

@@ -48,9 +48,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "brand-logo.png", "robots.txt"],
       manifest: {
-        name: "Sovereign - AI Career Strategy",
+        name: "Sovereign",
         short_name: "Sovereign",
-        description: "Get hired globally with AI-powered strategy. Optimize for ATS, predict your acceptance rate, and land your dream job 3x faster.",
+        description: "Stop getting filtered out. Get hired in 10 seconds.",
         theme_color: "#7c3aed",
         background_color: "#0f0f23",
         display: "standalone",

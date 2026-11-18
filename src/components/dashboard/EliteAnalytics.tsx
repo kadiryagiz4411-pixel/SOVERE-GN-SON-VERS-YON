@@ -86,7 +86,7 @@ export const EliteAnalytics = ({ scoreResult, strategyResult }: EliteAnalyticsPr
                 fontSize: '12px',
               }}
               formatter={(value: number, _name: string, props: any) => [
-                `${value}% — ${props.payload.reason}`,
+                `${value}%. ${props.payload.reason}`,
                 'Match',
               ]}
             />

@@ -17,8 +17,8 @@ export const translations = {
     hero: {
       badge: 'Early Access • Limited Spots',
       title: 'Stop sending applications into the void.',
-      titleHighlight: 'Know if you\'ll get hired — before you hit send.',
-      subtitle: 'Sovereign reads the job post, writes your application, and tells you what to fix to actually land the role. Like having a career coach who never sleeps.',
+      titleHighlight: 'Know if you\'ll get hired before you hit send.',
+      subtitle: 'Paste the listing. Get an application that sounds like you, plus a score that tells you if it will land.',
       cta: 'Write my application',
       ctaSecondary: 'See How It Works',
       microtext: 'Free to start. No credit card needed.',
@@ -39,27 +39,27 @@ export const translations = {
     },
     // Features
     features: {
-      title: 'Built to get you hired — not to sound like ChatGPT',
+      title: 'Built to get you hired, not to sound like ChatGPT',
       subtitle: 'Sovereign doesn\'t just fill a box. It makes you sound like the only person worth hiring, and shows you why you get the interview or the rejection.',
       acceptanceProbability: {
         title: 'Your Chances, Upfront',
-        description: 'See how likely you are to get the job before you apply. No more guessing — just a clear score with real explanations.',
+        description: 'See how likely you are to get the job before you apply. No more guessing. Just a clear score with real explanations.',
       },
       companyOptimization: {
         title: 'Written for That Specific Company',
-        description: 'Every application is shaped around the company, the role, and the culture — not just a generic template with the name swapped out.',
+        description: 'Every application is shaped around the company, the role, and the culture, not just a generic template with the name swapped out.',
       },
       strategicInsights: {
         title: 'Know What to Fix',
-        description: 'Get clear, actionable advice on why applications succeed or fail — so you can improve with every send.',
+        description: 'Get clear, actionable advice on why applications succeed or fail. So you can improve with every send.',
       },
       control: {
         title: 'You\'re Always in Control',
         description: 'Review everything, edit what you want, approve when you\'re ready. You stay in charge.',
       },
       additional: {
-        title: 'And Much More',
-        subtitle: 'Everything you need to streamline your freelance business',
+        title: 'And more',
+        subtitle: 'Send, track, and close from one place.',
         instant: {
           title: 'Instant Generation',
           description: 'Get professional proposals in under 30 seconds. No more staring at blank pages.',
@@ -81,11 +81,11 @@ export const translations = {
     // Elite Features Section
     eliteFeatures: {
       badge: 'Elite Exclusive',
-      title: 'Unlock Your Competitive Edge',
-      subtitle: 'The extra leverage that makes you the person they actually reply to.',
+      title: 'The extra edge that gets replies',
+      subtitle: 'Names, outreach, and a plan so you are the person they actually write back.',
       decisionMaker: {
         title: 'Decision-Maker Identification',
-        description: 'See who actually reviews the listing — and who you should contact.',
+        description: 'See who actually reviews the listing, and who you should contact.',
         highlights: [
           'Identify hiring managers & project leads',
           'Company structure insights',
@@ -110,14 +110,14 @@ export const translations = {
           'Salary negotiation insights',
         ],
       },
-      ctaTitle: 'Ready to Go Elite?',
-      ctaSubtitle: 'Join people who close more deals because they sound like themselves — at their best.',
-      ctaButton: 'Unlock Elite',
+      ctaTitle: 'Go Elite.',
+      ctaSubtitle: 'Close more deals because you sound like yourself, at your best.',
+      ctaButton: 'Go Elite',
     },
     // Pricing
     pricing: {
-      title: 'Choose Your Path to Acceptance',
-      subtitle: 'Start free, upgrade when you\'re ready to maximize your success rate.',
+      title: 'Pick a plan. Start sending.',
+      subtitle: 'Start free. Upgrade when you want more sends and a real score.',
       monthly: 'Monthly',
       perMonth: '/month',
       lifetime: '/lifetime',
@@ -162,7 +162,7 @@ export const translations = {
           'Decision-maker identification',
           'Complete application strategy',
         ],
-        cta: 'Go Elite — Build My Strategy',
+        cta: 'Go Elite. Build My Strategy',
       },
     },
     // Auth
@@ -189,12 +189,12 @@ export const translations = {
       upgrade: 'Need more? Upgrade',
       newProposal: 'New Application',
       recentProposals: 'Recent Applications',
-      noProposals: 'No applications yet — paste a job post to get started!',
+      noProposals: 'No applications yet. Paste a job post to get started!',
       profile: 'Profile',
       settings: 'Settings',
       plan: 'Current Plan',
       analyzeTitle: 'Tailor Application for Job',
-      analyzeSubtitle: 'Paste the job description — Sovereign matches, ATS-optimizes, and writes a targeted application',
+      analyzeSubtitle: 'Paste the job description. Sovereign matches, ATS-optimizes, and writes a targeted application',
       inputLabel: 'Job Description',
       inputPlaceholder: 'Paste the job description here...\n\nThe more detail you include, the better your application will be.',
       analyzeButton: 'Optimize New Application',
@@ -217,12 +217,12 @@ export const translations = {
       save: 'Save',
       emailOpening: 'Opening email...',
       proposalGenerated: 'Application ready!',
-      freelanceTitle: 'Application Engine — Freelance Mode',
+      freelanceTitle: 'Application Engine. Freelance Mode',
       clientBrief: 'Client Brief / Job Post',
       clientBriefPlaceholder: 'Paste the client brief, job post, or project description here...',
       generateProposal: 'Tailor Application for Job',
       optimizeCV: 'CV Builder (optional)',
-      upgradeProMsg: '🔓 Upgrade to Pro — Acceptance score, unlimited proposals & more',
+      upgradeProMsg: '🔓 Upgrade to Pro. Acceptance score, unlimited proposals & more',
       usedToday: 'proposals used today',
       upgradeBtn: 'Upgrade',
       autoFilling: 'Analyzing...',
@@ -254,15 +254,15 @@ export const translations = {
       copy: 'Copy',
       copied: 'Copied!',
       regenerate: 'Try Again',
-      approve: 'Looks Good — Save',
+      approve: 'Looks Good. Save',
       edit: 'Edit',
-      aiDisclaimer: 'Draft ready — give it a read before sending.',
+      aiDisclaimer: 'Draft ready. Give it a read before sending.',
     },
     // Upsell
     upsell: {
       limitReached: 'Daily Limit Reached',
-      upgradeTitle: 'Save More Time',
-      upgradeSubtitle: 'Upgrade to unlock more proposals and reduce your workload.',
+      upgradeTitle: 'Keep sending.',
+      upgradeSubtitle: 'More proposals. Fewer hours stuck on drafts.',
       benefits: {
         time: 'Save 10+ hours per week',
         effort: 'Less manual work',
@@ -333,12 +333,12 @@ export const translations = {
       pro: {
         description: 'Know your acceptance chances',
         badge: 'Most Popular',
-        cta: 'Get Pro – $16.99/mo',
+        cta: 'Get Pro · $16.99/mo',
       },
       elite: {
         description: 'Full acceptance strategy',
         badge: 'Strategy Mode',
-        cta: 'Go Elite — Build My Strategy',
+        cta: 'Go Elite. Build My Strategy',
       },
     },
     // Review Form
@@ -360,9 +360,9 @@ export const translations = {
     },
     cvBuilder: {
       title: 'CV Builder',
-      tierFree: 'Free CV — Professional quality, build or paste your info and download',
-      tierPro: 'Pro CV — Optimized for maximum acceptance, tailored to your target role',
-      tierElite: 'Elite CV — Top 1% quality with acceptance scoring & optimized apply',
+      tierFree: 'Free CV. Professional quality, build or paste your info and download',
+      tierPro: 'Pro CV. Optimized for maximum acceptance, tailored to your target role',
+      tierElite: 'Elite CV. Top 1% quality with acceptance scoring & optimized apply',
       upgradeHint: 'Upgrade for optimized, role-tailored CVs →',
       targetRole: 'Target Role',
       targetCompany: 'Target Company',
@@ -432,7 +432,7 @@ export const translations = {
       cta: 'Başvurumu yaz',
       ctaSecondary: 'Nasıl Çalışır?',
       microtext: 'Ücretsiz başla. Kredi kartı gerekmez.',
-      disclaimer: 'Yapay zeka daha iyi yazmanıza yardımcı olur — son karar her zaman sizindir.',
+      disclaimer: 'Yapay zeka daha iyi yazmanıza yardımcı olur. Son karar her zaman sizindir.',
       valueProps: {
         acceptanceScore: 'Başvurmadan önce şansını gör',
         companyStrategy: 'Her şirkete özel',
@@ -443,20 +443,20 @@ export const translations = {
       },
       stats: {
         faster: 'Daha hızlı yazım',
-        avgAcceptance: 'Ort. kabul oranı',
+        avgAcceptance: 'Ort. Kabul oranı',
         aiAvailable: 'Her zaman hazır',
       },
     },
     features: {
-      title: 'ChatGPT gibi durmak için değil — işe alınmak için',
-      subtitle: 'Sovereign sadece taslak yazmaz — neden kabul edildiğini ya da reddedildiğini anlamanı ve ne yapman gerektiğini gösterir.',
+      title: 'ChatGPT gibi durmak için değil. İşe alınmak için',
+      subtitle: 'Sovereign sadece taslak yazmaz. Neden kabul edildiğini ya da reddedildiğini anlamanı ve ne yapman gerektiğini gösterir.',
       acceptanceProbability: {
         title: 'Şansını Önceden Gör',
-        description: 'Başvurmadan önce kabul olasılığını öğren. Tahmin yok — net bir skor ve gerçek açıklamalar.',
+        description: 'Başvurmadan önce kabul olasılığını öğren. Tahmin yok. Net bir skor ve gerçek açıklamalar.',
       },
       companyOptimization: {
         title: 'O Şirkete Özel Yazılmış',
-        description: 'Her başvuru şirkete, role ve kültüre göre şekillenir — isim değiştirilen genel bir şablon değil.',
+        description: 'Her başvuru şirkete, role ve kültüre göre şekillenir, isim değiştirilen genel bir şablon değil.',
       },
       strategicInsights: {
         title: 'Neyi Düzeltmen Gerektiğini Bil',
@@ -493,7 +493,7 @@ export const translations = {
       subtitle: 'Cevap aldığın kişi olmanı sağlayan ekstra kaldıraç.',
       decisionMaker: {
         title: 'Karar Verici Tespiti',
-        description: 'İlanı gerçekten kimin incelediğini — ve kime yazman gerektiğini gör.',
+        description: 'İlanı gerçekten kimin incelediğini, ve kime yazman gerektiğini gör.',
         highlights: [
           'İşe alım yöneticilerini ve proje liderlerini belirleme',
           'Şirket yapısı içgörüleri',
@@ -569,7 +569,7 @@ export const translations = {
           'Karar verici tespiti',
           'Tam başvuru stratejisi',
         ],
-        cta: 'Elite — Stratejimi Oluştur',
+        cta: 'Elite. Stratejimi Oluştur',
       },
     },
     auth: {
@@ -594,7 +594,7 @@ export const translations = {
       upgrade: 'Daha fazlası için yükselt',
       newProposal: 'Yeni Başvuru',
       recentProposals: 'Son Başvurular',
-      noProposals: 'Henüz başvuru yok — bir iş ilanı yapıştırarak başla!',
+      noProposals: 'Henüz başvuru yok. Bir iş ilanı yapıştırarak başla!',
       profile: 'Profil',
       settings: 'Ayarlar',
       plan: 'Mevcut Plan',
@@ -627,7 +627,7 @@ export const translations = {
       clientBriefPlaceholder: 'Müşteri ilanını, iş ilanını veya proje açıklamasını buraya yapıştırın...',
       generateProposal: 'Teklif Oluştur',
       optimizeCV: 'CV Optimize Et',
-      upgradeProMsg: '🔓 Pro\'ya yükselt — Kabul olasılığı skoru, sınırsız teklif ve daha fazlası',
+      upgradeProMsg: '🔓 Pro\'ya yükselt. Kabul olasılığı skoru, sınırsız teklif ve daha fazlası',
       usedToday: 'teklif bugün kullanıldı',
       upgradeBtn: 'Yükselt',
       autoFilling: 'Analiz ediliyor...',
@@ -658,9 +658,9 @@ export const translations = {
       copy: 'Kopyala',
       copied: 'Kopyalandı!',
       regenerate: 'Tekrar Dene',
-      approve: 'Güzel Görünüyor — Kaydet',
+      approve: 'Güzel Görünüyor. Kaydet',
       edit: 'Düzenle',
-      aiDisclaimer: 'Yapay zeka taslağı — göndermeden önce bir göz at.',
+      aiDisclaimer: 'Yapay zeka taslağı. Göndermeden önce bir göz at.',
     },
     upsell: {
       limitReached: 'Günlük Limit Doldu',
@@ -732,12 +732,12 @@ export const translations = {
       pro: {
         description: 'Kabul şansını öğren',
         badge: 'En Popüler',
-        cta: 'Pro Al – Aylık $16.99',
+        cta: 'Pro Al . Aylık $16.99',
       },
       elite: {
         description: 'Tam kabul stratejisi',
         badge: 'Strateji Modu',
-        cta: 'Elite — Stratejimi Oluştur',
+        cta: 'Elite. Stratejimi Oluştur',
       },
     },
     // Review Form
@@ -759,9 +759,9 @@ export const translations = {
     },
     cvBuilder: {
       title: 'CV Oluşturucu',
-      tierFree: 'Ücretsiz CV — Profesyonel kalite, bilgilerinizi girin ve indirin',
-      tierPro: 'Pro CV — Hedef rolünüze göre optimize edilmiş, maksimum kabul için',
-      tierElite: 'Elite CV — En üst %1 kalite, kabul puanlaması ve optimize apply',
+      tierFree: 'Ücretsiz CV. Profesyonel kalite, bilgilerinizi girin ve indirin',
+      tierPro: 'Pro CV. Hedef rolünüze göre optimize edilmiş, maksimum kabul için',
+      tierElite: 'Elite CV. En üst %1 kalite, kabul puanlaması ve optimize apply',
       upgradeHint: 'Optimize edilmiş, role özel CV\'ler için yükseltin →',
       targetRole: 'Hedef Pozisyon',
       targetCompany: 'Hedef Şirket',
@@ -847,8 +847,8 @@ export const translations = {
       },
     },
     features: {
-      title: 'Gebaut, um dich einzustellen — nicht um wie ChatGPT zu klingen',
-      subtitle: 'Sovereign ist ein Akzeptanz-Optimierungssystem—gebaut, um Sie einzustellen, nicht nur um Entwürfe zu schreiben.',
+      title: 'Gebaut, um dich einzustellen, nicht um wie ChatGPT zu klingen',
+      subtitle: 'Sovereign schreibt nicht nur Entwürfe. Es zeigt, warum du eingestellt oder abgelehnt wirst.',
       acceptanceProbability: {
         title: 'Akzeptanzwahrscheinlichkeit',
         description: 'Kennen Sie Ihre Chancen, bevor Sie sich bewerben. Erhalten Sie einen klaren Prozentsatz mit Erklärungen.',
@@ -968,7 +968,7 @@ export const translations = {
           'Entscheider-Identifikation',
           'Vollständige Bewerbungsstrategie',
         ],
-        cta: 'Elite — Meine Strategie aufbauen',
+        cta: 'Elite. Meine Strategie aufbauen',
       },
     },
     auth: {
@@ -1026,7 +1026,7 @@ export const translations = {
       clientBriefPlaceholder: 'Kundenbriefing, Stellenanzeige oder Projektbeschreibung hier einfügen...',
       generateProposal: 'Angebot erstellen',
       optimizeCV: 'CV Optimieren',
-      upgradeProMsg: '🔓 Auf Pro upgraden — Akzeptanz-Score, unbegrenzte Angebote und mehr',
+      upgradeProMsg: '🔓 Auf Pro upgraden. Akzeptanz-Score, unbegrenzte Angebote und mehr',
       usedToday: 'Angebote heute verwendet',
       upgradeBtn: 'Upgraden',
       autoFilling: 'Analysiere...',
@@ -1131,12 +1131,12 @@ export const translations = {
       pro: {
         description: 'Ihre Akzeptanzchancen kennen',
         badge: 'Am beliebtesten',
-        cta: 'Pro holen – $16.99/Monat',
+        cta: 'Pro holen · $16.99/Monat',
       },
       elite: {
         description: 'Vollständige Akzeptanzstrategie',
         badge: 'Strategie-Modus',
-        cta: 'Elite — Meine Strategie aufbauen',
+        cta: 'Elite. Meine Strategie aufbauen',
       },
     },
     // Review Form
@@ -1158,9 +1158,9 @@ export const translations = {
     },
     cvBuilder: {
       title: 'CV-Builder',
-      tierFree: 'Kostenloser CV — Professionelle Qualität, Infos eingeben und herunterladen',
-      tierPro: 'Pro CV — Optimiert für maximale Akzeptanz, auf Ihre Zielrolle zugeschnitten',
-      tierElite: 'Elite CV — Top 1% Qualität mit Akzeptanzbewertung & optimierter Bewerbung',
+      tierFree: 'Kostenloser CV. Professionelle Qualität, Infos eingeben und herunterladen',
+      tierPro: 'Pro CV. Optimiert für maximale Akzeptanz, auf Ihre Zielrolle zugeschnitten',
+      tierElite: 'Elite CV. Top 1% Qualität mit Akzeptanzbewertung & optimierter Bewerbung',
       upgradeHint: 'Für optimierte, rollenspezifische CVs upgraden →',
       targetRole: 'Zielposition',
       targetCompany: 'Zielunternehmen',
@@ -1246,8 +1246,8 @@ export const translations = {
       },
     },
     features: {
-      title: 'Fait pour vous faire embaucher — pas pour sonner comme ChatGPT',
-      subtitle: 'Sovereign est un système d\'optimisation d\'acceptation—conçu pour vous faire embaucher, pas seulement rédiger.',
+      title: 'Fait pour vous faire embaucher, pas pour sonner comme ChatGPT',
+      subtitle: 'Sovereign ne rédige pas seulement. Il montre pourquoi vous êtes embauché ou refusé.',
       acceptanceProbability: {
         title: 'Probabilité d\'acceptation',
         description: 'Connaissez vos chances avant de postuler. Obtenez un score en pourcentage clair avec des explications.',
@@ -1367,7 +1367,7 @@ export const translations = {
           'Identification des décideurs',
           'Stratégie de candidature complète',
         ],
-        cta: 'Go Elite — Construire ma stratégie',
+        cta: 'Go Elite. Construire ma stratégie',
       },
     },
     auth: {
@@ -1425,7 +1425,7 @@ export const translations = {
       clientBriefPlaceholder: 'Collez le brief client, l\'offre d\'emploi ou la description du projet ici...',
       generateProposal: 'Générer la proposition',
       optimizeCV: 'Optimiser CV',
-      upgradeProMsg: '🔓 Passez à Pro — Score d\'acceptation, propositions illimitées et plus',
+      upgradeProMsg: '🔓 Passez à Pro. Score d\'acceptation, propositions illimitées et plus',
       usedToday: 'propositions utilisées aujourd\'hui',
       upgradeBtn: 'Évoluer',
       autoFilling: 'Analyse...',
@@ -1532,12 +1532,12 @@ export const translations = {
       pro: {
         description: 'Connaître vos chances d\'acceptation',
         badge: 'Le plus populaire',
-        cta: 'Obtenir Pro – 16,99$/mois',
+        cta: 'Obtenir Pro . 16,99$/mois',
       },
       elite: {
         description: 'Stratégie d\'acceptation complète',
         badge: 'Mode Stratégie',
-        cta: 'Go Elite — Construire ma stratégie',
+        cta: 'Go Elite. Construire ma stratégie',
       },
     },
     // Review Form
@@ -1559,9 +1559,9 @@ export const translations = {
     },
     cvBuilder: {
       title: 'Créateur de CV',
-      tierFree: 'CV Gratuit — Qualité professionnelle, saisissez vos infos et téléchargez',
-      tierPro: 'CV Pro — Optimisé pour une acceptation maximale, adapté à votre poste cible',
-      tierElite: 'CV Elite — Qualité top 1% avec score d\'acceptation et candidature optimisée',
+      tierFree: 'CV Gratuit. Qualité professionnelle, saisissez vos infos et téléchargez',
+      tierPro: 'CV Pro. Optimisé pour une acceptation maximale, adapté à votre poste cible',
+      tierElite: 'CV Elite. Qualité top 1% avec score d\'acceptation et candidature optimisée',
       upgradeHint: 'Passez à Pro pour des CV optimisés et adaptés →',
       targetRole: 'Poste ciblé',
       targetCompany: 'Entreprise ciblée',

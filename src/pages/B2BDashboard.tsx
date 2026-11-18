@@ -136,7 +136,7 @@ export default function B2BDashboard() {
             setJobs(jobList);
             if (jobList.length > 0) setSelectedJobId(jobList[0].id);
           }
-        } catch { /* no real org yet — sentinel state is fine */ }
+        } catch { /* no real org yet. sentinel state is fine */ }
         return;
       }
 
@@ -278,7 +278,7 @@ export default function B2BDashboard() {
 
       {/* Main Layout */}
       <div className="max-w-screen-2xl mx-auto px-4 py-6 flex gap-5 h-[calc(100vh-65px)]">
-        {/* Left sidebar — Job Postings */}
+        {/* Left sidebar. Job Postings */}
         <div className="w-72 flex-shrink-0 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col overflow-hidden">
           <JobPostingManager
             orgId={org.id}

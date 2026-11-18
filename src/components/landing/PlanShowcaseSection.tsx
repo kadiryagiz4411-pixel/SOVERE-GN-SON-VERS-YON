@@ -9,7 +9,7 @@ import { asIcon } from '@/lib/safeIcon';
 const translations = {
   en: {
     badge: 'See What You Get',
-    title: 'Pro & Elite — Inside the App',
+    title: 'Pro & Elite. Inside the App',
     subtitle: 'Real features, real screenshots. See exactly what each plan unlocks inside Sovereign.',
     pro: {
       label: 'Pro Plan',
@@ -20,7 +20,7 @@ const translations = {
         { icon: 'wand', label: 'Auto-Fill Job Description', desc: 'Reads the listing and fills your fields instantly' },
         { icon: 'bar', label: 'Acceptance Score Breakdown', desc: 'See exactly why your score is high or low' },
         { icon: 'tone', label: 'Tone Optimization', desc: 'Adjust formality, confidence, and persuasion levels' },
-        { icon: 'check', label: 'Unlimited Proposals', desc: 'No daily limits — generate as many as you need' },
+        { icon: 'check', label: 'Unlimited Proposals', desc: 'No daily limits. Generate as many as you need' },
       ],
     },
     elite: {
@@ -38,7 +38,7 @@ const translations = {
   },
   tr: {
     badge: 'Neler Alacağınızı Görün',
-    title: 'Pro & Elite — Uygulama İçinden',
+    title: 'Pro & Elite. Uygulama İçinden',
     subtitle: 'Gerçek özellikler, gerçek ekran görüntüleri. Her planın Sovereign içinde neleri açtığını görün.',
     pro: {
       label: 'Pro Plan',
@@ -49,7 +49,7 @@ const translations = {
         { icon: 'wand', label: 'İş Tanımını Otomatik Doldur', desc: 'Yapay zeka ilanı okur ve alanlarınızı anında doldurur' },
         { icon: 'bar', label: 'Kabul Skoru Detayları', desc: 'Skorunuzun neden yüksek veya düşük olduğunu görün' },
         { icon: 'tone', label: 'Ton Optimizasyonu', desc: 'Resmiyet, güven ve ikna seviyelerini ayarlayın' },
-        { icon: 'check', label: 'Sınırsız Teklif', desc: 'Günlük limit yok — istediğiniz kadar oluşturun' },
+        { icon: 'check', label: 'Sınırsız Teklif', desc: 'Günlük limit yok. Istediğiniz kadar oluşturun' },
       ],
     },
     elite: {
@@ -67,7 +67,7 @@ const translations = {
   },
   de: {
     badge: 'Sehen Sie, was Sie bekommen',
-    title: 'Pro & Elite — In der App',
+    title: 'Pro & Elite. In der App',
     subtitle: 'Echte Funktionen, echte Screenshots. Sehen Sie genau, was jeder Plan in Sovereign freischaltet.',
     pro: {
       label: 'Pro Plan',
@@ -78,7 +78,7 @@ const translations = {
         { icon: 'wand', label: 'Auto-Fill Stellenbeschreibung', desc: 'Liest die Anzeige und füllt Ihre Felder sofort' },
         { icon: 'bar', label: 'Akzeptanz-Score Aufschlüsselung', desc: 'Sehen Sie genau, warum Ihr Score hoch oder niedrig ist' },
         { icon: 'tone', label: 'Ton-Optimierung', desc: 'Formalität, Vertrauen und Überzeugungskraft anpassen' },
-        { icon: 'check', label: 'Unbegrenzte Angebote', desc: 'Keine Tageslimits — so viele wie nötig erstellen' },
+        { icon: 'check', label: 'Unbegrenzte Angebote', desc: 'Keine Tageslimits. So viele wie nötig erstellen' },
       ],
     },
     elite: {
@@ -90,13 +90,13 @@ const translations = {
         { icon: 'zap', label: 'Vollständige Generierung', desc: 'Job-Link einfügen → fertiges Angebot in einem Durchgang' },
         { icon: 'user', label: 'Entscheidungsträger-ID', desc: 'Finden Sie, wer Ihre Bewerbung prüft' },
         { icon: 'msg', label: 'Outreach-Nachrichten', desc: 'LinkedIn- & E-Mail-Nachrichten mit Antwortrate' },
-        { icon: 'target', label: 'Score-Simulation', desc: 'Aktueller vs. optimierter potenzieller Score' },
+        { icon: 'target', label: 'Score-Simulation', desc: 'Aktueller vs. Optimierter potenzieller Score' },
       ],
     },
   },
   fr: {
     badge: 'Voyez ce que vous obtenez',
-    title: 'Pro & Elite — Dans l\'Application',
+    title: 'Pro & Elite. Dans l\'Application',
     subtitle: 'Vraies fonctionnalités, vrais captures d\'écran. Voyez exactement ce que chaque plan débloque.',
     pro: {
       label: 'Plan Pro',
@@ -107,7 +107,7 @@ const translations = {
         { icon: 'wand', label: 'Auto-remplissage de description', desc: 'Lit l\'annonce et remplit vos champs instantanément' },
         { icon: 'bar', label: 'Détails du score d\'acceptation', desc: 'Voyez exactement pourquoi votre score est haut ou bas' },
         { icon: 'tone', label: 'Optimisation du ton', desc: 'Ajustez la formalité, la confiance et la persuasion' },
-        { icon: 'check', label: 'Propositions illimitées', desc: 'Pas de limites quotidiennes — générez autant que nécessaire' },
+        { icon: 'check', label: 'Propositions illimitées', desc: 'Pas de limites quotidiennes. Générez autant que nécessaire' },
       ],
     },
     elite: {
@@ -253,7 +253,7 @@ const EliteMockup = () => (
         <span className="text-muted-foreground">Outreach Ready</span>
       </div>
       <div className="rounded-lg bg-amber-500/5 border border-amber-500/10 p-2.5 text-[10px] text-muted-foreground leading-relaxed italic">
-        "Hi John, I noticed your team is scaling the frontend — I recently led a similar migration at..."
+        "Hi John, I noticed your team is scaling the frontend. I recently led a similar migration at..."
       </div>
     </div>
   </div>
@@ -379,7 +379,7 @@ export const PlanShowcaseSection = () => {
                 size="lg"
                 className={`w-full ${!plan.isPro ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0' : ''}`}
               >
-                {plan.cta} — {plan.price}
+                {plan.cta} · {plan.price}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </CheckoutButton>
             </motion.div>

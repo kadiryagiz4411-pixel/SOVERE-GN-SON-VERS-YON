@@ -90,7 +90,7 @@ export const FreelanceScoreDisplay = ({ score, competitiveScore, plan, onUpgrade
         )}
       </div>
 
-      {/* Factor Breakdown — Pro/Elite */}
+      {/* Factor Breakdown. Pro/Elite */}
       {isPaid ? (
         <div className="space-y-2 border-t border-border pt-4">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Factor Breakdown</h4>

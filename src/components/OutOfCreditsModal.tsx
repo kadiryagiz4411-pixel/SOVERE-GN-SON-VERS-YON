@@ -53,7 +53,7 @@ export function OutOfCreditsModal({
           <h2 className="text-xl font-bold text-slate-100">Out of Monthly Credits</h2>
           <p className="text-sm text-slate-400 mt-1">
             {isAppSumo
-              ? 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.'
+              ? 'Monthly AppSumo credits reached. They refresh next month, or upgrade the AppSumo tier for more now.'
               : 'Upgrade to keep generating CVs and proposals.'}
           </p>
         </div>
@@ -69,7 +69,7 @@ export function OutOfCreditsModal({
               <Zap className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-100">Single Pass — $1.99</p>
+              <p className="text-sm font-semibold text-slate-100">Single Pass. $1.99</p>
               <p className="text-xs text-slate-400 mt-0.5">One generation, no subscription</p>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors shrink-0" />
@@ -83,7 +83,7 @@ export function OutOfCreditsModal({
               <Zap className="w-5 h-5 text-violet-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-100">Upgrade to Pro — $25/month</p>
+              <p className="text-sm font-semibold text-slate-100">Upgrade to Pro. $25/month</p>
               <p className="text-xs text-slate-400 mt-0.5">Unlimited optimisations, no credit limits</p>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-violet-400 transition-colors shrink-0" />

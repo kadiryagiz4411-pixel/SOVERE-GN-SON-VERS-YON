@@ -38,7 +38,7 @@ const AcceptanceScorePage = () => {
           <div className="space-y-6">
             {[
               { icon: AlertTriangle, color: 'text-red-400', text: '90% of applicants get rejected for fixable mistakes' },
-              { icon: Clock, color: 'text-amber-400', text: 'Recruiters scan your application in seconds — first impression is everything' },
+              { icon: Clock, color: 'text-amber-400', text: 'Recruiters scan your application in seconds. First impression is everything' },
               { icon: Target, color: 'text-green-400', text: 'Small tone shifts dramatically impact acceptance rates' },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-4">

@@ -11,7 +11,7 @@ interface SegmentSelectorProps {
 const translations = {
   en: {
     title: 'Who are you applying as?',
-    subtitle: 'Choose your path — we\'ll optimize everything for your specific context.',
+    subtitle: 'Pick one. The first draft follows that world.',
     freelancer: 'Freelancer',
     freelancerDesc: 'Upwork, Fiverr, Direct Clients, Agency Outreach',
     jobSeeker: 'Job Seeker',
@@ -19,7 +19,7 @@ const translations = {
   },
   tr: {
     title: 'Nasıl başvuruyorsunuz?',
-    subtitle: 'Yolunuzu seçin — her şeyi sizin bağlamınıza göre optimize edeceğiz.',
+    subtitle: 'Birini seç. İlk taslak o dünyaya göre yazılır.',
     freelancer: 'Freelancer',
     freelancerDesc: 'Upwork, Fiverr, Doğrudan Müşteriler, Ajans İletişimi',
     jobSeeker: 'İş Arayan',
@@ -27,7 +27,7 @@ const translations = {
   },
   de: {
     title: 'Als was bewerben Sie sich?',
-    subtitle: 'Wählen Sie Ihren Weg — wir optimieren alles für Ihren Kontext.',
+    subtitle: 'Eins wählen. Der erste Entwurf folgt dieser Welt.',
     freelancer: 'Freelancer',
     freelancerDesc: 'Upwork, Fiverr, Direktkunden, Agentur-Outreach',
     jobSeeker: 'Jobsuchender',
@@ -35,7 +35,7 @@ const translations = {
   },
   fr: {
     title: 'Vous postulez en tant que ?',
-    subtitle: 'Choisissez votre voie — nous optimiserons tout pour votre contexte.',
+    subtitle: 'Choisissez. Le premier brouillon suit ce monde.',
     freelancer: 'Freelance',
     freelancerDesc: 'Upwork, Fiverr, Clients directs, Prospection agence',
     jobSeeker: 'Chercheur d\'emploi',

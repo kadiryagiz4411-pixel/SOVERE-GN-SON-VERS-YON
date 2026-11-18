@@ -71,7 +71,7 @@ export default function Affiliates() {
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100">
       <SEOHead
-        title="Sovereign Affiliates — Earn 30% monthly recurring"
+        title="Sovereign Affiliates. Earn 30% monthly recurring"
         description="Share Sovereign with freelancers and agencies. Earn 30% on every paid month for as long as they stay subscribed."
         canonical={`${APP_DOMAIN}/affiliates`}
       />
@@ -80,7 +80,7 @@ export default function Affiliates() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-400">Creator program</p>
         <h1 className="mt-3 text-4xl font-black text-white md:text-5xl">Earn 30% on every recurring month</h1>
         <p className="mt-4 max-w-2xl text-lg text-zinc-400">
-          Partners and creators get a tracked referral link. When a referred workspace pays, you accrue 30% of that invoice — and again on each renewal.
+          Partners and creators get a tracked referral link. When a referred workspace pays, you accrue 30% of that invoice. and again on each renewal.
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">

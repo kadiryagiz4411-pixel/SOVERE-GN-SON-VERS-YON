@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 
 export default function FitScoreChecker() {
   const { user } = useSession();
-  const title = 'Upwork Proposal & Resume Match Checker — Free Fit Score';
+  const title = 'Upwork Proposal & Resume Match Checker. Free Fit Score';
   const description = 'Paste a job brief and your proposal. Get an instant Fit Score (0–100%) and see if clients will filter you out before you send.';
 
   return (

@@ -41,7 +41,7 @@ export default function TermsOfServicePage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. AI Outputs — No Professional Advice">
+      <LegalSection title="5. Generated outputs. Not professional advice">
         <p>
           Evaluations, ATS scores, rankings, and cover letters are assistive outputs. They are not legal, hiring, or employment advice and do not guarantee interviews, placements, or income. Final decisions belong to you.
         </p>

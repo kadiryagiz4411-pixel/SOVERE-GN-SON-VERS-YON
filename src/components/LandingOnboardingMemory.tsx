@@ -50,7 +50,7 @@ const STEPS: Step[] = [
     icon: Briefcase,
     label: 'Profession',
     question: 'What is your primary profession or role?',
-    subtitle: 'This helps us tailor your proposal engine.',
+    subtitle: 'Sets the first draft voice.',
     options: [
       { value: 'software_developer', label: 'Software Developer', emoji: '💻' },
       { value: 'designer',           label: 'UI/UX Designer',     emoji: '🎨' },
@@ -67,7 +67,7 @@ const STEPS: Step[] = [
     icon: Globe,
     label: 'Platform',
     question: 'Which freelance platform do you use most?',
-    subtitle: 'We optimize your proposals per platform algorithm.',
+    subtitle: 'Format follows the platform you actually use.',
     options: [
       { value: 'upwork',      label: 'Upwork',      emoji: '🟢' },
       { value: 'fiverr',      label: 'Fiverr',      emoji: '🟡' },
@@ -84,7 +84,7 @@ const STEPS: Step[] = [
     icon: TrendingUp,
     label: 'Experience',
     question: 'What is your experience level?',
-    subtitle: 'We adjust the tone and positioning of your proposals accordingly.',
+    subtitle: 'Sets how hard the draft should push.',
     options: [
       { value: 'junior',    label: 'Junior  (0–2 yrs)',  emoji: '🌱' },
       { value: 'mid',       label: 'Mid     (2–5 yrs)',  emoji: '🚀' },
@@ -99,7 +99,7 @@ const STEPS: Step[] = [
     icon: Code2,
     label: 'Tech Stack',
     question: 'What is your core tech stack or toolset?',
-    subtitle: 'Used to match you with the right job listings and emphasize relevant skills.',
+    subtitle: 'So the draft leads with tools you actually use.',
     options: [
       { value: 'react_node',   label: 'React / Node.js',   emoji: '⚛️' },
       { value: 'python_ai',    label: 'Python / AI / ML',  emoji: '🐍' },
@@ -116,12 +116,12 @@ const STEPS: Step[] = [
     icon: DollarSign,
     label: 'Rate',
     question: 'What is your target hourly rate?',
-    subtitle: 'We filter and target jobs within your ideal range.',
+    subtitle: 'So the draft does not undersell you.',
     options: [
       { value: 'under_25',   label: 'Under $25/hr',    emoji: '💵' },
-      { value: '25_50',      label: '$25 – $50/hr',    emoji: '💵' },
-      { value: '50_100',     label: '$50 – $100/hr',   emoji: '💰' },
-      { value: '100_150',    label: '$100 – $150/hr',  emoji: '💰' },
+      { value: '25_50',      label: '$25-$50/hr',    emoji: '💵' },
+      { value: '50_100',     label: '$50-$100/hr',   emoji: '💰' },
+      { value: '100_150',    label: '$100-$150/hr',  emoji: '💰' },
       { value: '150_plus',   label: '$150+/hr',        emoji: '🤑' },
       { value: 'project',    label: 'Fixed Project',   emoji: '📦' },
     ],
@@ -131,7 +131,7 @@ const STEPS: Step[] = [
     icon: Clock,
     label: 'Availability',
     question: 'How many hours per week are you available to work?',
-    subtitle: 'We tag your proposals with the right availability signals.',
+    subtitle: 'So availability in the draft is honest.',
     options: [
       { value: 'part_time',  label: 'Part-time  (< 20 hrs)', emoji: '🕐' },
       { value: 'half_time',  label: 'Half-time   (20 hrs)',   emoji: '🕑' },
@@ -158,7 +158,7 @@ const STEPS: Step[] = [
     icon: AlertCircle,
     label: 'Pain Point',
     question: 'What is your biggest freelance bottleneck right now?',
-    subtitle: 'We will prioritize solving this for you first.',
+    subtitle: 'We write against this first.',
     options: [
       { value: 'no_responses',     label: 'Not getting responses',      emoji: '📭' },
       { value: 'low_rates',        label: 'Clients offering low rates',  emoji: '💸' },
@@ -311,14 +311,14 @@ export const LandingOnboardingMemory: React.FC<Props> = ({ onComplete }) => {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 mb-5">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span className="text-xs font-semibold text-amber-400 tracking-wide uppercase">
-              Personalize Your Profile
+              Set how we write for you
             </span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
             Build Your Sovereign Profile
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Answer 10 quick questions so Sovereign knows exactly how to win clients for you.
+            Ten questions. Then the first draft sounds like you, not a template.
           </p>
         </div>
 
@@ -359,7 +359,7 @@ export const LandingOnboardingMemory: React.FC<Props> = ({ onComplete }) => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-amber-400 tracking-widest uppercase mb-1">
-                    {String(step + 1).padStart(2, '0')} — {currentStep.label}
+                    {String(step + 1).padStart(2, '0')}. {currentStep.label}
                   </p>
                   <h3 className="text-lg font-semibold text-foreground leading-snug">
                     {currentStep.question}

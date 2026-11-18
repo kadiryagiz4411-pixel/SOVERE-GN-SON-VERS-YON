@@ -13,7 +13,7 @@ const NotFound = () => {
   const [secs, setSecs] = useState(REDIRECT_DELAY);
 
   useEffect(() => {
-    console.warn('[Sovereign] 404 — no route matched:', location.pathname);
+    console.warn('[Sovereign] 404. no route matched:', location.pathname);
   }, [location.pathname]);
 
   // Auto-redirect countdown

@@ -40,7 +40,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
       case 'get-hired':
         return {
           title: `How to Get Hired at ${company?.name} — AI-Powered Application Strategy`,
-          metaTitle: `Get Hired at ${company?.name} in 2025 | Sovereign AI`,
+          metaTitle: `Get Hired at ${company?.name} in 2025 | Sovereign`,
           metaDescription: `${company?.name} rejects ${100 - Math.round((100 - (company?.hiring_competitiveness || 80)) * 1.2)}% of applicants. Use Sovereign's AI to analyze your application, predict your acceptance score, and fix what's holding you back.`,
           headline: `Stop Guessing. Know If ${company?.name} Will Hire You.`,
           subheadline: `${company?.name} receives thousands of applications. Only candidates who understand their ATS system and culture tone make it through. Sovereign gives you the exact intelligence you need.`,
@@ -50,7 +50,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
       case 'resume-for':
         return {
           title: `${role?.name} Resume for ${company?.name} — AI Resume Optimizer`,
-          metaTitle: `${role?.name} Resume for ${company?.name} | Sovereign AI`,
+          metaTitle: `${role?.name} Resume for ${company?.name} | Sovereign`,
           metaDescription: `Beat the ${company?.name} ATS with a ${role?.name} resume optimized by AI. Get keyword analysis, acceptance probability score, and instant improvement suggestions.`,
           headline: `Build a ${role?.name} Resume That Passes ${company?.name}'s ATS`,
           subheadline: `${company?.name}'s ATS filters out ${company?.ats_strictness_score}% of resumes before a human sees them. Sovereign reverse-engineers their system to put your application in front of the right people.`,
@@ -60,7 +60,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
       case 'ats-checker':
         return {
           title: `ATS Resume Checker for ${role?.name} — Pass Every ATS Filter`,
-          metaTitle: `ATS Resume Checker for ${role?.name} | Sovereign AI`,
+          metaTitle: `ATS Resume Checker for ${role?.name} | Sovereign`,
           metaDescription: `${role?.name} applications face intense ATS screening. Sovereign's AI scans your resume for the exact keywords hiring managers look for, scores your ATS compatibility, and tells you what to fix.`,
           headline: `Your ${role?.name} Resume is Probably Getting Rejected by ATS`,
           subheadline: `Over 75% of resumes are rejected before a human reads them. Sovereign's ATS checker gives you a real acceptance probability score and specific fixes for the ${role?.name} role.`,
@@ -70,7 +70,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
       case 'how-to-get':
         return {
           title: `How to Get a Job at ${company?.name} — Complete 2025 Guide`,
-          metaTitle: `How to Get a Job at ${company?.name} in 2025 | Sovereign AI`,
+          metaTitle: `How to Get a Job at ${company?.name} in 2025 | Sovereign`,
           metaDescription: `Everything you need to know about landing a job at ${company?.name}: hiring process, ATS tips, culture fit, what they look for, and how to use AI to maximize your chances.`,
           headline: `The Insider's Guide to Getting a Job at ${company?.name}`,
           subheadline: `${company?.name} has a ${company?.hiring_competitiveness}/100 hiring competitiveness score. Understanding their hiring system is the difference between an interview and silence.`,
@@ -80,7 +80,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
       case 'best-resume':
         return {
           title: `Best Resume for ${role?.name} in 2025 — AI-Optimized Template`,
-          metaTitle: `Best ${role?.name} Resume 2025 | Sovereign AI`,
+          metaTitle: `Best ${role?.name} Resume 2025 | Sovereign`,
           metaDescription: `The best ${role?.name} resume in 2025 uses AI optimization, proper keyword density, and ATS compatibility. Sovereign generates and scores your resume in seconds.`,
           headline: `The Best ${role?.name} Resume Gets More Than 1 Interview`,
           subheadline: `Most ${role?.name} resumes fail because they miss the right keywords or aren't structured for ATS systems. Sovereign fixes both problems with one AI analysis.`,
@@ -107,7 +107,7 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
         description: content.metaDescription,
         publisher: {
           '@type': 'Organization',
-          name: 'Sovereign AI',
+          name: 'Sovereign',
           url: APP_DOMAIN,
         },
         datePublished: '2025-01-01',
@@ -128,10 +128,10 @@ export const SEOPageTemplate = ({ type, company, role }: SEOPageTemplateProps) =
           },
           {
             '@type': 'Question',
-            name: 'How does Sovereign AI help improve my application?',
+            name: 'How does Sovereign help improve my application?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Sovereign analyzes your resume or proposal against the job description, calculates an acceptance probability score, identifies missing keywords, and gives you specific improvement actions to dramatically increase your chances.',
+              text: 'Sovereign reads the job post, writes the application in your voice, scores it, and tells you what to fix before you hit send.',
             },
           },
           {

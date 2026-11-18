@@ -8,7 +8,7 @@ export const CVOptimizerSection = () => {
 
   const txt = {
     badge: language === 'tr' ? '✨ YENİ ÖZELLİK' : language === 'de' ? '✨ NEUES FEATURE' : language === 'fr' ? '✨ NOUVELLE FONCTIONNALITÉ' : '✨ NEW FEATURE',
-    title: language === 'tr' ? 'Ücretsiz şablonlar boş kutu ve ret verir.' : language === 'de' ? 'Kostenlose Templates füllen Kästchen — und bringen Absagen.' : language === 'fr' ? 'Les modèles gratuits remplissent des cases. Et mènent au refus.' : 'Free templates give you empty boxes and rejections.',
+    title: language === 'tr' ? 'Ücretsiz şablonlar boş kutu ve ret verir.' : language === 'de' ? 'Kostenlose Templates füllen Kästchen, und bringen Absagen.' : language === 'fr' ? 'Les modèles gratuits remplissent des cases. Et mènent au refus.' : 'Free templates give you empty boxes and rejections.',
     subtitle: language === 'tr'
       ? 'Sovereign 10 saniyede mülakatı verir.'
       : language === 'de'

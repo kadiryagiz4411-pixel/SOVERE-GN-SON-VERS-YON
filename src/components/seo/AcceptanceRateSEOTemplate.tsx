@@ -35,7 +35,7 @@ export const AcceptanceRateSEOTemplate = ({ company, role }: Props) => {
     companyCompetitiveness: company.hiring_competitiveness,
   });
 
-  const metaTitle = `${role.name} Acceptance Rate at ${company.name} | Sovereign AI`;
+  const metaTitle = `${role.name} Acceptance Rate at ${company.name} | Sovereign`;
   const metaDescription = `What are your chances of getting hired as a ${role.name} at ${company.name}? Competitiveness: ${company.hiring_competitiveness}/100. ATS Strictness: ${company.ats_strictness_score}/100. Get your personalized score.`;
   const keywords = `${company.name} ${role.name} acceptance rate, ${company.name} hiring rate, ${role.name} ${company.name} chances, ${company.name} application success rate`;
 
@@ -49,7 +49,7 @@ export const AcceptanceRateSEOTemplate = ({ company, role }: Props) => {
         '@type': 'Article',
         headline: `${role.name} Acceptance Rate at ${company.name}`,
         description: metaDescription,
-        publisher: { '@type': 'Organization', name: 'Sovereign AI', url: APP_DOMAIN },
+        publisher: { '@type': 'Organization', name: 'Sovereign', url: APP_DOMAIN },
         datePublished: '2025-06-01',
         dateModified: new Date().toISOString().slice(0, 10),
       },
@@ -248,7 +248,7 @@ export const AcceptanceRateSEOTemplate = ({ company, role }: Props) => {
         <section className="py-12 bg-gradient-to-r from-primary/10 to-amber-500/10 border-y border-border">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">
-              Get Your Personalized {company.name} Acceptance Score
+              Get your {company.name} acceptance score
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Upload your resume. Get your real probability in 30 seconds.

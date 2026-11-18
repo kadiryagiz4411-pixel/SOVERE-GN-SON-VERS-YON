@@ -140,7 +140,7 @@ export const ApplicationTracker = ({ currentPlan, userId, onScoreIncrease }: App
         toast.success('Interview invitation logged!', { description: 'This success is tracked for your career progress report.' });
         onScoreIncrease?.(Math.min((app.acceptanceScore ?? 80) + 5, 100));
       } else if (newStatus === 'offer-received') {
-        toast.success('Offer received — congratulations!', { description: 'Your success has been recorded. Share the achievement!' });
+        toast.success('Offer received. Congratulations!', { description: 'Your success has been recorded. Share the achievement!' });
       }
       setTimeout(() => setCelebrationApp(null), 4000);
     } else {
@@ -181,7 +181,7 @@ export const ApplicationTracker = ({ currentPlan, userId, onScoreIncrease }: App
               <p className={`font-bold ${celebrationApp.status === 'offer-received' ? 'text-primary' : 'text-amber-500'}`}>
                 {celebrationApp.status === 'offer-received' ? 'Offer Received!' : 'Interview Invitation!'}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{celebrationApp.company} — {celebrationApp.jobTitle}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{celebrationApp.company}. {celebrationApp.jobTitle}</p>
             </div>
             {celebrationApp.status === 'offer-received'
               ? <PartyPopper className="w-6 h-6 text-primary animate-bounce" />

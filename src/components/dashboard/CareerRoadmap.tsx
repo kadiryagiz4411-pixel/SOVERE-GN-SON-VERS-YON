@@ -98,11 +98,11 @@ export const CareerRoadmap = ({ userId, profile, onRoadmapGenerated }: CareerRoa
       <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-card p-6 text-center">
         <Map className="w-10 h-10 text-primary mx-auto mb-3" />
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          Your Personalized Career Roadmap
+          Your career roadmap
         </h3>
         <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
           {hasOnboardingData
-            ? 'Based on your profile and goals, we\'ll create a step-by-step plan to maximize your application success.'
+            ? 'Based on your profile and goals: a step-by-step plan for what to send next.'
             : 'Complete your profile and answer the onboarding questions to get a personalized career strategy.'}
         </p>
         <Button

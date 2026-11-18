@@ -205,7 +205,7 @@ const Organization = () => {
         // RLS / role constraint errors should not crash the UI — degrade to empty list.
         const code = (error as { code?: string }).code ?? '';
         if (['42501', 'PGRST301', '42883'].includes(code) || /permission|access denied|role/i.test(error.message)) {
-          console.warn('[Organization] get_org_members RPC denied — falling back to empty member list:', error.message);
+          console.warn('[Organization] get_org_members RPC denied. falling back to empty member list:', error.message);
           setMembers([]);
           return;
         }
@@ -657,7 +657,7 @@ const Organization = () => {
           </div>
           <textarea
             className="w-full min-h-[100px] rounded-xl border border-border bg-muted/30 text-sm text-foreground p-3 resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Enter student emails, one per line or comma-separated&#10;e.g. student1@example.com, student2@example.com"
+            placeholder="Enter student emails, one per line or comma-separated&#10;e.g. Student1@example.com, student2@example.com"
             value={bulkEmails}
             onChange={e => setBulkEmails(e.target.value)}
           />

@@ -174,7 +174,7 @@ export const SuccessSnapshot = ({
           </Button>
           
           <p className="text-center text-xs text-muted-foreground">
-            Your privacy is protected—no personal data is shared.
+            Your privacy is protected. No personal data is shared.
           </p>
         </div>
       </DialogContent>

@@ -38,11 +38,11 @@ const Install = () => {
           </div>
           <CardTitle className="text-2xl">Download Sovereign</CardTitle>
           <CardDescription>
-            Install Sovereign on any device — mobile, Windows, or Mac.
+            Install Sovereign on any device. mobile, Windows, or Mac.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Native install button — works on Android, Windows, Mac (Chrome/Edge) */}
+          {/* Native install button. works on Android, Windows, Mac (Chrome/Edge) */}
           {canInstallNatively && (
             <Button onClick={install} className="w-full" size="lg">
               <Download className="w-5 h-5 mr-2" /> Install Now
@@ -140,7 +140,7 @@ const Install = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               {[
                 "Launch instantly from desktop or home screen",
-                "Works offline — generate proposals anywhere",
+                "Works offline. Generate proposals anywhere",
                 "Faster loading, no browser tabs needed",
                 "Full-screen, distraction-free experience",
               ].map((benefit, i) => (

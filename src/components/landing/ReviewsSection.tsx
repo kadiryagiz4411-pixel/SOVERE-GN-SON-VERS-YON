@@ -39,7 +39,7 @@ const FALLBACK_REVIEWS: Review[] = [
     role: 'Backend Engineer',
     company: null,
     rating: 4,
-    content: 'Saves me about 30 minutes per application. The competitive pressure indicator is surprisingly useful — helps me avoid oversaturated job postings.',
+    content: 'Saves me about 30 minutes per application. The competitive pressure indicator is surprisingly useful. Helps me avoid oversaturated job postings.',
     avatar_url: null,
   },
   {
@@ -57,7 +57,7 @@ const FALLBACK_REVIEWS: Review[] = [
     role: 'Graphic Designer',
     company: null,
     rating: 5,
-    content: 'As someone who hates writing proposals — this is a lifesaver. I just paste the job description and get something I\'d actually send. The tone matches my portfolio style somehow.',
+    content: 'As someone who hates writing proposals. This is a lifesaver. I just paste the job description and get something I\'d actually send. The tone matches my portfolio style somehow.',
     avatar_url: null,
   },
   {

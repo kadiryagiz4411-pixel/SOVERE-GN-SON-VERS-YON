@@ -25,12 +25,12 @@ export const FreelanceSEOTemplate = ({ platform, profession }: FreelanceSEOTempl
   const platformName = platformLabels[platform] || 'Freelance';
 
   const title = platform === 'generic'
-    ? `Best Proposal for ${profession.label} — AI Proposal Generator`
-    : `Best ${platformName} Proposal for ${profession.label} — AI Generator`;
+    ? `Best Proposal for ${profession.label} | Sovereign`
+    : `Best ${platformName} Proposal for ${profession.label} | Sovereign`;
 
   const metaDescription = platform === 'generic'
-    ? `Create winning freelance proposals for ${profession.label} projects. AI-powered, template-driven, optimized for acceptance.`
-    : `Generate a winning ${platformName} proposal for ${profession.label} jobs. AI-powered with ${cluster?.label || 'professional'} cluster optimization.`;
+    ? `Stop getting filtered out. Write ${profession.label} proposals that sound like you, not a template.`
+    : `Stop getting filtered out. Write a ${platformName} ${profession.label} proposal that gets a reply.`;
 
   const keywords = `${platformName} proposal ${profession.label}, ${profession.label} proposal template, best ${profession.label} proposal, freelance ${profession.label} proposal, ${platformName} cover letter ${profession.label}`;
 
@@ -46,7 +46,7 @@ export const FreelanceSEOTemplate = ({ platform, profession }: FreelanceSEOTempl
         '@type': 'Article',
         headline: title,
         description: metaDescription,
-        publisher: { '@type': 'Organization', name: 'Sovereign AI', url: APP_DOMAIN },
+        publisher: { '@type': 'Organization', name: 'Sovereign', url: APP_DOMAIN },
         datePublished: '2025-01-01',
         dateModified: new Date().toISOString().slice(0, 10),
       },
@@ -58,7 +58,7 @@ export const FreelanceSEOTemplate = ({ platform, profession }: FreelanceSEOTempl
             name: `How do I write a winning ${platformName} proposal as a ${profession.label}?`,
             acceptedAnswer: {
               '@type': 'Answer',
-              text: `A winning ${platformName} proposal for ${profession.label} follows a structured approach: ${cluster?.hookStructure || 'Start with a strong hook'}, then ${cluster?.bodyFlowTemplate || 'present your value'}. Sovereign AI generates this automatically using cluster-specific templates.`,
+              text: `A ${platformName} proposal for ${profession.label} that gets a reply starts with a specific hook, then ${cluster?.bodyFlowTemplate || 'shows proof'}. Sovereign writes it in your voice, not a template.`,
             },
           },
           {
@@ -246,10 +246,10 @@ export const FreelanceSEOTemplate = ({ platform, profession }: FreelanceSEOTempl
               Ready to Win More {platformName} Projects?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Generate your first AI-optimized {profession.label} proposal in seconds.
+              Write your first {profession.label} proposal in 10 seconds.
             </p>
             <Button size="lg" variant="gold" onClick={() => navigate('/auth?mode=signup')}>
-              Start Free — No Credit Card
+              Start free. No credit card.
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </div>

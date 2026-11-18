@@ -89,7 +89,7 @@ function StackingProgress({ status }: { status: StackingStatus }) {
       {status.byokUnlocked && (
         <p className="text-xs text-emerald-400 flex items-center gap-1">
           <Key className="w-3 h-3" />
-          <strong>BYOK unlocked</strong> — credit deduction bypassed when you add your OpenAI key
+          <strong>BYOK unlocked</strong>. credit deduction bypassed when you add your OpenAI key
         </p>
       )}
     </div>
@@ -169,7 +169,7 @@ export function RedeemModal({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Activate AppSumo Code</p>
-        <p className="text-xs text-muted-foreground">Stacking supported — max 3 codes (100 / 300 / Unlimited BYOK)</p>
+        <p className="text-xs text-muted-foreground">Stacking supported. max 3 codes (100 / 300 / Unlimited BYOK)</p>
           </div>
         </div>
         {onClose && variant === 'modal' && (

@@ -39,7 +39,7 @@ interface Proposal {
   sentAt: string;          // ISO date
   budget?: string;
   column: KanbanColumn;
-  followUpDate?: string;   // ISO date — set automatically on win
+  followUpDate?: string;   // ISO date. set automatically on win
   notes?: string;
 }
 
@@ -73,7 +73,7 @@ const SEED_PROPOSALS: Proposal[] = [
 const SEED_JOB_ALERTS: JobAlert[] = [
   { id: 'j1', title: 'Senior React Developer for SaaS Dashboard', platform: 'Upwork', budget: '$50–80/hr', match: 94, postedAt: new Date(Date.now() - 2 * 3600e3).toISOString() },
   { id: 'j2', title: 'Full-Stack Node.js + Next.js App', platform: 'Freelancer', budget: '$3,000 fixed', match: 87, postedAt: new Date(Date.now() - 5 * 3600e3).toISOString() },
-  { id: 'j3', title: 'AI Integration Engineer — OpenAI/LLMs', platform: 'Upwork', budget: '$60–100/hr', match: 81, postedAt: new Date(Date.now() - 12 * 3600e3).toISOString() },
+  { id: 'j3', title: 'AI Integration Engineer. OpenAI/LLMs', platform: 'Upwork', budget: '$60–100/hr', match: 81, postedAt: new Date(Date.now() - 12 * 3600e3).toISOString() },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

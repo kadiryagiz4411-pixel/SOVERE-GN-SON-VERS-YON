@@ -82,7 +82,7 @@ const Admin = () => {
     results.push({
       label: 'OpenAI API Key',
       status: apiKey ? 'ok' : 'warn',
-      detail: apiKey ? `Configured (…${apiKey.slice(-4)})` : 'Not set — edge functions use server-side key',
+      detail: apiKey ? `Configured (…${apiKey.slice(-4)})` : 'Not set. Edge functions use server-side key',
     });
 
     // 3. Edge Function ping (generate-proposal OPTIONS)
@@ -105,7 +105,7 @@ const Admin = () => {
       results.push({
         label: 'Edge Function',
         status: alive ? 'ok' : 'error',
-        detail: alive ? `HTTP ${res.status} — function reachable` : `HTTP ${res.status} — function may be down`,
+        detail: alive ? `HTTP ${res.status}. Function reachable` : `HTTP ${res.status}. Function may be down`,
       });
     } catch (e: any) {
       results.push({ label: 'Edge Function', status: 'error', detail: e?.message ?? 'Network error' });

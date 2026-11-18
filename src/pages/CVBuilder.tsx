@@ -335,7 +335,7 @@ const CVBuilder = () => {
     // Safety valve: the button can never get permanently stuck.
     const safetyTimer = setTimeout(() => {
       setGenerating(false);
-      console.warn('[Sovereign] CV handleGenerate safety timeout — resetting generating state');
+      console.warn('[Sovereign] CV handleGenerate safety timeout. resetting generating state');
     }, 60_000);
 
     try {
@@ -373,14 +373,14 @@ const CVBuilder = () => {
 
         if (shouldTryFallback) {
           if (status === 401) {
-            console.warn('[CV_FALLBACK] Edge function returned 401 — auth may have expired. Trying client-side fallback.');
+            console.warn('[CV_FALLBACK] Edge function returned 401. auth may have expired. Trying client-side fallback.');
           } else           if (status === 402) {
             if (should402BypassForUnlimited(effectiveUser?.email, undefined, isCVSuperAdmin)) {
-              console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user — trying client-side CV generation.');
+              console.warn('[CREDIT_BYPASS_OVERRIDE] Backend 402 for unlimited user. trying client-side CV generation.');
             }
           }
 
-          toast.loading('Edge service unavailable — generating via direct connection…', { id: 'cv-fallback-toast' });
+          toast.loading('Edge service unavailable. Generating via direct connection…', { id: 'cv-fallback-toast' });
           try {
             const fallbackCV = await generateCVFallback({
               mode,
@@ -402,7 +402,7 @@ const CVBuilder = () => {
                 setFreeCvsLeft(left ?? Math.max(0, freeCvsLeft - 1));
               }
               toast.success('✅ CV generated via direct connection.');
-              return; // success — skip error handling below
+              return; // success. skip error handling below
             }
           } catch (fbErr) {
             console.error('[SOVEREIGN_ERR] CV client fallback also failed:', fbErr);
@@ -601,7 +601,7 @@ const CVBuilder = () => {
       <div className="min-h-screen bg-background pb-24 lg:pb-8">
         {!appSession.user && (
           <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-100">
-            Guest mode — {guestRemainingLabel()}.
+            Guest mode. {guestRemainingLabel()}.
           </div>
         )}
         {/* Header */}
@@ -704,7 +704,7 @@ const CVBuilder = () => {
             </div>
           )}
 
-          {/* Language Selector — gated: Pro+ required for non-English */}
+          {/* Language Selector. gated: Pro+ required for non-English */}
           <div className="mb-6">
             <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
               <Globe className="w-4 h-4" /> {cv.outputLanguage || 'Output Language'}
@@ -794,11 +794,11 @@ const CVBuilder = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">{cv.experience || 'Experience'} *</label>
-                <Textarea value={experience} onChange={(e) => setExperience(e.target.value)} placeholder="Company — Role — Dates&#10;• Key achievement 1&#10;• Key achievement 2" className="min-h-[150px]" />
+                <Textarea value={experience} onChange={(e) => setExperience(e.target.value)} placeholder="Company. Role. Dates&#10;• Key achievement 1&#10;• Key achievement 2" className="min-h-[150px]" />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">{cv.education || 'Education'}</label>
-                <Textarea value={education} onChange={(e) => setEducation(e.target.value)} placeholder="University — Degree — Year" className="min-h-[80px]" />
+                <Textarea value={education} onChange={(e) => setEducation(e.target.value)} placeholder="University. Degree. Year" className="min-h-[80px]" />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">{cv.skills || 'Skills'}</label>
@@ -862,7 +862,7 @@ const CVBuilder = () => {
                       <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border text-left">
                         <p className="text-xs font-medium text-green-500 flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" />
-                          {language === 'tr' ? 'Dosya yüklendi' : 'File loaded'} — {uploadedText.length} {language === 'tr' ? 'karakter' : 'chars'}
+                          {language === 'tr' ? 'Dosya yüklendi' : 'File loaded'}. {uploadedText.length} {language === 'tr' ? 'karakter' : 'chars'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{uploadedText.slice(0, 150)}...</p>
                       </div>
@@ -1043,7 +1043,7 @@ const CVBuilder = () => {
                 <FileText className="w-5 h-5 text-primary shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-foreground">
-                    {language === 'tr' ? `Ek CV Oluştur — $${CV_EXTRA_PRICE}` : `Get Extra CV — $${CV_EXTRA_PRICE}`}
+                    {language === 'tr' ? `Ek CV Oluştur. $${CV_EXTRA_PRICE}` : `Get Extra CV. $${CV_EXTRA_PRICE}`}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {language === 'tr' ? 'Tek seferlik ödeme, hemen kullan' : 'One-time payment, use instantly'}
@@ -1063,7 +1063,7 @@ const CVBuilder = () => {
                   <Sparkles className="w-5 h-5 text-primary shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-foreground">
-                      {language === 'tr' ? 'Pro\'ya Yükselt — Günde 3 CV' : 'Upgrade to Pro — 3 CVs/day'}
+                      {language === 'tr' ? 'Pro\'ya Yükselt. Günde 3 CV' : 'Upgrade to Pro. 3 CVs/day'}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {language === 'tr' ? 'Sınırsız başvuru + kabul skoru' : 'Unlimited proposals + acceptance score'}
@@ -1081,7 +1081,7 @@ const CVBuilder = () => {
                   <Crown className="w-5 h-5 text-amber-500 shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-foreground">
-                      {language === 'tr' ? 'Elite\'e Yükselt — Sınırsız CV' : 'Upgrade to Elite — Unlimited CVs'}
+                      {language === 'tr' ? 'Elite\'e Yükselt. Sınırsız CV' : 'Upgrade to Elite. Unlimited CVs'}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {language === 'tr' ? 'Sınırsız CV + tam strateji paketi' : 'Unlimited CVs + full strategy package'}

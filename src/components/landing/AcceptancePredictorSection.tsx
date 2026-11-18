@@ -42,7 +42,7 @@ export const AcceptancePredictorSection = () => {
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file) {
-      setJobDesc(`[📄 ${file.name} uploaded — paste job description for best results]`);
+      setJobDesc(`[📄 ${file.name} uploaded. Paste job description for best results]`);
       trackEvent('acceptance_predictor_file_drop');
     }
   };

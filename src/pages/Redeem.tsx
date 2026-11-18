@@ -326,7 +326,7 @@ export default function Redeem() {
                 <p className="mt-4 text-xs text-muted-foreground flex items-start gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
-                    <strong className="text-foreground">Stacking supported</strong> — redeeming a same-tier code adds more credits.
+                    <strong className="text-foreground">Stacking supported</strong>. redeeming a same-tier code adds more credits.
                     Redeeming a higher-tier code upgrades your plan.
                   </span>
                 </p>

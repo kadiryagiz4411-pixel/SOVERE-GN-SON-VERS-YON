@@ -29,7 +29,7 @@ export function ExtensionDownloadSection() {
             Analyze the open job. Pitch in one click.
           </h2>
           <p className="mt-4 max-w-2xl text-lg text-slate-400">
-            The Sovereign side panel reads the job you actually opened — not the feed — then writes a human proposal or a tailored CV. Individual plans stay on B2C. Agency plans unlock B2B lead routing. It never auto-submits.
+            The Sovereign side panel reads the job you actually opened, not the feed, then writes a human proposal or a tailored CV. Individual plans stay on B2C. Agency plans unlock B2B lead routing. It never auto-submits.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -38,7 +38,7 @@ export function ExtensionDownloadSection() {
               <Button size="lg" asChild className="gap-2">
                 <a href={CWS_URL} target="_blank" rel="noopener noreferrer">
                   <Chrome className="h-4 w-4" />
-                  Add to Chrome — Web Store
+                  Add to Chrome. Web Store
                 </a>
               </Button>
             ) : (

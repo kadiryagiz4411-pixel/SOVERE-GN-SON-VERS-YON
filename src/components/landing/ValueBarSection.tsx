@@ -10,7 +10,7 @@ const translations = {
     items: [
       { icon: Zap, value: '15', label: 'Free proposals daily' },
       { icon: Users, value: '12K+', label: 'Active users' },
-      { icon: TrendingUp, value: '67%', label: 'Avg. acceptance rate' },
+      { icon: TrendingUp, value: '67%', label: 'Avg. Acceptance rate' },
       { icon: Download, value: 'Free', label: 'Desktop & mobile app' },
     ],
   },
@@ -18,7 +18,7 @@ const translations = {
     items: [
       { icon: Zap, value: '15', label: 'Günlük ücretsiz teklif' },
       { icon: Users, value: '12K+', label: 'Aktif kullanıcı' },
-      { icon: TrendingUp, value: '%67', label: 'Ort. kabul oranı' },
+      { icon: TrendingUp, value: '%67', label: 'Ort. Kabul oranı' },
       { icon: Download, value: 'Ücretsiz', label: 'Masaüstü ve mobil uygulama' },
     ],
   },

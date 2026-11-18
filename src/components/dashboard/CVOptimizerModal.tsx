@@ -92,7 +92,7 @@ export const CVOptimizerModal = ({
 
   const txt = {
     title: language === 'tr' ? 'ATS CV Analiz & Optimize' : language === 'de' ? 'ATS CV Analyse & Optimierung' : 'ATS CV Analysis & Optimization',
-    subtitle: language === 'tr' ? `Ücretsiz ATS skorunuzu görün, tüm raporu açmak için ${COST_PER_ACTION} kredi` : language === 'de' ? `Kostenloser ATS-Score, ${COST_PER_ACTION} Credits für vollständige Optimierung` : `Free ATS score preview — ${COST_PER_ACTION} credits to unlock full rewrite`,
+    subtitle: language === 'tr' ? `Ücretsiz ATS skorunuzu görün, tüm raporu açmak için ${COST_PER_ACTION} kredi` : language === 'de' ? `Kostenloser ATS-Score, ${COST_PER_ACTION} Credits für vollständige Optimierung` : `Free ATS score preview. ${COST_PER_ACTION} credits to unlock full rewrite`,
     paste: language === 'tr' ? 'Yapıştır' : 'Paste',
     upload: language === 'tr' ? 'Dosya Yükle' : 'Upload',
     cvPlaceholder: language === 'tr' ? 'CV / Özgeçmiş metninizi yapıştırın...' : 'Paste your CV / Resume text here...',
@@ -180,7 +180,7 @@ export const CVOptimizerModal = ({
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         const errMsg = (errBody as any)?.error || `HTTP ${response.status}`;
-        console.warn(`[CVOptimizer] ats-teaser failed (${response.status}) — trying client-side fallback.`);
+        console.warn(`[CVOptimizer] ats-teaser failed (${response.status}). trying client-side fallback.`);
 
         if ([0, 401, 402, 404, 500].includes(response.status)) {
           const fallback = await generateATSFallback(
@@ -205,7 +205,7 @@ export const CVOptimizerModal = ({
       setTeaserResult(result);
       setStep('teaser');
     } catch (err: any) {
-      const msg = err?.message || err?.toString() || 'ATS Analysis failed — unexpected error.';
+      const msg = err?.message || err?.toString() || 'ATS Analysis failed. Unexpected error.';
       console.error('[SOVEREIGN_ERR] CVOptimizerModal handleAnalyze:', msg, err);
       // Last-chance: try client-side ATS fallback
       const outputLanguage = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
@@ -315,7 +315,7 @@ export const CVOptimizerModal = ({
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         const errMsg = (errBody as any)?.error || `HTTP ${response.status}`;
-        console.warn(`[CVOptimizer] optimize-cv failed (${response.status}) — trying client-side fallback.`);
+        console.warn(`[CVOptimizer] optimize-cv failed (${response.status}). trying client-side fallback.`);
 
         if ([0, 401, 402, 404, 500].includes(response.status)) {
           toast.loading('Optimizing via direct connection…', { id: 'opt-fallback' });
@@ -340,7 +340,7 @@ export const CVOptimizerModal = ({
 
         console.error('[optimize-cv] HTTP error', response.status, errMsg);
         const displayMsg = response.status === 402
-          ? `${errMsg} — Add your BYOK key in Profile → Settings to optimize without credits.`
+          ? `${errMsg}. Add your BYOK key in Profile → Settings to optimize without credits.`
           : errMsg;
         setOptimizeError(displayMsg);
         toast.error(`CV Optimization Failed: ${displayMsg}`);
@@ -350,7 +350,7 @@ export const CVOptimizerModal = ({
       const result = await response.json();
       if (!result.optimizedCV) {
         console.error('[optimize-cv] empty payload', result);
-        const msg = 'Optimization failed — empty response. Please retry.';
+        const msg = 'Optimization failed. Empty response. Please retry.';
         setOptimizeError(msg);
         toast.error(msg);
         return;
@@ -372,7 +372,7 @@ export const CVOptimizerModal = ({
       }
       toast.success('CV optimized!');
     } catch (err: any) {
-      const msg = err?.message || err?.toString() || 'CV Optimization failed — unexpected error.';
+      const msg = err?.message || err?.toString() || 'CV Optimization failed. Unexpected error.';
       console.error('[SOVEREIGN_ERR] CVOptimizerModal handleUnlockFull:', msg, err);
       // Last-chance client fallback
       const optLang = language === 'tr' ? 'tr' : language === 'de' ? 'de' : language === 'fr' ? 'fr' : 'en';
@@ -450,14 +450,14 @@ export const CVOptimizerModal = ({
                 <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors">
                   <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-sm font-medium text-foreground mb-1">{txt.uploadHint}</p>
-                  <p className="text-xs text-muted-foreground">PDF, DOCX, TXT — max 5MB</p>
+                  <p className="text-xs text-muted-foreground">PDF, DOCX, TXT. max 5MB</p>
                   <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.doc" onChange={handleFileUpload} className="hidden" />
                 </div>
                 {cvText && (
                   <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border">
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-xs font-medium text-foreground">File loaded — {cvText.length} chars</span>
+                      <span className="text-xs font-medium text-foreground">File loaded. {cvText.length} chars</span>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{cvText.slice(0, 150)}...</p>
                   </div>
@@ -469,7 +469,7 @@ export const CVOptimizerModal = ({
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
                 <Target className="w-3 h-3 inline mr-1" />
-                Job Description (optional — improves accuracy)
+                Job Description (optional. improves accuracy)
               </label>
               <Textarea placeholder={txt.jdPlaceholder} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} className="min-h-[100px] resize-none text-sm" />
             </div>
@@ -565,7 +565,7 @@ export const CVOptimizerModal = ({
                 <div>
                   <p className="text-sm font-semibold text-foreground">Unlock Full CV Optimization</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Get the fully rewritten, ATS-optimized CV + Cover Letter — fixes all {teaserResult.total_flaws} issues.
+                    Get the fully rewritten, ATS-optimized CV + Cover Letter. fixes all {teaserResult.total_flaws} issues.
                   </p>
                 </div>
               </div>
@@ -597,7 +597,7 @@ export const CVOptimizerModal = ({
                 <div className="space-y-2">
                   <Button variant="gold" className="w-full" size="lg" onClick={() => { onOpenChange(false); window.location.href = '/pricing'; }}>
                     <Lock className="w-4 h-4 mr-2" />
-                    Unlock Full Optimization — $9 credit / $19 monthly
+                    Unlock Full Optimization. $9 credit / $19 monthly
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">1 credit = 1 full CV rewrite • Monthly plan = unlimited rewrites</p>
                 </div>

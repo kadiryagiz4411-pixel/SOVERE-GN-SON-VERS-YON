@@ -10,9 +10,9 @@ export function SharedPortalFooter() {
     <footer className="border-t border-border py-8 px-4">
       <div className="max-w-3xl mx-auto text-center space-y-3">
         <p className="text-xs tracking-wide text-muted-foreground">
-          Evaluated & Ranked by{' '}
-          <span className="text-primary font-semibold">Sovereign AI</span>
-          {' '}— Process 100+ Resumes in Seconds
+          Evaluated and ranked by{' '}
+          <span className="text-primary font-semibold">Sovereign</span>
+          . Process 100+ resumes in seconds.
         </p>
         <Link
           to="/auth?mode=signup&ref=share_portal"

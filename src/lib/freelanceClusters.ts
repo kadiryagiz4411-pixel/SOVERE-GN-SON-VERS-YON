@@ -237,7 +237,7 @@ export const generateFreelanceSEOPages = (): FreelanceSEOData[] => {
         profession: profession.label,
         platform,
         title: `Best ${platform.charAt(0).toUpperCase() + platform.slice(1)} Proposal for ${profession.label}`,
-        description: `Generate a winning ${platform} proposal for ${profession.label} jobs. AI-powered, template-driven, optimized for acceptance.`,
+        description: `Write a ${platform} proposal for ${profession.label} jobs that sounds like you, not a template.`,
       });
     }
     // Generic pages
@@ -245,7 +245,7 @@ export const generateFreelanceSEOPages = (): FreelanceSEOData[] => {
       slug: `best-proposal-${profession.id}`,
       profession: profession.label,
       platform: 'generic',
-      title: `Best Proposal for ${profession.label} — AI Proposal Generator`,
+      title: `Best Proposal for ${profession.label} | Sovereign`,
       description: `Create the perfect freelance proposal for ${profession.label} projects. Structured, optimized, and ready to send.`,
     });
   }
