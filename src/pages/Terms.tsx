@@ -22,13 +22,16 @@ export default function TermsOfServicePage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="3. Subscriptions & Billing">
+      <LegalSection title="3. Subscriptions, Single Pass & Billing">
         <p>
-          Subscriptions and lifetime access deals are processed securely by LemonSqueezy, our Merchant of Record. Recurring billing plans renew automatically unless cancelled prior to the renewal date.
+          Sovereign sells digital services. Checkout is processed by Polar or Lemon Squeezy (Merchant of Record / payment processor). Recurring plans (Standard $8.99/mo, Pro $16.99/mo, Elite $43.99/mo, Enterprise $178.99/mo) renew automatically unless cancelled before the renewal date.
         </p>
         <p>
-          AppSumo lifetime licenses, if purchased, are redeemed through Sovereign’s redeem flow and remain subject to AppSumo’s marketplace terms. Refunds are described in our{' '}
+          The $1.99 Single Pass is a one-time digital purchase: one pass credit for a single generation. It does not renew and is not a subscription. Refunds, including when a consumed pass is non-refundable, are described in our{' '}
           <Link to="/refund" className="text-primary hover:underline">Refund Policy</Link>.
+        </p>
+        <p>
+          AppSumo lifetime licenses, if purchased, are redeemed through Sovereign’s redeem flow and remain subject to AppSumo’s marketplace terms.
         </p>
       </LegalSection>
 

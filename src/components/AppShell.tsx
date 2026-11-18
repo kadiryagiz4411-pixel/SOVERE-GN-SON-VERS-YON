@@ -32,6 +32,7 @@ import { BrandLogo } from '@/components/common/BrandLogo';
 import { QuickNavUpload } from '@/components/upload/QuickNavUpload';
 import { SidebarNav } from '@/components/layout/Sidebar';
 import { ExtensionReadyWidget } from '@/components/extension/ExtensionReadyWidget';
+import { Footer } from '@/components/Footer';
 
 const AppShellPresenceContext = createContext(false);
 
@@ -472,6 +473,7 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
+        <Footer compact />
       </main>
       <TierGate
         open={!!lockModal}

@@ -9,7 +9,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
       <main className="flex-1 pt-24 pb-16">
         <div className="max-w-4xl mx-auto px-6 py-12 text-slate-300">
           <h1 className="text-3xl font-bold text-white mb-6">{title}</h1>
-          <p className="mb-8 text-sm text-slate-400">Last Updated: October 2026</p>
+          <p className="mb-8 text-sm text-slate-400">Last Updated: November 2026</p>
           {children}
         </div>
       </main>
