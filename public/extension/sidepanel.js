@@ -11,6 +11,7 @@ const STORE = {
   ACTIONS: 'sovereign.actions.v1',
   RATED: 'sovereign.rated.v1',
   VIEWPORT: 'sovereign.viewport.v1',
+  DEFAULT_CV: 'sovereign.default-cv.v1',
 };
 const DEFAULT_SETTINGS = {
   skills: '',
@@ -318,7 +319,7 @@ function applyCreditBadge() {
     el.classList.remove('hidden');
     el.classList.toggle('empty', remaining <= 0);
     el.classList.toggle('pro', remaining > 0);
-    el.textContent = remaining === 1 ? '1 free pass remaining' : `${remaining} free passes remaining`;
+    el.textContent = remaining === 1 ? '1 Pass' : `${remaining} Passes`;
     return;
   }
   el.classList.remove('hidden');
@@ -339,7 +340,7 @@ function applyCreditBadge() {
   if (agency) { el.textContent = 'Agency Active'; return; }
   if (pro) { el.textContent = 'Pro Active'; return; }
   if (pass > 0) {
-    el.textContent = pass === 1 ? '1 Pass Remaining' : `${pass} Passes Remaining`;
+    el.textContent = pass === 1 ? '1 Pass' : `${pass} Passes`;
     return;
   }
   if (settings.isAppsumoUser) {
@@ -435,17 +436,20 @@ function effectiveMode() {
 function publicError(raw) {
   const text = String(raw || '');
   if (isExtensionAdmin()) return text || 'Unknown error';
+  if (/Open a job post on LinkedIn/i.test(text)) {
+    return 'Open a job post on LinkedIn, Upwork, or any webpage to scan.';
+  }
   if (/too short|open a job|Open a job post/i.test(text)) {
-    return 'Open a job post or profile, then try again.';
+    return 'Open a job post on LinkedIn, Upwork, or any webpage to scan.';
   }
   if (/readable text|enough readable/i.test(text)) {
-    return 'Open a job post or profile, then try Analyze again.';
+    return 'Open a job post on LinkedIn, Upwork, or any webpage to scan.';
   }
   if (/permission|host permissions|Reload this unpacked/i.test(text)) {
-    return 'Reload the extension, then try Analyze again.';
+    return 'Reload the extension, then scan again.';
   }
-  if (/system pages|chrome system/i.test(text)) {
-    return 'Open a public web page, then try Analyze again.';
+  if (/system pages|chrome system|chrome:\/\/|edge:\/\/|about:/i.test(text)) {
+    return 'Open a job post on LinkedIn, Upwork, or any webpage to scan.';
   }
   if (/no proposal editor|no editor found|Auto-Fill is not loaded/i.test(text)) {
     return 'Open the cover letter or proposal box on this page, then tap Auto-Fill again.';
@@ -453,13 +457,15 @@ function publicError(raw) {
   if (/failed to fetch|networkerror|load failed|cors|NetworkError|TypeError: Failed/i.test(text)) {
     return 'Could not reach Sovereign. Check your connection and try again.';
   }
-  if (/401|sign in|unauthorized|jwt|session/i.test(text)) {
-    return 'Sign in on sovereignapp.pro, then open this panel again.';
+  if (/401|sign in|unauthorized|jwt|session expired/i.test(text)) {
+    return 'Session expired, please sign in';
   }
-  if (/Server Error|ECONN|timeout|502|503|504/i.test(text)) {
-    return 'Sovereign is busy right now. Please try again in a moment.';
+  if (/Server Error|ECONN|timeout|502|503|504|Retrying/i.test(text)) {
+    return 'Connection timeout. Retrying.';
   }
-  return 'Something went wrong. Please try again in a few moments.';
+  return text && text.length < 160 && !/https?:|at\s+\w+\s+\(/i.test(text)
+    ? text
+    : 'Could not finish this scan. Try again.';
 }
 
 const statusEl = document.getElementById('status');
@@ -627,7 +633,7 @@ function showError(message) {
     const detail = isExtensionAdmin()
       ? `<br/><span style="opacity:.8">POST ${escapeHtml(parseDomUrl())}</span>`
       : '';
-    errorBadge.innerHTML = `<strong>Couldn’t finish this scan.</strong> ${escapeHtml(text)}${detail}`;
+    errorBadge.innerHTML = `${escapeHtml(text)}${detail}`;
   }
 }
 
@@ -909,7 +915,7 @@ function humanMatchCopy(analysis, title) {
   const gap = gaps[0] || '';
   const role = String(title || 'this brief').replace(/\s+/g, ' ').trim().slice(0, 72);
   const fit = score >= 80 ? 'high overlap' : score >= 60 ? 'solid overlap' : score >= 40 ? 'partial overlap' : 'thin overlap';
-  let line = `${Math.round(score)}% fit — ${fit} on ${overlap}`;
+  let line = `${Math.round(score)}% fit. ${fit} on ${overlap}`;
   if (gap) line += `; the brief also asks for ${gap}`;
   line += `. Acceptance sits around ${Math.round(accept)}% if you lead with a first-week result`;
   if (gap) line += ` and cover ${gap} in one concrete example`;
@@ -1013,7 +1019,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   if (cvJobMeta) {
     cvJobMeta.textContent = lastJob.title
       ? `Tailoring for: ${lastJob.title}`
-      : 'No job detected — open a job posting and scan.';
+      : 'No job detected. Open a job posting and scan.';
   }
   updateMatchUi(data, lastTitle);
 
@@ -1139,7 +1145,7 @@ function renderAnalysisResults(data, pageTitle, pageUrl) {
   const leadStatus = document.getElementById('leadStatus');
   const dispatchStatus = document.getElementById('dispatchStatus');
   if (leadStatus) leadStatus.textContent = 'Lead captured. Copy outreach or open the B2B dashboard.';
-  if (dispatchStatus) dispatchStatus.textContent = lastProposal ? 'Team pitch ready. Copy it — Sovereign never auto-submits.' : dispatchStatus.textContent;
+  if (dispatchStatus) dispatchStatus.textContent = lastProposal ? 'Team pitch ready. Copy it. Sovereign never auto-submits.' : dispatchStatus.textContent;
 }
 
 function emptyPageData() {
@@ -1222,6 +1228,31 @@ function flushJobContext() {
   document.getElementById('poachBanner')?.classList.remove('on');
 }
 
+function showJobAutoFillHint(on) {
+  document.getElementById('jobAutoFillHint')?.classList.toggle('hidden', !on);
+}
+
+function isRestrictedTabUrl(href) {
+  return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
+    || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
+}
+
+function isJobBoardUrl(href) {
+  return /upwork\.com|linkedin\.com|fiverr\.com|indeed\.com|glassdoor\.com/i.test(String(href || ''));
+}
+
+function setScanButton(state, title) {
+  const btn = document.getElementById('rescan');
+  if (!btn) return;
+  if (state === 'scanning') btn.textContent = 'Scanning…';
+  else if (state === 'live') {
+    const name = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+    btn.textContent = name ? `Scanned · ${name}` : 'Scanned. Handle below';
+  } else {
+    btn.textContent = 'Scan Active Screen';
+  }
+}
+
 function setTargetBadge(state, title, kind, contentType) {
   const el = document.getElementById('targetBadge');
   const text = document.getElementById('targetBadgeText');
@@ -1229,7 +1260,8 @@ function setTargetBadge(state, title, kind, contentType) {
   el.classList.toggle('live', state === 'live');
   el.classList.toggle('scanning', state === 'scanning');
   if (state === 'idle') {
-    text.textContent = 'Click Scan Active Screen';
+    text.textContent = 'Open a job post, then scan.';
+    setScanButton('idle');
     return;
   }
   if (contentType === 'CANDIDATE_LIST' || kind === 'list') {
@@ -1240,6 +1272,7 @@ function setTargetBadge(state, title, kind, contentType) {
   }
   if (state !== 'live') {
     text.textContent = 'Scanning...';
+    setScanButton('scanning');
     return;
   }
   const noun = kind === 'cv' || contentType === 'PROFILE_CV'
@@ -1248,7 +1281,8 @@ function setTargetBadge(state, title, kind, contentType) {
       ? 'Lead'
       : 'Job';
   const name = String(title || noun).replace(/\s+/g, ' ').trim().slice(0, 72);
-  text.textContent = `🟢 Active Target Identified: ${name}`;
+  text.textContent = `Active target: ${name}`;
+  setScanButton('live', name);
 }
 
 function applyIsolatedJob(pageData) {
@@ -1275,8 +1309,9 @@ function applyIsolatedJob(pageData) {
   if (metaEl) metaEl.textContent = lastJob.url || '';
   paintPoach(lastJob.title, lastJob.description, lastJob.url);
   const instantJob = document.getElementById('instantJob');
-  if (instantJob && lastJob.description && String(instantJob.value || '').trim().length < 20) {
+  if (instantJob && String(lastJob.description || '').trim().length >= 40) {
     instantJob.value = lastJob.description;
+    showJobAutoFillHint(true);
   }
 }
 
@@ -1365,7 +1400,7 @@ function onViewportFocus(raw) {
           : 'This looks like a list. Open one job or profile to score it.';
     }
     setBusy(false, pageData.discardReason === 'no-center-card'
-      ? 'No job card in viewport center — scroll so a job description fills the screen.'
+      ? 'No job card in viewport center. Scroll so a job description fills the screen.'
       : pageData.discardReason === 'chrome'
         ? 'Focus the job description, not the page chrome.'
         : 'Open a single job or profile in the viewport.');
@@ -1479,6 +1514,11 @@ async function postParseDom(pageData, options = {}) {
     throw new Error(data.message || 'guest_limit');
   }
   if (!response.ok) {
+    console.error('[Sovereign] parse-dom HTTP', response.status, data);
+    if (response.status === 401) throw new Error('Session expired, please sign in');
+    if (response.status === 408 || response.status === 429 || response.status >= 500) {
+      throw new Error('Connection timeout. Retrying.');
+    }
     throw new Error(data.message || data.error || `Server returned ${response.status}`);
   }
   return data;
@@ -1692,7 +1732,7 @@ async function rescanActiveScreen() {
     if (thisSeq !== scanSeq) return;
 
     if (!pageData) {
-      setBusy(false, 'Could not read the active tab. Open a job post, then click Scan again.');
+      setBusy(false, 'Open a job post on LinkedIn, Upwork, or any webpage to scan.');
       analyzing = false;
       return;
     }
@@ -1706,7 +1746,7 @@ async function rescanActiveScreen() {
         : pageData.discardReason === 'no-center-card'
         ? 'Scroll a job card to the center of the screen, then click Scan again.'
         : pageData.discardReason === 'chrome'
-          ? 'Focus the job description — the translate widget or nav was ignored.'
+          ? 'Focus the job description. The translate widget or nav was ignored.'
           : 'This looks like a list. Open one job to score it.';
       setBusy(false, discardMsg);
       if (proposalEl) proposalEl.textContent = discardMsg;
@@ -1734,6 +1774,11 @@ async function rescanActiveScreen() {
     };
     lastTargetHash = pageData.hash || '';
     setTargetBadge('live', lastJob.title, lastJob.kind);
+    const instantJob = document.getElementById('instantJob');
+    if (instantJob && lastJob.description) {
+      instantJob.value = lastJob.description;
+      showJobAutoFillHint(true);
+    }
     const cvJobMeta = document.getElementById('cvJobMeta');
     if (cvJobMeta) cvJobMeta.textContent = lastJob.kind === 'cv'
       ? (lastJob.title ? `Profile on screen: ${lastJob.title}` : 'Profile isolated.')
@@ -1795,15 +1840,15 @@ async function rescanActiveScreen() {
     if (badge) badge.textContent = String(score);
     scoreRing?.style.setProperty('--p', String(score));
     setBusy(false, pageData.isolated
-      ? `Scoring "${String(lastJob.title || 'this job').slice(0, 52)}" — the pane on screen.`
-      : 'Scanned. Open the job detail pane and Re-Scan for a tighter read.');
+      ? `Scoring "${String(lastJob.title || 'this job').slice(0, 52)}". Ready to handle.`
+      : 'Scanned. Open the job detail pane and scan again for a tighter read.');
   } catch (err) {
     if (thisSeq !== scanSeq) return;
     const msg = err?.message || String(err);
     if (/timeout/i.test(msg)) {
-      setBusy(false, 'Scan timed out — open the job post and click Scan again.');
+      setBusy(false, 'Connection timeout. Retrying.');
     } else if (/Failed to fetch|NetworkError|redirect|CORS|preflight|OPENAI|Vercel|API_KEY/i.test(msg)) {
-      showError('Service temporarily busy — try again in a moment.');
+      showError('Connection timeout. Retrying.');
     } else if (/permission to access the respective host/i.test(msg)) {
       showError('Reload the extension, then scan again.');
     } else {
@@ -1856,6 +1901,9 @@ function applyWorkspaceUi() {
   });
   document.getElementById('navB2c')?.classList.toggle('hidden', mode !== 'b2c');
   document.getElementById('navB2b')?.classList.toggle('hidden', mode !== 'b2b');
+  document.getElementById('headerUpload')?.classList.toggle('hidden', mode !== 'b2b');
+  const scanRow = document.querySelector('.scan-actions');
+  if (scanRow) scanRow.style.gridTemplateColumns = mode === 'b2b' ? '1fr 1fr' : '1fr';
   try { applyCreditBadge(); } catch (err) { console.error('[sovereign] credit badge', err); }
   const current = document.querySelector('.tab-view.on')?.id?.replace('tab-', '');
   const allowed = mode === 'b2b'
@@ -2090,7 +2138,7 @@ analyzeBtn?.addEventListener('click', () => {
 copyBtn?.addEventListener('click', async () => {
   if (!lastProposal) return;
   await copyText(lastProposal);
-  setBusy(false, 'Proposal copied. Paste it yourself on the original job post — Sovereign never auto-submits.');
+  setBusy(false, 'Proposal copied. Paste it yourself on the original job post. Sovereign never auto-submits.');
 });
 
 function injectProposalPayload() {
@@ -2113,14 +2161,14 @@ async function deployProposalToPage(statusReady) {
       setBusy(false, 'Open the cover letter box on this page, then tap Deploy again. Sovereign never auto-submits.');
       return;
     }
-    setBusy(false, statusReady || 'Proposal successfully deployed as professional entity. Review and send on the platform — Sovereign never auto-submits.');
+    setBusy(false, statusReady || 'Proposal inserted. Review and send on the platform. Sovereign never auto-submits.');
   } catch (err) {
     setBusy(false, publicError(err.message || String(err)));
   }
 }
 
 autofillBtn?.addEventListener('click', () => {
-  void deployProposalToPage('Proposal inserted. Review it, then submit yourself — Sovereign never auto-sends.');
+  void deployProposalToPage('Proposal inserted. Review it, then submit yourself. Sovereign never auto-sends.');
 });
 deployBtn?.addEventListener('click', () => {
   void deployProposalToPage();
@@ -2532,7 +2580,7 @@ async function generateTailoredCv() {
       score: Number(merged?.match_score ?? merged?.matchScore ?? lastScore ?? 0),
       at: Date.now(),
     });
-    setCvBusy(false, 'CV ready. Copy or download — Sovereign never auto-submits.');
+    setCvBusy(false, 'CV ready. Copy or download. Sovereign never auto-submits.');
     void noteAiSuccess();
     void recordGuestUse(data?.guestToken);
   } catch (err) {
@@ -2845,6 +2893,69 @@ function sanitizeUploadText(text) {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
     .slice(0, 12000);
+}
+
+async function persistDefaultCv(text, name) {
+  const clean = String(text || '').trim();
+  if (clean.length < 20) return;
+  await storageSet(STORE.DEFAULT_CV, {
+    text: clean.slice(0, 12000),
+    name: String(name || 'Default profile'),
+    at: Date.now(),
+  });
+}
+
+async function loadDefaultCv() {
+  const saved = await storageGet(STORE.DEFAULT_CV, null);
+  const text = String(saved?.text || '').trim();
+  const field = document.getElementById('instantCv');
+  const toggle = document.getElementById('saveDefaultCv');
+  if (toggle) toggle.checked = text.length >= 20;
+  if (field && text.length >= 20 && String(field.value || '').trim().length < 20) {
+    field.value = text;
+  }
+}
+
+async function autoFillFromActiveTab() {
+  try {
+    const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    let tab = focused?.[0];
+    if (!tab?.id) {
+      const current = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = current?.[0];
+    }
+    const url = String(tab?.url || '');
+    if (isRestrictedTabUrl(url)) {
+      setScanButton('idle');
+      setBusy(false, 'Open a job post on LinkedIn, Upwork, or any webpage to scan.');
+      return;
+    }
+    if (!tab?.id) return;
+    const scraped = await chrome.runtime.sendMessage({ type: 'SCRAPE_ACTIVE_TAB' }).catch((err) => {
+      console.error('[Sovereign] auto-fill scrape', err?.message || err);
+      return null;
+    });
+    if (scraped?.error) {
+      console.error('[Sovereign] auto-fill scrape', scraped.error);
+      if (/Open a job post on LinkedIn/i.test(String(scraped.error))) {
+        setBusy(false, scraped.error);
+      }
+      return;
+    }
+    const data = scraped?.success ? normalizePageData(scraped.data) : null;
+    const text = String(data?.jobDescription || data?.pageText || '').trim();
+    if (!data || data.discarded || text.length < 40) {
+      if (isJobBoardUrl(url)) setBusy(false, 'Open a job post on LinkedIn, Upwork, or any webpage to scan.');
+      return;
+    }
+    applyIsolatedJob(data);
+    setTargetBadge('live', lastJob.title, lastJob.kind, lastJob.contentType);
+    showJobAutoFillHint(true);
+    const status = document.getElementById('instantStatus');
+    if (status) status.textContent = 'Job loaded from this tab. Click Handle with Sovereign.';
+  } catch (err) {
+    console.error('[Sovereign] auto-fill', err?.message || err);
+  }
 }
 
 async function extractDroppedFile(file) {
@@ -3243,7 +3354,7 @@ async function runInstant(source) {
   paintInstant(scores.match, scores.cv, preview, 'Scores are ready. Preview draft is on screen.', scores.breakdown);
   if (source === 'demo') return;
   if (!assertGenerationAllowed()) return;
-  if (statusEl) statusEl.textContent = 'Scores are ready. Writing the AI proposal…';
+  if (statusEl) statusEl.textContent = 'Scores are ready. Writing your proposal…';
   try {
     const pageData = {
       pageText: job || cv,
@@ -3259,7 +3370,7 @@ async function runInstant(source) {
       'The proposal took too long. The scores above are still saved on screen.',
     );
     const proposal = String(data?.proposalText || data?.summary || preview).trim();
-    paintInstant(scores.match, scores.cv, proposal || preview, 'AI proposal ready.', scores.breakdown);
+    paintInstant(scores.match, scores.cv, proposal || preview, 'Proposal ready.', scores.breakdown);
     void noteAiSuccess();
     void recordGuestUse(data?.guestToken);
   } catch (err) {
@@ -3269,7 +3380,7 @@ async function runInstant(source) {
       if (statusEl) statusEl.textContent = 'Sign in to keep generating.';
       return;
     }
-    if (statusEl) statusEl.textContent = 'Scores stayed on screen. The AI proposal did not finish. Try again.';
+    if (statusEl) statusEl.textContent = 'Scores stayed on screen. The proposal did not finish. Try again.';
   }
 }
 
@@ -3340,7 +3451,13 @@ async function fillInstantFromFile(file, targetId) {
       : detectUploadKind(file.name, text);
     const target = document.getElementById(targetId || (kind === 'candidate' ? 'instantCv' : 'instantJob'));
     if (target) target.value = text;
-    await runInstant('file');
+    if (targetId === 'instantCv' || kind === 'candidate') {
+      if (statusEl) statusEl.textContent = 'Resume loaded. Click Handle with Sovereign.';
+      const save = document.getElementById('saveDefaultCv');
+      if (save?.checked) await persistDefaultCv(text, file.name);
+    } else if (statusEl) {
+      statusEl.textContent = 'Brief loaded. Click Handle with Sovereign.';
+    }
   } catch (err) {
     console.error('[sovereign] instant file', err);
     if (statusEl) statusEl.textContent = fileAnalysisError(err);
@@ -3383,6 +3500,20 @@ function bindInstant() {
   bindFileDrop(document.getElementById('cvDrop'), document.getElementById('cvFile'), 'instantCv');
   document.getElementById('instantPick')?.addEventListener('click', () => {
     document.getElementById('instantFile')?.click();
+  });
+  document.getElementById('cvImportBtn')?.addEventListener('click', () => {
+    document.getElementById('cvFile')?.click();
+  });
+  document.getElementById('saveDefaultCv')?.addEventListener('change', async (event) => {
+    const on = Boolean(event.target?.checked);
+    const text = document.getElementById('instantCv')?.value || '';
+    if (on) await persistDefaultCv(text, 'Default profile');
+    else await storageSet(STORE.DEFAULT_CV, null);
+  });
+  document.getElementById('instantCv')?.addEventListener('blur', () => {
+    const toggle = document.getElementById('saveDefaultCv');
+    if (!toggle?.checked) return;
+    void persistDefaultCv(document.getElementById('instantCv')?.value || '', 'Default profile');
   });
   document.getElementById('instantFile')?.addEventListener('change', (event) => {
     const file = event.target.files?.[0];
@@ -3891,8 +4022,8 @@ function guideCopy() {
   const banner = document.getElementById('guideBannerCopy');
   if (banner) {
     banner.textContent = b2b
-      ? 'Candidate, Proposal, Leads, Dispatch, Team, Settings — tap to see what each action does.'
-      : 'Instant, Proposal, CV, Match, Settings — tap to see what each action does.';
+      ? 'Candidate, Proposal, Leads, Dispatch, Team, Settings. Tap to see what each action does.'
+      : 'Instant, Proposal, CV, Match, Settings. Tap to see what each action does.';
   }
   const title = document.getElementById('guideTitle');
   if (title) title.textContent = b2b ? 'Agency workspace guide' : 'How this extension works';
@@ -3907,7 +4038,7 @@ function guideCopy() {
     ['Settings', 'Profile, language, theme, and API connection for this Chrome profile.'],
   ] : [
     ['Instant', 'Paste or drop a job post for an immediate fit score, poach alert, and resume armor preview.'],
-    ['Proposal', 'Generate a tailored cover letter from the scanned job. Copy or Auto-Fill — Sovereign never submits.'],
+    ['Proposal', 'Generate a tailored cover letter from the scanned job. Copy or Auto-Fill. Sovereign never submits.'],
     ['CV', 'Build a tailored CV for the active job, then copy or download the PDF.'],
     ['Match', 'See strengths and skill gaps versus the job currently on screen.'],
     ['Settings', 'Skills, rates, language, theme, and connection status for this Chrome profile.'],
@@ -3922,7 +4053,7 @@ function guideCopy() {
     ['Scan Active Screen', 'Reads the job currently visible in the tab. Use this before generating a proposal or CV.'],
     ['Upload', 'Drop a job description or resume into Instant to score without scraping the page.'],
     ['Generate Proposal', 'Writes a cover letter from the scanned job and your settings.'],
-    ['Auto-Fill / Deploy', 'Inserts text into the page editor. You review and send — Sovereign never auto-submits.'],
+    ['Auto-Fill / Deploy', 'Inserts text into the page editor. You review and send. Sovereign never auto-submits.'],
     ['Generate Tailored CV', 'Builds a CV matched to the open job.'],
   ];
   body.innerHTML = [
@@ -4034,12 +4165,14 @@ async function boot() {
     const guest = await guestState();
     settings._guestUsed = guest.used;
     applyCreditBadge();
+    await loadDefaultCv();
     renderProposalList(await storageGet(STORE.PROPOSALS, []));
     renderCvList(await storageGet(STORE.CVS, []));
     void renderSettingsHistory();
     renderTeamLeads(await storageGet(STORE.LEADS, []));
     await resolveWorkspaceAccess();
     setTargetBadge('idle');
+    void autoFillFromActiveTab();
   } catch (err) {
     showError(err?.message || 'Could not load local settings.');
   }

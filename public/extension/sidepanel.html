@@ -685,7 +685,7 @@
       .cv-preview .name { color: #fff; font-size: 16px; font-weight: 800; margin: 0 0 8px; letter-spacing: .04em; }
       .scan-actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 8px;
         width: 100%;
       }
@@ -1116,7 +1116,7 @@
       </div>
       <div class="scan-actions">
         <button id="rescan" class="rescan" type="button">Scan Active Screen</button>
-        <button id="headerUpload" class="upload-btn" type="button">Upload</button>
+        <button id="headerUpload" class="upload-btn hidden" type="button">Upload</button>
       </div>
       <button class="guide-banner" id="guideBanner" type="button" hidden>
         <span>
@@ -1127,7 +1127,7 @@
     </header>
     <div id="targetBadge" class="target-badge" role="status">
       <span class="dot" aria-hidden="true"></span>
-      <span id="targetBadgeText">Click Scan Active Screen</span>
+      <span id="targetBadgeText">Open a job post, then scan.</span>
     </div>
     <div class="channels" aria-label="Connect a job board">
       <button type="button" data-channel="linkedin" data-open="https://www.linkedin.com/jobs/">LinkedIn <span data-live>Connect</span></button>
