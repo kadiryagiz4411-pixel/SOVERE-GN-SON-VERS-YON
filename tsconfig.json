@@ -24,6 +24,6 @@
     "noUnusedParameters": false,
     "strictNullChecks": false
   },
-  "include": ["src", "api"],
+  "include": ["src", "api", "server"],
   "exclude": ["node_modules", "dist", "api/**/route.ts"]
 }
