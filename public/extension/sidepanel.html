@@ -18,16 +18,19 @@
       }
       * { box-sizing: border-box; }
       html, body {
-        min-width: 400px;
         width: 100%;
+        max-width: 400px;
         height: 100%;
         max-height: 650px;
+        overflow-x: hidden;
+        box-sizing: border-box;
       }
       body {
         margin: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        overflow-x: hidden;
         font-family: "Plus Jakarta Sans", Inter, "Segoe UI", system-ui, sans-serif;
         font-size: 16px;
         line-height: 1.65;
@@ -54,13 +57,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
+        min-width: 0;
+        overflow: hidden;
       }
       .header-meta {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         flex-shrink: 0;
+        max-width: 42%;
       }
       .brand {
         display: flex;
@@ -456,12 +462,18 @@
       }
       .choice small { display: block; color: var(--muted); font-weight: 500; margin-top: 4px; }
       .nav {
-        display: flex;
-        overflow-x: auto;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        overflow-x: hidden;
         gap: 0;
         border-bottom: 1px solid var(--line);
         background: #09090B;
         flex-shrink: 0;
+        width: 100%;
+        max-width: 400px;
+      }
+      #navB2b {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
       }
       body[data-theme="oled"] .nav { background: #000; }
       .nav button {
@@ -472,12 +484,15 @@
         font-size: 11px;
         transition: color 180ms ease, border-color 180ms ease;
         letter-spacing: 0;
-        padding: 10px 6px 12px;
+        padding: 8px 2px 10px;
         border-bottom: 2px solid transparent;
         min-width: 0;
-        overflow: visible;
+        overflow: hidden;
         white-space: nowrap;
+        text-overflow: ellipsis;
       }
+      .nav button[data-tab="settings"] span { font-size: 14px; margin: 0; }
+      #navB2b button { font-size: 10px; padding: 8px 1px 10px; }
       .instant-box, .share-card, .score-pair div, .list-item {
         border: 1px solid var(--line);
         border-radius: 14px;
@@ -494,6 +509,44 @@
         color: var(--gold-2);
       }
       .instant-box label:first-of-type { margin-top: 0; }
+      .box-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 10px;
+        min-width: 0;
+      }
+      .box-head:first-of-type { margin-top: 0; }
+      .box-head label { margin: 0; }
+      .mini {
+        flex-shrink: 0;
+        padding: 5px 8px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        background: transparent;
+        color: var(--gold-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        white-space: nowrap;
+      }
+      .auto-hint {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--ok);
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .toggle-row input { width: 14px; height: 14px; accent-color: var(--gold); }
       .instant-box textarea {
         min-height: 96px;
         resize: vertical;
@@ -703,17 +756,19 @@
         border: 1px solid rgba(245, 158, 11, 0.4);
       }
       .target-badge {
-        display: flex;
+        display: none;
         align-items: center;
         gap: 8px;
         padding: 8px 16px;
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.35;
         overflow-wrap: anywhere;
         color: #fde68a;
         background: rgba(120, 53, 15, 0.35);
         border-bottom: 1px solid var(--line);
       }
+      .target-badge.live,
+      .target-badge.scanning { display: flex; }
       .target-badge.live {
         color: #bbf7d0;
         background: rgba(6, 78, 59, 0.35);
@@ -733,15 +788,19 @@
       .target-badge strong { font-weight: 700; }
       .nav.hidden { display: none !important; }
       .credit-badge {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 800;
-        letter-spacing: .04em;
-        border-radius: 8px;
-        padding: 5px 8px;
+        letter-spacing: .02em;
+        border-radius: 999px;
+        padding: 4px 10px;
         border: 1px solid var(--line);
         color: var(--ok);
         background: rgba(6, 78, 59, 0.4);
         white-space: nowrap;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
       }
       .credit-badge.empty { color: var(--danger); border-color: rgba(239, 68, 68, 0.4); background: rgba(127, 29, 29, 0.35); }
       .credit-badge.pro { color: var(--gold-2); border-color: rgba(212, 175, 55, 0.45); background: rgba(61, 48, 10, 0.55); }
@@ -836,20 +895,28 @@
       }
       .panel-footer {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px 16px;
+        flex-wrap: nowrap;
+        gap: 8px;
         align-items: center;
-        padding: 14px 20px 18px;
+        justify-content: center;
+        padding: 10px 12px 12px;
         border-top: 1px solid rgba(212, 175, 55, 0.2);
         background: rgba(20, 20, 22, 0.7);
         flex-shrink: 0;
+        width: 100%;
+        max-width: 400px;
+        overflow: hidden;
+        white-space: nowrap;
       }
       .panel-footer a {
         color: #E6C657;
-        font-size: 13px;
+        font-size: 11px;
         line-height: 1.4;
         text-decoration: none;
+        letter-spacing: .04em;
+        text-transform: uppercase;
       }
+      .panel-footer .sep { color: #52525b; font-size: 11px; }
       .panel-footer a:hover { text-decoration: underline; }
       .guide-chip {
         flex-shrink: 0;
@@ -1054,7 +1121,7 @@
       <button class="guide-banner" id="guideBanner" type="button" hidden>
         <span>
           <strong>Quick Guide</strong>
-          <span id="guideBannerCopy">Instant, Proposal, CV, Match, Settings — tap to see what each action does.</span>
+          <span id="guideBannerCopy">Instant, Proposal, CV, Match, Settings. Tap to see what each action does.</span>
         </span>
       </button>
     </header>
@@ -1069,12 +1136,12 @@
       <button type="button" data-channel="glassdoor" data-open="https://www.glassdoor.com/Job/index.htm">Glassdoor <span data-live>Connect</span></button>
     </div>
     <div id="creditResetBanner" class="credit-reset" role="status">
-      Monthly AppSumo credits reached. Credits refresh next month — your workspace stays open.
+      Monthly AppSumo credits reached. Credits refresh next month. Your workspace stays open.
     </div>
     <div id="guestGate" class="paywall" role="dialog" aria-modal="true">
       <div class="paywall-card">
         <h2>Sovereign Gate</h2>
-        <p>You used your 2 free generations. Sign in to keep going — your draft stays on this device.</p>
+        <p>You used your 2 free generations. Sign in to keep going. Your draft stays on this device.</p>
         <a id="guestGoogle" href="https://sovereignapp.pro/auth?provider=google" target="_blank" rel="noopener noreferrer">Continue with Google</a>
         <a id="guestLinkedin" href="https://sovereignapp.pro/auth?provider=linkedin" target="_blank" rel="noopener noreferrer">Continue with LinkedIn</a>
         <button id="guestGateDismiss" type="button">Keep reading this draft</button>
@@ -1093,7 +1160,7 @@
       <button type="button" data-tab="proposal"><span>✎</span>Proposal</button>
       <button type="button" data-tab="cv"><span>📄</span>CV</button>
       <button type="button" data-tab="match"><span>◎</span>Match</button>
-      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
+      <button type="button" data-tab="settings" title="Settings" aria-label="Settings"><span>⚙️</span></button>
     </nav>
     <nav class="nav hidden" id="navB2b">
       <button type="button" data-tab="candidate" class="on"><span>◎</span>Candidate</button>
@@ -1101,36 +1168,43 @@
       <button type="button" data-tab="lead"><span>◎</span>Leads</button>
       <button type="button" data-tab="dispatch"><span>⚡</span>Dispatch</button>
       <button type="button" data-tab="team"><span>🏢</span>Team</button>
-      <button type="button" data-tab="settings"><span>⚙️</span>Settings</button>
+      <button type="button" data-tab="settings" title="Settings" aria-label="Settings"><span>⚙️</span></button>
     </nav>
     <div id="matchBanner" class="match-banner">
       <strong id="matchBannerScore">—</strong>
       <span id="matchBannerLabel">Analyze the open job to score fit.</span>
     </div>
     <div id="poachBanner" class="poach-banner" role="status">
-      <p>Instant Poach — this client is actively hiring on the open page.</p>
+      <p>Instant Poach. This client is hiring on the open page.</p>
       <small id="poachMeta"></small>
       <button id="poachDeploy" class="primary" type="button">Deploy custom proposal</button>
     </div>
     <main>
       <section id="tab-instant" class="tab-view on">
         <div class="instant-box">
-          <label for="instantJob">Job or brief</label>
+          <div class="box-head">
+            <label for="instantJob">Job or brief</label>
+          </div>
+          <p id="jobAutoFillHint" class="auto-hint hidden">Auto-filled from active tab</p>
           <div id="jobDrop" class="input-shell" tabindex="0" role="group" aria-label="Job brief">
-            <textarea id="instantJob" placeholder="Paste or drop the job brief"></textarea>
+            <textarea id="instantJob" placeholder="Opens from the job tab. Or drop a brief."></textarea>
           </div>
-          <label for="instantCv">Resume</label>
+          <div class="box-head">
+            <label for="instantCv">Resume</label>
+            <button id="cvImportBtn" class="mini" type="button">Import PDF / DOCX</button>
+          </div>
           <div id="cvDrop" class="input-shell" tabindex="0" role="group" aria-label="Resume">
-            <textarea id="instantCv" placeholder="Paste or drop the resume"></textarea>
+            <textarea id="instantCv" placeholder="Import once. We keep it as your default."></textarea>
           </div>
+          <label class="toggle-row" for="saveDefaultCv">
+            <input id="saveDefaultCv" type="checkbox" />
+            Save as Default Profile
+          </label>
           <input id="instantFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
           <input id="jobFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
           <input id="cvFile" type="file" accept=".pdf,.docx,.txt,.html,.htm,text/plain,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
-          <div class="row single" style="margin-top:8px">
+          <div class="row single" style="margin-top:10px">
             <button id="instantRun" class="primary" type="button">Handle with Sovereign</button>
-          </div>
-          <div class="row" style="margin-top:8px">
-            <button id="instantPick" class="ghost" type="button">Upload file</button>
           </div>
         </div>
         <div class="score-pair" aria-live="polite">
@@ -1426,12 +1500,10 @@
     </main>
     <footer class="panel-footer">
       <a href="https://sovereignapp.pro/dashboard" target="_blank" rel="noopener noreferrer">Dashboard</a>
+      <span class="sep" aria-hidden="true">·</span>
       <a href="https://sovereignapp.pro/pricing" target="_blank" rel="noopener noreferrer">Pricing</a>
-      <a href="https://sovereignapp.pro/proposals" target="_blank" rel="noopener noreferrer">Proposals</a>
-      <a href="https://sovereignapp.pro/cv-builder" target="_blank" rel="noopener noreferrer">CVs</a>
-      <a href="https://sovereignapp.pro/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
-      <a href="https://sovereignapp.pro/terms" target="_blank" rel="noopener noreferrer">Terms</a>
-      <a href="https://sovereignapp.pro/refund" target="_blank" rel="noopener noreferrer">Refunds</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="https://sovereignapp.pro/terms" target="_blank" rel="noopener noreferrer">Legal</a>
     </footer>
     <div id="b2bBackdrop" class="drawer-backdrop"></div>
     <aside id="b2bDrawer" class="b2b-drawer" aria-hidden="true">

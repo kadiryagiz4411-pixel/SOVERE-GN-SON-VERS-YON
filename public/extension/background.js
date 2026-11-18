@@ -587,13 +587,75 @@ async function postJson(path, payload) {
     err.code = 'guest_limit';
     throw err;
   }
-  if (!res.ok) throw new Error(data.message || data.error || `Server Error ${res.status}`);
+  if (!res.ok) {
+    console.error('[Sovereign] API', path, 'HTTP', res.status, data);
+    if (res.status === 401) throw new Error('Session expired, please sign in');
+    if (res.status === 408 || res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new Error('Connection timeout. Retrying.');
+    }
+    throw new Error(data.message || data.error || `Server Error ${res.status}`);
+  }
   return data;
 }
 
 function isRestrictedUrl(href) {
   return /^(chrome|edge|about|chrome-extension|moz-extension|devtools):/i.test(String(href || ''))
     || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/i.test(String(href || ''));
+}
+
+const RESTRICTED_SCAN_MESSAGE = 'Open a job post on LinkedIn, Upwork, or any webpage to scan.';
+
+/** Self-contained page scrape for executeScript. Do not call scraper helpers from here. */
+function extractPageFallback() {
+  const MAX = 12000;
+  const kill = 'nav, footer, header, aside, script, style, noscript, iframe, [role="navigation"], [role="banner"], [role="contentinfo"]';
+  try {
+    const root = document.body;
+    if (!root) {
+      return { pageText: '', pageTitle: String(document.title || ''), pageUrl: String(location.href || ''), discarded: true, discardReason: 'empty' };
+    }
+    const clone = root.cloneNode(true);
+    clone.querySelectorAll(kill).forEach((node) => node.remove());
+    const text = String(clone.innerText || root.innerText || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim()
+      .slice(0, MAX);
+    const title = String(document.title || '').trim();
+    const href = String(location.href || '');
+    const host = String(location.hostname || '').replace(/^www\./, '');
+    const hash = `${href}|${text.length}|${title}`.slice(0, 180);
+    return {
+      pageText: text,
+      pageTitle: title,
+      pageUrl: href,
+      jobTitle: title,
+      jobDescription: text,
+      requiredSkills: [],
+      budget: '',
+      clientHistory: '',
+      structuredJob: { title, description: text, skills: [], budget: '', clientInfo: '' },
+      isolated: false,
+      host,
+      kind: 'job',
+      contentType: 'JOB_POST',
+      discarded: text.length < 20,
+      discardReason: text.length < 20 ? 'empty' : '',
+      hash,
+      signature: hash,
+    };
+  } catch (err) {
+    return {
+      pageText: '',
+      pageTitle: String(document.title || ''),
+      pageUrl: String(location.href || ''),
+      discarded: true,
+      discardReason: 'host-error',
+      error: String(err && err.message ? err.message : err),
+    };
+  }
 }
 
 async function scrapeActiveTab(messageType = 'SCRAPE_PAGE') {
@@ -610,35 +672,43 @@ async function scrapeActiveTab(messageType = 'SCRAPE_PAGE') {
   }
   if (!tab?.id) throw new Error('No active browser tab found.');
   if (isRestrictedUrl(tab.url)) {
-    throw new Error('Open a job board or public web page, then click Analyze. Chrome system pages cannot be read.');
+    throw new Error(RESTRICTED_SCAN_MESSAGE);
   }
 
   try {
-    // Wrap sendMessage in a 6-second timeout — the content script could be
-    // unresponsive during Nuxt hydration or when the tab is still loading.
     const viaContent = await withTimeout(
       chrome.tabs.sendMessage(tab.id, { type: messageType || 'SCRAPE_PAGE' }).catch(() => null),
       6000,
       'content script scrape',
     ).catch(() => null);
-    if (viaContent?.success && viaContent.data?.pageText) return viaContent.data;
-  } catch {
-    // Content script may not be loaded yet or timed out — fall through to executeScript.
+    const text = String(viaContent?.data?.pageText || viaContent?.data?.jobDescription || '').trim();
+    if (viaContent?.success && text.length >= 20) return viaContent.data;
+  } catch (err) {
+    console.error('[Sovereign] content scrape', err?.message || err);
   }
 
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: extractActiveJob,
+      func: extractPageFallback,
     });
-    if (!results?.[0]?.result) throw new Error('Failed to extract page content.');
-    return results[0].result;
+    const data = results?.[0]?.result;
+    const text = String(data?.pageText || data?.jobDescription || '').trim();
+    if (data && text.length >= 20) return data;
+    throw new Error(RESTRICTED_SCAN_MESSAGE);
   } catch (err) {
     const msg = err?.message || String(err);
-    if (/permission to access the respective host/i.test(msg)) {
-      throw new Error('Reload this unpacked extension so host permissions take effect, then click Analyze again.');
+    console.error('[Sovereign] executeScript', msg);
+    if (isRestrictedUrl(tab.url) || /Cannot access|chrome:\/\/|The extensions gallery|Cannot access contents of url/i.test(msg)) {
+      throw new Error(RESTRICTED_SCAN_MESSAGE);
     }
-    throw err;
+    if (/permission to access the respective host/i.test(msg)) {
+      throw new Error('Reload this unpacked extension so host permissions take effect, then scan again.');
+    }
+    if (/timed out/i.test(msg)) {
+      throw new Error('Connection timeout. Retrying.');
+    }
+    throw new Error(msg);
   }
 }
 
