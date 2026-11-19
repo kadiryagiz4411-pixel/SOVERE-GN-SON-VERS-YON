@@ -10,6 +10,7 @@ import {
   stashGuestDraft,
   type GuestActionKind,
 } from '@/lib/guestMode';
+import { formatUsd, SINGLE_PASS_USD } from '@/config/money';
 
 interface SovereignGateModalProps {
   jobDescription?: string;
@@ -63,7 +64,7 @@ export function SovereignGateModal({
         </div>
         <h2 id="sovereign-gate-title" className="text-2xl font-bold text-slate-50">
           {paidAsGuest
-            ? 'Sign in to activate your $1.99 pass'
+            ? `Sign in to activate your ${formatUsd(SINGLE_PASS_USD)} pass`
             : `You just used your ${GUEST_ACTION_LIMIT} free generations`}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-400">

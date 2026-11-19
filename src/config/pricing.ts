@@ -16,7 +16,16 @@
 
 import { createCheckout, type CheckoutPlanId } from "./plans";
 import { LS_CHECKOUT_URLS, getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
+import {
+  ANNUAL_DISCOUNT_PERCENT,
+  PLAN_PRICES_CENTS,
+  PLAN_PRICES_USD,
+  SINGLE_PASS_USD,
+  annualPerMonthUsd,
+  formatUsd as formatUsdFromMoney,
+} from "./money";
 export { APPSUMO_LTD_TIERS, APPSUMO_MONTHLY_CREDITS } from "./appsumo";
+export { ANNUAL_DISCOUNT_PERCENT, PLAN_PRICES_USD, SINGLE_PASS_USD, formatUsdFromMoney as formatMoney };
 
 // ─── URL helper (safe env read) ───────────────────────────────────────────────
 
@@ -61,40 +70,40 @@ export interface PricingTier {
 // ─── PRICING_TIERS — canonical array ─────────────────────────────────────────
 
 export const PRICING_TIERS: PricingTier[] = [
-  // ── 0. Single Pass (one-time) ─────────────────────────────────────────────
   {
     id: "single_pass",
     name: "Single Pass",
     description: "Try once, get hired. One tailored application, no subscription.",
-    priceMonthly: 1.99,
-    priceAnnual: 1.99,
-    annualTotal: 1.99,
+    priceMonthly: PLAN_PRICES_USD.single_pass.oneTime,
+    priceAnnual: PLAN_PRICES_USD.single_pass.oneTime,
+    annualTotal: PLAN_PRICES_USD.single_pass.oneTime,
     discountPercentage: 0,
     isOneTime: true,
     features: [
-      "1-Time Full Tailored CV Optimization",
-      "1-Time Job Match & ATS Score Report",
-      "Instant PDF Export",
+      "One tailored resume optimization",
+      "One job match and compatibility report",
+      "Instant PDF export",
     ],
     checkoutUrls: {
       oneTime: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL", LS_CHECKOUT_URLS.single_pass.oneTime),
     },
   },
 
-  // ── 1. Standard ───────────────────────────────────────────────────────────
   {
     id: "standard",
     name: "Standard",
-    description: "B2C Starter. Essential tailoring for active job seekers.",
-    priceMonthly: 8.99,
-    priceAnnual: 8.99,
-    annualTotal: 107.99,
-    discountPercentage: 25,
+    description: "Essential tailoring for active job seekers.",
+    priceMonthly: PLAN_PRICES_USD.standard.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.standard.annual),
+    annualTotal: PLAN_PRICES_USD.standard.annual,
+    discountPercentage: ANNUAL_DISCOUNT_PERCENT,
     features: [
-      "Up to 15 Tailored CV Optimizations per month",
-      "Up to 10 Custom Cover Letters per month",
-      "Standard Resume Templates",
-      "Basic ATS Match Analysis",
+      "Specific number of smart resume optimizations per month",
+      "Automated cover letter generation support",
+      "Access to standard resume templates",
+      "Basic system compatibility matching analysis",
+      "Unused credits rollover to the next month",
+      "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL", LS_CHECKOUT_URLS.standard.monthly),
@@ -102,23 +111,25 @@ export const PRICING_TIERS: PricingTier[] = [
     },
   },
 
-  // ── 2. Pro (Most Popular) ─────────────────────────────────────────────────
   {
     id: "pro",
     name: "Pro",
-    description: "Power Job Seeker. Comprehensive toolkit for interview callbacks.",
-    priceMonthly: 16.99,
-    priceAnnual: 16.50,
-    annualTotal: 197.99,
-    discountPercentage: 25,
+    description: "Full toolkit for interview callbacks.",
+    priceMonthly: PLAN_PRICES_USD.pro.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.pro.annual),
+    annualTotal: PLAN_PRICES_USD.pro.annual,
+    discountPercentage: ANNUAL_DISCOUNT_PERCENT,
     badge: "Most Popular",
     isPopular: true,
     features: [
-      "Includes ALL Standard Plan capabilities",
-      "UNLIMITED Tailored CV Optimizations",
-      "UNLIMITED Custom Cover Letters",
-      "Full Access to Premium Templates",
-      "Multi-Language Support (EN, DE, TR, ES, FR)",
+      "Includes all features from the Standard plan",
+      "Basic system compatibility matching analysis",
+      "Unlimited smart resume optimizations",
+      "Unlimited automated cover letters",
+      "Full access to premium resume templates",
+      "Multi language support (English, German, Turkish, Spanish, French)",
+      "Unused credits rollover to the next month",
+      "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_PRO_MONTHLY_URL", LS_CHECKOUT_URLS.pro.monthly),
@@ -126,23 +137,29 @@ export const PRICING_TIERS: PricingTier[] = [
     },
   },
 
-  // ── 3. Elite ──────────────────────────────────────────────────────────────
   {
     id: "elite",
     name: "Elite",
-    description: "Freelancer / Recruiter. Pitches, interviews, and multi-file ingestion.",
-    priceMonthly: 43.99,
-    priceAnnual: 44.25,
-    annualTotal: 530.99,
-    discountPercentage: 25,
+    description: "Pitches, interviews, and multi file matching.",
+    priceMonthly: PLAN_PRICES_USD.elite.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.elite.annual),
+    annualTotal: PLAN_PRICES_USD.elite.annual,
+    discountPercentage: ANNUAL_DISCOUNT_PERCENT,
     badge: "Strategy Mode",
     features: [
-      "Includes ALL Pro Plan capabilities",
-      "Multi-Job Proposal Engine & Pitch Generator",
-      "Interactive Voice/Text Interview Simulator",
-      "Single-File Multi-CV Evaluator",
-      "Single-File Multi-CV & Multi-Job Ingestion Engine",
-      "Priority High-Speed Execution Queue",
+      "Includes all features from the Pro plan",
+      "Basic system compatibility matching analysis",
+      "Unlimited smart resume optimizations",
+      "Unlimited automated cover letters",
+      "Full access to premium resume templates",
+      "Multi language support (English, German, Turkish, Spanish, French)",
+      "Multi job proposal and cover letter engine",
+      "Interactive interview simulator",
+      "Single file multi resume evaluator",
+      "Single file multi resume and job description matching engine",
+      "Priority high speed execution queue",
+      "Unused credits rollover to the next month",
+      "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL", LS_CHECKOUT_URLS.elite.monthly),
@@ -150,25 +167,35 @@ export const PRICING_TIERS: PricingTier[] = [
     },
   },
 
-  // ── 4. Enterprise B2B ────────────────────────────────────────────────────
   {
     id: "enterprise",
     name: "Enterprise / Agency",
-    description: "B2B Command Center. High-volume talent acquisition for agencies and HR teams.",
-    priceMonthly: 178.99,
-    priceAnnual: 179.25,
-    annualTotal: 2150.99,
-    discountPercentage: 25,
+    description: "High volume hiring for agencies and HR teams.",
+    priceMonthly: PLAN_PRICES_USD.enterprise.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.enterprise.annual),
+    annualTotal: PLAN_PRICES_USD.enterprise.annual,
+    discountPercentage: ANNUAL_DISCOUNT_PERCENT,
     badge: "Enterprise / HR Teams",
     isEnterprise: true,
     features: [
-      "Includes ALL Elite Plan capabilities",
-      "Batch Upload & Rank up to 3,000 CVs/month",
-      "B2B Command Center & Persistent Sovereign Memory Bank",
-      "Live Client Sharing Link",
-      "Live Client Sharing Portal (/share/[id]) with Instant Approvals",
-      "Organization Team Workspace (1 Owner + 5 HR Seats)",
-      "Fraud, Fluff & Contradiction Detector",
+      "Includes all features from the Elite plan",
+      "Basic system compatibility matching analysis",
+      "Unlimited smart resume optimizations",
+      "Unlimited automated cover letters",
+      "Full access to premium resume templates",
+      "Multi language support (English, German, Turkish, Spanish, French)",
+      "Multi job proposal and cover letter engine",
+      "Interactive interview simulator",
+      "Single file multi resume evaluator",
+      "Single file multi resume and job description matching engine",
+      "Priority high speed execution queue",
+      "Capacity to upload and rank up to 3,000 resumes per month",
+      "Corporate command center and persistent memory bank",
+      "Live client sharing link and instant approval portal",
+      "Corporate team workspace (1 manager and 5 human resources seats)",
+      "Fraud, fluff, and contradiction detection system",
+      "Unused credits rollover to the next month",
+      "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
       monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL", LS_CHECKOUT_URLS.enterprise.monthly),
@@ -191,15 +218,15 @@ const FALLBACK_ONE_TIME: PricingTier = {
   id: "single_pass",
   name: "Single Pass",
   description: "Try once, get hired. One tailored application, no subscription.",
-  priceMonthly: 1.99,
-  priceAnnual: 1.99,
-  annualTotal: 1.99,
+  priceMonthly: PLAN_PRICES_USD.single_pass.oneTime,
+  priceAnnual: PLAN_PRICES_USD.single_pass.oneTime,
+  annualTotal: PLAN_PRICES_USD.single_pass.oneTime,
   discountPercentage: 0,
   isOneTime: true,
   features: [
-    "1-Time Full Tailored CV Optimization",
-    "1-Time Job Match & ATS Score Report",
-    "Instant PDF Export",
+    "One tailored resume optimization",
+    "One job match and compatibility report",
+    "Instant PDF export",
   ],
   checkoutUrls: { oneTime: getLemonStoreUrl() },
 };
@@ -257,10 +284,7 @@ export function getCheckoutUrlFor(tier: PricingTier | undefined | null, isAnnual
 }
 
 export function formatUsd(n: number): string {
-  return `$${Number(n || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatUsdFromMoney(n);
 }
 
 /** Hero price: monthly sticker. Annual billing is shown via annualBillString. */
@@ -278,75 +302,21 @@ export function annualBillString(tier: PricingTier | undefined | null): string {
 export function isHighlightedFeature(text: string | undefined | null): boolean {
   if (typeof text !== "string") return false;
   return (
-    text.startsWith("Includes ALL") ||
-    /\bUNLIMITED\b/.test(text) ||
-    /\(ACTIVE\)/i.test(text) ||
-    text.startsWith("Batch Upload") ||
-    text.startsWith("Organization Team") ||
-    text.includes("Live Client Sharing") ||
-    text.includes("Multi-CV Evaluator") ||
-    text.includes("Proposal Engine") ||
-    text.includes("Command Center") ||
-    text.includes("Credits Rollover") ||
-    text.startsWith("Pause Anytime")
+    /^includes all\b/i.test(text) ||
+    /\bunlimited\b/i.test(text) ||
+    /priority high speed/i.test(text) ||
+    /corporate command center/i.test(text) ||
+    /corporate team workspace/i.test(text) ||
+    /live client sharing/i.test(text) ||
+    /3,000 resumes/i.test(text) ||
+    /pause subscription guarantee/i.test(text) ||
+    /unused credits rollover/i.test(text)
   );
 }
 
-const SUBSCRIPTION_ORDER = ["standard", "pro", "elite", "enterprise"] as const;
-
-function isIncludesAllLine(text: string): boolean {
-  return /^includes all\b/i.test(text.trim());
-}
-
-function featureKey(text: string): string {
-  return text.replace(/\s*\(ACTIVE\)\s*/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
-}
-
-function isQuotaSuperseded(feature: string, pool: string[]): boolean {
-  if (!/^up to \d+/i.test(feature.trim())) return false;
-  if (/cv optim/i.test(feature) && pool.some((f) => /unlimited .+cv/i.test(f))) return true;
-  if (/cover letter/i.test(feature) && pool.some((f) => /unlimited .+cover/i.test(f))) return true;
-  return false;
-}
-
-function isTemplateSuperseded(feature: string, pool: string[]): boolean {
-  return /standard resume templates/i.test(feature)
-    && pool.some((f) => /premium templates/i.test(f));
-}
-
-/**
- * Linear inheritance: each paid tier lists every active feature from the
- * tiers below it, with actual checkmark rows (not only a passthrough claim).
- * Limited quotas are dropped when a higher tier grants UNLIMITED of the same capability.
- */
+/** Pricing cards render the canonical feature list on each tier as written. */
 export function resolveInheritedFeatures(tier: PricingTier): string[] {
-  const idx = SUBSCRIPTION_ORDER.indexOf(tier.id as (typeof SUBSCRIPTION_ORDER)[number]);
-  if (idx < 0) return [...(tier.features ?? [])];
-
-  const collected: string[] = [];
-  for (let i = 0; i <= idx; i++) {
-    const source = PRICING_TIERS.find((t) => t.id === SUBSCRIPTION_ORDER[i]);
-    if (!source) continue;
-    for (const feature of source.features) {
-      if (isIncludesAllLine(feature)) continue;
-      collected.push(feature);
-    }
-  }
-
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const feature of collected) {
-    const key = featureKey(feature);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    unique.push(feature);
-  }
-
-  const inherited = unique.filter(
-    (feature) => !isQuotaSuperseded(feature, unique) && !isTemplateSuperseded(feature, unique),
-  );
-  const includeLine = tier.features.find(isIncludesAllLine);
-  return includeLine ? [includeLine, ...inherited] : inherited;
+  return [...(tier.features ?? [])];
 }
 
 // ─── Upgrade rank (for gate checks) ──────────────────────────────────────────
@@ -380,7 +350,7 @@ export const PLANS: PricingTier[] = getSubscriptionTiers();
 export const SINGLE_PASS = {
   title: "Single Pass",
   subtitle: "Try once, get hired",
-  price: 1.99,
+  price: PLAN_PRICES_USD.single_pass.oneTime,
   features: getOneTimeTier().features,
   badge: "One-Time Purchase · No Subscription",
   checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? getLemonStoreUrl(),

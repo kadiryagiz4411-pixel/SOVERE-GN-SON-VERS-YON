@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { COST_PER_ACTION } from '@/lib/credits';
+import { singlePassLabel } from '@/config/money';
 
 interface InsufficientCreditsModalProps {
   open: boolean;
@@ -36,7 +37,7 @@ export function InsufficientCreditsModal({
           </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Upgrade your plan, buy a $1.99 Single Pass, or add credits to keep generating CVs and proposals.
+          Upgrade your plan, buy a {singlePassLabel()}, or add credits to keep generating CVs and proposals.
         </p>
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <Button asChild className="flex-1">
@@ -47,7 +48,7 @@ export function InsufficientCreditsModal({
           </Button>
           <Button asChild variant="outline" className="flex-1">
             <Link to="/pricing#single-pass" onClick={() => onOpenChange(false)}>
-              $1.99 Single Pass
+              {singlePassLabel()}
             </Link>
           </Button>
         </div>

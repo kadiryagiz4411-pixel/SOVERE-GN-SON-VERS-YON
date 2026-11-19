@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { PLAN_PRICES_USD, formatUsd, singlePassLabel } from '@/config/money';
+
+const PRICE_FAQ = `We offer Standard (${formatUsd(PLAN_PRICES_USD.standard.monthly)}/mo or ${formatUsd(PLAN_PRICES_USD.standard.annual)}/year), Pro (${formatUsd(PLAN_PRICES_USD.pro.monthly)}/mo or ${formatUsd(PLAN_PRICES_USD.pro.annual)}/year), Elite (${formatUsd(PLAN_PRICES_USD.elite.monthly)}/mo or ${formatUsd(PLAN_PRICES_USD.elite.annual)}/year), and Enterprise (${formatUsd(PLAN_PRICES_USD.enterprise.monthly)}/mo or ${formatUsd(PLAN_PRICES_USD.enterprise.annual)}/year). Payments are processed securely via Polar or Lemon Squeezy. Visit our Pricing page for details.`;
 
 interface Message {
   role: 'user' | 'assistant';
@@ -10,10 +13,10 @@ interface Message {
 
 const FAQ: Record<string, { q: string[]; a: string }[]> = {
   en: [
-    { q: ['pricing', 'cost', 'price', 'how much', 'plan'], a: 'We offer Standard ($8.99/mo or $107.99/year), Pro ($16.99/mo or $197.99/year), Elite ($43.99/mo or $530.99/year), and Enterprise ($178.99/mo or $2,150.99/year). Payments are processed securely via Lemon Squeezy. Visit our Pricing page for details.' },
+    { q: ['pricing', 'cost', 'price', 'how much', 'plan'], a: PRICE_FAQ },
     { q: ['trial', 'free trial', 'try'], a: 'Yes! We offer a limited free trial for Pro features. Look for the "Claim Free Trial" banner on your dashboard after signing up.' },
     { q: ['cancel', 'refund', 'money back'], a: 'Direct SaaS plans have a 14-day money-back guarantee. AppSumo lifetime deals follow AppSumo’s 60-day policy. Email support@sovereign.app or see /refund.' },
-    { q: ['how', 'work', 'use', 'start', 'begin'], a: '1. Try 2 free generations. No account needed\n2. Paste a job description in the dashboard\n3. Click "Analyze" to get a proposal that does not sound like ChatGPT\n4. Copy, download, or email the result. $1.99 Single Pass if you just want to try once and get hired.' },
+    { q: ['how', 'work', 'use', 'start', 'begin'], a: `1. Try 2 free generations. No account needed\n2. Paste a job description in the dashboard\n3. Click "Analyze" to get a proposal that does not sound like ChatGPT\n4. Copy, download, or email the result. ${singlePassLabel()} if you just want to try once and get hired.` },
     { q: ['elite', 'strategy', 'analytics'], a: 'Elite includes: visual acceptance graphs, company match recommendations, decision-maker identification, multi-channel outreach messages, and a full application strategy.' },
     { q: ['pro', 'acceptance', 'score', 'probability'], a: 'Pro gives you acceptance probability scoring (%), company-specific optimization, tone selection, unlimited proposals, and proposal history.' },
     { q: ['tone', 'aggressive', 'calm', 'professional'], a: 'Pro and Elite users can choose from 4 tones: Professional, Aggressive, Calm, and Consistent. Each adjusts how your proposal reads to match different company cultures.' },

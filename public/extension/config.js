@@ -1,5 +1,5 @@
 const API_BASE_URL = 'https://sovereignapp.pro';
-const BUILD_AT = '2026-11-18T16:08:16.732Z'; // auto-injected by buildExtensionZip.mjs
+const BUILD_AT = '2026-11-19T00:50:55.332Z'; // auto-injected by buildExtensionZip.mjs
 const PARSE_DOM_PATH = '/api/extension/parse-dom';
 const GENERATE_CV_PATH = '/api/generate-cv';
 const SMART_MATCH_PATH = '/api/smart-match';

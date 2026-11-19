@@ -1,4 +1,5 @@
 import { LegalPage, LegalSection } from '@/components/legal/LegalPage';
+import { singlePassLabel, subscriptionPriceList } from '@/config/money';
 
 export default function RefundPolicyPage() {
   return (
@@ -9,9 +10,9 @@ export default function RefundPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="2. $1.99 Single Pass">
+      <LegalSection title={`2. ${singlePassLabel()}`}>
         <p>
-          The $1.99 Single Pass is a one-time digital purchase that grants one (1) pass credit for a single CV optimization or proposal generation. It is not a subscription and does not auto-renew.
+          The {singlePassLabel()} is a one-time digital purchase that grants one (1) pass credit for a single CV optimization or proposal generation. It is not a subscription and does not auto-renew.
         </p>
         <p>
           Because the pass is consumed when you run that generation, Single Pass purchases are generally non-refundable once the credit has been granted or used. except where required by law, or if checkout charged you and fulfillment failed (no credit appeared on your account after you signed in with the same email).
@@ -23,7 +24,7 @@ export default function RefundPolicyPage() {
 
       <LegalSection title="3. 14-Day Money-Back Guarantee (Subscriptions)">
         <p>
-          For recurring monthly/annual subscription plans purchased directly on Sovereign (Standard $8.99/mo, Pro $16.99/mo, Elite $43.99/mo, Enterprise $178.99/mo), we offer a 14-day money-back guarantee if you are not completely satisfied.
+          For recurring monthly/annual subscription plans purchased directly on Sovereign ({subscriptionPriceList()}), we offer a 14-day money-back guarantee if you are not completely satisfied.
         </p>
         <p>
           Direct checkout is processed by Polar or Lemon Squeezy as payment processor / Merchant of Record. Approved refunds are returned to the original payment method. After the 14-day window, subscription charges are generally non-refundable, but you may cancel to stop future renewals.
@@ -49,7 +50,7 @@ export default function RefundPolicyPage() {
 
       <LegalSection title="6. What Is Not Refundable">
         <ul className="list-disc pl-5 space-y-1">
-          <li>$1.99 Single Pass after the credit has been granted or consumed, except where required by law or fulfillment failed.</li>
+          <li>{singlePassLabel()} after the credit has been granted or consumed, except where required by law or fulfillment failed.</li>
           <li>Renewals requested more than 14 days after the charge, except where required by law.</li>
           <li>Abuse, fraud, chargeback-in-progress accounts, or terms-of-service violations.</li>
           <li>Third-party marketplace purchases other than AppSumo (those marketplaces set their own refund rules).</li>

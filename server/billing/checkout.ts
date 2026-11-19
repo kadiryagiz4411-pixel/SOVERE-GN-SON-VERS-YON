@@ -1,14 +1,14 @@
 /**
  * POST /api/billing/checkout
  * Polar.sh hosted checkout first (when configured), Lemon Squeezy fallback.
- * Single Pass is billed at 199 cents ($1.99).
+ * Polar product/price IDs map each plan. Amounts come from server/_lib/money.ts.
  */
 import { preflight, json } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
 import { firstEnv } from '../_lib/env.js';
 import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy.js';
 import { createPolarCheckout, polarConfigured, polarProductId } from '../_lib/polar.js';
-import { SINGLE_PASS_CENTS } from '../_lib/money.js';
+import { SINGLE_PASS_USD, planAmountCents } from '../_lib/money.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 30 };
 
@@ -87,7 +87,7 @@ async function lemonCheckout(opts: {
               custom: {
                 user_id: opts.userId,
                 email: opts.userEmail,
-                amount_cents: isSinglePass(opts.planId) ? SINGLE_PASS_CENTS : undefined,
+                amount_cents: planAmountCents(opts.planId, opts.billingCycle),
                 guest_id: opts.guestId,
                 ...(opts.planId ? { plan_id: opts.planId } : {}),
                 ...(opts.billingCycle ? { billing_cycle: opts.billingCycle } : {}),
@@ -97,7 +97,7 @@ async function lemonCheckout(opts: {
             product_options: {
               redirect_url: redirectUrl,
               description: isSinglePass(opts.planId)
-                ? 'Single Pass — one tailored CV and job match report. $1.99, no subscription.'
+                ? `Single Pass: one tailored CV and job match report. $${SINGLE_PASS_USD.toFixed(2)}, no subscription.`
                 : undefined,
             },
           },
@@ -170,7 +170,7 @@ async function handleRequest(req: Request): Promise<Response> {
         guestId: body.guestId,
       });
       if ('url' in polar) {
-        return json({ checkoutUrl: polar.url, checkoutId: polar.id, provider: 'polar', amountCents: isSinglePass(planId) ? SINGLE_PASS_CENTS : undefined });
+        return json({ checkoutUrl: polar.url, checkoutId: polar.id, provider: 'polar', amountCents: planAmountCents(planId, billingCycle) });
       }
       console.warn('[checkout] Polar failed, falling back to Lemon Squeezy', polar.error);
     }

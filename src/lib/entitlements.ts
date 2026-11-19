@@ -1,3 +1,6 @@
+import { PLAN_PRICES_USD, SINGLE_PASS_USD, annualPerMonthUsd, formatUsd, PLAN_PRICES_CENTS } from '@/config/money';
+import { getTierById } from '@/config/pricing';
+
 /**
  * Sovereign Entitlement Engine — v1
  * ──────────────────────────────────
@@ -15,6 +18,20 @@ export const PLAN_TIERS = [
 ] as const;
 
 export type PlanTier = typeof PLAN_TIERS[number];
+
+function passHint(): string {
+  return `Get a Single Pass (${formatUsd(SINGLE_PASS_USD)}) or subscribe to Standard.`;
+}
+
+function upgradeHint(plan: 'standard' | 'pro' | 'elite' | 'enterprise'): string {
+  const labels = {
+    standard: 'Standard',
+    pro: 'Pro',
+    elite: 'Elite',
+    enterprise: 'Enterprise B2B',
+  } as const;
+  return `Upgrade to ${labels[plan]}. ${formatUsd(PLAN_PRICES_USD[plan].monthly)}/month.`;
+}
 
 // ─── Tier rank for comparison ──────────────────────────────────────────────────
 
@@ -119,21 +136,21 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'single_pass',
     title:       '1× Tailored CV Optimization',
     description: 'One-time full CV optimization against a job description.',
-    upgradeHint: 'Get a Single Pass ($1.99) or subscribe to Standard.',
+    upgradeHint: passHint(),
   },
   SINGLE_JOB_MATCH: {
     featureKey:  'SINGLE_JOB_MATCH',
     minTier:     'single_pass',
     title:       '1× Job Match & ATS Score',
     description: 'One-time ATS job match scan with keyword gap analysis.',
-    upgradeHint: 'Get a Single Pass ($1.99) or subscribe to Standard.',
+    upgradeHint: passHint(),
   },
   BASIC_PDF_EXPORT: {
     featureKey:  'BASIC_PDF_EXPORT',
     minTier:     'single_pass',
     title:       'PDF Export',
     description: 'Download your CV or proposal as a PDF.',
-    upgradeHint: 'Get a Single Pass ($1.99) or subscribe to Standard.',
+    upgradeHint: passHint(),
   },
 
   // standard ───────────────────────────────────────────────────────────────────
@@ -142,21 +159,21 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'standard',
     title:       'Monthly CV Optimizations',
     description: 'Up to 5 tailored CV optimizations included every month.',
-    upgradeHint: 'Upgrade to Standard. $8.99/month.',
+    upgradeHint: upgradeHint('standard'),
   },
   MONTHLY_COVER_LETTER: {
     featureKey:  'MONTHLY_COVER_LETTER',
     minTier:     'standard',
     title:       'Monthly Cover Letters',
     description: 'Up to 3 custom cover letters per month.',
-    upgradeHint: 'Upgrade to Standard. $8.99/month.',
+    upgradeHint: upgradeHint('standard'),
   },
   STANDARD_TEMPLATES: {
     featureKey:  'STANDARD_TEMPLATES',
     minTier:     'standard',
     title:       'Standard Template Library',
     description: 'Access to our curated library of Standard resume templates.',
-    upgradeHint: 'Upgrade to Standard. $8.99/month.',
+    upgradeHint: upgradeHint('standard'),
   },
 
   // pro ────────────────────────────────────────────────────────────────────────
@@ -165,35 +182,35 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'pro',
     title:       'Unlimited CV Optimizations',
     description: 'Unlimited tailored CV optimizations with no monthly cap.',
-    upgradeHint: 'Upgrade to Pro. $16.99/month.',
+    upgradeHint: upgradeHint('pro'),
   },
   UNLIMITED_COVER_LETTER: {
     featureKey:  'UNLIMITED_COVER_LETTER',
     minTier:     'pro',
     title:       'Unlimited Cover Letters',
     description: 'Generate as many custom cover letters as you need.',
-    upgradeHint: 'Upgrade to Pro. $16.99/month.',
+    upgradeHint: upgradeHint('pro'),
   },
   PREMIUM_TEMPLATES: {
     featureKey:  'PREMIUM_TEMPLATES',
     minTier:     'pro',
     title:       'Premium Resume Templates',
     description: 'Full access to all premium and modern resume template designs.',
-    upgradeHint: 'Upgrade to Pro. $16.99/month.',
+    upgradeHint: upgradeHint('pro'),
   },
   ATS_KEYWORD_INJECTOR: {
     featureKey:  'ATS_KEYWORD_INJECTOR',
     minTier:     'pro',
     title:       'ATS Keyword Injector',
     description: 'Automatically inject ATS-optimized keywords from job descriptions into your CV.',
-    upgradeHint: 'Upgrade to Pro. $16.99/month.',
+    upgradeHint: upgradeHint('pro'),
   },
   MULTI_LANGUAGE_SUPPORT: {
     featureKey:  'MULTI_LANGUAGE_SUPPORT',
     minTier:     'pro',
     title:       'Multi-Language CV Generation',
     description: 'Generate and export CVs in English, German, Turkish, Spanish, and French.',
-    upgradeHint: 'Upgrade to Pro. $16.99/month.',
+    upgradeHint: upgradeHint('pro'),
   },
 
   // elite ──────────────────────────────────────────────────────────────────────
@@ -202,42 +219,42 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'elite',
     title:       'Interview Simulator',
     description: 'Interactive text and voice interview practice, technical and behavioral.',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
   FREELANCE_PITCH_GEN: {
     featureKey:  'FREELANCE_PITCH_GEN',
     minTier:     'elite',
     title:       'Freelance Pitch Generator',
     description: 'Client pitch and proposal generation for freelancers.',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
   PRIORITY_LLM_SPEED: {
     featureKey:  'PRIORITY_LLM_SPEED',
     minTier:     'elite',
     title:       'Priority Speed',
     description: 'High-priority execution queue. Fastest response times.',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
   PORTFOLIO_WEB_EXPORT: {
     featureKey:  'PORTFOLIO_WEB_EXPORT',
     minTier:     'elite',
     title:       'Portfolio Web Export',
     description: 'Export your CV as a personal portfolio website (HTML/hosted).',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
   CV_FRAUD_ANALYZER: {
     featureKey:  'CV_FRAUD_ANALYZER',
     minTier:     'elite',
     title:       'Fraud, Fluff & Contradiction Detector',
     description: 'Scan candidate text for buzzwords, timeline overlaps, and inflated claims.',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
   LEADERBOARD_EXPORT: {
     featureKey:  'LEADERBOARD_EXPORT',
     minTier:     'elite',
     title:       'Leaderboard CSV / Excel Export',
     description: 'One-click export of ranked candidate scores to CSV and XLSX.',
-    upgradeHint: 'Upgrade to Elite. $43.99/month.',
+    upgradeHint: upgradeHint('elite'),
   },
 
   // enterprise ─────────────────────────────────────────────────────────────────
@@ -246,49 +263,49 @@ export const FEATURE_GATES: Record<FeatureKey, FeatureGate> = {
     minTier:     'enterprise',
     title:       'Bulk CV Parser',
     description: 'Batch upload and rank up to 3,000 CVs per month for your team.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   MULTI_SEAT_ACCESS: {
     featureKey:  'MULTI_SEAT_ACCESS',
     minTier:     'enterprise',
     title:       'Multi-Seat Team Workspace',
     description: 'Organization workspace with 1 Owner + 5 Recruiter seats.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   AI_FRAUD_DETECTOR: {
     featureKey:  'AI_FRAUD_DETECTOR',
     minTier:     'enterprise',
     title:       'Fraud & Fluff Detector',
     description: 'Detect generated fluff, resume inconsistencies, and authenticity risks.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   XAI_COMPLIANCE_REPORTS: {
     featureKey:  'XAI_COMPLIANCE_REPORTS',
     minTier:     'enterprise',
     title:       'XAI & GDPR/KVKK Compliance Reports',
     description: 'Explainable audit logs and GDPR/KVKK compliant PDF export reports.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   TALENT_POOL_VECTOR_SEARCH: {
     featureKey:  'TALENT_POOL_VECTOR_SEARCH',
     minTier:     'enterprise',
     title:       'Talent Pool Vector Search',
     description: 'Sub-3-second semantic natural language search across your entire candidate pool.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   BATCH_EXPORT_CSV: {
     featureKey:  'BATCH_EXPORT_CSV',
     minTier:     'enterprise',
     title:       'Batch Candidate CSV Export',
     description: 'One-click export of the full candidate leaderboard to CSV/Excel format.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
   GDPR_COMPLIANCE_EXPORT: {
     featureKey:  'GDPR_COMPLIANCE_EXPORT',
     minTier:     'enterprise',
     title:       'GDPR / KVKK Audit Export',
     description: 'Legal audit logger and compliance export for candidate data tables.',
-    upgradeHint: 'Upgrade to Enterprise B2B. $178.99/month.',
+    upgradeHint: upgradeHint('enterprise'),
   },
 };
 
@@ -331,6 +348,11 @@ export interface TierMeta {
   topFeatures:  string[];     // 4-5 bullet points shown in the modal
 }
 
+function tierFeatures(id: string, fallback: string[]): string[] {
+  const features = getTierById(id)?.features ?? fallback;
+  return features.slice(0, 6);
+}
+
 export const TIER_META: Record<PlanTier, TierMeta> = {
   free: {
     label: 'Free', priceMonthly: 0, priceAnnual: 0,
@@ -341,73 +363,57 @@ export const TIER_META: Record<PlanTier, TierMeta> = {
     topFeatures: ['Basic CV generation', '15 daily proposals'],
   },
   single_pass: {
-    label: 'Single Pass', priceMonthly: 1.99, priceAnnual: 1.99,
+    label: 'Single Pass',
+    priceMonthly: PLAN_PRICES_USD.single_pass.oneTime,
+    priceAnnual: PLAN_PRICES_USD.single_pass.oneTime,
     accentClass: 'text-teal-400',
     borderClass: 'border-teal-500/40',
     bgClass: 'from-teal-900/30 to-slate-900',
     badgeClass: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',
-    topFeatures: [
-      '1× Full Tailored CV Optimization',
-      '1× ATS Job Match Scan',
-      'Instant PDF Export',
-    ],
+    topFeatures: tierFeatures('single_pass', [
+      'One tailored resume optimization',
+      'One job match and compatibility report',
+      'Instant PDF export',
+    ]),
   },
   standard: {
-    label: 'Standard', priceMonthly: 8.99, priceAnnual: 8.99,
+    label: 'Standard',
+    priceMonthly: PLAN_PRICES_USD.standard.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.standard.annual),
     accentClass: 'text-slate-200',
     borderClass: 'border-slate-500/50',
     bgClass: 'from-slate-800/60 to-slate-900',
     badgeClass: 'bg-slate-600/30 text-slate-200 border border-slate-500/40',
-    topFeatures: [
-      'Up to 15 Tailored CV Optimizations per month',
-      'Up to 10 Custom Cover Letters per month',
-      'Standard Resume Templates',
-      'Basic ATS Match Analysis',
-    ],
+    topFeatures: tierFeatures('standard', []),
   },
   pro: {
-    label: 'Pro', priceMonthly: 16.99, priceAnnual: 16.50,
+    label: 'Pro',
+    priceMonthly: PLAN_PRICES_USD.pro.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.pro.annual),
     accentClass: 'text-violet-400',
     borderClass: 'border-violet-500/60',
     bgClass: 'from-violet-900/30 to-slate-900',
     badgeClass: 'bg-violet-500/20 text-violet-300 border border-violet-500/30',
-    topFeatures: [
-      'Includes ALL Standard capabilities',
-      'UNLIMITED Tailored CV Optimizations',
-      'UNLIMITED Custom Cover Letters',
-      'Full Access to Premium Templates',
-      'Multi-Language Support (EN, DE, TR, ES, FR)',
-    ],
+    topFeatures: tierFeatures('pro', []),
   },
   elite: {
-    label: 'Elite', priceMonthly: 43.99, priceAnnual: 44.25,
+    label: 'Elite',
+    priceMonthly: PLAN_PRICES_USD.elite.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.elite.annual),
     accentClass: 'text-amber-400',
     borderClass: 'border-amber-500/50',
     bgClass: 'from-amber-900/25 to-slate-900',
     badgeClass: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-    topFeatures: [
-      'Includes ALL Pro capabilities',
-      'Multi-Job Proposal Engine & Pitch Generator',
-      'Interactive Voice/Text Interview Simulator',
-      'Single-File Multi-CV Evaluator',
-      'Single-File Multi-CV & Multi-Job Ingestion Engine',
-      'Priority High-Speed Execution Queue',
-    ],
+    topFeatures: tierFeatures('elite', []),
   },
   enterprise: {
-    label: 'Enterprise / Agency', priceMonthly: 178.99, priceAnnual: 179.25,
+    label: 'Enterprise / Agency',
+    priceMonthly: PLAN_PRICES_USD.enterprise.monthly,
+    priceAnnual: annualPerMonthUsd(PLAN_PRICES_CENTS.enterprise.annual),
     accentClass: 'text-yellow-400',
     borderClass: 'border-yellow-600/50',
     bgClass: 'from-yellow-900/20 to-slate-900',
     badgeClass: 'bg-yellow-600/20 text-yellow-300 border border-yellow-600/30',
-    topFeatures: [
-      'Includes ALL Elite capabilities',
-      'Batch Upload & Rank up to 3,000 CVs/month',
-      'B2B Command Center & Persistent Memory Bank',
-      'Live Client Sharing Link',
-      'Live Client Sharing Portal with Instant Approvals',
-      'Organization Team Workspace (1 Owner + 5 HR Seats)',
-      'Fraud, Fluff & Contradiction Detector',
-    ],
+    topFeatures: tierFeatures('enterprise', []),
   },
 };

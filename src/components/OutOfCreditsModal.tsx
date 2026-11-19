@@ -5,6 +5,7 @@
 import { X, Zap, Ticket, RefreshCw, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { formatUsd, SINGLE_PASS_USD } from '@/config/money';
 
 interface OutOfCreditsModalProps {
   open: boolean;
@@ -69,7 +70,7 @@ export function OutOfCreditsModal({
               <Zap className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-100">Single Pass. $1.99</p>
+              <p className="text-sm font-semibold text-slate-100">Single Pass. {formatUsd(SINGLE_PASS_USD)}</p>
               <p className="text-xs text-slate-400 mt-0.5">One generation, no subscription</p>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors shrink-0" />

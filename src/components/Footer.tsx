@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
+import { singlePassLabel } from '@/config/money';
 
 interface FooterProps {
   /** Slim bar for dashboard / app chrome. Marketing pages use the full bar. */
@@ -56,7 +57,7 @@ export const Footer = ({ compact = false }: FooterProps) => {
 
       {!compact && (
         <p className="px-4 pb-5 text-center font-mono text-[10px] leading-relaxed tracking-[0.08em] text-zinc-600">
-          $1.99 Single Pass and subscriptions are digital services.{' '}
+          {singlePassLabel()} and subscriptions are digital services.{' '}
           <Link to="/refund" className="text-zinc-500 hover:text-amber-400/80 transition-colors">
             Refund Policy
           </Link>

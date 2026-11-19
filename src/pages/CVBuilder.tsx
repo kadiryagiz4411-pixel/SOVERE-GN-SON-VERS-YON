@@ -14,6 +14,7 @@ import { OWNER_EMAIL } from '@/lib/superadmin';
 import { invokeCvFunction } from '@/lib/edgeFunctions';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
+import { monthlyPriceLabel } from '@/config/money';
 import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
 import { consumeFreeAllowance, freeAllowanceRemaining } from '@/lib/freeAllowance';
@@ -746,7 +747,7 @@ const CVBuilder = () => {
             {!isPro && (
               <p className="text-xs text-slate-500 mt-1.5">
                 Non-English CV generation requires{' '}
-                <span className="text-violet-400 font-medium">Pro ($16.99/mo)</span> or higher.{' '}
+                <span className="text-violet-400 font-medium">Pro ({monthlyPriceLabel('pro')})</span> or higher.{' '}
                 <Link to="/settings/billing" className="underline hover:text-violet-300">Upgrade →</Link>
               </p>
             )}

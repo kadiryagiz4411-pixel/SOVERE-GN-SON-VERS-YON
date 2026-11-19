@@ -1,4 +1,5 @@
 import { LegalPage, LegalSection } from '@/components/legal/LegalPage';
+import { singlePassLabel } from '@/config/money';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -12,7 +13,7 @@ export default function PrivacyPolicyPage() {
           <li>Uploaded resumes, CVs, and related career documents you choose to submit.</li>
           <li>Job posting text, application drafts, and evaluation inputs you provide.</li>
           <li>Optional Bring-Your-Own-Key (BYOK) settings stored in your browser, not on our servers.</li>
-          <li>Billing identifiers sent to Polar or Lemon Squeezy (payment processor / Merchant of Record) to process the $1.99 Single Pass and subscriptions.</li>
+          <li>Billing identifiers sent to Polar or Lemon Squeezy (payment processor / Merchant of Record) to process the {singlePassLabel()} and subscriptions.</li>
         </ul>
       </LegalSection>
 
@@ -27,7 +28,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="3. Third-Party Integrations">
         <p>
-          We integrate with secure service providers including Supabase for encrypted database hosting, OpenAI for structured evaluations, and Polar and Lemon Squeezy for billing (including the $1.99 Single Pass and recurring subscriptions). AppSumo may process lifetime-deal redemptions when you purchase through that marketplace.
+          We integrate with secure service providers including Supabase for encrypted database hosting, OpenAI for structured evaluations, and Polar and Lemon Squeezy for billing (including the {singlePassLabel()} and recurring subscriptions). AppSumo may process lifetime-deal redemptions when you purchase through that marketplace.
         </p>
       </LegalSection>
 

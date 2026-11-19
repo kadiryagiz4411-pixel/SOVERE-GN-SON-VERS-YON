@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Zap, Ticket, Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  getSubscriptionTiers, getOneTimeTier, getCheckoutUrlFor, resolveInheritedFeatures,
+  getSubscriptionTiers, getOneTimeTier, getCheckoutUrlFor, resolveInheritedFeatures, formatUsd,
 } from "@/config/pricing";
+import { ANNUAL_DISCOUNT_PERCENT } from "@/config/money";
 import { type BillingCycle, createCheckout } from "@/config/plans";
 import { CheckoutButton } from "@/components/checkout/CheckoutButton";
 import { PricingCard } from "./PricingCard";
@@ -78,7 +79,7 @@ export function PricingTable({
             Annual
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-            <Zap className="w-3 h-3" /> Save up to 25%
+            <Zap className="w-3 h-3" /> Save up to {ANNUAL_DISCOUNT_PERCENT}%
           </span>
         </div>
       </div>
@@ -110,7 +111,7 @@ export function PricingTable({
       {/* ── Trust footer ────────────────────────────────────────────────────── */}
       <p className="text-center text-xs text-slate-600 mt-6">
         All plans include a 14-day money-back guarantee · Secure checkout by{" "}
-        <span className="text-slate-500">Lemon Squeezy</span>
+        <span className="text-slate-500">Polar or Lemon Squeezy</span>
       </p>
     </div>
   );
@@ -146,7 +147,7 @@ export function SinglePassBanner() {
         <div className="absolute -top-3 left-6">
           <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-800 border border-slate-600 text-xs font-semibold text-slate-400">
             <Ticket className="w-3 h-3 text-teal-400" />
-            $1.99 Single Pass · Try once, get hired
+            {formatUsd(pass.priceMonthly)} Single Pass · Try once, get hired
           </span>
         </div>
 

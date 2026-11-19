@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { firstEnv } from './env.js';
-import { SINGLE_PASS_CENTS } from './money.js';
+import { LEGACY_PLAN_PRICES_CENTS, PLAN_PRICES_CENTS, SINGLE_PASS_CENTS, planAmountCents } from './money.js';
 import type { BillingPeriod, PlanTier } from './lemonsqueezy.js';
 
 export function polarAccessToken(): string {
@@ -28,19 +28,44 @@ export function polarProductId(planId?: string, billingCycle?: string): string {
   const plan = String(planId || '').trim().toLowerCase();
   const yearly = /year|annual/.test(String(billingCycle || ''));
   if (plan === 'single_pass' || plan === 'one_pass' || plan === 'onetime' || plan === 'one_time') {
-    return firstEnv('POLAR_PRODUCT_SINGLE_PASS', 'POLAR_PRODUCT_ONE_PASS', 'POLAR_PRODUCT_PASS');
+    return firstEnv(
+      'POLAR_PRICE_SINGLE_PASS',
+      'POLAR_PRODUCT_SINGLE_PASS',
+      'POLAR_PRODUCT_ONE_PASS',
+      'POLAR_PRODUCT_PASS',
+    );
   }
-  const table: Record<string, [string, string]> = {
-    standard: ['POLAR_PRODUCT_STANDARD_MONTHLY', 'POLAR_PRODUCT_STANDARD_ANNUAL'],
-    starter: ['POLAR_PRODUCT_STANDARD_MONTHLY', 'POLAR_PRODUCT_STANDARD_ANNUAL'],
-    pro: ['POLAR_PRODUCT_PRO_MONTHLY', 'POLAR_PRODUCT_PRO_ANNUAL'],
-    elite: ['POLAR_PRODUCT_ELITE_MONTHLY', 'POLAR_PRODUCT_ELITE_ANNUAL'],
-    enterprise: ['POLAR_PRODUCT_ENTERPRISE_MONTHLY', 'POLAR_PRODUCT_ENTERPRISE_ANNUAL'],
-    b2b_enterprise: ['POLAR_PRODUCT_ENTERPRISE_MONTHLY', 'POLAR_PRODUCT_ENTERPRISE_ANNUAL'],
+  const table: Record<string, { monthly: string[]; annual: string[] }> = {
+    standard: {
+      monthly: ['POLAR_PRICE_STANDARD_MONTHLY', 'POLAR_PRODUCT_STANDARD_MONTHLY'],
+      annual: ['POLAR_PRICE_STANDARD_ANNUAL', 'POLAR_PRODUCT_STANDARD_ANNUAL'],
+    },
+    starter: {
+      monthly: ['POLAR_PRICE_STANDARD_MONTHLY', 'POLAR_PRODUCT_STANDARD_MONTHLY'],
+      annual: ['POLAR_PRICE_STANDARD_ANNUAL', 'POLAR_PRODUCT_STANDARD_ANNUAL'],
+    },
+    pro: {
+      monthly: ['POLAR_PRICE_PRO_MONTHLY', 'POLAR_PRODUCT_PRO_MONTHLY'],
+      annual: ['POLAR_PRICE_PRO_ANNUAL', 'POLAR_PRODUCT_PRO_ANNUAL'],
+    },
+    elite: {
+      monthly: ['POLAR_PRICE_ELITE_MONTHLY', 'POLAR_PRODUCT_ELITE_MONTHLY'],
+      annual: ['POLAR_PRICE_ELITE_ANNUAL', 'POLAR_PRODUCT_ELITE_ANNUAL'],
+    },
+    enterprise: {
+      monthly: ['POLAR_PRICE_ENTERPRISE_MONTHLY', 'POLAR_PRODUCT_ENTERPRISE_MONTHLY'],
+      annual: ['POLAR_PRICE_ENTERPRISE_ANNUAL', 'POLAR_PRODUCT_ENTERPRISE_ANNUAL'],
+    },
+    b2b_enterprise: {
+      monthly: ['POLAR_PRICE_ENTERPRISE_MONTHLY', 'POLAR_PRODUCT_ENTERPRISE_MONTHLY'],
+      annual: ['POLAR_PRICE_ENTERPRISE_ANNUAL', 'POLAR_PRODUCT_ENTERPRISE_ANNUAL'],
+    },
   };
   const keys = table[plan];
   if (!keys) return '';
-  return firstEnv(yearly ? keys[1] : keys[0], keys[0], keys[1]);
+  const preferred = yearly ? keys.annual : keys.monthly;
+  const fallback = yearly ? keys.monthly : keys.annual;
+  return firstEnv(...preferred, ...fallback);
 }
 
 export function isPolarWebhook(req: Request): boolean {
@@ -88,18 +113,35 @@ export function verifyPolarSignature(rawBody: string, req: Request, secret: stri
 export function planFromPolarProduct(productId: string, productName: string, amountCents?: number): { tier: PlanTier; period: BillingPeriod } | null {
   const id = String(productId || '').trim();
   const pairs: Array<[string, { tier: PlanTier; period: BillingPeriod }]> = [
-    [firstEnv('POLAR_PRODUCT_SINGLE_PASS', 'POLAR_PRODUCT_ONE_PASS', 'POLAR_PRODUCT_PASS'), { tier: 'single_pass', period: 'once' }],
-    [firstEnv('POLAR_PRODUCT_STANDARD_MONTHLY'), { tier: 'standard', period: 'monthly' }],
-    [firstEnv('POLAR_PRODUCT_STANDARD_ANNUAL'), { tier: 'standard', period: 'yearly' }],
-    [firstEnv('POLAR_PRODUCT_PRO_MONTHLY'), { tier: 'pro', period: 'monthly' }],
-    [firstEnv('POLAR_PRODUCT_PRO_ANNUAL'), { tier: 'pro', period: 'yearly' }],
-    [firstEnv('POLAR_PRODUCT_ELITE_MONTHLY'), { tier: 'elite', period: 'monthly' }],
-    [firstEnv('POLAR_PRODUCT_ELITE_ANNUAL'), { tier: 'elite', period: 'yearly' }],
-    [firstEnv('POLAR_PRODUCT_ENTERPRISE_MONTHLY'), { tier: 'B2B_ENTERPRISE', period: 'monthly' }],
-    [firstEnv('POLAR_PRODUCT_ENTERPRISE_ANNUAL'), { tier: 'B2B_ENTERPRISE', period: 'yearly' }],
+    [firstEnv('POLAR_PRICE_SINGLE_PASS', 'POLAR_PRODUCT_SINGLE_PASS', 'POLAR_PRODUCT_ONE_PASS', 'POLAR_PRODUCT_PASS'), { tier: 'single_pass', period: 'once' }],
+    [firstEnv('POLAR_PRICE_STANDARD_MONTHLY', 'POLAR_PRODUCT_STANDARD_MONTHLY'), { tier: 'standard', period: 'monthly' }],
+    [firstEnv('POLAR_PRICE_STANDARD_ANNUAL', 'POLAR_PRODUCT_STANDARD_ANNUAL'), { tier: 'standard', period: 'yearly' }],
+    [firstEnv('POLAR_PRICE_PRO_MONTHLY', 'POLAR_PRODUCT_PRO_MONTHLY'), { tier: 'pro', period: 'monthly' }],
+    [firstEnv('POLAR_PRICE_PRO_ANNUAL', 'POLAR_PRODUCT_PRO_ANNUAL'), { tier: 'pro', period: 'yearly' }],
+    [firstEnv('POLAR_PRICE_ELITE_MONTHLY', 'POLAR_PRODUCT_ELITE_MONTHLY'), { tier: 'elite', period: 'monthly' }],
+    [firstEnv('POLAR_PRICE_ELITE_ANNUAL', 'POLAR_PRODUCT_ELITE_ANNUAL'), { tier: 'elite', period: 'yearly' }],
+    [firstEnv('POLAR_PRICE_ENTERPRISE_MONTHLY', 'POLAR_PRODUCT_ENTERPRISE_MONTHLY'), { tier: 'B2B_ENTERPRISE', period: 'monthly' }],
+    [firstEnv('POLAR_PRICE_ENTERPRISE_ANNUAL', 'POLAR_PRODUCT_ENTERPRISE_ANNUAL'), { tier: 'B2B_ENTERPRISE', period: 'yearly' }],
   ];
   for (const [envId, cfg] of pairs) {
     if (envId && id && envId === id) return cfg;
+  }
+  const amountMap: Array<[number, { tier: PlanTier; period: BillingPeriod }]> = [
+    [PLAN_PRICES_CENTS.single_pass.oneTime, { tier: 'single_pass', period: 'once' }],
+    [PLAN_PRICES_CENTS.standard.monthly, { tier: 'standard', period: 'monthly' }],
+    [PLAN_PRICES_CENTS.standard.annual, { tier: 'standard', period: 'yearly' }],
+    [PLAN_PRICES_CENTS.pro.monthly, { tier: 'pro', period: 'monthly' }],
+    [PLAN_PRICES_CENTS.pro.annual, { tier: 'pro', period: 'yearly' }],
+    [PLAN_PRICES_CENTS.elite.monthly, { tier: 'elite', period: 'monthly' }],
+    [PLAN_PRICES_CENTS.elite.annual, { tier: 'elite', period: 'yearly' }],
+    [PLAN_PRICES_CENTS.enterprise.monthly, { tier: 'B2B_ENTERPRISE', period: 'monthly' }],
+    [PLAN_PRICES_CENTS.enterprise.annual, { tier: 'B2B_ENTERPRISE', period: 'yearly' }],
+    [LEGACY_PLAN_PRICES_CENTS.elite.annual, { tier: 'elite', period: 'yearly' }],
+    [LEGACY_PLAN_PRICES_CENTS.enterprise.annual, { tier: 'B2B_ENTERPRISE', period: 'yearly' }],
+  ];
+  if (typeof amountCents === 'number') {
+    const hit = amountMap.find(([cents]) => cents === amountCents);
+    if (hit) return hit[1];
   }
   const blob = String(productName || '').toLowerCase();
   const yearly = /year|annual/.test(blob);
@@ -132,9 +174,8 @@ export async function createPolarCheckout(opts: {
   if (opts.billingCycle) metadata.billing_cycle = opts.billingCycle;
   if (opts.referredBy) metadata.referred_by = opts.referredBy.slice(0, 32);
   if (opts.guestId) metadata.guest_id = opts.guestId.slice(0, 64);
-  if (opts.planId && /single.?pass|one.?pass|one.?time/.test(opts.planId)) {
-    metadata.amount_cents = String(SINGLE_PASS_CENTS);
-  }
+  const amount = planAmountCents(opts.planId, opts.billingCycle);
+  if (typeof amount === 'number') metadata.amount_cents = String(amount);
 
   const body: Record<string, unknown> = {
     products: [opts.productId],

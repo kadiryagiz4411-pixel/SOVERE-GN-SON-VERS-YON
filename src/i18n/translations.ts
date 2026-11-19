@@ -1,4 +1,10 @@
+import { PLAN_PRICES_USD, formatUsd, monthlyPriceLabel } from '@/config/money';
+
 export type Language = 'en' | 'tr' | 'de' | 'fr';
+
+const PRO_MONTHLY = monthlyPriceLabel('pro');
+const PRO_PRICE = String(PLAN_PRICES_USD.pro.monthly);
+const ELITE_PRICE = String(PLAN_PRICES_USD.elite.monthly);
 
 export const translations = {
   en: {
@@ -138,7 +144,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '16.99',
+        price: PRO_PRICE,
         description: 'Know your acceptance chances',
         features: [
           'Unlimited applications',
@@ -152,7 +158,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '43.99',
+        price: ELITE_PRICE,
         description: 'Full acceptance strategy',
         features: [
           'Everything in Pro',
@@ -333,7 +339,7 @@ export const translations = {
       pro: {
         description: 'Know your acceptance chances',
         badge: 'Most Popular',
-        cta: 'Get Pro · $16.99/mo',
+        cta: `Get Pro · ${PRO_MONTHLY}`,
       },
       elite: {
         description: 'Full acceptance strategy',
@@ -545,7 +551,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '16.99',
+        price: PRO_PRICE,
         description: 'Kabul şansınızı öğrenin',
         features: [
           'Sınırsız başvuru',
@@ -559,7 +565,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '43.99',
+        price: ELITE_PRICE,
         description: 'Tam kabul stratejisi',
         features: [
           'Pro\'daki her şey',
@@ -732,7 +738,7 @@ export const translations = {
       pro: {
         description: 'Kabul şansını öğren',
         badge: 'En Popüler',
-        cta: 'Pro Al . Aylık $16.99',
+        cta: `Pro Al . Aylık ${formatUsd(PLAN_PRICES_USD.pro.monthly)}`,
       },
       elite: {
         description: 'Tam kabul stratejisi',
@@ -944,7 +950,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '16.99',
+        price: PRO_PRICE,
         description: 'Kennen Sie Ihre Akzeptanzchancen',
         features: [
           'Unbegrenzte Bewerbungen',
@@ -958,7 +964,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '43.99',
+        price: ELITE_PRICE,
         description: 'Vollständige Akzeptanzstrategie',
         features: [
           'Alles in Pro',
@@ -1131,7 +1137,7 @@ export const translations = {
       pro: {
         description: 'Ihre Akzeptanzchancen kennen',
         badge: 'Am beliebtesten',
-        cta: 'Pro holen · $16.99/Monat',
+        cta: `Pro holen · ${formatUsd(PLAN_PRICES_USD.pro.monthly)}/Monat`,
       },
       elite: {
         description: 'Vollständige Akzeptanzstrategie',
@@ -1343,7 +1349,7 @@ export const translations = {
       },
       pro: {
         name: 'Pro',
-        price: '16.99',
+        price: PRO_PRICE,
         description: 'Connaissez vos chances d\'acceptation',
         features: [
           'Candidatures illimitées',
@@ -1357,7 +1363,7 @@ export const translations = {
       },
       elite: {
         name: 'Elite',
-        price: '43.99',
+        price: ELITE_PRICE,
         description: 'Stratégie d\'acceptation complète',
         features: [
           'Tout dans Pro',
@@ -1532,7 +1538,7 @@ export const translations = {
       pro: {
         description: 'Connaître vos chances d\'acceptation',
         badge: 'Le plus populaire',
-        cta: 'Obtenir Pro . 16,99$/mois',
+        cta: `Obtenir Pro . ${formatUsd(PLAN_PRICES_USD.pro.monthly)}/mois`,
       },
       elite: {
         description: 'Stratégie d\'acceptation complète',

@@ -5,6 +5,9 @@ import { ArrowRight, Sparkles, Shield, Target, Download, FileText, Briefcase, Bu
 import { trackEvent } from '@/lib/analytics';
 import { motion } from 'framer-motion';
 import { SafeIcon } from '@/lib/safeIcon';
+import { formatUsd, SINGLE_PASS_USD } from '@/config/money';
+
+const PASS = formatUsd(SINGLE_PASS_USD);
 
 const translations = {
   en: {
@@ -17,7 +20,7 @@ const translations = {
     ctaApplication: 'Write my proposal',
     ctaCV: 'Get the interview',
     downloadApp: 'Download App',
-    microtext: '2 free generations. No card. $1.99 Single Pass if you just want to try once.',
+    microtext: `2 free generations. No card. ${PASS} Single Pass if you just want to try once.`,
     platformLabel: 'Works with',
     signals: [
       'Sounds like you, not a bot',
@@ -36,7 +39,7 @@ const translations = {
     ctaApplication: 'Kazanan Teklif Oluştur',
     ctaCV: 'ATS CV Oluştur',
     downloadApp: 'Uygulamayı İndir',
-    microtext: '2 ücretsiz üretim · Kart yok · Bir kez dene, işe gir: $1.99 Single Pass',
+    microtext: `2 ücretsiz üretim · Kart yok · Bir kez dene, işe gir: ${PASS} Single Pass`,
     platformLabel: 'Uyumlu platformlar',
     signals: [
       'Upwork & Fiverr uyumlu',
@@ -55,7 +58,7 @@ const translations = {
     ctaApplication: 'Gewinnendes Angebot erstellen',
     ctaCV: 'ATS CV erstellen',
     downloadApp: 'App herunterladen',
-    microtext: '2 kostenlose Generierungen · Keine Karte · $1.99 Single Pass zum einmaligen Test',
+    microtext: `2 kostenlose Generierungen · Keine Karte · ${PASS} Single Pass zum einmaligen Test`,
     platformLabel: 'Kompatibel mit',
     signals: [
       'Upwork & Fiverr optimiert',
@@ -74,7 +77,7 @@ const translations = {
     ctaApplication: 'Générer une proposition gagnante',
     ctaCV: 'Créer un CV ATS',
     downloadApp: 'Télécharger l\'app',
-    microtext: '2 générations gratuites · Sans carte · Single Pass $1.99 pour essayer une fois',
+    microtext: `2 générations gratuites · Sans carte · Single Pass ${PASS} pour essayer une fois`,
     platformLabel: 'Compatible avec',
     signals: [
       'Optimisé Upwork & Fiverr',

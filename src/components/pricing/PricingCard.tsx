@@ -66,10 +66,6 @@ const CHECK_HL: Record<CardStyle, string> = {
   enterprise: "text-yellow-400",
 };
 
-const ANNUAL_VALUE_FEATURES = [
-  "Unused Credits Rollover to Next Month",
-  "Pause Anytime (Job-Found / Low-Workload Guarantee)",
-];
 
 const CTA_CLASS: Record<CardStyle, string> = {
   standard:
@@ -116,12 +112,9 @@ export function PricingCard({
   }
   const cta = ctaLabel(tier, isAnnual, isCurrent, isSuperAdmin);
   const annualBadge = !tier.isOneTime && isAnnual
-    ? (tier.isEnterprise ? "🔒 12-Month Price Lock Guaranteed" : "25% off")
+    ? `${tier.discountPercentage || 20}% off`
     : null;
-  const baseFeatures = Array.isArray(tier.features) ? tier.features.filter(Boolean) : [];
-  const features = isAnnual && !tier.isOneTime
-    ? [...baseFeatures, ...ANNUAL_VALUE_FEATURES]
-    : baseFeatures;
+  const features = Array.isArray(tier.features) ? tier.features.filter(Boolean) : [];
 
   const logSelection = () => {
     console.log("[Pricing Diagnostic]", {

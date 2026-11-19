@@ -3,6 +3,7 @@
 // NOTE: Canonical pricing config is now src/config/pricing.ts
 // This file retains feature-gate logic used throughout the app.
 
+import { PLAN_PRICES_USD } from '@/config/money';
 import { createCheckout } from '@/config/plans';
 import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
 
@@ -95,10 +96,10 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 };
 
 export const PLAN_PRICES = {
-  standard: { monthly: 8.99, annual: 107.99 },
-  pro: { monthly: 16.99, annual: 197.99 },
-  elite: { monthly: 43.99, annual: 530.99 },
-  enterprise: { monthly: 178.99, annual: 2150.99 },
+  standard: PLAN_PRICES_USD.standard,
+  pro: PLAN_PRICES_USD.pro,
+  elite: PLAN_PRICES_USD.elite,
+  enterprise: PLAN_PRICES_USD.enterprise,
 };
 
 // Credits granted per plan on subscription

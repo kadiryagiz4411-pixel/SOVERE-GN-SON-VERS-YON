@@ -1,6 +1,7 @@
 import { Building2 } from 'lucide-react';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
 import { enterpriseCheckoutUrl } from '@/lib/b2bTrial';
+import { monthlyPriceLabel } from '@/config/money';
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ export function SubscriptionRequiredModal({ open }: SubscriptionRequiredModalPro
           overlay
           className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold border-0"
         >
-          Subscribe to Enterprise. $178.99/mo
+          Subscribe to Enterprise. {monthlyPriceLabel('enterprise')}
         </CheckoutButton>
       </DialogContent>
     </Dialog>

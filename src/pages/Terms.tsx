@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { LegalPage, LegalSection } from '@/components/legal/LegalPage';
+import { singlePassLabel, subscriptionPriceList } from '@/config/money';
 
 export default function TermsOfServicePage() {
   return (
@@ -24,10 +25,10 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="3. Subscriptions, Single Pass & Billing">
         <p>
-          Sovereign sells digital services. Checkout is processed by Polar or Lemon Squeezy (Merchant of Record / payment processor). Recurring plans (Standard $8.99/mo, Pro $16.99/mo, Elite $43.99/mo, Enterprise $178.99/mo) renew automatically unless cancelled before the renewal date.
+          Sovereign sells digital services. Checkout is processed by Polar or Lemon Squeezy (Merchant of Record / payment processor). Recurring plans ({subscriptionPriceList()}) renew automatically unless cancelled before the renewal date.
         </p>
         <p>
-          The $1.99 Single Pass is a one-time digital purchase: one pass credit for a single generation. It does not renew and is not a subscription. Refunds, including when a consumed pass is non-refundable, are described in our{' '}
+          The {singlePassLabel()} is a one-time digital purchase: one pass credit for a single generation. It does not renew and is not a subscription. Refunds, including when a consumed pass is non-refundable, are described in our{' '}
           <Link to="/refund" className="text-primary hover:underline">Refund Policy</Link>.
         </p>
         <p>
