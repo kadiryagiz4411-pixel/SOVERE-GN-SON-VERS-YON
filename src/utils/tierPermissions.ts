@@ -11,7 +11,7 @@
  *   - B2B_ENTERPRISE maps to appsumo_b2b
  */
 
-import { APPSUMO_LS_CHECKOUT_URLS, APPSUMO_LTD_TIERS } from '@/config/appsumo';
+import { CHECKOUT_FALLBACK_URLS, APPSUMO_LTD_TIERS } from '@/config/appsumo';
 
 // ─── Core AppSumo tier type ───────────────────────────────────────────────────
 
@@ -163,7 +163,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
     bgColor:    'bg-blue-500/5',
     features: APPSUMO_LTD_TIERS[0].features,
     highlighted: ['Chrome extension access (B2C Mode)', 'CV & proposal generation'],
-    checkoutUrl: APPSUMO_LS_CHECKOUT_URLS.tier1,
+    checkoutUrl: CHECKOUT_FALLBACK_URLS.tier1,
   },
   {
     tier:       'appsumo_tier2',
@@ -176,7 +176,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
     bgColor:    'bg-violet-500/5',
     features: APPSUMO_LTD_TIERS[1].features,
     highlighted: ['Advanced match scoring & analytics', 'Chrome extension (B2C, priority queue)'],
-    checkoutUrl: APPSUMO_LS_CHECKOUT_URLS.tier2,
+    checkoutUrl: CHECKOUT_FALLBACK_URLS.tier2,
   },
   {
     tier:       'appsumo_b2b',
@@ -192,7 +192,7 @@ export const APPSUMO_TIER_CONFIGS: AppSumoTierConfig[] = [
       'Full B2B + B2C Chrome extension',
       'Agency lead extraction & bulk pitch generation',
     ],
-    checkoutUrl: APPSUMO_LS_CHECKOUT_URLS.tier3,
+    checkoutUrl: CHECKOUT_FALLBACK_URLS.tier3,
   },
 ];
 

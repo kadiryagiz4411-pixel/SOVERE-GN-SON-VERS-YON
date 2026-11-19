@@ -2,7 +2,7 @@ import { useState, useCallback, lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useSearchParams, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { SessionProvider } from "@/contexts/SessionContext";
@@ -253,7 +253,13 @@ const AppRoutes = () => (
       <Route path="/install" element={<Install />} />
       <Route path="/reviews" element={<Reviews />} />
       <Route path="/cv-builder" element={<ProtectedRoute allowGuest><CVBuilder /></ProtectedRoute>} />
+      <Route path="/cvbuilder" element={<Navigate to="/cv-builder" replace />} />
+      <Route path="/cv" element={<Navigate to="/cv-builder" replace />} />
       <Route path="/dashboard/builder" element={<ProtectedRoute allowGuest><CVBuilder /></ProtectedRoute>} />
+      <Route path="/checkout" element={<Navigate to="/pricing" replace />} />
+      <Route path="/checkout/*" element={<Navigate to="/pricing" replace />} />
+      <Route path="/buy/*" element={<Navigate to="/pricing" replace />} />
+      <Route path="/redeem" element={<Navigate to="/pricing" replace />} />
       <Route path="/pipeline" element={<ProtectedRoute><ApplicationPipeline /></ProtectedRoute>} />
       <Route path="/b2b" element={<ProtectedRoute><B2BDashboard /></ProtectedRoute>} />
       <Route path="/b2b/talent-pool" element={<ProtectedRoute><TalentPool /></ProtectedRoute>} />

@@ -14,7 +14,6 @@ export const B2C_PAUSE_MONTHS = 6;
 export const B2B_PAUSE_MONTHS = 3;
 
 export const CUSTOMER_PORTAL_FALLBACK = "/settings/billing";
-export const LEMON_SQUEEZY_CUSTOMER_PORTAL = CUSTOMER_PORTAL_FALLBACK;
 
 export interface SubscriptionState {
   status: SubscriptionStatus;
@@ -96,7 +95,6 @@ export function useSubscription() {
       status?: SubscriptionStatus;
       error?: string;
       portalUrl?: string;
-      lemonSqueezy?: { url?: string };
       pauseUntil?: string;
       remainingCredits?: number;
       message?: string;
@@ -114,7 +112,7 @@ export function useSubscription() {
   const unpause = useCallback(() => invoke("unpause"), [invoke]);
   const openPortal = useCallback(async () => {
     const result = await invoke("portal");
-    const url = result.data?.portalUrl || result.data?.lemonSqueezy?.url || CUSTOMER_PORTAL_FALLBACK;
+    const url = result.data?.portalUrl || CUSTOMER_PORTAL_FALLBACK;
     window.open(url, "_blank", "noopener,noreferrer");
     return url;
   }, [invoke]);

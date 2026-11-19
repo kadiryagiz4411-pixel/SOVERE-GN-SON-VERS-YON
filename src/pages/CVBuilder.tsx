@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckoutButton, openHostedCheckout } from '@/components/checkout/CheckoutButton';
+import { CheckoutButton } from '@/components/checkout/CheckoutButton';
+import { createHostedCheckout } from '@/lib/billing/startCheckout';
+import { getGuestState } from '@/lib/guestMode';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -13,9 +15,9 @@ import { useSession } from '@/contexts/SessionContext';
 import { OWNER_EMAIL } from '@/lib/superadmin';
 import { invokeCvFunction } from '@/lib/edgeFunctions';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { isPaidPlan, isElitePlan, getCheckoutUrl } from '@/lib/plans';
+import { isPaidPlan, isElitePlan } from '@/lib/plans';
 import { monthlyPriceLabel } from '@/config/money';
-import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE, CV_EXTRA_CHECKOUT_URL } from '@/lib/cvCredits';
+import { canGenerateCV, incrementCVGenerations, getCVGenerationsRemaining, getCVLimit, CV_EXTRA_PRICE } from '@/lib/cvCredits';
 import { COST_PER_ACTION, INSUFFICIENT_CREDITS_MESSAGE, hasActionCredits, hasCreditsOrUnlimited } from '@/lib/credits';
 import { consumeFreeAllowance, freeAllowanceRemaining } from '@/lib/freeAllowance';
 import { should402BypassForUnlimited } from '@/lib/tierPermissions';
@@ -657,7 +659,18 @@ const CVBuilder = () => {
                 {!isPro && (
                   <button
                     type="button"
-                    onClick={() => openHostedCheckout(getCheckoutUrl('pro'))}
+                    onClick={() => {
+                      void createHostedCheckout({
+                        planId: 'pro',
+                        billingCycle: 'monthly',
+                        userId: appSession.user?.id,
+                        email: appSession.user?.email,
+                        accessToken: appSession.session?.access_token,
+                        guestId: appSession.user ? undefined : getGuestState().id,
+                      })
+                        .then((url) => window.open(url, '_blank', 'noopener,noreferrer'))
+                        .catch(() => navigate('/pricing'));
+                    }}
                     className="text-xs text-primary hover:underline mt-1 inline-block text-left"
                   >
                     {cv.upgradeHint}
@@ -1035,11 +1048,11 @@ const CVBuilder = () => {
 
             <div className="space-y-3">
               {/* $2.99 extra CV option */}
-              <a
-                href={CV_EXTRA_CHECKOUT_URL}
-                target="_top"
-                rel="noreferrer"
-                className="w-full flex items-center gap-3 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+              <CheckoutButton
+                href="/pricing"
+                planId="single_pass"
+                billingCycle="once"
+                className="w-full flex items-center gap-3 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left h-auto"
               >
                 <FileText className="w-5 h-5 text-primary shrink-0" />
                 <div className="flex-1">
@@ -1051,15 +1064,15 @@ const CVBuilder = () => {
                   </p>
                 </div>
                 <ArrowLeft className="w-4 h-4 text-primary rotate-180" />
-              </a>
+              </CheckoutButton>
 
               {/* Upgrade option */}
               {!isPro ? (
-                <a
-                  href={getCheckoutUrl('pro')}
-                  target="_top"
-                  rel="noreferrer"
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-primary bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 transition-colors text-left"
+                <CheckoutButton
+                  href="/pricing"
+                  planId="pro"
+                  billingCycle="monthly"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-primary bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 transition-colors text-left h-auto"
                 >
                   <Sparkles className="w-5 h-5 text-primary shrink-0" />
                   <div className="flex-1">
@@ -1071,13 +1084,13 @@ const CVBuilder = () => {
                     </p>
                   </div>
                   <ArrowLeft className="w-4 h-4 text-primary rotate-180" />
-                </a>
+                </CheckoutButton>
               ) : (
-                <a
-                  href={getCheckoutUrl('elite')}
-                  target="_top"
-                  rel="noreferrer"
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-amber-500/5 hover:from-amber-500/20 hover:to-amber-500/10 transition-colors text-left"
+                <CheckoutButton
+                  href="/pricing"
+                  planId="elite"
+                  billingCycle="monthly"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-amber-500/5 hover:from-amber-500/20 hover:to-amber-500/10 transition-colors text-left h-auto"
                 >
                   <Crown className="w-5 h-5 text-amber-500 shrink-0" />
                   <div className="flex-1">
@@ -1089,7 +1102,7 @@ const CVBuilder = () => {
                     </p>
                   </div>
                   <ArrowLeft className="w-4 h-4 text-amber-500 rotate-180" />
-                </a>
+                </CheckoutButton>
               )}
             </div>
 

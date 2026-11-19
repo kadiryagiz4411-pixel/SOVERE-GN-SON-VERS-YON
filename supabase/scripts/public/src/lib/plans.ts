@@ -1,5 +1,5 @@
 // Plan System for Sovereign
-// Recurring subscriptions via Lemon Squeezy
+// Recurring subscriptions via Polar
 
 export type PlanType = 'free' | 'pro' | 'elite';
 
@@ -87,15 +87,15 @@ export const getAnnualSavings = (plan: 'pro' | 'elite') => {
   return (monthly * 12) - annual;
 };
 
-// Lemon Squeezy checkout URLs
+// Polar checkout URLs
 export const CHECKOUT_URLS = {
   pro: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/1f8f86a3-ac49-4c41-ae25-4c8e03df1759',
-    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9',
+    monthly: '/pricing',
+    annual: '/pricing',
   },
   elite: {
-    monthly: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/ee871e14-95bd-46b3-afb8-2b73c66d54f1',
-    annual: 'https://sovereignapp.lemonsqueezy.com/checkout/buy/eef79c14-3371-444f-a171-8fcc00ebe411',
+    monthly: '/pricing',
+    annual: '/pricing',
   },
 };
 

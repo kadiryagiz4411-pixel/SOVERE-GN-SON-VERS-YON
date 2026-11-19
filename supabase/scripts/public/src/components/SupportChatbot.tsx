@@ -10,9 +10,9 @@ interface Message {
 
 const FAQ: Record<string, { q: string[]; a: string }[]> = {
   en: [
-    { q: ['pricing', 'cost', 'price', 'how much', 'plan'], a: 'We offer 3 plans: Free, Pro ($14 monthly / $99 yearly), and Elite ($39 monthly / $299 yearly). Payments are processed securely via Lemon Squeezy. Visit our Pricing page for details.' },
+    { q: ['pricing', 'cost', 'price', 'how much', 'plan'], a: 'We offer 3 plans: Free, Pro ($14 monthly / $99 yearly), and Elite ($39 monthly / $299 yearly). Payments are processed securely via Polar. Visit our Pricing page for details.' },
     { q: ['trial', 'free trial', 'try'], a: 'Yes! We offer a limited free trial for Pro features. Look for the "Claim Free Trial" banner on your dashboard after signing up.' },
-    { q: ['cancel', 'refund', 'money back'], a: 'We use secure payments via Lemon Squeezy. For refund requests, please contact support@sovereign.app within 30 days of purchase.' },
+    { q: ['cancel', 'refund', 'money back'], a: 'We use secure payments via Polar. For refund requests, please contact support@sovereign.app within 30 days of purchase.' },
     { q: ['how', 'work', 'use', 'start', 'begin'], a: '1. Sign up for free\n2. Paste a job description in the dashboard\n3. Click "Analyze" to get your AI-optimized proposal\n4. Copy, download, or email the result directly!' },
     { q: ['elite', 'strategy', 'analytics'], a: 'Elite includes: visual acceptance graphs, company match recommendations, decision-maker identification, multi-channel outreach messages, and a full application strategy.' },
     { q: ['pro', 'acceptance', 'score', 'probability'], a: 'Pro gives you acceptance probability scoring (%), company-specific optimization, tone selection, unlimited proposals, and proposal history.' },
@@ -22,9 +22,9 @@ const FAQ: Record<string, { q: string[]; a: string }[]> = {
     { q: ['contact', 'support', 'help', 'email'], a: 'You can reach us at support@sovereign.app. We typically respond within 24 hours.' },
   ],
   tr: [
-    { q: ['fiyat', 'ücret', 'plan', 'kaç'], a: '3 plan sunuyoruz: Ücretsiz, Pro (aylık 14$ / yıllık 99$) ve Elite (aylık 39$ / yıllık 299$). Ödemeler Lemon Squeezy ile güvenli şekilde alınır. Detaylar için Fiyatlandırma sayfamızı ziyaret edin.' },
+    { q: ['fiyat', 'ücret', 'plan', 'kaç'], a: '3 plan sunuyoruz: Ücretsiz, Pro (aylık 14$ / yıllık 99$) ve Elite (aylık 39$ / yıllık 299$). Ödemeler Polar ile güvenli şekilde alınır. Detaylar için Fiyatlandırma sayfamızı ziyaret edin.' },
     { q: ['deneme', 'trial', 'ücretsiz'], a: 'Evet! Pro özellikleri için sınırlı ücretsiz deneme sunuyoruz. Kaydolduktan sonra panelinizdeki "Ücretsiz Deneme" bannerine bakın.' },
-    { q: ['iptal', 'iade', 'para'], a: 'Lemon Squeezy üzerinden güvenli ödeme alıyoruz. İade talepleri için satın alma sonrası 30 gün içinde support@sovereign.app adresine ulaşın.' },
+    { q: ['iptal', 'iade', 'para'], a: 'Polar üzerinden güvenli ödeme alıyoruz. İade talepleri için satın alma sonrası 30 gün içinde support@sovereign.app adresine ulaşın.' },
     { q: ['nasıl', 'kullan', 'başla'], a: '1. Ücretsiz kayıt olun\n2. İş ilanını panele yapıştırın\n3. "Analiz Et" ile AI destekli teklif alın\n4. Kopyalayın, indirin veya e-posta ile gönderin!' },
     { q: ['elite', 'strateji', 'analitik'], a: 'Elite şunları içerir: görsel kabul grafikleri, şirket eşleşme önerileri, karar verici tespiti, çok kanallı iletişim mesajları ve tam başvuru stratejisi.' },
     { q: ['ton', 'agresif', 'sakin', 'profesyonel'], a: 'Pro ve Elite kullanıcılar 4 ton seçebilir: Profesyonel, Agresif, Sakin ve Tutarlı. Her biri teklif üslubunu farklı şirket kültürlerine uyacak şekilde ayarlar.' },

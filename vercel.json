@@ -7,18 +7,19 @@
       "destination": "https://sovereignapp.pro/:path*",
       "permanent": true
     },
-    {
-      "source": "/:path*",
-      "missing": [{ "type": "host", "value": "sovereignapp.pro" }],
-      "destination": "https://sovereignapp.pro/:path*",
-      "permanent": true
-    }
+    { "source": "/checkout", "destination": "/pricing", "permanent": true },
+    { "source": "/checkout/:path*", "destination": "/pricing", "permanent": true },
+    { "source": "/buy/:path*", "destination": "/pricing", "permanent": true },
+    { "source": "/redeem", "destination": "/pricing", "permanent": true },
+    { "source": "/cvbuilder", "destination": "/cv-builder", "permanent": true },
+    { "source": "/cv", "destination": "/cv-builder", "permanent": false }
   ],
   "functions": {
     "api/index.ts": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?__route=:path*" },
+    { "source": "/cv-builder", "destination": "/index.html" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

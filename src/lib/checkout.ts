@@ -1,10 +1,9 @@
 /**
  * Hosted checkout URL helpers. Payment is Polar.sh only (Stripe-backed).
- * Never returns a Lemon Squeezy or AppSumo URL.
  */
 
 const AFFILIATE_QUERY_KEYS = ['aff', 'via', 'aff_ref', 'ref', 'code'] as const;
-const AFFILIATE_STORAGE = 'ls_aff';
+const AFFILIATE_STORAGE = 'affiliate_ref';
 const BILLING_FALLBACK = '/pricing';
 const ALLOWED_CHECKOUT_HOSTS = new Set(['polar.sh', 'sandbox.polar.sh', 'buy.polar.sh']);
 
@@ -77,9 +76,6 @@ export function getBillingFallbackUrl(): string {
   return BILLING_FALLBACK;
 }
 
-/** @deprecated Use getBillingFallbackUrl. Kept so older imports compile during the Polar cutover. */
-export const getLemonStoreUrl = getBillingFallbackUrl;
-
 export function isBrokenCheckoutUrl(raw: string | null | undefined): boolean {
   if (!raw) return true;
   const value = unwrapMarkdownUrl(String(raw));
@@ -143,11 +139,3 @@ export function redirectToCheckout(_tier?: string, _userEmail?: string, _userId?
   if (typeof window === 'undefined') return;
   window.location.assign(getBillingFallbackUrl());
 }
-
-export const LS_CHECKOUT_URLS = {
-  standard: { monthly: BILLING_FALLBACK, yearly: BILLING_FALLBACK },
-  pro: { monthly: BILLING_FALLBACK, yearly: BILLING_FALLBACK },
-  elite: { monthly: BILLING_FALLBACK, yearly: BILLING_FALLBACK },
-  enterprise: { monthly: BILLING_FALLBACK, yearly: BILLING_FALLBACK },
-  single_pass: { oneTime: BILLING_FALLBACK },
-} as const;

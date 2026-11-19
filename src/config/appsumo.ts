@@ -3,7 +3,7 @@
  * No purchase URLs, badges, or marketplace checkout.
  */
 
-export const APPSUMO_LS_CHECKOUT_URLS = {
+export const CHECKOUT_FALLBACK_URLS = {
   tier1: '/pricing',
   tier2: '/pricing',
   tier3: '/pricing',
