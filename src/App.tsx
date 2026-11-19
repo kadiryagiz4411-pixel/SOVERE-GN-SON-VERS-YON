@@ -258,6 +258,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/builder" element={<ProtectedRoute allowGuest><CVBuilder /></ProtectedRoute>} />
       <Route path="/checkout" element={<Navigate to="/pricing" replace />} />
       <Route path="/checkout/*" element={<Navigate to="/pricing" replace />} />
+      <Route path="/buy" element={<Navigate to="/pricing" replace />} />
       <Route path="/buy/*" element={<Navigate to="/pricing" replace />} />
       <Route path="/redeem" element={<Navigate to="/pricing" replace />} />
       <Route path="/pipeline" element={<ProtectedRoute><ApplicationPipeline /></ProtectedRoute>} />

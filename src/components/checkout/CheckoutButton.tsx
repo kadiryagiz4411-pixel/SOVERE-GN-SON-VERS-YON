@@ -8,6 +8,7 @@ import {
   attachCheckoutIdentity,
   getBillingFallbackUrl,
   isBrokenCheckoutUrl,
+  parseCheckoutTarget,
   sanitizeCheckoutUrl,
 } from '@/lib/checkout';
 import { createHostedCheckout } from '@/lib/billing/startCheckout';
@@ -20,7 +21,9 @@ export function openHostedCheckout(
 ): void {
   const safeBase = isBrokenCheckoutUrl(checkoutUrl) ? getBillingFallbackUrl() : sanitizeCheckoutUrl(checkoutUrl);
   const enrichedUrl = attachAffiliateTracking(attachCheckoutIdentity(safeBase, userEmail, userId));
-  const finalUrl = /^https?:\/\//i.test(enrichedUrl) ? enrichedUrl : getBillingFallbackUrl();
+  const finalUrl = /^https?:\/\//i.test(enrichedUrl)
+    ? enrichedUrl
+    : (enrichedUrl.startsWith('/') ? enrichedUrl : getBillingFallbackUrl());
 
   try {
     window.open(finalUrl, '_blank', 'noopener,noreferrer');
@@ -43,7 +46,12 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
   ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, planId, billingCycle, ...props }, ref) => {
     const { user, session } = useSession();
     const [busy, setBusy] = React.useState(false);
-    const safeHref = attachCheckoutIdentity(href, user?.email, user?.id);
+    const inferred = parseCheckoutTarget(href);
+    const resolvedPlanId = planId || inferred.planId || 'standard';
+    const resolvedCycle = resolvedPlanId === 'single_pass'
+      ? 'once'
+      : (billingCycle || inferred.billingCycle || 'monthly');
+    const safeHref = attachCheckoutIdentity(href || getBillingFallbackUrl(resolvedPlanId, resolvedCycle), user?.email, user?.id);
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
       onClick?.(event);
@@ -57,8 +65,8 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
       void createHostedCheckout({
         userId: user?.id,
         email: user?.email,
-        planId: planId || 'standard',
-        billingCycle: planId === 'single_pass' ? 'once' : billingCycle,
+        planId: resolvedPlanId,
+        billingCycle: resolvedCycle,
         accessToken: session?.access_token,
         guestId: user ? undefined : getGuestState().id,
       })
@@ -66,6 +74,7 @@ export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButton
         .catch((err) => {
           console.warn('[Checkout] Hosted checkout failed', err);
           toast.error(err instanceof Error ? err.message : 'Could not start checkout. Please try again.');
+          open(safeHref);
         })
         .finally(() => setBusy(false));
     };

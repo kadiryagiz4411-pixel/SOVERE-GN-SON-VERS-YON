@@ -840,7 +840,7 @@ const CVBuilder = () => {
                 <div className="text-center py-12 border border-dashed border-border rounded-xl">
                   <Lock className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-muted-foreground mb-3">{cv.uploadLocked || 'CV optimization is a Pro feature'}</p>
-                  <CheckoutButton href={getCheckoutUrl('pro')} variant="gold" size="sm">
+                  <CheckoutButton href="/pricing?plan=pro&cycle=monthly" planId="pro" billingCycle="monthly" variant="gold" size="sm">
                     {t.pricing.pro.cta}
                   </CheckoutButton>
                 </div>

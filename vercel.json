@@ -9,6 +9,7 @@
     },
     { "source": "/checkout", "destination": "/pricing", "permanent": true },
     { "source": "/checkout/:path*", "destination": "/pricing", "permanent": true },
+    { "source": "/buy", "destination": "/pricing", "permanent": true },
     { "source": "/buy/:path*", "destination": "/pricing", "permanent": true },
     { "source": "/redeem", "destination": "/pricing", "permanent": true },
     { "source": "/cvbuilder", "destination": "/cv-builder", "permanent": true },

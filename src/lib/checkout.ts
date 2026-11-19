@@ -72,8 +72,39 @@ export function getSupportUrl(): string {
   return isHttpUrl(support) ? support : 'https://sovereignapp.pro/pricing';
 }
 
-export function getBillingFallbackUrl(): string {
-  return BILLING_FALLBACK;
+const CHECKOUT_PLAN_IDS = new Set(['standard', 'pro', 'elite', 'enterprise', 'single_pass']);
+
+export function getBillingFallbackUrl(planId?: string, cycle?: string): string {
+  const plan = String(planId || '').trim().toLowerCase();
+  if (!CHECKOUT_PLAN_IDS.has(plan)) return BILLING_FALLBACK;
+  const params = new URLSearchParams({ plan });
+  const normalizedCycle = plan === 'single_pass'
+    ? 'once'
+    : (cycle === 'yearly' || cycle === 'annual' || cycle === 'year')
+      ? 'yearly'
+      : (cycle === 'once' || cycle === 'one_time')
+        ? 'once'
+        : 'monthly';
+  params.set('cycle', normalizedCycle);
+  return `${BILLING_FALLBACK}?${params.toString()}`;
+}
+
+export function parseCheckoutTarget(href: string): { planId?: string; billingCycle?: string } {
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://sovereignapp.pro';
+    const url = href.startsWith('/') ? new URL(href, origin) : new URL(href);
+    const plan = (url.searchParams.get('plan') || url.searchParams.get('planId') || '').trim().toLowerCase();
+    const cycleRaw = (url.searchParams.get('cycle') || url.searchParams.get('billingCycle') || url.searchParams.get('interval') || '').trim().toLowerCase();
+    const planId = CHECKOUT_PLAN_IDS.has(plan) ? plan : undefined;
+    let billingCycle: string | undefined;
+    if (planId === 'single_pass') billingCycle = 'once';
+    else if (cycleRaw === 'yearly' || cycleRaw === 'annual' || cycleRaw === 'year') billingCycle = 'yearly';
+    else if (cycleRaw === 'once' || cycleRaw === 'one_time') billingCycle = 'once';
+    else if (cycleRaw === 'monthly' || cycleRaw === 'month' || planId) billingCycle = 'monthly';
+    return { planId, billingCycle };
+  } catch {
+    return {};
+  }
 }
 
 export function isBrokenCheckoutUrl(raw: string | null | undefined): boolean {

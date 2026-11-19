@@ -147,6 +147,8 @@ export function TierGate({
               <StartB2BTrialButton className="w-full" />
               <CheckoutButton
                 href={enterpriseCheckoutUrl()}
+                planId="enterprise"
+                billingCycle="yearly"
                 overlay
                 className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 border-0 font-semibold"
               >
@@ -211,6 +213,8 @@ export function GatedFeature({ required, featureName, description, children }: G
                 <StartB2BTrialButton className="flex-1" />
                 <CheckoutButton
                   href={enterpriseCheckoutUrl()}
+                  planId="enterprise"
+                  billingCycle="yearly"
                   overlay
                   className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 border-0 font-semibold"
                 >

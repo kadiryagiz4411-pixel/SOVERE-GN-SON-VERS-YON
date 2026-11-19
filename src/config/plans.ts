@@ -22,10 +22,11 @@ export function getVariantId(
 }
 
 export function resolveCheckoutUrl(
-  _planId: CheckoutPlanId,
-  _cycle: BillingCycle | 'annual' | boolean = 'monthly',
+  planId: CheckoutPlanId,
+  cycle: BillingCycle | 'annual' | boolean = 'monthly',
 ): string {
-  return getBillingFallbackUrl();
+  const billing = planId === 'single_pass' ? 'once' : normalizeBillingCycle(cycle);
+  return getBillingFallbackUrl(planId, billing);
 }
 
 export function describeCheckoutTarget(
@@ -47,6 +48,5 @@ export function createCheckout(
 ): string {
   const known: CheckoutPlanId[] = ['standard', 'pro', 'elite', 'enterprise', 'single_pass'];
   if (!known.includes(planId)) return getBillingFallbackUrl();
-  const cycle = normalizeBillingCycle(billingCycle);
-  return sanitizeCheckoutUrl(describeCheckoutTarget(planId, cycle).checkoutUrl);
+  return sanitizeCheckoutUrl(resolveCheckoutUrl(planId, billingCycle));
 }

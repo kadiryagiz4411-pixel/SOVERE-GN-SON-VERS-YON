@@ -34,6 +34,8 @@ export function SubscriptionRequiredModal({ open }: SubscriptionRequiredModalPro
         </DialogHeader>
         <CheckoutButton
           href={enterpriseCheckoutUrl()}
+          planId="enterprise"
+          billingCycle="yearly"
           overlay
           className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold border-0"
         >
