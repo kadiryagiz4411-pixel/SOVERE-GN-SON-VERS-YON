@@ -1,6 +1,6 @@
 /**
  * Unified AI action credit rules.
- * Prices / Lemon Squeezy IDs are intentionally untouched here.
+ * Prices / Polar product IDs are intentionally untouched here.
  */
 export const COST_PER_ACTION = 20;
 export const DEFAULT_MONTHLY_CREDIT_LIMIT = 400;

@@ -1,4 +1,4 @@
-/** Integer cents. Never send floats to Polar / Stripe / Lemon Squeezy payloads. */
+/** Integer cents. Never send floats to Polar / Stripe payloads. */
 
 export const ANNUAL_DISCOUNT_PERCENT = 20;
 

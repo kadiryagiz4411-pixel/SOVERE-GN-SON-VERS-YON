@@ -264,11 +264,11 @@ export async function deductCreditOrBypass(
 // ─── AppSumo code redemption ──────────────────────────────────────────────────
 
 const REDEEM_MESSAGES: Record<string, string> = {
-  ok:               'AppSumo code activated! Your monthly credits are now live.',
+  ok:               'Code activated. Your monthly credits are now live.',
   invalid_code:     'Invalid code. Please check for typos and try again.',
   already_redeemed: 'This code has already been used by another account.',
   already_has_plan: 'You already have an active paid plan.',
-  disabled:         'This code has been disabled. Please contact AppSumo support.',
+  disabled:         'This code has been disabled. Please contact support.',
 };
 
 /** Pass English redeem copy through. Map leftover Turkish database text. */
@@ -323,7 +323,7 @@ export async function redeemAppSumoCode(
       tier === 'tier_3' ? 'appsumo_b2b'
       : tier === 'tier_2' ? 'appsumo_tier2'
       : 'appsumo_tier1';
-    const label = payload.tier_label || (tier === 'tier_3' ? 'AppSumo Agency' : tier === 'tier_2' ? 'AppSumo Pro' : 'AppSumo Starter');
+    const label = payload.tier_label || (tier === 'tier_3' ? 'Enterprise' : tier === 'tier_2' ? 'Pro' : 'Standard');
     const message = toEnglishRedeemCopy(payload.message || '', `${label} is now active.`);
 
     try {
@@ -357,10 +357,10 @@ export function daysUntilReset(resetDate: Date | null): string {
 export function tierLabel(tier: string): string {
   const map: Record<string, string> = {
     free:           'Free',
-    appsumo_tier1:  'AppSumo Starter',
-    appsumo_tier2:  'AppSumo Pro',
-    appsumo_b2b:    'AppSumo Agency',
-    appsumo_tier3:  'AppSumo Agency',
+    appsumo_tier1:  'Standard',
+    appsumo_tier2:  'Pro',
+    appsumo_b2b:    'Enterprise',
+    appsumo_tier3:  'Enterprise',
     pro_monthly:    'Pro Plan',
     enterprise:     'Enterprise',
     standard:       'Standart',

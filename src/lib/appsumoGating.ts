@@ -14,9 +14,9 @@ export type AppSumoFeature =
   | 'byok_setup';
 
 export const APPSUMO_STACK_LIMITS = {
-  1: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[1], label: 'AppSumo Starter' },
-  2: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[2], label: 'AppSumo Pro' },
-  3: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[3], label: 'AppSumo Agency' },
+  1: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[1], label: 'Standard' },
+  2: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[2], label: 'Pro' },
+  3: { monthlyCredits: APPSUMO_MONTHLY_CREDITS[3], label: 'Enterprise' },
 } as const;
 
 export const MAX_APPSUMO_CODES = 3;
@@ -50,15 +50,15 @@ export function assertFeatureAccess(appsumoTier: number, feature: AppSumoFeature
   const need = minTierFor(feature);
   if (appsumoTier >= need) return;
   if (feature === 'batch_proposals') {
-    throw new Error('Bulk pitch requires AppSumo Agency');
+    throw new Error('Bulk pitch requires Enterprise');
   }
   if (feature === 'agency_knowledge') {
-    throw new Error('Agency lead tools require AppSumo Agency');
+    throw new Error('Agency lead tools require Enterprise');
   }
   if (feature === 'byok_setup') {
-    throw new Error('BYOK requires AppSumo Agency');
+    throw new Error('BYOK requires Elite or Enterprise');
   }
-  throw new Error('Requires AppSumo Starter or a paid plan');
+  throw new Error('Requires a paid plan');
 }
 
 export function canUseFeature(appsumoTier: number, feature: AppSumoFeature): boolean {

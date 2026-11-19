@@ -1,5 +1,5 @@
 import { env, firstEnv } from './env.js';
-import type { BillingPeriod, PlanTier } from './lemonsqueezy.js';
+import type { BillingPeriod, PlanTier } from './billingTypes.js';
 
 function supabaseUrl(): string {
   return firstEnv('SUPABASE_URL', 'VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');

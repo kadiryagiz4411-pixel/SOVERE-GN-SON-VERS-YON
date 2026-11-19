@@ -214,26 +214,26 @@ export interface TierActivationMessage {
 
 export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
   appsumo_tier1: {
-    headline:    'AppSumo Starter Activated',
+    headline:    'Standard Activated',
     subline:     '50 Monthly Credits & Core ATS Engine',
     badge:       'Starter LTD',
     creditsLine: '50 credits / month — resets every 30 days',
     features:    ['ATS Gap Analysis', '1-Click ATS Tailoring', 'Core Application Engine'],
   },
   appsumo_tier2: {
-    headline:    'AppSumo Pro Activated',
+    headline:    'Pro Activated',
     subline:     '200 Monthly Credits + Company DNA Decoder & 6-Sec Recruiter Hook',
     badge:       'Pro LTD',
     creditsLine: '200 credits / month — resets every 30 days',
     features:    [
-      'Everything in AppSumo Starter',
+      'Everything in Standard',
       'Company DNA Decoder',
       '6-Second Recruiter Hook Generator',
       'Red-Flag Neutralizer',
     ],
   },
   appsumo_tier3: {
-    headline:    'AppSumo Agency Activated',
+    headline:    'Enterprise Activated',
     subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
     badge:       'Agency LTD',
     creditsLine: '1,000 credits / month — refreshes every month',
@@ -245,12 +245,12 @@ export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
     ],
   },
   appsumo_b2b: {
-    headline:    'AppSumo Agency Activated',
+    headline:    'Enterprise Activated',
     subline:     '1,000 Credits + B2B/B2C extension, bulk pitch & candidate ranking',
     badge:       'Agency LTD',
     creditsLine: '1,000 credits / month — refreshes every month',
     features:    [
-      'Everything in AppSumo Pro',
+      'Everything in Pro',
       'Bulk CV Screening (up to 100 CVs at once)',
       'Ranked Applicant Table',
       'Bulk Rejection Email Generator',
@@ -260,7 +260,7 @@ export const TIER_ACTIVATION_MESSAGES: Record<string, TierActivationMessage> = {
 
 /** Fallback message when tier is unknown */
 export const DEFAULT_ACTIVATION_MESSAGE: TierActivationMessage = {
-  headline:    'AppSumo Code Activated!',
+  headline:    'Code Activated!',
   subline:     'Your lifetime deal is now live.',
   badge:       'LTD Active',
   creditsLine: 'Credits / month — resets every 30 days',

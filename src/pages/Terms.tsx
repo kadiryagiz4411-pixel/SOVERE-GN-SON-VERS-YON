@@ -25,14 +25,11 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="3. Subscriptions, Single Pass & Billing">
         <p>
-          Sovereign sells digital services. Checkout is processed by Polar or Lemon Squeezy (Merchant of Record / payment processor). Recurring plans ({subscriptionPriceList()}) renew automatically unless cancelled before the renewal date.
+          Sovereign sells digital services. Checkout is processed by Polar (Merchant of Record / payment processor). Recurring plans ({subscriptionPriceList()}) renew automatically unless cancelled before the renewal date.
         </p>
         <p>
           The {singlePassLabel()} is a one-time digital purchase: one pass credit for a single generation. It does not renew and is not a subscription. Refunds, including when a consumed pass is non-refundable, are described in our{' '}
           <Link to="/refund" className="text-primary hover:underline">Refund Policy</Link>.
-        </p>
-        <p>
-          AppSumo lifetime licenses, if purchased, are redeemed through Sovereign’s redeem flow and remain subject to AppSumo’s marketplace terms.
         </p>
       </LegalSection>
 
@@ -50,7 +47,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="6. Limitation of Liability">
         <p>
-          The service is provided “as is.” To the maximum extent permitted by law, Sovereign and its operators are not liable for indirect, incidental, special, consequential, or lost-profit damages, or for decisions made using AI rankings. Our aggregate liability for a claim is limited to the fees you paid to us for the service in the three months before the claim (or, for AppSumo licenses, the amount AppSumo remitted for your seat, if any).
+          The service is provided “as is.” To the maximum extent permitted by law, Sovereign and its operators are not liable for indirect, incidental, special, consequential, or lost-profit damages, or for decisions made using generated rankings. Our aggregate liability for a claim is limited to the fees you paid to us for the service in the three months before the claim.
         </p>
       </LegalSection>
 

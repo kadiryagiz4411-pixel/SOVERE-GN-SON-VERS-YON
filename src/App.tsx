@@ -14,7 +14,7 @@ import SplashScreen from "@/components/SplashScreen";
 import { Loader2, AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { isMisconfigured, missingVars } from "@/integrations/supabase/client";
-import { captureAffiliateCode } from "@/lib/lemonsqueezy";
+import { captureAffiliateCode } from "@/lib/checkout";
 import { GuestGateHost } from "@/components/auth/GuestGateHost";
 import { BOOT_TIMEOUT_EVENT, BOOT_TIMEOUT_MS, emitBootTimeout, resetAppState } from "@/lib/resetAppState";
 import { unlockBodyScroll } from "@/lib/unlockScroll";
@@ -78,7 +78,6 @@ const Organization = lazy(() => import("./pages/Organization"));
 const B2BDashboard = lazy(() => import("./pages/B2BDashboard"));
 const TalentPool = lazy(() => import("./pages/TalentPool"));
 const Billing = lazy(() => import("./pages/Billing"));
-const Redeem = lazy(() => import("./pages/Redeem"));
 const InterviewSimulator = lazy(() => import("./pages/InterviewSimulator"));
 const PortfolioBuilder = lazy(() => import("./pages/PortfolioBuilder"));
 const CVAnalyzer = lazy(() => import("./pages/CVAnalyzer"));
@@ -144,30 +143,6 @@ const AffiliateTracker = () => {
     }
     captureAffiliateCode(searchParams.toString());
   }, [searchParams]);
-  return null;
-};
-
-const LemonSqueezyInit = () => {
-  useEffect(() => {
-    const init = () => {
-      try {
-        captureAffiliateCode();
-        if (typeof window.createLemonSqueezy === 'function') {
-          window.createLemonSqueezy();
-        }
-        window.LemonSqueezy?.Refresh?.();
-      } catch (err) {
-        console.error('[LemonSqueezy] createLemonSqueezy() failed', err);
-      }
-    };
-    init();
-    window.addEventListener('load', init);
-    const retry = window.setTimeout(init, 600);
-    return () => {
-      window.removeEventListener('load', init);
-      window.clearTimeout(retry);
-    };
-  }, []);
   return null;
 };
 
@@ -307,7 +282,6 @@ const AppRoutes = () => (
       </Route>
       <Route path="/share/:shareCode" element={<SharePortal />} />
       <Route path="/settings/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-      <Route path="/redeem" element={<Redeem />} />
       <Route path="/ref" element={<ReferralLanding />} />
       <Route path="/fit-score" element={<FitScoreChecker />} />
       <Route path="/proposal-checker" element={<FitScoreChecker />} />
@@ -373,7 +347,6 @@ const App = () => {
                     <ScrollLockGuard />
                     <AffiliateTracker />
                     <PoachBridge />
-                    <LemonSqueezyInit />
                     <FailSafe />
                     <AppRoutes />
                     <GuestGateHost />

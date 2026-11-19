@@ -1,7 +1,7 @@
 /**
  * GET /api/extension/me
  * Resolves the signed-in user's B2C / B2B / admin workspace from Supabase.
- * AppSumo lifetime users are gated by monthly credits, never by SaaS subscription status.
+ * Lifetime-plan users are gated by monthly credits, never by SaaS subscription status.
  */
 import { preflight, jsonNoStore } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
@@ -11,7 +11,7 @@ export const config = { runtime: 'nodejs', maxDuration: 15 };
 
 const OWNER_EMAIL = 'kadiryagiz4411@gmail.com';
 const APPSUMO_ZERO_MESSAGE =
-  'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.';
+  'Monthly credits reached. Credits refresh next month, or upgrade for more.';
 
 function bearerToken(req: Request): string {
   const header = req.headers.get('authorization') || req.headers.get('Authorization') || '';

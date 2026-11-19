@@ -1,21 +1,11 @@
 /**
  * Sovereign Pricing Configuration — v4
- * ──────────────────────────────────────
- * Single source of truth for all pricing tiers, feature lists, and
- * Lemon Squeezy checkout URLs (env-driven, overlay-ready).
- *
- * Checkout URL env vars required in .env:
- *   VITE_LEMONSQUEEZY_ONETIME_PASS_URL
- *   VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL / _ANNUAL_URL
- *   VITE_LEMONSQUEEZY_PRO_MONTHLY_URL      / _ANNUAL_URL
- *   VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL    / _ANNUAL_URL
- *   VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL / _ANNUAL_URL
- *
- * Variant IDs live in src/config/plans.ts (createCheckout / resolveCheckoutUrl).
+ * Single source of truth for pricing tiers and feature lists.
+ * Checkout is minted by Polar.sh via POST /api/billing/checkout.
  */
 
 import { createCheckout, type CheckoutPlanId } from "./plans";
-import { LS_CHECKOUT_URLS, getLemonStoreUrl, isBrokenCheckoutUrl, sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
+import { getBillingFallbackUrl, sanitizeCheckoutUrl } from "@/lib/checkout";
 import {
   ANNUAL_DISCOUNT_PERCENT,
   PLAN_PRICES_CENTS,
@@ -24,20 +14,9 @@ import {
   annualPerMonthUsd,
   formatUsd as formatUsdFromMoney,
 } from "./money";
-export { APPSUMO_LTD_TIERS, APPSUMO_MONTHLY_CREDITS } from "./appsumo";
 export { ANNUAL_DISCOUNT_PERCENT, PLAN_PRICES_USD, SINGLE_PASS_USD, formatUsdFromMoney as formatMoney };
 
-// ─── URL helper (safe env read) ───────────────────────────────────────────────
-
-const url = (key: string, fallback?: string): string => {
-  const raw =
-    typeof import.meta !== "undefined"
-      ? String((import.meta.env as Record<string, string | undefined>)[key] ?? "")
-      : "";
-  if (raw && !isBrokenCheckoutUrl(raw)) return sanitizeCheckoutUrl(raw);
-  if (fallback && !isBrokenCheckoutUrl(fallback)) return fallback;
-  return getLemonStoreUrl();
-};
+const CHECKOUT_PLACEHOLDER = getBillingFallbackUrl();
 
 // ─── Core interface (v4 canonical schema) ─────────────────────────────────────
 
@@ -85,7 +64,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Instant PDF export",
     ],
     checkoutUrls: {
-      oneTime: url("VITE_LEMONSQUEEZY_ONETIME_PASS_URL", LS_CHECKOUT_URLS.single_pass.oneTime),
+      oneTime: CHECKOUT_PLACEHOLDER,
     },
   },
 
@@ -106,8 +85,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_STANDARD_MONTHLY_URL", LS_CHECKOUT_URLS.standard.monthly),
-      annual: url("VITE_LEMONSQUEEZY_STANDARD_ANNUAL_URL", LS_CHECKOUT_URLS.standard.yearly),
+      monthly: CHECKOUT_PLACEHOLDER,
+      annual: CHECKOUT_PLACEHOLDER,
     },
   },
 
@@ -132,8 +111,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_PRO_MONTHLY_URL", LS_CHECKOUT_URLS.pro.monthly),
-      annual: url("VITE_LEMONSQUEEZY_PRO_ANNUAL_URL", LS_CHECKOUT_URLS.pro.yearly),
+      monthly: CHECKOUT_PLACEHOLDER,
+      annual: CHECKOUT_PLACEHOLDER,
     },
   },
 
@@ -162,8 +141,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_ELITE_MONTHLY_URL", LS_CHECKOUT_URLS.elite.monthly),
-      annual: url("VITE_LEMONSQUEEZY_ELITE_ANNUAL_URL", LS_CHECKOUT_URLS.elite.yearly),
+      monthly: CHECKOUT_PLACEHOLDER,
+      annual: CHECKOUT_PLACEHOLDER,
     },
   },
 
@@ -198,8 +177,8 @@ export const PRICING_TIERS: PricingTier[] = [
       "Pause subscription guarantee anytime upon finding a job or facing low workload",
     ],
     checkoutUrls: {
-      monthly: url("VITE_LEMONSQUEEZY_ENTERPRISE_MONTHLY_URL", LS_CHECKOUT_URLS.enterprise.monthly),
-      annual: url("VITE_LEMONSQUEEZY_ENTERPRISE_ANNUAL_URL", LS_CHECKOUT_URLS.enterprise.yearly),
+      monthly: CHECKOUT_PLACEHOLDER,
+      annual: CHECKOUT_PLACEHOLDER,
     },
   },
 ];
@@ -228,7 +207,7 @@ const FALLBACK_ONE_TIME: PricingTier = {
     "One job match and compatibility report",
     "Instant PDF export",
   ],
-  checkoutUrls: { oneTime: getLemonStoreUrl() },
+  checkoutUrls: { oneTime: CHECKOUT_PLACEHOLDER },
 };
 
 /** The one-time pass product */
@@ -273,13 +252,13 @@ export function getTierByPlanType(planType: string): PricingTier | undefined {
 
 /** Active checkout URL for the given tier and billing period */
 export function getCheckoutUrlFor(tier: PricingTier | undefined | null, isAnnual: boolean): string {
-  if (!tier?.id) return getLemonStoreUrl();
+  if (!tier?.id) return getBillingFallbackUrl();
   try {
     if (tier.isOneTime) return sanitizeCheckoutUrl(createCheckout("single_pass"));
     return sanitizeCheckoutUrl(createCheckout(tier.id as CheckoutPlanId, isAnnual ? "yearly" : "monthly"));
   } catch (err) {
     console.error("[Pricing Diagnostic] checkout URL failed", err);
-    return getLemonStoreUrl();
+    return getBillingFallbackUrl();
   }
 }
 
@@ -353,7 +332,7 @@ export const SINGLE_PASS = {
   price: PLAN_PRICES_USD.single_pass.oneTime,
   features: getOneTimeTier().features,
   badge: "One-Time Purchase · No Subscription",
-  checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? getLemonStoreUrl(),
+  checkoutUrl: getOneTimeTier().checkoutUrls.oneTime ?? getBillingFallbackUrl(),
 };
 
 /** @deprecated Use getTierById(). */
@@ -369,5 +348,5 @@ export function getPlanByType(planType: string): PricingTier | undefined {
 /** @deprecated Use getCheckoutUrlFor() or createCheckout() from src/config/plans.ts. */
 export function getCheckoutUrl(planId: PlanId, isAnnual = false): string {
   const tier = getTierById(planId);
-  return tier ? getCheckoutUrlFor(tier, isAnnual) : getLemonStoreUrl();
+  return tier ? getCheckoutUrlFor(tier, isAnnual) : getBillingFallbackUrl();
 }

@@ -53,4 +53,4 @@ export const getCVGenerationsRemaining = (plan: string): number | 'unlimited' =>
 
 // $2.99 per extra CV credit
 export const CV_EXTRA_PRICE = 2.99;
-export const CV_EXTRA_CHECKOUT_URL = 'https://sovereignapp.lemonsqueezy.com/checkout/buy/f86e3532-79dc-4cab-9d74-ec98a443f8b9';
+export const CV_EXTRA_CHECKOUT_URL = '/pricing';

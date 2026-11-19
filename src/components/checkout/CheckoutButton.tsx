@@ -6,78 +6,27 @@ import { useSession } from '@/contexts/SessionContext';
 import {
   attachAffiliateTracking,
   attachCheckoutIdentity,
-  getLemonStoreUrl,
+  getBillingFallbackUrl,
   isBrokenCheckoutUrl,
   sanitizeCheckoutUrl,
-} from '@/lib/lemonsqueezy';
+} from '@/lib/checkout';
 import { createHostedCheckout } from '@/lib/billing/startCheckout';
 import { getGuestState } from '@/lib/guestMode';
 
-export function ensureLemonSqueezyReady(): boolean {
-  try {
-    if (typeof window.createLemonSqueezy === 'function') {
-      window.createLemonSqueezy();
-    }
-    return typeof window.LemonSqueezy?.Url?.Open === 'function';
-  } catch (err) {
-    console.error('[LemonSqueezy] SDK init failed', err);
-    return false;
-  }
-}
-
-/**
- * Append Lemon Squeezy checkout parameters:
- *  - checkout[redirect_url] → /dashboard?payment=success
- *  - checkout[email]        → pre-fills the email field if provided
- *  - checkout[custom][user_id]
- */
-export function buildLemonSqueezyUrl(
-  baseUrl: string,
-  userEmail?: string | null,
-  userId?: string | null,
-): string {
-  return attachCheckoutIdentity(sanitizeCheckoutUrl(baseUrl), userEmail, userId);
-}
-
-/**
- * Opens a Lemon Squeezy hosted checkout from the *current* URL/variant.
- * Always call this on click — do not rely on a stale `.lemonsqueezy-button` bind.
- */
-export function openLemonSqueezyCheckout(
+export function openHostedCheckout(
   checkoutUrl: string,
   userEmail?: string | null,
   userId?: string | null,
 ): void {
-  const safeBase = isBrokenCheckoutUrl(checkoutUrl) ? getLemonStoreUrl() : sanitizeCheckoutUrl(checkoutUrl);
-  const enrichedUrl = attachAffiliateTracking(buildLemonSqueezyUrl(safeBase, userEmail, userId));
-
-  // Final absolute-URL guard — React Router only intercepts relative paths;
-  // if somehow a non-http URL slips through, open the store instead.
-  const finalUrl = /^https?:\/\//i.test(enrichedUrl) ? enrichedUrl : getLemonStoreUrl();
-
-  const openNewTab = (url: string) => {
-    // Always window.open, never window.location.href — prevents React Router
-    // from capturing the navigation and 404-ing on the SPA.
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  const safeBase = isBrokenCheckoutUrl(checkoutUrl) ? getBillingFallbackUrl() : sanitizeCheckoutUrl(checkoutUrl);
+  const enrichedUrl = attachAffiliateTracking(attachCheckoutIdentity(safeBase, userEmail, userId));
+  const finalUrl = /^https?:\/\//i.test(enrichedUrl) ? enrichedUrl : getBillingFallbackUrl();
 
   try {
-    const lemonHosted = /lemonsqueezy\.com/i.test(finalUrl);
-    const ready = lemonHosted && ensureLemonSqueezyReady();
-    if (ready && window.LemonSqueezy?.Url?.Open) {
-      window.LemonSqueezy.Url.Open(finalUrl);
-      return;
-    }
-    console.warn('[LemonSqueezy] Overlay not ready, opening checkout in new tab', { finalUrl });
-    openNewTab(finalUrl);
+    window.open(finalUrl, '_blank', 'noopener,noreferrer');
   } catch (err) {
-    console.error('[LemonSqueezy] Checkout open failed', err, { finalUrl });
-    try {
-      openNewTab(finalUrl);
-    } catch (fallbackErr) {
-      console.error('[LemonSqueezy] Fallback open also failed', fallbackErr);
-      toast.error('Could not open checkout. Please disable your ad blocker and try again.');
-    }
+    console.error('[Checkout] Open failed', err, { finalUrl });
+    toast.error('Could not open checkout. Please disable your ad blocker and try again.');
   }
 }
 
@@ -85,75 +34,49 @@ interface CheckoutButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorEleme
   href: string;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
-  /** Set to false to open in a new tab instead of the LS overlay */
   overlay?: boolean;
-  lsVariantId?: string;
   planId?: string;
   billingCycle?: string;
 }
 
-/**
- * Lemon Squeezy checkout link.
- * Click always uses the live `href` (monthly vs yearly) via Url.Open —
- * never a first-render overlay bind that can stick to the yearly variant.
- */
 export const CheckoutButton = React.forwardRef<HTMLAnchorElement, CheckoutButtonProps>(
-  ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, lsVariantId, planId, billingCycle, ...props }, ref) => {
+  ({ href, variant = 'default', size = 'default', className, children, overlay = true, onClick, planId, billingCycle, ...props }, ref) => {
     const { user, session } = useSession();
     const [busy, setBusy] = React.useState(false);
-    const safeHref = buildLemonSqueezyUrl(href, user?.email, user?.id);
+    const safeHref = attachCheckoutIdentity(href, user?.email, user?.id);
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
       onClick?.(event);
       if (event.defaultPrevented) return;
       if (!overlay) return;
-      // Always intercept left-clicks so React Router never processes the href.
       event.preventDefault();
 
-      const open = (url: string) => openLemonSqueezyCheckout(url, user?.email, user?.id);
+      const open = (url: string) => openHostedCheckout(url, user?.email, user?.id);
 
-      const useHostedApi = Boolean(planId) || (lsVariantId && /^\d+$/.test(lsVariantId));
-      if (useHostedApi) {
-        setBusy(true);
-        void createHostedCheckout({
-          variantId: lsVariantId,
-          userId: user?.id,
-          email: user?.email,
-          planId,
-          billingCycle: planId === 'single_pass' ? 'once' : billingCycle,
-          accessToken: session?.access_token,
-          guestId: user ? undefined : getGuestState().id,
+      setBusy(true);
+      void createHostedCheckout({
+        userId: user?.id,
+        email: user?.email,
+        planId: planId || 'standard',
+        billingCycle: planId === 'single_pass' ? 'once' : billingCycle,
+        accessToken: session?.access_token,
+        guestId: user ? undefined : getGuestState().id,
+      })
+        .then(open)
+        .catch((err) => {
+          console.warn('[Checkout] Hosted checkout failed', err);
+          toast.error(err instanceof Error ? err.message : 'Could not start checkout. Please try again.');
         })
-          .then(open)
-          .catch((err) => {
-            console.warn('[Checkout] Hosted checkout API failed, using store URL', err);
-            if (isBrokenCheckoutUrl(href)) {
-              toast.warning('Opening the store.');
-            }
-            open(href);
-          })
-          .finally(() => setBusy(false));
-        return;
-      }
-
-      if (isBrokenCheckoutUrl(href)) {
-        toast.warning(
-          'Checkout URL is missing or invalid. Opening the store / support page instead of a 404.',
-          { id: 'ls-checkout-fallback' },
-        );
-      }
-      open(href);
+        .finally(() => setBusy(false));
     };
 
     return (
       <a
         ref={ref}
         href={safeHref}
-        // Always open in a new tab — prevents React Router from intercepting
-        // the LS checkout URL even on Cmd+click / middle-click.
         target="_blank"
         rel="noopener noreferrer"
-        className={cn('lemonsqueezy-button', buttonVariants({ variant, size }), className, busy && 'opacity-70 pointer-events-none')}
+        className={cn(buttonVariants({ variant, size }), className, busy && 'opacity-70 pointer-events-none')}
         aria-busy={busy}
         onClick={handleClick}
         {...props}

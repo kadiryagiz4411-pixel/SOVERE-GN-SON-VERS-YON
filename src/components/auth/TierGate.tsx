@@ -199,12 +199,12 @@ export function GatedFeature({ required, featureName, description, children }: G
         {required === 'enterprise' && appsumoLtd && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
             <div className="w-full max-w-lg rounded-2xl border border-amber-500/30 bg-slate-950/95 p-5 shadow-2xl">
-              <h3 className="text-lg font-semibold text-foreground">AppSumo LTD vs. Enterprise B2B</h3>
+              <h3 className="text-lg font-semibold text-foreground">Enterprise B2B required</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Your AppSumo license covers lifetime credits. Team workspaces, multi-seat hiring, and advanced vector CV search are Enterprise B2B features.
+                Team workspaces, multi-seat hiring, and advanced vector CV search are Enterprise B2B features.
               </p>
               <ul className="mt-3 grid gap-2 text-xs text-slate-300">
-                <li>AppSumo LTD. lifetime credits, personal workspace</li>
+                <li>Personal workspace stays on your current plan</li>
                 <li>Enterprise B2B. unlimited workspaces, vector search, audit logs</li>
               </ul>
               <div className="mt-4 flex flex-col sm:flex-row gap-2">

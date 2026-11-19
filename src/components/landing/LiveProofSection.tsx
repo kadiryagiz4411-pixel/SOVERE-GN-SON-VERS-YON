@@ -120,7 +120,7 @@ const ALL_COMPANIES = [
     logo: '📧',
   },
   {
-    name: 'Lemon Squeezy',
+    name: 'Polar',
     role: 'Frontend Developer',
     location: 'Remote (Global)',
     pct: 60,

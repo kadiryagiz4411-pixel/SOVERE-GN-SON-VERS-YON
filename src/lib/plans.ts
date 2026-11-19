@@ -1,11 +1,11 @@
 // Plan System for Sovereign
-// Recurring subscriptions via Lemon Squeezy
+// Recurring subscriptions via Polar.sh (Stripe-backed)
 // NOTE: Canonical pricing config is now src/config/pricing.ts
 // This file retains feature-gate logic used throughout the app.
 
 import { PLAN_PRICES_USD } from '@/config/money';
 import { createCheckout } from '@/config/plans';
-import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
+import { sanitizeCheckoutUrl } from '@/lib/checkout';
 
 export type PlanType = 'free' | 'standard' | 'pro' | 'elite' | 'B2B_ENTERPRISE';
 
@@ -125,7 +125,7 @@ export const getAnnualSavings = (plan: 'pro' | 'elite') => {
   return (monthly * 12) - annual;
 };
 
-// Lemon Squeezy checkout URLs — resolved from src/config/plans.ts
+// Polar checkout URLs — resolved from src/config/plans.ts
 // (variant IDs + env URLs). Default billing cycle is monthly so callers
 // that omit the second arg never silently open the yearly checkout.
 export const CHECKOUT_URLS = {

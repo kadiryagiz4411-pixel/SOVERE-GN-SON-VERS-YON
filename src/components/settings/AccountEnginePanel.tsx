@@ -1,29 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Key, PauseCircle, Ticket, Loader2, ShoppingBag, Eye, EyeOff } from 'lucide-react';
+import { Key, PauseCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { WorkspaceModeSwitcher } from '@/components/ExtensionPopup';
-import { RedeemModal } from '@/components/auth/RedeemModal';
 import { fetchProfileByAuthId } from '@/lib/profileQuery';
-import { numericAppSumoTier, canUseFeature } from '@/lib/appsumoGating';
-import { hasActiveAppSumoLicense } from '@/lib/displayTier';
 import { saveEncryptedOpenAiKey, setAccountPaused } from '@/lib/ai-engine';
 import { toast } from 'sonner';
 import { useSession } from '@/contexts/SessionContext';
 import { CheckoutButton } from '@/components/checkout/CheckoutButton';
-import { getCheckoutUrl } from '@/lib/lemonsqueezy';
-import { APPSUMO_PRODUCT_URLS } from '@/config/appsumo';
+import { createCheckout } from '@/config/plans';
+import { sanitizeCheckoutUrl } from '@/lib/checkout';
 
 export function AccountEnginePanel({ userId }: { userId: string }) {
   const { hasBYOKAccess, user } = useSession();
   const [agencyMode, setAgencyMode] = useState(() => {
     try { return localStorage.getItem('sovereign.workspaceMode') === 'b2b'; } catch { return false; }
   });
-  const [codes, setCodes] = useState(0);
-  const [tier, setTier] = useState(0);
-  const [licensed, setLicensed] = useState(false);
   const [showByokKey, setShowByokKey] = useState(false);
   const [paused, setPaused] = useState(false);
   const [byokKey, setByokKey] = useState('');
@@ -32,19 +26,9 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
 
   const load = async () => {
     const { data } = await fetchProfileByAuthId(userId,
-      'appsumo_tier, appsumo_codes_count, appsumo_plan, is_appsumo, plan_tier, subscription_status, encrypted_openai_key, subscription_tier, plan_type',
+      'subscription_status, encrypted_openai_key, subscription_tier, plan_type',
     );
     const row = (data ?? {}) as Record<string, unknown>;
-    setCodes(Number(row.appsumo_codes_count ?? 0));
-    setTier(numericAppSumoTier(row));
-    setLicensed(hasActiveAppSumoLicense({
-      isAppsumo: row.is_appsumo === true || row.is_appsumo_user === true,
-      appsumoLicenseKey: String(row.appsumo_license_key ?? row.appsumo_code ?? ''),
-      appsumoCodesCount: Number(row.appsumo_codes_count ?? 0),
-      appsumoPlan: String(row.appsumo_plan ?? ''),
-      planType: String(row.plan_type ?? ''),
-      subscriptionTier: String(row.subscription_tier ?? ''),
-    }));
     setPaused(Boolean(row.is_account_paused) || row.subscription_status === 'paused');
     const stored = String(row.encrypted_openai_key ?? row.custom_openai_key ?? '');
     setHasStoredKey(stored.length > 0);
@@ -52,83 +36,23 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
 
   useEffect(() => { void load(); }, [userId]);
 
-  const showByok = hasBYOKAccess || canUseFeature(tier, 'byok_setup');
-
-  // LINK ROUTING RULES:
-  // AppSumo LTD users  → exclusive AppSumo.com marketplace URLs (never LS checkout)
-  // SaaS / non-AppSumo → exclusive Lemon Squeezy checkout URLs (never AppSumo)
-  const isAppsumoUser = licensed;
-
-  // AppSumo upgrade: direct them to the next AppSumo tier product page.
-  // tier 1 → tier 2 (Pro), tier 2 → tier 3 (B2B/Agency), tier 3 → same max tier.
-  const appsumoUpgradeHref = tier >= 2
-    ? APPSUMO_PRODUCT_URLS.tier3
-    : tier >= 1
-      ? APPSUMO_PRODUCT_URLS.tier2
-      : APPSUMO_PRODUCT_URLS.tier1;
-
-  // SaaS upgrade: resolve from Lemon Squeezy checkout config.
-  const saasUpgradeTier = 'tier_3'; // always direct SaaS users to the Elite tier default
-  const saasUpgradeHref = getCheckoutUrl(saasUpgradeTier, user?.email, user?.id ?? userId);
+  const upgradeHref = sanitizeCheckoutUrl(createCheckout('elite', 'monthly'));
 
   return (
     <div id="byok" className="mt-6 space-y-6">
-      <RedeemModal
-        userId={userId}
-        initialCodesRedeemed={codes}
-        byokUnlocked={tier >= 3}
-        onSuccess={() => { void load(); }}
-      />
-
-      {isAppsumoUser ? (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-5 space-y-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Upgrade AppSumo tier</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {appsumoUpgradeHref.includes('appsumo.com')
-                ? 'This upgrade opens the AppSumo product page.'
-                : 'This upgrade opens a secure checkout for the next lifetime tier.'}
-            </p>
-          </div>
-          {tier < 3 ? (
-            appsumoUpgradeHref.includes('lemonsqueezy.com') ? (
-              <CheckoutButton href={appsumoUpgradeHref} overlay className="w-full bg-orange-500 hover:bg-orange-400 text-white border-0">
-                <ShoppingBag className="w-4 h-4" />
-                {tier >= 2 ? 'Upgrade to B2B / Agency' : 'Upgrade to Pro'}
-              </CheckoutButton>
-            ) : (
-              <a
-                href={appsumoUpgradeHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                {tier >= 2 ? 'Upgrade to B2B / Agency' : 'Upgrade to Pro'}
-              </a>
-            )
-          ) : (
-            <p className="text-xs text-emerald-400 font-medium">
-              ✓ You are on the highest AppSumo tier (B2B / Agency).
-            </p>
-          )}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Upgrade plan</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Opens a secure Polar checkout with your account email for webhook matching.
+          </p>
         </div>
-      ) : (
-        /* SaaS users: always use Lemon Squeezy checkout — never AppSumo */
-        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Upgrade plan</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Opens a Lemon Squeezy checkout with your account email pre-filled for webhook matching.
-            </p>
-          </div>
-          <CheckoutButton href={saasUpgradeHref} overlay className="w-full">
-            Upgrade subscription
-          </CheckoutButton>
-        </div>
-      )}
+        <CheckoutButton href={upgradeHref} planId="elite" billingCycle="monthly" className="w-full">
+          Upgrade subscription
+        </CheckoutButton>
+      </div>
 
-      {showByok ? (
+      {hasBYOKAccess ? (
         <div className="rounded-xl border border-amber-500/30 bg-card p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-amber-400" />
@@ -138,7 +62,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            AppSumo Agency uses your OpenAI key and skips credit deduction. {hasStoredKey ? 'A key is already saved.' : 'No key saved yet.'}
+            Elite and Enterprise can use your OpenAI key and skip credit deduction. {hasStoredKey ? 'A key is already saved.' : 'No key saved yet.'}
           </p>
           <div className="relative">
             <Input
@@ -181,7 +105,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-          Custom OpenAI key setup unlocks on AppSumo Agency (stack 3 codes).
+          Custom OpenAI key setup unlocks on Elite and Enterprise.
         </div>
       )}
 
@@ -209,7 +133,7 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
           <div>
             <Label htmlFor="freeze-account" className="text-sm font-semibold">Freeze / Pause account</Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Temporarily lock AI execution without wiping credits, CRM, or knowledge-base data.
+              Temporarily lock generation without wiping credits, CRM, or knowledge-base data.
             </p>
           </div>
         </div>
@@ -223,11 +147,6 @@ export function AccountEnginePanel({ userId }: { userId: string }) {
           }}
         />
       </div>
-
-      <p className="text-xs text-muted-foreground flex items-center gap-1">
-        <Ticket className="w-3.5 h-3.5" />
-        Stacked codes: {Math.min(codes, 3)} / 3 · AppSumo tier {tier}
-      </p>
     </div>
   );
 }

@@ -27,37 +27,28 @@ export default function RefundPolicyPage() {
           For recurring monthly/annual subscription plans purchased directly on Sovereign ({subscriptionPriceList()}), we offer a 14-day money-back guarantee if you are not completely satisfied.
         </p>
         <p>
-          Direct checkout is processed by Polar or Lemon Squeezy as payment processor / Merchant of Record. Approved refunds are returned to the original payment method. After the 14-day window, subscription charges are generally non-refundable, but you may cancel to stop future renewals.
+          Direct checkout is processed by Polar as payment processor / Merchant of Record. Approved refunds are returned to the original payment method. After the 14-day window, subscription charges are generally non-refundable, but you may cancel to stop future renewals.
         </p>
       </LegalSection>
 
-      <LegalSection title="4. AppSumo Lifetime Deals">
-        <p>
-          Lifetime Deal licenses purchased via AppSumo are covered by AppSumo&apos;s standard 60-day money-back guarantee policy. Refund requests for AppSumo purchases must be initiated through your AppSumo account panel.
-        </p>
-        <p>
-          Sovereign cannot process an AppSumo refund internally. After AppSumo approves a refund, access associated with that code may be revoked.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="5. How to Request a Refund">
+      <LegalSection title="4. How to Request a Refund">
         <p>
           To request a refund for direct billing, please contact our support team at{' '}
           <a className="text-primary hover:underline" href="mailto:support@sovereign.app">support@sovereign.app</a>{' '}
-          with your order details and account email address. Include the Polar or Lemon Squeezy order ID if available.
+          with your order details and account email address. Include the Polar order ID if available.
         </p>
       </LegalSection>
 
-      <LegalSection title="6. What Is Not Refundable">
+      <LegalSection title="5. What Is Not Refundable">
         <ul className="list-disc pl-5 space-y-1">
           <li>{singlePassLabel()} after the credit has been granted or consumed, except where required by law or fulfillment failed.</li>
           <li>Renewals requested more than 14 days after the charge, except where required by law.</li>
           <li>Abuse, fraud, chargeback-in-progress accounts, or terms-of-service violations.</li>
-          <li>Third-party marketplace purchases other than AppSumo (those marketplaces set their own refund rules).</li>
+          <li>Third-party marketplace purchases (those marketplaces set their own refund rules).</li>
         </ul>
       </LegalSection>
 
-      <LegalSection title="7. Cancellations">
+      <LegalSection title="6. Cancellations">
         <p>
           Cancel a recurring plan from your billing portal or by emailing support before the renewal date. Cancellation stops future charges; it does not automatically refund the current period unless you qualify under the 14-day subscription guarantee.
         </p>

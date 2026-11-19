@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { APP_DOMAIN } from '@/lib/plans';
-import { LEMON_SQUEEZY_AFFILIATE_URL } from '@/lib/lemonsqueezy';
-import { Copy, ExternalLink } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AffiliatePayload {
@@ -85,7 +84,7 @@ export default function Affiliates() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {[
-            ['1. Share your link', 'Use /ref?code= or Lemon Squeezy aff= tracking.'],
+            ['1. Share your link', 'Use /ref?code= tracking on your referral URL.'],
             ['2. They subscribe', 'First paid invoice creates a commission row.'],
             ['3. Renewals pay again', 'subscription_payment_success keeps the 30% ledger growing.'],
           ].map(([title, body]) => (
@@ -134,14 +133,9 @@ export default function Affiliates() {
           </Button>
         )}
 
-        <a
-          href={LEMON_SQUEEZY_AFFILIATE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-8 inline-flex items-center gap-2 text-sm text-amber-400 hover:underline"
-        >
-          Also join the Lemon Squeezy affiliate portal <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        <p className="mt-8 text-sm text-zinc-500">
+          Share your referral link. Commissions are tracked on paid Polar invoices.
+        </p>
       </main>
       <Footer />
     </div>

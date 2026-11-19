@@ -80,22 +80,6 @@
     <!-- Sitemap reference -->
     <link rel="sitemap" type="application/xml" href="https://sovereignapp.pro/sitemap.xml" />
 
-    <!-- Lemon Squeezy affiliate tracking — config is inline; scripts stay non-blocking -->
-    <script>window.lemonSqueezyAffiliateConfig = { store: "sovereignapp" };</script>
-    <script src="https://lmsqueezy.com/affiliate.js" async></script>
-
-    <!-- Lemon Squeezy overlay — async so it never blocks React mount -->
-    <script src="https://assets.lemonsqueezy.com/lemon.js" async></script>
-    <script>
-      // Initialise the LS overlay as soon as the script is ready.
-      // Wrapping in DOMContentLoaded handles both sync and defer cases.
-      document.addEventListener('DOMContentLoaded', function () {
-        if (typeof window.createLemonSqueezy === 'function') {
-          window.createLemonSqueezy();
-        }
-      });
-    </script>
-
     <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
     <!--
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>

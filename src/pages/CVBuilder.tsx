@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckoutButton, openLemonSqueezyCheckout } from '@/components/checkout/CheckoutButton';
+import { CheckoutButton, openHostedCheckout } from '@/components/checkout/CheckoutButton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -657,7 +657,7 @@ const CVBuilder = () => {
                 {!isPro && (
                   <button
                     type="button"
-                    onClick={() => openLemonSqueezyCheckout(getCheckoutUrl('pro'))}
+                    onClick={() => openHostedCheckout(getCheckoutUrl('pro'))}
                     className="text-xs text-primary hover:underline mt-1 inline-block text-left"
                   >
                     {cv.upgradeHint}

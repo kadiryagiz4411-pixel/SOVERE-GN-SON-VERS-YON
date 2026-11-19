@@ -35,9 +35,6 @@ const TIERS = [
   { value: 'pro',           label: 'Pro' },
   { value: 'elite',         label: 'Elite' },
   { value: 'enterprise',    label: 'Enterprise' },
-  { value: 'appsumo_tier1', label: 'AppSumo Starter' },
-  { value: 'appsumo_tier2', label: 'AppSumo Pro' },
-  { value: 'appsumo_b2b',   label: 'AppSumo Agency' },
 ] as const;
 
 // ─── Visibility guard ─────────────────────────────────────────────────────────
@@ -149,9 +146,9 @@ export function DevSandbox() {
     try {
       await applyDevAppsumoTier(userId, n);
       setAppsumoN(n);
-      toast.success(`AppSumo tier → ${n} (written to Supabase)`);
+      toast.success(`Lifetime tier → ${n} (written to Supabase)`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to set AppSumo tier');
+      toast.error(err instanceof Error ? err.message : 'Failed to set lifetime tier');
     } finally {
       setTierBusy(false);
     }
@@ -213,7 +210,7 @@ export function DevSandbox() {
           <div className="p-4 space-y-4">
             <div className="space-y-1.5">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                AppSumo tier (writes to Supabase)
+                Lifetime tier (writes to Supabase)
               </p>
               <div className="grid grid-cols-3 gap-1">
                 {([1, 2, 3] as const).map((n) => (

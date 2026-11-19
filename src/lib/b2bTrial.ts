@@ -1,7 +1,7 @@
 import { readAppsumoLicense } from '@/lib/appsumoAccess';
 import { OWNER_EMAIL, isOwnerEmail, isSuperAdminUser } from '@/lib/superadmin';
 import { createCheckout } from '@/config/plans';
-import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
+import { sanitizeCheckoutUrl } from '@/lib/checkout';
 
 export type B2BSubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled';
 export type AppsumoPlanEnum = 'none' | 'tier_1' | 'tier_2' | 'tier_3';

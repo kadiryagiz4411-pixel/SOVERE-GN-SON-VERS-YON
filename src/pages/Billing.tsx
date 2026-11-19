@@ -190,7 +190,7 @@ export default function Billing() {
               </p>
               <div className="flex items-center gap-1.5 mt-3">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-xs text-emerald-400">Payments secured by Lemon Squeezy</span>
+                <span className="text-xs text-emerald-400">Payments secured by Polar</span>
               </div>
             </div>
           </div>
@@ -267,7 +267,7 @@ export default function Billing() {
         {showRenew && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-4">
             <p className="text-sm font-semibold text-amber-100">Your subscription has ended</p>
-            <p className="text-xs text-amber-200/80 mt-1">Renew to restore premium tools. AppSumo lifetime access is unchanged.</p>
+            <p className="text-xs text-amber-200/80 mt-1">Renew to restore premium tools.</p>
           </div>
         )}
 
@@ -279,7 +279,7 @@ export default function Billing() {
               {showRenew ? "Renew your plan" : billing?.planType === "free" ? "Upgrade Your Plan" : "Switch Plan"}
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-              All plans are billed by Lemon Squeezy · 14-day money-back guarantee
+              All plans are billed by Polar · 14-day money-back guarantee
             </p>
           </div>
 

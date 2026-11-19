@@ -1,5 +1,5 @@
 /**
- * useSubscription — pause / resume / portal for Lemon Squeezy subscriptions.
+ * useSubscription — pause / resume / portal for Polar subscriptions.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +13,8 @@ export type PauseAudience = "b2c" | "b2b";
 export const B2C_PAUSE_MONTHS = 6;
 export const B2B_PAUSE_MONTHS = 3;
 
-export const LEMON_SQUEEZY_CUSTOMER_PORTAL =
-  (typeof import.meta !== "undefined"
-    ? (import.meta.env as Record<string, string>).VITE_LEMONSQUEEZY_CUSTOMER_PORTAL_URL
-    : "") || "https://app.lemonsqueezy.com/my-orders";
+export const CUSTOMER_PORTAL_FALLBACK = "/settings/billing";
+export const LEMON_SQUEEZY_CUSTOMER_PORTAL = CUSTOMER_PORTAL_FALLBACK;
 
 export interface SubscriptionState {
   status: SubscriptionStatus;
@@ -116,7 +114,7 @@ export function useSubscription() {
   const unpause = useCallback(() => invoke("unpause"), [invoke]);
   const openPortal = useCallback(async () => {
     const result = await invoke("portal");
-    const url = result.data?.portalUrl || result.data?.lemonSqueezy?.url || LEMON_SQUEEZY_CUSTOMER_PORTAL;
+    const url = result.data?.portalUrl || result.data?.lemonSqueezy?.url || CUSTOMER_PORTAL_FALLBACK;
     window.open(url, "_blank", "noopener,noreferrer");
     return url;
   }, [invoke]);

@@ -10,10 +10,10 @@ import {
   type FeatureKey, type PlanTier,
   getGate, TIER_META,
 } from '@/lib/entitlements';
-import { openLemonSqueezyCheckout } from '@/components/checkout/CheckoutButton';
+import { openHostedCheckout } from '@/components/checkout/CheckoutButton';
 import { useSession } from '@/contexts/SessionContext';
 import { createCheckout, type CheckoutPlanId } from '@/config/plans';
-import { sanitizeCheckoutUrl } from '@/lib/lemonsqueezy';
+import { sanitizeCheckoutUrl } from '@/lib/checkout';
 
 // ─── Tier icon map ─────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
     }
     // Open LS overlay directly — no internal route jump that could 404.
     const checkoutUrl = sanitizeCheckoutUrl(createCheckout(planId, 'monthly'));
-    openLemonSqueezyCheckout(checkoutUrl, user?.email, user?.id);
+    openHostedCheckout(checkoutUrl, user?.email, user?.id);
   };
 
   return (
@@ -200,7 +200,7 @@ export function UpgradeModal({ open, featureKey, onClose }: UpgradeModalProps) {
         {/* Trust footer */}
         <div className="px-6 pb-4 text-center">
           <p className="text-xs text-slate-700">
-            14-day money-back guarantee · Secure checkout by Lemon Squeezy
+            14-day money-back guarantee · Secure checkout by Polar
           </p>
         </div>
       </div>

@@ -1,12 +1,10 @@
 /**
  * manage-subscription
- * Pause / unpause Lemon Squeezy billing and return the customer portal URL.
+ * Pause / unpause billing in Supabase and return the Polar customer portal URL.
  */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsPreflight, jsonResponse } from "../_shared/cors.ts";
-
-const LS_API = "https://api.lemonsqueezy.com/v1";
 
 type Action = "pause" | "unpause" | "portal";
 
@@ -19,45 +17,10 @@ function maxPauseMonths(planType: string | null | undefined): number {
   return isB2B(planType) ? 3 : 6;
 }
 
-async function lsFetch(path: string, init: RequestInit = {}) {
-  const apiKey = Deno.env.get("LEMONSQUEEZY_API_KEY");
-  if (!apiKey) throw new Error("LEMONSQUEEZY_API_KEY is not configured");
-  const res = await fetch(`${LS_API}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/vnd.api+json",
-      "Content-Type": "application/vnd.api+json",
-      Authorization: `Bearer ${apiKey}`,
-      ...(init.headers ?? {}),
-    },
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const msg = body?.errors?.[0]?.detail || body?.error || `Lemon Squeezy HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-  return body;
-}
-
-async function patchSubscription(subscriptionId: string, attributes: Record<string, unknown>) {
-  return lsFetch(`/subscriptions/${subscriptionId}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      data: {
-        type: "subscriptions",
-        id: String(subscriptionId),
-        attributes,
-      },
-    }),
-  });
-}
-
-function portalFromPayload(payload: any): string | null {
-  return (
-    payload?.data?.attributes?.urls?.customer_portal ||
-    payload?.data?.attributes?.urls?.customer_portal_update_subscription ||
-    null
-  );
+function portalUrl(): string {
+  return Deno.env.get("POLAR_CUSTOMER_PORTAL_URL")
+    || Deno.env.get("VITE_POLAR_CUSTOMER_PORTAL_URL")
+    || "https://sovereignapp.pro/settings/billing";
 }
 
 Deno.serve(async (req) => {
@@ -93,7 +56,7 @@ Deno.serve(async (req) => {
 
     const { data: profile, error: profileErr } = await admin
       .from("profiles")
-      .select("plan_type, subscription_plan, subscription_status, ls_subscription_id, ls_customer_id, remaining_credits, credits_balance")
+      .select("plan_type, subscription_plan, subscription_status, remaining_credits, credits_balance")
       .or(`user_id.eq.${userId},id.eq.${userId}`)
       .maybeSingle();
 
@@ -101,38 +64,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Profile not found" }, 404);
     }
 
-    const subscriptionId = profile.ls_subscription_id as string | null;
-    const customerId = profile.ls_customer_id as string | null;
     const planType = (profile.plan_type || profile.subscription_plan || "free") as string;
-    const storePortal =
-      Deno.env.get("LEMONSQUEEZY_CUSTOMER_PORTAL_URL") ||
-      "https://app.lemonsqueezy.com/my-orders";
+    const billingPortal = portalUrl();
 
     if (action === "portal") {
-      let portalUrl = storePortal;
-      try {
-        if (subscriptionId) {
-          const sub = await lsFetch(`/subscriptions/${subscriptionId}`);
-          portalUrl = portalFromPayload(sub) || portalUrl;
-        } else if (customerId) {
-          const customer = await lsFetch(`/customers/${customerId}`);
-          portalUrl = customer?.data?.attributes?.urls?.customer_portal || portalUrl;
-        }
-      } catch (err) {
-        console.warn("[manage-subscription] portal lookup failed", err);
-      }
       return jsonResponse({
         success: true,
-        portalUrl,
-        lemonSqueezy: { url: portalUrl },
+        portalUrl: billingPortal,
       });
-    }
-
-    if (!subscriptionId) {
-      return jsonResponse({
-        error: "No Lemon Squeezy subscription is linked to this account. Use the customer portal if you purchased with a different email.",
-        portalUrl: storePortal,
-      }, 400);
     }
 
     if (action === "pause") {
@@ -142,13 +81,6 @@ Deno.serve(async (req) => {
       const months = maxPauseMonths(planType);
       const resumesAt = new Date();
       resumesAt.setMonth(resumesAt.getMonth() + months);
-
-      await patchSubscription(subscriptionId, {
-        pause: {
-          mode: "void",
-          resumes_at: resumesAt.toISOString(),
-        },
-      });
 
       await admin.from("profiles").update({
         subscription_status: "paused",
@@ -164,11 +96,9 @@ Deno.serve(async (req) => {
         pauseUntil: resumesAt.toISOString(),
         remainingCredits: profile.remaining_credits ?? profile.credits_balance ?? 0,
         message: `Billing frozen for up to ${months} months. Remaining credits are kept.`,
+        portalUrl: billingPortal,
       });
     }
-
-    // unpause
-    await patchSubscription(subscriptionId, { pause: null });
 
     await admin.from("profiles").update({
       subscription_status: "active",
@@ -183,6 +113,7 @@ Deno.serve(async (req) => {
       status: "active",
       remainingCredits: profile.remaining_credits ?? profile.credits_balance ?? 0,
       message: "Subscription resumed. Recurring billing is active again.",
+      portalUrl: billingPortal,
     });
   } catch (err) {
     console.error("[manage-subscription]", err);

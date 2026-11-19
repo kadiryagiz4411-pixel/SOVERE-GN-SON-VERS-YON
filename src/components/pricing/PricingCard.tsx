@@ -5,8 +5,8 @@ import {
   PricingTier, displayPrice, annualBillString,
   isHighlightedFeature, TIER_ID_TO_PLAN_TYPE,
 } from "@/config/pricing";
-import { createCheckout, getVariantId, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
-import { sanitizeCheckoutUrl } from "@/lib/lemonsqueezy";
+import { createCheckout, type BillingCycle, type CheckoutPlanId } from "@/config/plans";
+import { sanitizeCheckoutUrl } from "@/lib/checkout";
 
 interface PricingCardProps {
   tier: PricingTier;
@@ -100,10 +100,8 @@ export function PricingCard({
   const planType = TIER_ID_TO_PLAN_TYPE[tier.id] ?? tier.id;
   const isCurrent = !isSuperAdmin && planType === currentPlanType;
   const billingCycle: BillingCycle = isAnnual ? "yearly" : "monthly";
-  let variantId = "";
   let checkoutUrl = createCheckout(tier.isOneTime ? "single_pass" : (tier.id as CheckoutPlanId), billingCycle);
   try {
-    variantId = getVariantId(tier.id as CheckoutPlanId, tier.isOneTime ? "monthly" : billingCycle);
     checkoutUrl = tier.isOneTime
       ? createCheckout("single_pass")
       : createCheckout(tier.id as CheckoutPlanId, billingCycle);
@@ -224,13 +222,10 @@ export function PricingCard({
         <CheckoutButton
           href={sanitizeCheckoutUrl(checkoutUrl)}
           className={CTA_CLASS[style]}
-          overlay
-          lsVariantId={variantId}
           planId={tier.id}
           billingCycle={billingCycle}
           data-plan={tier.id}
           data-billing-cycle={billingCycle}
-          data-variant-id={variantId}
           onClick={logSelection}
         >
           {cta}

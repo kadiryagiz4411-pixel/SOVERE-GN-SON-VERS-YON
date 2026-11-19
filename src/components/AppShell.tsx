@@ -6,7 +6,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard, FileText, Briefcase, Settings, LogOut, Target,
-  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket, Ticket, Loader2,
+  Crown, Zap, Menu, X, Shield, ChevronLeft, Building2, Key, Users, Rocket, Loader2,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { User } from '@supabase/supabase-js';
@@ -16,7 +16,6 @@ import { useTierAccess, type AccessTier } from '@/hooks/useTierAccess';
 import { TierGate, TierLockBadge } from '@/components/auth/TierGate';
 import { ELITE_NAV_ITEMS, ENTERPRISE_NAV_ITEMS, type TierNavItem } from '@/config/tierNav';
 import { OWNER_EMAIL, SUPERADMIN_PLAN_LABEL } from '@/lib/superadmin';
-import { AppSumoUpsellBanner } from '@/components/banners/AppSumoUpsellBanner';
 import { TrialCountdownBadge } from '@/components/dashboard/TrialCountdownBadge';
 import { SubscriptionRequiredModal } from '@/components/modals/SubscriptionRequiredModal';
 import { PaywallModal } from '@/components/modals/PaywallModal';
@@ -178,7 +177,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
     { to: '/proposals', label: txt.history, icon: FileText },
     { to: '/cv-builder', label: txt.cvBuilder, icon: FileText },
     { to: '/pricing', label: txt.pricing, icon: Zap },
-    { to: '/redeem', label: language === 'tr' ? 'AppSumo Kod Kullan' : 'Redeem AppSumo Code', icon: Ticket },
     { to: '/profile', label: txt.profile, icon: Settings },
   ] as Array<{ to: string; label: string; icon: typeof Settings }>;
 
@@ -459,9 +457,6 @@ const AppShellFrame = memo(({ children, user, plan = 'free', creditsBalance = 0,
       {/* Main content */}
       <main className="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
         {/* Wrap B2B widgets in a boundary so a render error there never blocks the main UI */}
-        <ErrorBoundary fallback={null}>
-          <AppSumoUpsellBanner />
-        </ErrorBoundary>
         <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 py-3 border-b border-border bg-background/90 backdrop-blur-sm">
           <ErrorBoundary fallback={null}>
             <TrialCountdownBadge />

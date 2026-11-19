@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
           <li>Uploaded resumes, CVs, and related career documents you choose to submit.</li>
           <li>Job posting text, application drafts, and evaluation inputs you provide.</li>
           <li>Optional Bring-Your-Own-Key (BYOK) settings stored in your browser, not on our servers.</li>
-          <li>Billing identifiers sent to Polar or Lemon Squeezy (payment processor / Merchant of Record) to process the {singlePassLabel()} and subscriptions.</li>
+          <li>Billing identifiers sent to Polar (payment processor / Merchant of Record) to process the {singlePassLabel()} and subscriptions.</li>
         </ul>
       </LegalSection>
 
@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="3. Third-Party Integrations">
         <p>
-          We integrate with secure service providers including Supabase for encrypted database hosting, OpenAI for structured evaluations, and Polar and Lemon Squeezy for billing (including the {singlePassLabel()} and recurring subscriptions). AppSumo may process lifetime-deal redemptions when you purchase through that marketplace.
+          We integrate with secure service providers including Supabase for encrypted database hosting, OpenAI for structured evaluations, and Polar for billing (including the {singlePassLabel()} and recurring subscriptions).
         </p>
       </LegalSection>
 
@@ -43,7 +43,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="5. Cookies & Session Management">
         <p>
-          We use strictly necessary cookies and local storage for session management (Supabase Auth), guest-quota tracking, and billing return (Polar or Lemon Squeezy checkout). We do not use advertising cookies or sell cookie identifiers.
+          We use strictly necessary cookies and local storage for session management (Supabase Auth), guest-quota tracking, and billing return (Polar checkout). We do not use advertising cookies or sell cookie identifiers.
         </p>
       </LegalSection>
 

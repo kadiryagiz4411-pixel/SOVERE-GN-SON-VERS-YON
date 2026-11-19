@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LEMON_SQUEEZY_CUSTOMER_PORTAL } from "@/hooks/useSubscription";
+import { CUSTOMER_PORTAL_FALLBACK } from "@/hooks/useSubscription";
 
 interface InvoiceRequestModalProps {
   open: boolean;
@@ -24,7 +24,7 @@ export function InvoiceRequestModal({
 
   const handleContinue = async () => {
     const url = await onOpenPortal();
-    if (!url) window.open(LEMON_SQUEEZY_CUSTOMER_PORTAL, "_blank", "noopener,noreferrer");
+    if (!url) window.open(CUSTOMER_PORTAL_FALLBACK, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -36,7 +36,7 @@ export function InvoiceRequestModal({
             Tax Invoice / Company Details
           </DialogTitle>
           <DialogDescription>
-            Official PDF invoices are issued by Lemon Squeezy. Add your company name, VAT / Tax ID,
+            Official PDF invoices are issued by Polar. Add your company name, VAT / Tax ID,
             and billing address in the customer portal, then download invoices instantly.
           </DialogDescription>
         </DialogHeader>
@@ -61,8 +61,8 @@ export function InvoiceRequestModal({
             <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, City, Country" />
           </div>
           <p className="text-xs text-muted-foreground">
-            These fields are a checklist — Lemon Squeezy stores the legal billing identity used on PDFs.
-            Click continue to open the portal (`lemonSqueezy.url`) and save them there.
+            These fields are a checklist. Polar stores the legal billing identity used on PDFs.
+            Click continue to open the portal and save them there.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export function InvoiceRequestModal({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant="gold" onClick={handleContinue} disabled={busy}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-            Open Lemon Squeezy Portal
+            Open billing portal
           </Button>
         </DialogFooter>
       </DialogContent>

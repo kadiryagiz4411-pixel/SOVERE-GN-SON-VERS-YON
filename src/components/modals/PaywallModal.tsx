@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Crown, RefreshCw, Ticket, Zap } from 'lucide-react';
+import { Crown, RefreshCw, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { APPSUMO_CREDIT_EXHAUSTED_MESSAGE } from '@/config/appsumo';
 import type { PaywallKind } from '@/lib/paywall';
 
 interface PaywallModalProps {
@@ -30,9 +29,9 @@ const COPY: Record<Exclude<PaywallKind, 'none'>, {
     icon: RefreshCw,
   },
   appsumo_credits: {
-    title: 'Monthly AppSumo credits reached',
-    body: APPSUMO_CREDIT_EXHAUSTED_MESSAGE,
-    cta: 'Upgrade AppSumo Tier',
+    title: 'Monthly credits reached',
+    body: 'Monthly credits reached. They refresh next month, or upgrade for more now.',
+    cta: 'Upgrade plan',
     icon: Zap,
   },
 };
@@ -47,7 +46,6 @@ export function PaywallModal({
 
   const copy = COPY[kind] ?? COPY.saas_upgrade;
   const Icon = copy.icon;
-  const isAppsumo = kind === 'appsumo_credits';
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
@@ -69,14 +67,6 @@ export function PaywallModal({
               {copy.cta}
             </Link>
           </Button>
-          {isAppsumo && (
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/redeem" onClick={() => onOpenChange?.(false)}>
-                <Ticket className="mr-1.5 h-4 w-4" />
-                Redeem a higher AppSumo code
-              </Link>
-            </Button>
-          )}
           {dismissible && (
             <Button variant="ghost" className="w-full text-slate-400" onClick={() => onOpenChange?.(false)}>
               Not now

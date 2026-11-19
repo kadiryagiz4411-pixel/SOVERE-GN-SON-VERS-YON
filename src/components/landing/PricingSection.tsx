@@ -1,6 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { PricingTable } from '@/components/pricing/PricingTable';
-import { AppSumoPricing } from '@/components/pricing/AppSumoPricing';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { usePlan } from '@/contexts/PlanContext';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,6 @@ export const PricingSection = () => {
           showEnterprise
           className="max-w-screen-xl mx-auto w-full overflow-visible box-border"
         />
-        <AppSumoPricing />
       </div>
     </section>
   );

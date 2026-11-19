@@ -1,18 +1,15 @@
 /**
  * POST /api/billing/checkout
- * Polar.sh hosted checkout first (when configured), Lemon Squeezy fallback.
+ * Polar.sh hosted checkout (Stripe-backed merchant of record).
  * Polar product/price IDs map each plan. Amounts come from server/_lib/money.ts.
  */
 import { preflight, json } from '../_lib/cors.js';
 import { exposeApi } from '../_lib/http.js';
 import { firstEnv } from '../_lib/env.js';
-import { lemonApiKey, lemonStoreId, resolveVariantId } from '../_lib/lemonsqueezy.js';
 import { createPolarCheckout, polarConfigured, polarProductId } from '../_lib/polar.js';
 import { SINGLE_PASS_USD, planAmountCents } from '../_lib/money.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 30 };
-
-const LS_API = 'https://api.lemonsqueezy.com/v1/checkouts';
 
 function originFrom(req: Request): string {
   const url = new URL(req.url);
@@ -53,90 +50,12 @@ async function callerIdentity(req: Request, bodyUserId?: string, bodyEmail?: str
   };
 }
 
-async function lemonCheckout(opts: {
-  variantId: string;
-  userId?: string;
-  userEmail?: string;
-  planId?: string;
-  billingCycle?: string;
-  referredBy?: string;
-  guestId?: string;
-  origin: string;
-}): Promise<Response> {
-  const apiKey = lemonApiKey();
-  const storeId = lemonStoreId();
-  if (!apiKey || !storeId) {
-    return json({ error: 'Billing is not configured.' }, 500);
-  }
-  const redirectUrl = `${opts.origin}/dashboard?payment=success`;
-  try {
-    const response = await fetch(LS_API, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.api+json',
-        'Content-Type': 'application/vnd.api+json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        data: {
-          type: 'checkouts',
-          attributes: {
-            checkout_options: { embed: false, media: true, logo: true },
-            checkout_data: {
-              email: opts.userEmail || undefined,
-              custom: {
-                user_id: opts.userId,
-                email: opts.userEmail,
-                amount_cents: planAmountCents(opts.planId, opts.billingCycle),
-                guest_id: opts.guestId,
-                ...(opts.planId ? { plan_id: opts.planId } : {}),
-                ...(opts.billingCycle ? { billing_cycle: opts.billingCycle } : {}),
-                ...(opts.referredBy ? { referred_by: String(opts.referredBy).slice(0, 32) } : {}),
-              },
-            },
-            product_options: {
-              redirect_url: redirectUrl,
-              description: isSinglePass(opts.planId)
-                ? `Single Pass: one tailored CV and job match report. $${SINGLE_PASS_USD.toFixed(2)}, no subscription.`
-                : undefined,
-            },
-          },
-          relationships: {
-            store: { data: { type: 'stores', id: String(storeId) } },
-            variant: { data: { type: 'variants', id: String(opts.variantId) } },
-          },
-        },
-      }),
-    });
-
-    const data = await response.json().catch(() => ({})) as {
-      data?: { attributes?: { url?: string } };
-      errors?: Array<{ detail?: string }>;
-    };
-
-    if (!response.ok) {
-      console.error('LemonSqueezy Checkout API Error:', data);
-      return json({ error: data.errors?.[0]?.detail || 'Checkout error' }, response.status || 502);
-    }
-
-    const checkoutUrl = data.data?.attributes?.url;
-    if (!checkoutUrl) {
-      return json({ error: 'Checkout URL missing from Lemon Squeezy' }, 502);
-    }
-    return json({ checkoutUrl, provider: 'lemonsqueezy' });
-  } catch (err) {
-    console.error('Lemon checkout exception:', err);
-    return json({ error: 'Could not start checkout. Please try again.' }, 500);
-  }
-}
-
 async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
     let body: {
-      variantId?: string;
       userId?: string;
       email?: string;
       userEmail?: string;
@@ -157,42 +76,36 @@ async function handleRequest(req: Request): Promise<Response> {
     const billingCycle = isSinglePass(planId) ? 'once' : String(body.billingCycle || 'monthly');
     const polarProduct = polarProductId(planId || (isSinglePass(planId) ? 'single_pass' : ''), billingCycle);
 
-    if (polarConfigured() && polarProduct) {
-      const successUrl = `${origin}/dashboard?payment=success&checkout_id={CHECKOUT_ID}&kind=${encodeURIComponent(planId || 'single_pass')}`;
-      const polar = await createPolarCheckout({
-        productId: polarProduct,
-        successUrl,
-        email: identity.email,
-        userId: identity.userId,
-        planId: planId || undefined,
-        billingCycle,
-        referredBy: body.referredBy,
-        guestId: body.guestId,
-      });
-      if ('url' in polar) {
-        return json({ checkoutUrl: polar.url, checkoutId: polar.id, provider: 'polar', amountCents: planAmountCents(planId, billingCycle) });
-      }
-      console.warn('[checkout] Polar failed, falling back to Lemon Squeezy', polar.error);
+    if (!polarConfigured()) {
+      return json({ error: 'Checkout is not configured. Set POLAR_ACCESS_TOKEN and Polar product IDs.' }, 503);
+    }
+    if (!polarProduct) {
+      return json({ error: 'No Polar product is mapped for this plan. Set POLAR_PRODUCT_* env vars.' }, 500);
     }
 
-    const variantId = String(body.variantId ?? '').trim() || resolveVariantId(body.planId, body.billingCycle);
-    if (!variantId || !/^\d+$/.test(variantId)) {
-      if (isSinglePass(planId) && !polarConfigured()) {
-        return json({ error: 'Single Pass checkout is not configured. Set POLAR_ACCESS_TOKEN and POLAR_PRODUCT_SINGLE_PASS, or a Lemon Squeezy variant.' }, 500);
-      }
-      return json({ error: 'variantId (numeric Lemon Squeezy variant) is required' }, 400);
-    }
-
-    return lemonCheckout({
-      variantId,
+    const successUrl = `${origin}/dashboard?payment=success&checkout_id={CHECKOUT_ID}&kind=${encodeURIComponent(planId || 'single_pass')}`;
+    const polar = await createPolarCheckout({
+      productId: polarProduct,
+      successUrl,
+      email: identity.email,
       userId: identity.userId,
-      userEmail: identity.email,
       planId: planId || undefined,
       billingCycle,
       referredBy: body.referredBy,
       guestId: body.guestId,
-      origin,
     });
+    if ('url' in polar) {
+      return json({
+        checkoutUrl: polar.url,
+        url: polar.url,
+        checkoutId: polar.id,
+        provider: 'polar',
+        amountCents: planAmountCents(planId, billingCycle),
+        ...(isSinglePass(planId) ? { description: `Single Pass: one tailored CV and job match report. $${SINGLE_PASS_USD.toFixed(2)}, no subscription.` } : {}),
+      });
+    }
+    console.error('[checkout] Polar failed', polar.error);
+    return json({ error: polar.error || 'Checkout is temporarily unavailable. Please try again.' }, 502);
   } catch (err: unknown) {
     console.error('Checkout handler exception:', err);
     return json({ error: 'Could not start checkout. Please try again.' }, 500);

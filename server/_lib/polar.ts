@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { firstEnv } from './env.js';
 import { LEGACY_PLAN_PRICES_CENTS, PLAN_PRICES_CENTS, SINGLE_PASS_CENTS, planAmountCents } from './money.js';
-import type { BillingPeriod, PlanTier } from './lemonsqueezy.js';
+import type { BillingPeriod, PlanTier } from './billingTypes.js';
 
 export function polarAccessToken(): string {
   return firstEnv('POLAR_ACCESS_TOKEN', 'POLAR_API_KEY');

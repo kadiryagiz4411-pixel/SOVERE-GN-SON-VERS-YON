@@ -9,18 +9,11 @@ import {
   scoreOpportunity,
   type MatchResult,
 } from '@/lib/matchScore';
-import { APPSUMO_LTD_TIERS } from '@/config/appsumo';
-import { ArrowRight, Check, PanelRight, ScanLine, Sparkles, Ticket } from 'lucide-react';
+import { ArrowRight, PanelRight, ScanLine, Sparkles } from 'lucide-react';
 
 const UPWORK_SCREEN = {
   title: 'Upwork · React dashboard for a fintech client',
   body: 'Payment verified. React, TypeScript, Tailwind, and Node. First milestone is a readable portfolio view.',
-};
-
-const TIER_LINE: Record<number, string> = {
-  1: 'Freelancers & Job Seekers',
-  2: 'Power Users & Match Scoring',
-  3: 'Full Lead Extraction & Bulk Pitch',
 };
 
 function demoTourUrl() {
@@ -652,56 +645,10 @@ const DemoPage = () => {
             </div>
           </section>
 
-          <section className="mt-12" aria-label="AppSumo lifetime tiers">
-            <div className="mb-6">
-              <p className="text-sm font-medium tracking-[0.16em] uppercase text-amber-300/90">Lifetime deal</p>
-              <h2 className="mt-2 text-3xl font-semibold text-zinc-50">Pick the credit tier that matches how you sell.</h2>
-              <p className="mt-2 max-w-3xl text-base leading-relaxed text-zinc-300">
-                Monthly credits refresh on their own. Starter and Pro stay on freelancer tools. Agency adds B2B lead extraction and bulk pitch.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {APPSUMO_LTD_TIERS.map((tier) => {
-                const agency = tier.numericTier === 3;
-                const credits = tier.monthlyCredits.toLocaleString('en-US');
-                return (
-                  <article
-                    key={tier.id}
-                    className={`rounded-2xl border p-5 ${agency ? 'border-amber-400/50 bg-amber-400/5 shadow-[0_0_32px_rgba(245,158,11,0.12)]' : 'border-white/10 bg-zinc-900/60'}`}
-                  >
-                    <h3 className="text-xl font-semibold text-zinc-50">{agency ? 'Agency' : tier.label}</h3>
-                    <p className="mt-2 text-base font-medium text-amber-200">
-                      {credits} credits/mo{agency ? ' + B2B' : ''}
-                    </p>
-                    <p className="mt-3 flex items-start gap-2 text-base leading-relaxed text-zinc-200">
-                      <Check className="mt-1 h-4 w-4 shrink-0 text-amber-300" />
-                      {TIER_LINE[tier.numericTier]}
-                    </p>
-                    <p className="mt-3 text-sm text-zinc-400">${tier.priceUsd} lifetime</p>
-                  </article>
-                );
-              })}
-            </div>
-            <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
-              <Link to="/redeem">
-                <Button variant="gold" className="text-base px-6 h-11">
-                  <Ticket className="w-4 h-4 mr-2" />
-                  Redeem your code
-                </Button>
-              </Link>
-              <Link to="/auth?mode=signup">
-                <Button variant="outline" className="text-base px-6 h-11 border-amber-400/40 text-amber-100">
-                  Start onboarding
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-          </section>
-
           <section className="mt-12 rounded-2xl border border-amber-400/30 bg-gradient-to-br from-zinc-900 to-zinc-950 p-8 md:p-10 text-center shadow-[0_0_48px_rgba(245,158,11,0.12)]">
             <h2 className="text-3xl font-semibold text-zinc-50">Keep the next proposal and CV on your account.</h2>
             <p className="mt-3 mx-auto max-w-2xl text-base leading-relaxed text-zinc-300">
-              Create a free account to claim your proposal and CV credits, or redeem an AppSumo code if you already have one.
+              Create a free account to claim your proposal and CV credits, then upgrade on Polar when you are ready.
             </p>
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link to="/auth?mode=signup">
@@ -710,10 +657,10 @@ const DemoPage = () => {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
-              <Link to="/redeem">
+              <Link to="/pricing">
                 <Button variant="outline" className="text-base px-6 h-11 border-amber-400/40 text-amber-100">
-                  <Ticket className="w-4 h-4 mr-2" />
-                  Redeem AppSumo code
+                  View plans
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             </div>

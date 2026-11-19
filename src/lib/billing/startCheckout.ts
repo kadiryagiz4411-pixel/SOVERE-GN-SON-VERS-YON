@@ -1,8 +1,7 @@
 /**
- * Ask the server to mint a Lemon Squeezy hosted checkout that carries user_id.
+ * Ask the server to mint a Polar hosted checkout that carries user_id.
  */
 export async function createHostedCheckout(opts: {
-  variantId?: string | null;
   userId?: string | null;
   email?: string | null;
   planId?: string;
@@ -21,7 +20,6 @@ export async function createHostedCheckout(opts: {
       headers,
       signal: controller.signal,
       body: JSON.stringify({
-        variantId: opts.variantId || undefined,
         userId: opts.userId || undefined,
         email: opts.email || undefined,
         userEmail: opts.email || undefined,
@@ -31,11 +29,12 @@ export async function createHostedCheckout(opts: {
       }),
     });
 
-    const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
-    if (!res.ok || !data.checkoutUrl) {
+    const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; url?: string; error?: string };
+    const checkoutUrl = data.checkoutUrl || data.url;
+    if (!res.ok || !checkoutUrl) {
       throw new Error(data.error || 'Could not create checkout');
     }
-    return data.checkoutUrl;
+    return checkoutUrl;
   } finally {
     clearTimeout(timer);
   }

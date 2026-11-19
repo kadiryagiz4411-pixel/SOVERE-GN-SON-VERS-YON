@@ -198,7 +198,7 @@ function canUseDeepMatch() {
   return settings.b2bAccess === true || settings.workspace === 'dual' || settings.workspace === 'b2b';
 }
 
-const APPSUMO_ZERO_MESSAGE = 'Monthly AppSumo credits reached. Credits will automatically refresh next month or upgrade your AppSumo Tier for more credits.';
+const APPSUMO_ZERO_MESSAGE = 'Monthly credits reached. Credits refresh next month, or upgrade for more.';
 
 function hidePaywall() {
   document.getElementById('paywall')?.classList.remove('on');
@@ -217,10 +217,10 @@ function showPaywall(kind) {
   const body = document.getElementById('paywallBody');
   const cta = document.getElementById('paywallCta');
   if (kind === 'appsumo') {
-    if (title) title.textContent = 'Monthly AppSumo credits reached';
+    if (title) title.textContent = 'Monthly credits reached';
     if (body) body.textContent = APPSUMO_ZERO_MESSAGE;
     if (cta) {
-      cta.textContent = 'Upgrade AppSumo Tier';
+      cta.textContent = 'Upgrade plan';
       cta.href = 'https://sovereignapp.pro/pricing#appsumo';
     }
   } else if (kind === 'renew') {
@@ -347,8 +347,8 @@ function applyCreditBadge() {
     const tier = appsumoTier();
     const label = tier >= 3 ? 'T3' : tier === 2 ? 'T2' : tier === 1 ? 'T1' : '';
     el.textContent = remaining <= 0
-      ? (label ? `AppSumo ${label} · resets next month` : 'Credits reset next month')
-      : (limit > 0 ? `AppSumo ${label} ${remaining}/${limit}`.replace('  ', ' ') : `AppSumo credits ${remaining}`);
+      ? (label ? `${label} · resets next month` : 'Credits reset next month')
+      : (limit > 0 ? `${label} ${remaining}/${limit}`.replace('  ', ' ') : `Credits ${remaining}`);
     return;
   }
   el.textContent = limit > 0 ? `Credits ${remaining}/${limit}` : `Credits ${remaining}`;
@@ -1876,9 +1876,9 @@ function applyMembership(plan) {
   document.getElementById('planLtd')?.classList.toggle('on', next === 'appsumo');
   if (planStatus) {
     planStatus.textContent = next === 'pro'
-      ? 'Membership: Pro SaaS (LemonSqueezy).'
+      ? 'Membership: Pro subscription.'
       : next === 'appsumo'
-        ? 'Membership: AppSumo lifetime deal.'
+        ? 'Membership: lifetime plan.'
         : 'Membership: not set on this device.';
   }
 }
